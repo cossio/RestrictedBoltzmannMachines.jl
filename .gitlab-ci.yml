@@ -1,0 +1,17 @@
+image: julia:1.3  # image comes from Docker hub
+
+# before_script:
+#   - apt-get update -qq && apt-get install -y git # needed by Documenter
+#   - julia build_script.jl              # make sure package is available
+
+before_script:
+
+default:
+  script:
+    # dependencies
+
+    # install and test
+    - julia -e "using Pkg; Pkg.develop(Pkg.PackageSpec(; path=pwd(), name=\"RestrictedBoltzmannMachines\"))"
+    - julia -e "import Pkg; Pkg.test(\"RestrictedBoltzmannMachines\"; coverage = true)"
+
+    #- julia coverage_script.jl
