@@ -1,0 +1,120 @@
+export ReLU
+
+struct ReLU{T,N} <: AbstractLayer{T,N}
+    θ::Array{T,N}
+    γ::Array{T,N}
+    function ReLU{T,N}(θ::Array{T,N}, γ::Array{T,N}) where {T,N}
+        size(θ) == size(γ) || pardimserror()
+        new{T,N}(θ, γ)
+    end
+end
+ReLU(θ::Array{T,N}, γ::Array{T,N}) where {T,N} = ReLU{T,N}(θ, γ)
+ReLU{T}(n::Int...) where {T} = ReLU(zeros(T, n...), ones(T, n...))
+ReLU(n::Int...) = ReLU{Float64}(n...)
+ReLU(layer::Gaussian) = ReLU(layer.θ, layer.γ)
+ReLU{T,N}(layer::Gaussian{T,N}) where {T,N} = ReLU(layer)
+Gaussian(layer::ReLU) = Gaussian(layer.θ, layer.γ)
+Gaussian{T,N}(layer::ReLU{T,N}) where {T,N} = Gaussian(layer.θ, layer.γ)
+fields(layer::ReLU) = (layer.θ, layer.γ)
+Flux.@functor ReLU
+
+function _energy(layer::ReLU, x::AbstractArray)
+    E = _energy(Gaussian(layer), x)
+    return @. ifelse(x < 0, inf(E), E)
+end
+
+_cgf(layer::ReLU) = relu_cgf.(layer.θ, layer.γ)
+_random(layer::ReLU) = relu_rand.(layer.θ, layer.γ)
+
+function _transfer_mode(layer::ReLU)
+    x = _transfer_mode(Gaussian(layer))
+    return @. max(x, zero(x))
+end
+
+effective_β(layer::ReLU, β) = ReLU(effective_β(Gaussian(layer), β))
+effective_I(layer::ReLU, I) = ReLU(effective_I(Gaussian(layer), I))
+relu_cgf(θ::Real, γ::Real) = logerfcx(-θ/√(2abs(γ))) - log(2abs(γ)/π)/2
+
+function ∇relu_cgf(θ::Numeric, γ::Numeric)
+    all(γ .> 0) || throw(ArgumentError("All γ must be positive"))
+    Γ = @. relu_cgf(θ, γ)
+    Zinv = @. exp(-Γ)
+    dθ = @. (θ + Zinv) / γ
+    dγ = @. -inv(2γ) - θ / (2γ^2) * (θ + Zinv)
+    return Γ, dθ, dγ
+end
+@adjoint function relu_cgf(θ::Real, γ::Real)
+    z, dθ, dγ = ∇relu_cgf(θ, γ)
+    return z, Δ -> (Δ * dθ, Δ * dγ)
+end
+@adjoint function broadcasted(::typeof(relu_cgf), θ::Numeric, γ::Numeric)
+    z, dθ, dγ = ∇relu_cgf(θ, γ)
+    return z, Δ -> (nothing, Δ .* dθ, Δ .* dγ)
+end
+
+function relu_rand(θ::Real, γ::Real)
+    γ = abs(γ)
+    μ = θ / γ
+    σ = √inv(γ)
+    return randnt_half(μ, σ)
+end
+function ∇relu_rand(θ::Numeric, γ::Numeric) # ∇(survival) / pdf (implicit grads for ReLU samples)
+    μ = @. θ / γ
+    σ = @. inv(√γ)
+    z, dμ, dσ = ∇randnt_half(μ, σ)
+    dθ = @. dμ / γ
+    dγ = @. -μ / γ * dμ - σ / (2γ) * dσ
+    return z, dθ, dγ
+end
+@adjoint function relu_rand(θ::Real, γ::Real)
+    z, dθ, dγ = ∇relu_rand(θ, γ)
+    return z, Δ -> (Δ * dθ, Δ * dγ)
+end
+@adjoint function broadcasted(::typeof(relu_rand), θ::Numeric, γ::Numeric)
+    z, dθ, dγ = ∇relu_rand(θ, γ)
+    return z, Δ -> (nothing, Δ .* dθ, Δ .* dγ)
+end
+
+"""
+    relu_mills(θ, γ, x)
+
+Returns the Mills ratio for the unit.
+The Mills ratio is defined as (1 - CDF(x)) / PDF(x).
+"""
+function relu_mills(θ::Real, γ::Real, x::Real)
+    γ = abs(γ)
+    return √(π/(2γ)) * erfcx(-(θ - x * γ) / √(2γ))
+end
+
+relu_survival(θ::Real, γ::Real, x::Real) =
+    erfc(-(θ - x * abs(γ)) / √(2abs(γ))) / erfc(-θ / √(2abs(γ)))
+relu_logsurvival(θ::Real, γ::Real, x::Real) =
+    logerfc(-(θ - x * abs(γ)) / √(2abs(γ))) - logerfc(-θ / √(2abs(γ)))
+relu_pdf(θ::Real, γ::Real, x::Real) = exp(relu_logpdf(θ, γ, x))
+function relu_logpdf(θ::Real, γ::Real, x::Real)
+    result = -(abs(γ) * x/2 - θ) * x - relu_cgf(θ, γ)
+    return ifelse(x < 0, -inf(result), result)
+end
+
+function _transfer_mean(layer::ReLU)
+    g = Gaussian(layer)
+    μ = _transfer_mean(g)
+    σ = _transfer_std(g)
+    @. μ + σ * tnmean(-μ/σ)
+end
+
+function _transfer_std(layer::ReLU)
+    g = Gaussian(layer)
+    μ = _transfer_mean(g)
+    σ = _transfer_std(g)
+    return @. σ * tnstd(-μ/σ)
+end
+
+function _transfer_var(layer::ReLU)
+    g = Gaussian(layer)
+    μ = _transfer_mean(g)
+    σ = _transfer_std(g)
+    return @. σ^2 * tnvar(-μ/σ)
+end
+
+_transfer_mean_abs(layer::ReLU) = _transfer_mean(layer)
