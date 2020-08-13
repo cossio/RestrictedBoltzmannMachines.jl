@@ -26,7 +26,7 @@ function init!(layer::Potts, data::AbstractArray; eps=1e-6)
     μ = meandrop(data; dims=bdims)
     clamp!(μ, eps, 1 - eps)
     layer.θ .= log.(μ)
-    zerosum!(layer.θ; dims=1)
+    layer.θ .-= mean(layer.θ; dims=1) # zerosum
     return layer
 end
 
@@ -75,7 +75,8 @@ All patterns are of norm 1.
 function init_weights!(rbm::RBM)
     randn!(rbm.weights)
     if rbm.vis isa Potts
-        zerosum!(rbm.weights; dims=1)
+        # zerosum
+        rbm.weights .-= mean(rbm.weights; dims=1)
     end
     rescale!(rbm.weights; dims=vdims(rbm))
     return rbm

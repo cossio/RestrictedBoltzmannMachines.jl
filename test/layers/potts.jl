@@ -78,8 +78,7 @@ I = randn(size(layer))
 @test size(random(layer, I, β)) == size(I)
 avg = zeros(size(I))
 for _ = 1:10^4
-    x = random(layer, I, β)
-    avg .+= x ./ 10^4
+    avg .+= random(layer, I, β) ./ 10^4
 end
 p = NNlib.softmax(β .* (layer.θ .+ I); dims=1)
 @test p ≈ avg atol=0.1
