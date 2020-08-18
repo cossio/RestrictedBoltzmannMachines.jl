@@ -43,6 +43,7 @@ sample = random(layer, zeros(size(layer)..., 10000))
     @test central_fdm(5,1)(ϵ -> testfun(θ + ϵ * pθ, γ + ϵ * pγ), 0) ≈ sum(dθ .* pθ) + sum(dγ .* pγ)
 
     # energy without batch dimensions
+    Random.seed!(2)
     θ = randn(4,5,6)
     γ = randn(4,5,6)
     x = rand(Bool, 4,5,6)
