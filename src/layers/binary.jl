@@ -10,7 +10,6 @@ Flux.@functor Binary
 effective_β(layer::Binary, β) = Binary(β .* layer.θ)
 effective_I(layer::Binary, I) = Binary(layer.θ .+ I)
 _transfer_mode(layer::Binary) = eltype(layer.θ).(layer.θ .> 0)
-_cgf(layer::Binary) = log1pexp.(layer.θ)
 _transfer_mean(layer::Binary) = sigmoid.(layer.θ)
 _transfer_mean_abs(layer::Binary) = _transfer_mean(layer)
 
@@ -30,8 +29,7 @@ function _transfer_var(layer::Binary)
     return @. t * inv(one(t) + t)^2
 end
 
-#= gradients =#
-
+_cgf(layer::Binary) = log1pexp.(layer.θ)
 @adjoint function _cgf(layer::Binary)
     ∂θ = sigmoid.(layer.θ)
     return _cgf(layer), Δ -> ((; θ = ∂θ .* Δ),)
