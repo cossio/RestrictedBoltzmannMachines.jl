@@ -6,7 +6,7 @@ using RestrictedBoltzmannMachines: sumdrop, sumdropfirst, meandrop, wmean,
     tail2, front2, allequal,
     odditems, evenitems, oddargs, evenargs, interleave, erfx, tuplejoin,
     inf, nan, _fieldnames, tuplesub, staticgetindex, tuplefill, Δ2, two,
-    unzip, log1msoftmax, seqgen
+    unzip, log1msoftmax, seqgen, scalarize
 
 @testset "two" begin
     @test two(1) === two(Int) === 2
@@ -151,4 +151,10 @@ end
              [1, 3], [2, 3], [3, 3]
            ],
          3,3)
+end
+
+@testset "scalarize" begin
+    A = randn(4,4)
+    @test scalarize(A) == A
+    @test scalarize(zeros()) == 0.0
 end

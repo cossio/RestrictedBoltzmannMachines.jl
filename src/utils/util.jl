@@ -333,7 +333,7 @@ combine(op, nt::NamedTuple{K,V}...) where {K,V} =
 
 function sigmoid(x::Real)
     t = exp(-abs(x))
-    return ifelse(x ≥ 0, inv(one(t) + t), t / (one(t) + t))
+    ifelse(x ≥ 0, inv(one(t) + t), t / (one(t) + t))
 end
 
 """
@@ -343,3 +343,11 @@ Generate all sequences of length `n` out of the alphabet `A`.
 """
 seqgen(n::Int, A = 0:1) =
 	(collect(seq) for seq in Iterators.product(Iterators.repeated(A, n)...))
+
+"""
+    scalarize(A)
+
+Converts zero-dimensional arrays to scalars.
+"""
+scalarize(a::AbstractArray{T,0}) where {T} = first(a)
+scalarize(a::AbstractArray{T,N}) where {T,N} = a

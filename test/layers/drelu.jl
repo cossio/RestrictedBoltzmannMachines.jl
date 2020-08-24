@@ -1,10 +1,12 @@
 using Test, Statistics, Random, LinearAlgebra
-using Zygote, SpecialFunctions, Flux, Distributions, FiniteDifferences, Juno
+using Zygote, SpecialFunctions, Flux, Distributions, FiniteDifferences, ProgressMeter
 using RestrictedBoltzmannMachines
 using Flux: params
 using Base: front, tail
 using RestrictedBoltzmannMachines: ∇relu_rand, ∇relu_cgf, ∇drelu_rand, mills,
     drelu_rand, drelu_survival, drelu_pdf
+
+include("../test_utils.jl")
 
 Random.seed!(569)
 
@@ -18,7 +20,7 @@ Random.seed!(569)
     @test transfer_var(layer) ≈ var(sample; dims=2) rtol=0.1
 end
 
-@testset "cgf" begin
+@testset "dReLU, cgf and moments" begin
     dθp, dθn, dγp, dγn = gradient(5.0, -2.0, 1.0, 3.0) do θp, θn, γp, γn
         cgf(dReLU([θp], [θn], [γp], [γn]))
     end
@@ -30,13 +32,15 @@ end
     @test -2dγn ≈ first(transfer_var(ReLU([2.0], [3.0]))) * pn + dθn^2 / pn
 end
 
-x, dθp_, dθn_, dγp_, dγn_ = ∇drelu_rand(θp, θn, γp, γn)
-dθp, dθn, dγp, dγn, dx = gradient(drelu_survival, θp, θn, γp, γn, x)
-@test drelu_pdf(θp, θn, γp, γn, x) ≈ -dx
-@test dθp_ ≈ -dθp / dx
-@test dθn_ ≈ -dθn / dx
-@test dγp_ ≈ -dγp / dx
-@test dγn_ ≈ -dγn / dx
+@testset "dReLU, survival" begin
+    x, dθp_, dθn_, dγp_, dγn_ = ∇drelu_rand(θp, θn, γp, γn)
+    dθp, dθn, dγp, dγn, dx = gradient(drelu_survival, θp, θn, γp, γn, x)
+    @test drelu_pdf(θp, θn, γp, γn, x) ≈ -dx
+    @test dθp_ ≈ -dθp / dx
+    @test dθn_ ≈ -dθn / dx
+    @test dγp_ ≈ -dγp / dx
+    @test dγn_ ≈ -dγn / dx
+end
 
 dθp, dθn, dγp, dγn  = gradient(θp, θn, γp, γn) do θp, θn, γp, γn
     mean(transfer_mean(dReLU([θp], [θn], [γp], [γn])))
@@ -104,6 +108,27 @@ sample = random(layer, zeros(size(layer)..., 100000))
 @test transfer_std(layer) ≈ std(sample; dims=3) rtol=0.01
 @test transfer_var(layer) ≈ var(sample; dims=3) rtol=0.01
 @test transfer_mean_abs(layer) ≈ mean(abs, sample; dims=3) rtol=0.01
+
+@testset "dReLU energy & cgf gradients" begin
+    θp, γp = randn(3,2), rand(3,2)
+    θn, γn = randn(3,2), rand(3,2)
+    # with batch dimensions
+    x = randn(3,2, 1,2)
+    (dI,) = gradient(I -> sum(cgf(dReLU(θp, θn, γp, γn), I)), x)
+    @test dI ≈ transfer_mean(dReLU(θp, θn, γp, γn), x)
+    gradtest((θp, θn, γp, γn) -> energy(dReLU(θp, θn, γp, γn), x), θp, θn, γp, γn)
+    #gradtest((θp, θn, γp, γn) -> cgf(dReLU(θp, θn, γp, γn), x), θp, θn, γp, γn)
+    gradtest(θp -> cgf(dReLU(θp, θn, γp, γn), x), θp)
+    gradtest(θn -> cgf(dReLU(θp, θn, γp, γn), x), θn)
+    gradtest(γp -> cgf(dReLU(θp, θn, γp, γn), x), γp)
+    gradtest(γn -> cgf(dReLU(θp, θn, γp, γn), x), γn)
+    # without batch dimensions
+    x = randn(3,2)
+    (dI,) = gradient(I -> cgf(dReLU(θp, θn, γp, γn), I), x)
+    @test dI ≈ transfer_mean(dReLU(θp, θn, γp, γn), x)
+    gradtest((θp, θn, γp, γn) -> energy(dReLU(θp, θn, γp, γn), x), θp, θn, γp, γn)
+    gradtest((θp, θn, γp, γn) -> cgf(dReLU(θp, θn, γp, γn), x), θp, θn, γp, γn)
+end
 
 @testset "dReLU prob pair" begin
     layer = dReLU([-3.0], [2.0], [2.0], [0.5])
@@ -184,11 +209,13 @@ end
 end
 
 @testset "dReLU cd training" begin
+    Random.seed!(3)
+
     teacher = RBM(Binary(7), dReLU(2));
     randn!(teacher.weights)
     teacher.weights .*= 5/sqrt(length(teacher.vis))
     v = zeros(size(teacher.vis)..., 3000)
-    Juno.@progress for t = 1:1000
+    @showprogress for t = 1:1000
         h = sample_h_from_v(teacher, v)
         v .= sample_v_from_h(teacher, h)
     end

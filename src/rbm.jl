@@ -56,7 +56,7 @@ Weight mediated interaction energy.
 """
 function interaction_energy(rbm::RBM, v::AbstractArray, h::AbstractArray)
     checkdims(rbm, v, h)
-    return -tensordot(v, rbm.weights, h)
+    -tensordot(v, rbm.weights, h)
 end
 
 """

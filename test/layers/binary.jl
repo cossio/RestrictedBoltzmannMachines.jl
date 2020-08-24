@@ -3,6 +3,8 @@ using NNlib, StatsFuns, Zygote, FiniteDifferences
 using RestrictedBoltzmannMachines, OneHot
 using RestrictedBoltzmannMachines: meandrop
 
+include("../test_utils.jl")
+
 Random.seed!(788)
 
 @testset "Binary energy gradients" begin
@@ -21,6 +23,23 @@ Random.seed!(788)
     (dθ,) = gradient(testfun, θ)
     p = randn(size(θ))
     @test central_fdm(5,1)(ϵ -> testfun(θ + ϵ * p), 0) ≈ sum(dθ .* p)
+end
+
+@testset "Binary energy & cgf gradients" begin
+    Random.seed!(1)
+    θ = randn(4,5,6)
+    # with batch dimensions
+    x = map(x -> x ≤ 0 ? 0 : 1, randn(4,5,6, 3,2))
+    (dI,) = gradient(I -> sum(cgf(Binary(θ), I)), x)
+    @test dI ≈ transfer_mean(Binary(θ), x)
+    gradtest(θ -> energy(Binary(θ), x), θ)
+    gradtest(θ -> cgf(Binary(θ), x), θ)
+    # without batch dimensions
+    x = randn(4,5,6)
+    (dI,) = gradient(I -> sum(cgf(Binary(θ), I)), x)
+    @test dI ≈ transfer_mean(Binary(θ), x)
+    gradtest(θ -> energy(Binary(θ), x), θ)
+    gradtest(θ -> cgf(Binary(θ), x), θ)
 end
 
 layer = Binary(randn(10,5))

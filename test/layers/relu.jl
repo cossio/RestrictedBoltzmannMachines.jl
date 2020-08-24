@@ -1,16 +1,19 @@
 using Test, Statistics, Random, LinearAlgebra
-using Zygote, SpecialFunctions, Flux, Distributions, FiniteDifferences, Juno
+using Zygote, SpecialFunctions, Flux, Distributions, FiniteDifferences, ProgressMeter
 using Base: front, tail
 using Flux: params
 using RestrictedBoltzmannMachines
 using RestrictedBoltzmannMachines: ∇relu_rand, ∇relu_cgf, ∇drelu_rand,
-    relu_pdf, relu_cgf, relu_survival
+    relu_pdf, relu_cgf, exp_relu_cgf, relu_survival
+
+include("../test_utils.jl")
 
 Random.seed!(569)
 
 #= ReLU tests =#
 
 (θ, γ) = (randn(), rand())
+@test exp_relu_cgf(θ, γ) ≈ exp(relu_cgf(θ, γ))
 dθ, dγ = gradient(relu_cgf, θ, γ)
 Γ_, dθ_, dγ_ = ∇relu_cgf(θ, γ)
 @test Γ_ ≈ relu_cgf(θ, γ)
@@ -61,6 +64,35 @@ sample = random(layer, zeros(size(layer)..., 10^6))
 @test transfer_mean_abs(layer) ≈ mean(abs, sample; dims=3) rtol=0.05
 sample = nothing
 
+@testset "relu_cgf" begin
+    for _ = 1:10
+        # scalar version
+        gradtest(relu_cgf, randn(), rand()) # scalar version
+        # broadcasted version
+        gradtest((θ, γ) -> relu_cgf.(θ, γ), randn(3,4), rand(3,4)) # broadcasted
+    end
+end
+
+@testset "ReLU energy & cgf gradients" begin
+    for _ = 1:10
+        θ, γ = randn(2,3), rand(2,3)
+        # with batch dimensions
+        x = rand(2,3, 1,2)
+        I = randn(2,3, 1,2)
+        gradtest((θ, γ) -> energy(ReLU(θ, γ), x), θ, γ)
+        gradtest((θ, γ) -> cgf(ReLU(θ, γ), I), θ, γ)
+        (dI,) = gradient(I -> sum(cgf(ReLU(θ, γ), I)), I)
+        @test dI ≈ transfer_mean(ReLU(θ, γ), I)
+        # without batch dimensions
+        x = rand(2,3)
+        I = randn(2,3)
+        gradtest((θ, γ) -> energy(ReLU(θ, γ), x), θ, γ)
+        gradtest((θ, γ) -> cgf(ReLU(θ, γ), x), θ, γ)
+        (dI,) = gradient(I -> cgf(ReLU(θ, γ), I), I)
+        @test dI ≈ transfer_mean(ReLU(θ, γ), I)
+    end
+end
+
 @testset "ReLU random gradient" begin
     layer = ReLU(randn(2,2), rand(2,2))
     ps = Flux.params(layer)
@@ -109,7 +141,7 @@ end
     randn!(teacher.weights)
     teacher.weights .*= 5/sqrt(length(teacher.vis))
     v = zeros(size(teacher.vis)..., 1000)
-    Juno.@progress for t = 1:1000
+    @showprogress for t = 1:1000
         h = sample_h_from_v(teacher, v)
         v .= sample_v_from_h(teacher, h)
     end

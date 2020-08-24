@@ -13,7 +13,7 @@ Gaussian{T}(n::Int...) where {T} = Gaussian(zeros(T, n...), ones(T, n...))
 Gaussian(n::Int...) = Gaussian{Float64}(n...)
 fields(layer::Gaussian) = (layer.θ, layer.γ)
 Flux.@functor Gaussian
-_energy(layer::Gaussian, x::AbstractArray) = @. (abs(layer.γ) * x/2 - layer.θ) * x
+__energy(layer::Gaussian, x::AbstractArray) = @. (abs(layer.γ) * x/2 - layer.θ) * x
 _cgf(layer::Gaussian) = @. layer.θ^2 / abs(layer.γ) / 2 - log(abs(layer.γ)/π/2)/2
 _random(layer::Gaussian) =
     randn_like(layer.θ) ./ sqrt.(abs.(layer.γ)) .+ layer.θ ./ abs.(layer.γ)
@@ -32,13 +32,11 @@ end
 
 #= gradients =#
 
-@adjoint function _energy(layer::Gaussian, x::AbstractArray)
+@adjoint function __energy(layer::Gaussian, x::AbstractArray)
     ∂θ = -x
     ∂γ = @. sign(layer.γ) * x^2/2
-    function back(Δ)
-        ((θ = ∂θ .* Δ, γ = ∂γ .* Δ), nothing)
-    end
-    return _energy(layer, x), back
+    back(Δ) = ((θ = ∂θ .* Δ, γ = ∂γ .* Δ), nothing)
+    return __energy(layer, x), back
 end
 
 @adjoint function _cgf(layer::Gaussian)

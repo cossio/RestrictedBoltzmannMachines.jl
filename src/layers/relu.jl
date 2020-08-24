@@ -18,8 +18,8 @@ Gaussian{T,N}(layer::ReLU{T,N}) where {T,N} = Gaussian(layer.θ, layer.γ)
 fields(layer::ReLU) = (layer.θ, layer.γ)
 Flux.@functor ReLU
 
-function _energy(layer::ReLU, x::AbstractArray)
-    E = _energy(Gaussian(layer), x)
+function __energy(layer::ReLU, x::AbstractArray)
+    E = __energy(Gaussian(layer), x)
     return @. ifelse(x < 0, inf(E), E)
 end
 
@@ -34,13 +34,13 @@ end
 effective_β(layer::ReLU, β) = ReLU(effective_β(Gaussian(layer), β))
 effective_I(layer::ReLU, I) = ReLU(effective_I(Gaussian(layer), I))
 relu_cgf(θ::Real, γ::Real) = logerfcx(-θ/√(2abs(γ))) - log(2abs(γ)/π)/2
+exp_relu_cgf(θ::Real, γ::Real) = erfcx(-θ/√(2abs(γ))) / sqrt(2abs(γ)/π)
 
 function ∇relu_cgf(θ::Numeric, γ::Numeric)
     all(γ .> 0) || throw(ArgumentError("All γ must be positive"))
     Γ = @. relu_cgf(θ, γ)
-    Zinv = @. exp(-Γ)
-    dθ = @. (θ + Zinv) / γ
-    dγ = @. -inv(2γ) - θ / (2γ^2) * (θ + Zinv)
+    dθ = @. (θ + inv(exp_relu_cgf(θ, γ))) / γ
+    dγ = @. -(one(θ) + θ * dθ) / (2γ)
     return Γ, dθ, dγ
 end
 @adjoint function relu_cgf(θ::Real, γ::Real)

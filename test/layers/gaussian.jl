@@ -3,6 +3,9 @@ using Zygote, Flux, SpecialFunctions, FiniteDifferences
 using RestrictedBoltzmannMachines
 using Base: front, tail
 using RestrictedBoltzmannMachines
+using RestrictedBoltzmannMachines: randn_like
+
+include("../test_utils.jl")
 
 Random.seed!(569)
 
@@ -30,30 +33,20 @@ sample = random(layer, zeros(size(layer)..., 10000))
 @test transfer_mean_abs(layer) ≈ mean(abs, sample; dims=3) rtol=0.1
 
 @testset "Gaussian energy & cgf gradients" begin
+    θ, γ = randn(2,3), rand(2,3)
     # with batch dimensions
-    θ = randn(4,5,6)
-    γ = randn(4,5,6)
-    x = rand(Bool, 4,5,6, 3,2)
-    pθ, pγ = randn(size(θ)), randn(size(γ))
-    testfun(θ, γ) = sum(sin.(energy(Gaussian(θ, γ), x)))
-    dθ, dγ = gradient(testfun, θ, γ)
-    @test central_fdm(5,1)(ϵ -> testfun(θ + ϵ * pθ, γ + ϵ * pγ), 0) ≈ sum(dθ .* pθ) + sum(dγ .* pγ)
-    testfun(θ, γ) = sum(sin.(cgf(Gaussian(θ, γ), x)))
-    dθ, dγ = gradient(testfun, θ, γ)
-    @test central_fdm(5,1)(ϵ -> testfun(θ + ϵ * pθ, γ + ϵ * pγ), 0) ≈ sum(dθ .* pθ) + sum(dγ .* pγ)
-
-    # energy without batch dimensions
-    Random.seed!(2)
-    θ = randn(4,5,6)
-    γ = randn(4,5,6)
-    x = rand(Bool, 4,5,6)
-    pθ, pγ = randn(size(θ)), randn(size(γ))
-    testfun(θ, γ) = sum(sin.(energy(Gaussian(θ, γ), x)))
-    dθ, dγ = gradient(testfun, θ, γ)
-    @test central_fdm(5,1)(ϵ -> testfun(θ + ϵ * pθ, γ + ϵ * pγ), 0) ≈ sum(dθ .* pθ) + sum(dγ .* pγ)
-    testfun(θ, γ) = sum(sin.(cgf(Gaussian(θ, γ), x)))
-    dθ, dγ = gradient(testfun, θ, γ)
-    @test central_fdm(5,1)(ϵ -> testfun(θ + ϵ * pθ, γ + ϵ * pγ), 0) ≈ sum(dθ .* pθ) + sum(dγ .* pγ)
+    x = rand(2,3, 1,2)
+    (dI,) = gradient(I -> sum(cgf(Gaussian(θ, γ), I)), x)
+    @test dI ≈ transfer_mean(Gaussian(θ, γ), x)
+    gradtest((θ, γ) -> energy(Gaussian(θ, γ), x), θ, γ)
+    gradtest((θ, γ) -> cgf(Gaussian(θ, γ), x), θ, γ)
+    
+    # without batch dimensions
+    x = randn(2,3)
+    (dI,) = gradient(I -> cgf(Gaussian(θ, γ), I), x)
+    @test dI ≈ transfer_mean(Gaussian(θ, γ), x)
+    gradtest((θ, γ) -> energy(Gaussian(θ, γ), x), θ, γ)
+    gradtest((θ, γ) -> cgf(Gaussian(θ, γ), x), θ, γ)
 end
 
 @testset "Gaussian random gradient" begin

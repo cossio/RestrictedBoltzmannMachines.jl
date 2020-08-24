@@ -29,7 +29,7 @@ end
 
 x = ntuple(l -> rand(Bool, n[l]..., B), length(dbm))
 @test size(energy(dbm, x)) == (B,)
-energy(dbm, x) ≈ sum(energy.(rbms, front(x), tail(x)))
+@test energy(dbm, x) ≈ sum(energy.(rbms, front(x), tail(x))) - sum(front(tail(energy.(dbm.layers, x))))
 @inferred energy(dbm, x)
 
 I1 = inputs_even_to_odd(dbm::DBM, x::Tuple)
@@ -50,8 +50,8 @@ for l = 2:length(dbm)-1
 end
 @test I[end] ≈ inputs_v_to_h(rbms[end], x[end-1])
 
-@inferred inputs_even_to_odd(dbm::DBM, x::Tuple)
-@inferred inputs_odd_to_even(dbm::DBM, x::Tuple)
+@inferred inputs_even_to_odd(dbm, x)
+@inferred inputs_odd_to_even(dbm, x)
 
 x1 = sample_even_from_odd(dbm, x)
 @test size.(x1) == size.(x)

@@ -18,8 +18,7 @@ Potts{T}(n::Int...) where {T} = Potts(zeros(T, n...))
 Potts(n::Int...) = Potts{Float64}(n...)
 fields(layer::Potts) = (layer.θ,)
 Flux.@functor Potts
-Base.getproperty(layer::Potts, name::Symbol) =
-    name == :q ? size(layer, 1) : getfield(layer, name)
+Base.getproperty(layer::Potts, name::Symbol) = name == :q ? size(layer, 1) : getfield(layer, name)
 Base.propertynames(::Potts) = (:q, fieldnames(Potts)...)
 effective_β(layer::Potts, β) = Potts(β .* layer.θ)
 effective_I(layer::Potts, I) = Potts(layer.θ .+ I)
@@ -29,32 +28,23 @@ siteindices(layer::Potts) = CartesianIndices(OneTo.(sitesize(layer)))
 _cgf(layer::Potts) = logsumexp(layer.θ; dims=1)
 _transfer_mean(layer::Potts) = OneHot.softmax(layer.θ)
 _transfer_mean_abs(layer::Potts) = _transfer_mean(layer)
-
-function energy(layer::Union{Binary,Potts,Spin}, x::AbstractArray)
-    checkdims(layer, x)
-    E = _binary_energy(layer.θ, x, Val(ndims(layer)))
-    return E ./ 1 # convert zero-dim array to number
-end
-
-function _random(layer::Potts{T}) where {T}
-    X = OneHot.sample_from_logits(layer.θ)
-    return T.(X)
-end
+_random(layer::Potts{T}) where {T} = T.(OneHot.sample_from_logits(layer.θ))
 
 function _transfer_mode(layer::Potts{T}) where {T}
     classes = OneHot.classify(layer.θ)
-    X = OneHot.encode(classes)
-    return T.(X)
+    T.(OneHot.encode(classes))
 end
 
-#= gradients =#
+BooleanLayers{T,N} = Union{Binary{T,N}, Potts{T,N}, Spin{T,N}}
 
-_binary_energy(θ, x, ::Val{dims}) where {dims} = -tensormul_ff(θ, x, Val(dims))
-@adjoint function _binary_energy(θ, x, ::Val{dims}) where {dims}
-    function back(Δ::AbstractArray)
-        ∂θ = -tensormul_fl(Δ, x, Val(ndims(x) - dims))
-        (∂θ, nothing, nothing)
-    end
+function _energy(layer::BooleanLayers{T,N}, x::AbstractArray) where {T,N}
+    checkdims(layer, x)
+    _binary_energy(layer.θ, x, Val(N))
+end
+
+_binary_energy(θ::AbstractArray, x::AbstractArray, ::Val{dims}) where {dims} = -tensormul_ff(θ, x, Val(dims))
+@adjoint function _binary_energy(θ::AbstractArray, x::AbstractArray, ::Val{dims}) where {dims}
+    back(Δ::AbstractArray) = (-tensormul_fl(Δ, x, Val(ndims(x) - dims)), nothing, nothing)
     back(Δ::Number) = (-Δ .* x, nothing, nothing)
     return _binary_energy(θ, x, Val(dims)), back
 end

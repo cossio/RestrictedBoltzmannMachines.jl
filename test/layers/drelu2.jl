@@ -1,6 +1,5 @@
 using Test, Statistics, Random, LinearAlgebra
-using Zygote, SpecialFunctions, Flux, Distributions, FiniteDifferences, Juno,
-    ValueHistories
+using Zygote, SpecialFunctions, Flux, Distributions, FiniteDifferences, ValueHistories, ProgressMeter
 using RestrictedBoltzmannMachines
 using Flux: params
 using Base: front, tail
@@ -67,7 +66,7 @@ end
     randn!(teacher.weights)
     teacher.weights .*= 2/sqrt(length(teacher.vis))
     v = zeros(size(teacher.vis)..., 10000)
-    Juno.@progress for t = 1:20
+    @showprogress for t = 1:20
         v .= sample_v_from_v(teacher, v)
     end
 

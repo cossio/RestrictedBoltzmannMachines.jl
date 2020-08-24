@@ -21,19 +21,19 @@ end
 function Base.size(layer::AbstractLayer, dim::Int)
     allequal(size.(fields(layer))...) ||
         throw(DimensionMismatch("Inconsistent parameter sizes"))
-    return size(first(fields(layer)), dim)
+    size(first(fields(layer)), dim)
 end
 
 function Base.size(layer::AbstractLayer)
     allequal(size.(fields(layer))...) ||
         throw(DimensionMismatch("Inconsistent parameter sizes"))
-    return size(first(fields(layer)))
+    size(first(fields(layer)))
 end
 
 function Base.length(layer::AbstractLayer)
     allequal(size.(fields(layer))...) ||
         throw(DimensionMismatch("Inconsistent parameter sizes"))
-    return length(first(fields(layer)))
+    length(first(fields(layer)))
 end
 
 dimserror() = throw(DimensionMismatch("Inconsistent dimensions"))
@@ -45,7 +45,7 @@ pardimserror() = throw(DimensionMismatch("Inconsistent parameter sizes"))
 Returns the batch sizes of the configurations in `x`, as implied by
 the dimensions of `layer`.
 """
-@generated batchsize(layer::AbstractLayer{T,N}, x::AbstractArray) where {N,T} =
+@generated batchsize(::AbstractLayer{T,N}, x::AbstractArray) where {N,T} =
     Expr(:tuple, (:(size(x, $d)) for d in N + 1 : ndims(x))...)
 
 """
@@ -54,7 +54,7 @@ the dimensions of `layer`.
 Returns a tuple of the batch dimensions, statically determined from the types
 of `layer` and `x`.
 """
-@generated batchdims(layer::AbstractLayer{T,N}, x::AbstractArray) where {T,N} =
+@generated batchdims(::AbstractLayer{T,N}, x::AbstractArray) where {T,N} =
     Tuple(N + 1 : ndims(x))
 
 """
@@ -62,7 +62,7 @@ of `layer` and `x`.
 
 Statically determine the number of batch dimensions in `x`.
 """
-@generated batchndims(layer::AbstractLayer{T,N}, x::AbstractArray) where {T,N} =
+@generated batchndims(::AbstractLayer{T,N}, x::AbstractArray) where {T,N} =
     ndims(x) - N
 
 """
@@ -70,7 +70,7 @@ Statically determine the number of batch dimensions in `x`.
 
 Returns a tuple of the site dimensions of layer, statically.
 """
-@generated sitedims(layer::AbstractLayer{T,N}) where {T,N} = Tuple(1:N)
+@generated sitedims(::AbstractLayer{T,N}) where {T,N} = Tuple(1:N)
 siteindices(layer::AbstractLayer) = CartesianIndices(first(fields(layer)))
 sitesize(layer::AbstractLayer) = size(layer)
 
@@ -85,15 +85,21 @@ function batchindices(layer::AbstractLayer, x::AbstractArray)
     CartesianIndices(OneTo.(bsize))
 end
 
+#= We have three energy functions: energy, _energy, and __energy.
+__energy returns an array of energies for each unit in each batch.
+_energy reduces across the layer and returns an array of layer energies for each batch.
+energy also takes care of converting zero-dimensional arrays to scalars
+(for the single-batch case). =#
+
 """
     energy(layer, x)
 
 Energy of `layer` in configuration `x`.
 """
-function energy(layer::AbstractLayer{T,N}, x) where {T,N}
+energy(layer::AbstractLayer, x::AbstractArray) = scalarize(_energy(layer, x))
+function _energy(layer::AbstractLayer{T,N}, x::AbstractArray) where {T,N}
     checkdims(layer, x)
-    E = _energy(layer, x)
-    return sumdropfirst(E, Val(N)) ./ 1 # convert zero-dim array to number
+    sumdropfirst(__energy(layer, x), Val(N))
 end
 
 """
@@ -103,9 +109,8 @@ Cumulative generating function of layer conditioned on
 input from other layer.
 """
 function cgf(layer::AbstractLayer{T,N}, I = 0, β = 1) where {T,N}
-    eff = effective(layer, I, β)
-    Γ = _cgf(eff)
-    return sumdropfirst(Γ, Val(N)) ./ β
+    Γ = _cgf(effective(layer, I, β))
+    scalarize(sumdropfirst(Γ, Val(N))) / β
 end
 
 """
@@ -113,68 +118,46 @@ end
 
 Sample a random layer configuration.
 """
-function random(layer::AbstractLayer, I = 0, β = 1)
-    eff = effective(layer, I, β)
-    return _random(eff)
-end
+random(layer::AbstractLayer, I = 0, β = 1) = _random(effective(layer, I, β))
 
 """
     transfer_mode(unit, I = 0)
 
 Most likely unit state conditional on input from other layer.
 """
-function transfer_mode(layer::AbstractLayer, I = 0, β = 1)
-    eff = effective(layer, I, β)
-    return _transfer_mode(eff)
-end
+transfer_mode(layer::AbstractLayer, I = 0, β = 1) = _transfer_mode(effective(layer, I, β))
 
 """
     transfer_mean(layer, I = 0, β = 1)
 
 Mean over the configurations of `layer`, <h | v>
 """
-function transfer_mean(layer::AbstractLayer, I = 0, β = 1)
-    eff = effective(layer, I, β)
-    return _transfer_mean(eff)
-end
+transfer_mean(layer::AbstractLayer, I = 0, β = 1) = _transfer_mean(effective(layer, I, β))
 
 """
     transfer_mean_abs(layer, I = 0, β = 1)
 
 Mean over the absolute values of the configurations of `layer`, <|h| | v>.
 """
-function transfer_mean_abs(layer::AbstractLayer, I = 0, β = 1)
-    eff = effective(layer, I, β)
-    return _transfer_mean_abs(eff)
-end
+transfer_mean_abs(layer::AbstractLayer, I = 0, β = 1) = _transfer_mean_abs(effective(layer, I, β))
 
 """
     transfer_std(layer, I = 0, β = 1)
 
 Standard deviation over the configurations of `layer`.
 """
-function transfer_std(layer::AbstractLayer, I = 0, β = 1)
-    eff = effective(layer, I, β)
-    return _transfer_std(eff)
-end
+transfer_std(layer::AbstractLayer, I = 0, β = 1) = _transfer_std(effective(layer, I, β))
 
 """
     transfer_var(layer, I = 0, β = 1)
 
 Variance over the configurations of `layer`.
 """
-function transfer_var(layer::AbstractLayer, I = 0, β = 1)
-    eff = effective(layer, I, β)
-    return _transfer_var(eff)
-end
+transfer_var(layer::AbstractLayer, I = 0, β = 1) = _transfer_var(effective(layer, I, β))
 
 """
     effective(layer, I = 0, β = 1)
 
 Effective unit given input from other layer and inverse temperature β.
 """
-function effective(layer::AbstractLayer, I = 0, β = 1)
-    eff1 = effective_I(layer, I)
-    eff2 = effective_β(eff1, β)
-    return eff2
-end
+effective(layer::AbstractLayer, I = 0, β = 1) = effective_β(effective_I(layer, I), β)

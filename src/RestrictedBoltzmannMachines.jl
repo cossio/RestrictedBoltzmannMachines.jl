@@ -1,8 +1,7 @@
 module RestrictedBoltzmannMachines
     using Random, Statistics, LinearAlgebra,
         StatsFuns, SpecialFunctions, Distributions,
-        Roots, ProgressMeter, Juno,
-        Zygote, Flux, ValueHistories
+        Roots, ProgressMeter, Zygote, Flux, ValueHistories
     using OneHot
     using Base.Broadcast: broadcasted
     using Base: tail, front, OneTo, @propagate_inbounds, @kwdef
@@ -37,6 +36,7 @@ module RestrictedBoltzmannMachines
     include("train/data.jl")
     include("train/cd.jl")
     include("train/regularize.jl")
+    include("train/gauge.jl")
     include("pseudolikelihood.jl")
     include("partition.jl")
 

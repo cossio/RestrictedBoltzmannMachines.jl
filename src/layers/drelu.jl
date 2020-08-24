@@ -31,12 +31,12 @@ function probs_pair(layer::dReLU)
     return pp, pn
 end
 
-function _energy(layer::dReLU, x::AbstractArray)
+function __energy(layer::dReLU, x::AbstractArray)
     checkdims(layer, x)
     xp = @. max( x, zero(x))
     xn = @. max(-x, zero(x))
     lp, ln = relus_pair(layer)
-    Ep, En = _energy(lp, xp), _energy(ln, xn)
+    Ep, En = __energy(lp, xp), __energy(ln, xn)
     return Ep .+ En
 end
 
@@ -46,7 +46,7 @@ _random(layer::dReLU) = drelu_rand.(layer.θp, layer.θn, layer.γp, layer.γn)
 function _transfer_mode(layer::dReLU)
     lp, ln = relus_pair(layer)
     xp, xn = _transfer_mode(lp), -_transfer_mode(ln)
-    Ep, En = _energy(lp, +xp), _energy(ln, -xn)
+    Ep, En = __energy(lp, +xp), __energy(ln, -xn)
     return @. ifelse(Ep ≤ En, xp, xn)
 end
 

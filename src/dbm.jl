@@ -40,18 +40,14 @@ Base.ndims(dbm::DBM, l::Int) = ndims(dbm.layers[l])
 
 RBM consisting of layers `l` and `l+1` from `dbm`.
 """
-function RBM(dbm::DBM, ::Val{l}) where {l}
-    RBM(dbm.layers[l], dbm.layers[l+1], dbm.weights[l])
-end
+RBM(dbm::DBM, ::Val{l}) where {l} = RBM(dbm.layers[l], dbm.layers[l+1], dbm.weights[l])
 
 """
     Tuple(dbm)
 
 Converts the DBM to a tuple of RBMs.
 """
-function Base.Tuple(dbm::DBM)
-    RBM.(front(dbm.layers), tail(dbm.layers), dbm.weights)
-end
+Base.Tuple(dbm::DBM) = RBM.(front(dbm.layers), tail(dbm.layers), dbm.weights)
 
 function checkdims(dbm::DBM, x::Tuple)
     length(dbm) == length(x) || dimserror()
@@ -66,8 +62,8 @@ Energy of the DBM in state `x`.
 """
 function energy(dbm::DBM, x::Tuple)
     checkdims(dbm, x)
-    Ex = sum(energy.(dbm.layers, x))
-    Ew = sum(interaction_energy.(Tuple(dbm), front(x), tail(x)))
+    Ex = sum(map(energy, dbm.layers, x))
+    Ew = sum(map(interaction_energy, Tuple(dbm), front(x), tail(x)))
     return Ex + Ew
 end
 

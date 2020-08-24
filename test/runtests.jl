@@ -1,4 +1,4 @@
-using SafeTestsets
+using SafeTestsets, Random, Test
 
 @time @safetestset "util" begin include("utils/util.jl") end
 @time @safetestset "tensor" begin include("utils/tensor.jl") end
@@ -15,8 +15,8 @@ using SafeTestsets
 @time @safetestset "gaussian" begin include("layers/gaussian.jl") end
 @time @safetestset "relu" begin include("layers/relu.jl") end
 @time @safetestset "drelu" begin include("layers/drelu.jl") end
+
 @time @safetestset "rbm" begin include("rbm.jl") end
 @time @safetestset "dbm" begin include("dbm.jl") end
-@time @safetestset "gauge" begin include("gauge.jl") end
 @time @safetestset "regularize" begin include("regularize.jl") end
 @time @safetestset "pseudolikelihood" begin include("pseudolikelihood.jl") end
