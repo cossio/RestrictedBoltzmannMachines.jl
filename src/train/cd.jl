@@ -1,5 +1,10 @@
 export CD, PCD, train!, contrastive_divergence, mean_free_energy
 
+# Throw this from a callback to force an early stop of training
+# (or just call stop())
+struct EarlyStop <: Exception end
+stop() = throw(EarlyStop())
+
 # Contrastive Divergence
 @kwdef struct CD
     steps::Int = 1 # update steps of the MC chains per iteration
