@@ -22,9 +22,10 @@ function randnt(rng::AbstractRNG, a::Real)
             r ≥ a && return r
         end
     else
-        t = (sqrt(a^2 + 4) + a)/2
+        t = sqrt1half(a)
+        !(t < Inf) && return float(a)
         while true
-            r = randexp(rng, T) / t + a
+            r = a + randexp(rng, T) / t
             u = rand(rng, T)
             if u < exp(-(r - t)^2 / 2)
                 return r
@@ -33,6 +34,20 @@ function randnt(rng::AbstractRNG, a::Real)
     end
 end
 randnt(a::Real) = randnt(Random.GLOBAL_RNG, a)
+
+"""
+    sqrt1half(x)
+
+Accurate computation of sqrt(1 + (x/2)^2) + |x|/2.
+"""
+sqrt1half(x::Real) = _sqrt1half(float(abs(x)))
+function _sqrt1half(x)
+    if x > 2/sqrt(eps(x))
+        return x
+    else
+        return sqrt(one(x) + (x/2)^2) + x/2
+    end
+end
 
 #=
 Compute gradients using the approach of:

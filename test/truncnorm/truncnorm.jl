@@ -1,6 +1,6 @@
 using Test, Random, Zygote, Distributions, SpecialFunctions, FiniteDifferences
 using RestrictedBoltzmannMachines
-using RestrictedBoltzmannMachines: tnmean, tnstd, tnvar
+using RestrictedBoltzmannMachines: tnmean, tnstd, tnvar, randnt, sqrt1half
 
 for a = -10:10
     d = truncated(Normal(), a, Inf)
@@ -29,4 +29,21 @@ end
         @test dμ ≈ dμ_ rtol=0.1
         @test dσ ≈ dσ_ rtol=0.1
     end
+end
+
+@testset "sqrt1half" begin
+    @test sqrt1half(5) ≈ 5.1925824035672520156
+    @test sqrt1half(0) == 1
+    @test sqrt1half(-1) == sqrt1half(1) ≈ 1.6180339887498948482
+    @test isnan(sqrt1half(NaN))
+    @test sqrt1half(Inf) == sqrt1half(-Inf) == Inf
+    @test sqrt1half(1e300) ≈ 1e300
+end
+
+@testset "randnt" begin
+    @test randnt(0) > 0
+    @test randnt(1e300) == 1e300
+    @test randnt(Inf) == Inf
+    @test isnan(randnt(NaN))
+    @test randnt(floatmax(Float64)) == floatmax(Float64)
 end

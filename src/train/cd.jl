@@ -93,7 +93,4 @@ end
 Mean free energy across batches. The optional `w` specifies weights for the
 batches.
 """
-function mean_free_energy(rbm::RBM, v::AbstractArray, w = 1)
-    F = free_energy(rbm, v)
-    return wmean(F, w)
-end
+mean_free_energy(rbm::RBM, v::AbstractArray, w = 1) = wmean(free_energy(rbm, v), w)
