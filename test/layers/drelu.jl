@@ -194,7 +194,7 @@ end
     @test transfer_var(drelu) ≈ transfer_var(gauss)
     @test transfer_mean_abs(drelu) ≈ transfer_mean_abs(gauss)
     @test transfer_mode(drelu) ≈ transfer_mode(gauss)
-    @test RBMs._cgf(drelu) ≈ RBMs._cgf(gauss)
+    @test RBMs.__cgf(drelu) ≈ RBMs.__cgf(gauss)
 
     pp, pn = RBMs.probs_pair(drelu)
     @test pn ≈ erfc.(transfer_mean(gauss) ./ √2 ./ transfer_std(gauss)) ./ 2

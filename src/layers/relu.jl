@@ -23,7 +23,7 @@ function __energy(layer::ReLU, x::AbstractArray)
     return @. ifelse(x < 0, inf(E), E)
 end
 
-_cgf(layer::ReLU) = relu_cgf.(layer.θ, layer.γ)
+__cgf(layer::ReLU) = relu_cgf.(layer.θ, layer.γ)
 _random(layer::ReLU) = relu_rand.(layer.θ, layer.γ)
 
 function _transfer_mode(layer::ReLU)

@@ -5,7 +5,9 @@ export checkdims, batchdims, batchindices, batchsize,
 
 abstract type AbstractLayer{T,N} end
 Base.ndims(::AbstractLayer{T,N}) where {T,N} = N
+Base.ndims(::Type{<:AbstractLayer{T,N}}) where {T,N} = N
 fieldtype(::AbstractLayer{T,N}) where {T,N} = T
+fieldtype(::Type{<:AbstractLayer{T,N}}) where {T,N} = T
 
 """
     checkdims(layer, x)
@@ -54,23 +56,21 @@ the dimensions of `layer`.
 Returns a tuple of the batch dimensions, statically determined from the types
 of `layer` and `x`.
 """
-@generated batchdims(::AbstractLayer{T,N}, x::AbstractArray) where {T,N} =
-    Tuple(N + 1 : ndims(x))
+@generated batchdims(layer::AbstractLayer, x::AbstractArray) = Tuple(ndims(layer) + 1 : ndims(x))
 
 """
     batchndims(layer, x)
 
 Statically determine the number of batch dimensions in `x`.
 """
-@generated batchndims(::AbstractLayer{T,N}, x::AbstractArray) where {T,N} =
-    ndims(x) - N
+@generated batchndims(layer::AbstractLayer, x::AbstractArray) = ndims(x) - ndims(layer)
 
 """
     sitedims(layer)
 
 Returns a tuple of the site dimensions of layer, statically.
 """
-@generated sitedims(::AbstractLayer{T,N}) where {T,N} = Tuple(1:N)
+@generated sitedims(layer::AbstractLayer) = Tuple(1:ndims(layer))
 siteindices(layer::AbstractLayer) = CartesianIndices(first(fields(layer)))
 sitesize(layer::AbstractLayer) = size(layer)
 
@@ -97,9 +97,9 @@ energy also takes care of converting zero-dimensional arrays to scalars
 Energy of `layer` in configuration `x`.
 """
 energy(layer::AbstractLayer, x::AbstractArray) = scalarize(_energy(layer, x))
-function _energy(layer::AbstractLayer{T,N}, x::AbstractArray) where {T,N}
+function _energy(layer::AbstractLayer, x::AbstractArray)
     checkdims(layer, x)
-    sumdropfirst(__energy(layer, x), Val(N))
+    sumdropfirst(__energy(layer, x), Val(ndims(layer)))
 end
 
 """
@@ -108,9 +108,10 @@ end
 Cumulative generating function of layer conditioned on
 input from other layer.
 """
-function cgf(layer::AbstractLayer{T,N}, I = 0, β = 1) where {T,N}
-    Γ = _cgf(effective(layer, I, β))
-    scalarize(sumdropfirst(Γ, Val(N))) / β
+cgf(layer::AbstractLayer, I = 0, β = 1) = scalarize(_cgf(layer, I, β))
+function _cgf(layer::AbstractLayer, I = 0, β = 1)
+    Γ = __cgf(effective(layer, I, β)) ./ β
+    return sumdropfirst(Γ, Val(ndims(layer)))
 end
 
 """

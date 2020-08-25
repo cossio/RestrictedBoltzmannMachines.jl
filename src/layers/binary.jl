@@ -29,8 +29,8 @@ function _transfer_var(layer::Binary)
     return @. t * inv(one(t) + t)^2
 end
 
-_cgf(layer::Binary) = log1pexp.(layer.θ)
-@adjoint function _cgf(layer::Binary)
+__cgf(layer::Binary) = log1pexp.(layer.θ)
+@adjoint function __cgf(layer::Binary)
     ∂θ = sigmoid.(layer.θ)
-    return _cgf(layer), Δ -> ((; θ = ∂θ .* Δ),)
+    return __cgf(layer), Δ -> ((; θ = ∂θ .* Δ),)
 end

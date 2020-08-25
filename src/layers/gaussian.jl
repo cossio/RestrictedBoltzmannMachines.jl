@@ -14,7 +14,7 @@ Gaussian(n::Int...) = Gaussian{Float64}(n...)
 fields(layer::Gaussian) = (layer.θ, layer.γ)
 Flux.@functor Gaussian
 __energy(layer::Gaussian, x::AbstractArray) = @. (abs(layer.γ) * x/2 - layer.θ) * x
-_cgf(layer::Gaussian) = @. layer.θ^2 / abs(layer.γ) / 2 - log(abs(layer.γ)/π/2)/2
+__cgf(layer::Gaussian) = @. layer.θ^2 / abs(layer.γ) / 2 - log(abs(layer.γ)/π/2)/2
 _random(layer::Gaussian) =
     randn_like(layer.θ) ./ sqrt.(abs.(layer.γ)) .+ layer.θ ./ abs.(layer.γ)
 effective_β(layer::Gaussian, β) = Gaussian(β .* layer.θ, β .* layer.γ)
@@ -39,8 +39,8 @@ end
     return __energy(layer, x), back
 end
 
-@adjoint function _cgf(layer::Gaussian)
-    _Γ = _cgf(layer)
+@adjoint function __cgf(layer::Gaussian)
+    _Γ = __cgf(layer)
     θ, γ = layer.θ, layer.γ
     ∂θ = @. θ / abs(γ)
     ∂γ = @. -(θ^2 + abs(γ)) * sign(γ) / (2abs(γ)^2)

@@ -24,7 +24,7 @@ gauss_pair(l::dReLU) = Gaussian(l.θp, l.γp), Gaussian(-l.θn, l.γn)
 
 function probs_pair(layer::dReLU)
     lp, ln = relus_pair(layer)
-    Γp, Γn = _cgf(lp), _cgf(ln)
+    Γp, Γn = __cgf(lp), __cgf(ln)
     Γ = logaddexp.(Γp, Γn)
     pp = @. exp(Γp - Γ)
     pn = @. exp(Γn - Γ)
@@ -40,7 +40,7 @@ function __energy(layer::dReLU, x::AbstractArray)
     return Ep .+ En
 end
 
-_cgf(layer::dReLU) = drelu_cgf.(layer.θp, layer.θn, layer.γp, layer.γn)
+__cgf(layer::dReLU) = drelu_cgf.(layer.θp, layer.θn, layer.γp, layer.γn)
 _random(layer::dReLU) = drelu_rand.(layer.θp, layer.θn, layer.γp, layer.γn)
 
 function _transfer_mode(layer::dReLU)
