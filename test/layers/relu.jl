@@ -75,7 +75,7 @@ end
 
 @testset "ReLU energy & cgf gradients" begin
     for _ = 1:10
-        θ, γ = randn(2,3), rand(2,3)
+        θ, γ = randn(2,3), randn(2,3)
         # with batch dimensions
         x = rand(2,3, 1,2)
         I = randn(2,3, 1,2)
@@ -94,7 +94,7 @@ end
 end
 
 @testset "ReLU random gradient" begin
-    layer = ReLU(randn(2,2), rand(2,2))
+    layer = ReLU(randn(2,2), randn(2,2))
     ps = Flux.params(layer)
     gs = gradient(ps) do
         Zygote.@ignore Random.seed!(1)
@@ -108,7 +108,7 @@ end
 end
 
 @testset "ReLU, contrastive divergence gradient" begin
-    rbm = RBM(Potts(5,10), ReLU(randn(10,5), rand(10,5)))
+    rbm = RBM(Potts(5,10), ReLU(randn(10,5), randn(10,5)))
     randn!(rbm.weights); randn!(rbm.vis.θ);
     randn!(rbm.hid.θ); rand!(rbm.hid.γ);
     ps = Flux.params(rbm)

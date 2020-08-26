@@ -33,13 +33,14 @@ end
 
 effective_β(layer::ReLU, β) = ReLU(effective_β(Gaussian(layer), β))
 effective_I(layer::ReLU, I) = ReLU(effective_I(Gaussian(layer), I))
+
 relu_cgf(θ::Real, γ::Real) = logerfcx(-θ/√(2abs(γ))) - log(2abs(γ)/π)/2
 exp_relu_cgf(θ::Real, γ::Real) = erfcx(-θ/√(2abs(γ))) / sqrt(2abs(γ)/π)
 
 function ∇relu_cgf(θ::Numeric, γ::Numeric)
-    all(γ .> 0) || throw(ArgumentError("All γ must be positive"))
+    #all(γ .> 0) || throw(ArgumentError("All γ must be positive"))
     Γ = @. relu_cgf(θ, γ)
-    dθ = @. (θ + inv(exp_relu_cgf(θ, γ))) / γ
+    dθ = @. (θ + inv(exp(Γ))) / abs(γ)
     dγ = @. -(one(θ) + θ * dθ) / (2γ)
     return Γ, dθ, dγ
 end
@@ -53,17 +54,16 @@ end
 end
 
 function relu_rand(θ::Real, γ::Real)
-    γ = abs(γ)
-    μ = θ / γ
-    σ = √inv(γ)
+    μ = θ / abs(γ)
+    σ = √inv(abs(γ))
     return randnt_half(μ, σ)
 end
 function ∇relu_rand(θ::Numeric, γ::Numeric) # ∇(survival) / pdf (implicit grads for ReLU samples)
-    μ = @. θ / γ
-    σ = @. inv(√γ)
+    μ = @. θ / abs(γ)
+    σ = @. inv(√abs(γ))
     z, dμ, dσ = ∇randnt_half(μ, σ)
-    dθ = @. dμ / γ
-    dγ = @. -μ / γ * dμ - σ / (2γ) * dσ
+    dθ = @. dμ / abs(γ)
+    dγ = @. (-μ * dμ - σ * dσ / 2) / γ
     return z, dθ, dγ
 end
 @adjoint function relu_rand(θ::Real, γ::Real)

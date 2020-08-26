@@ -15,12 +15,11 @@ fields(layer::Gaussian) = (layer.θ, layer.γ)
 Flux.@functor Gaussian
 __energy(layer::Gaussian, x::AbstractArray) = @. (abs(layer.γ) * x/2 - layer.θ) * x
 __cgf(layer::Gaussian) = @. layer.θ^2 / abs(layer.γ) / 2 - log(abs(layer.γ)/π/2)/2
-_random(layer::Gaussian) =
-    randn_like(layer.θ) ./ sqrt.(abs.(layer.γ)) .+ layer.θ ./ abs.(layer.γ)
+_random(layer::Gaussian) = randn_like(layer.θ) ./ sqrt.(abs.(layer.γ)) .+ layer.θ ./ abs.(layer.γ)
 effective_β(layer::Gaussian, β) = Gaussian(β .* layer.θ, β .* layer.γ)
 effective_I(layer::Gaussian, I) = Gaussian(layer.θ .+ I, broadlike(layer.γ, I))
-_transfer_mean(layer::Gaussian) = layer.θ ./ layer.γ
-_transfer_var(layer::Gaussian) = inv.(layer.γ)
+_transfer_mean(layer::Gaussian) = @. layer.θ / abs(layer.γ)
+_transfer_var(layer::Gaussian) = @. inv(abs(layer.γ))
 _transfer_std(layer::Gaussian) = sqrt.(_transfer_var(layer))
 _transfer_mode(layer::Gaussian) = _transfer_mean(layer)
 
@@ -44,8 +43,6 @@ end
     θ, γ = layer.θ, layer.γ
     ∂θ = @. θ / abs(γ)
     ∂γ = @. -(θ^2 + abs(γ)) * sign(γ) / (2abs(γ)^2)
-    function back(Δ)
-        ((θ = ∂θ .* Δ, γ = ∂γ .* Δ),)
-    end
+    back(Δ) = ((θ = ∂θ .* Δ, γ = ∂γ .* Δ),)
     return _Γ, back
 end
