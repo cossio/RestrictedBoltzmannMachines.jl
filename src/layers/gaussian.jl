@@ -39,10 +39,10 @@ end
 end
 
 @adjoint function __cgf(layer::Gaussian)
-    _Γ = __cgf(layer)
+    Γ = __cgf(layer)
     θ, γ = layer.θ, layer.γ
     ∂θ = @. θ / abs(γ)
     ∂γ = @. -(θ^2 + abs(γ)) * sign(γ) / (2abs(γ)^2)
     back(Δ) = ((θ = ∂θ .* Δ, γ = ∂γ .* Δ),)
-    return _Γ, back
+    return Γ, back
 end
