@@ -20,3 +20,5 @@ using SafeTestsets, Random, Test
 @time @safetestset "dbm" begin include("dbm.jl") end
 @time @safetestset "regularize" begin include("regularize.jl") end
 @time @safetestset "pseudolikelihood" begin include("pseudolikelihood.jl") end
+
+@time @safetestset "learning rate decay schedules" begin include("lr_schedules.jl") end

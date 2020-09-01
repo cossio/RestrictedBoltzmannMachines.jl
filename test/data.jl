@@ -62,3 +62,11 @@ end
     @test Set(cat(collected_x...; dims=3)[1,1,1:4]) == Set([1,2,3,4])
     @test Set(cat(collected_x...; dims=3)[1,1,5:8]) == Set([1,2,3,4])
 end
+
+@testset "empty data" begin
+    data = Data()
+    @test isempty(first(data))
+    for (i,d) in enumerate(data)
+        break
+    end
+end

@@ -36,6 +36,7 @@ module RestrictedBoltzmannMachines
     include("train/data.jl")
     include("train/cd.jl")
     include("train/regularize.jl")
+    include("train/lr_schedules.jl")
     include("train/gauge.jl")
     include("pseudolikelihood.jl")
     include("partition.jl")
