@@ -128,3 +128,6 @@ function log_pseudolikelihood_rand(rbm::RBM, v::AbstractArray, β=1, w=1)
     sites = [rand(xidx) for b in bidx]
     return wmean(log_pseudolikelihood(sites, rbm, v, β), w)
 end
+
+log_pseudolikelihood_rand(rbm::RBM, data::Data, β=1) =
+    log_pseudolikelihood_rand(rbm, data.tensors.v, β, data.tensors.w)
