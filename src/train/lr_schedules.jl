@@ -8,18 +8,21 @@ export SqrtDecay
 Learning rate decay of the form 1/sqrt(iter).
 """
 mutable struct SqrtDecay
+    lr0::Float64
     lrmin::Float64
-    decay::Float64
+    invdecay::Float64
     batchsize::Float64
     iter::IdDict
 end
 
-SqrtDecay(lrmin::Real = 0, decay::Real = 0.7, batchsize::Real = 1) =
-    SqrtDecay(lrmin, decay, batchsize, IdDict())
+SqrtDecay(lr0::Real = 1, lrmin::Real = 0, invdecay::Real = 0.7, batchsize::Real = 1) =
+    SqrtDecay(lr0, lrmin, invdecay, batchsize, IdDict())
+SqrtDecay(; lr0::Real = 1, lrmin::Real = 0, invdecay::Real = 0.7, batchsize::Real = 1) =
+    SqrtDecay(lr0, lrmin, invdecay, batchsize)
 
 function Flux.Optimise.apply!(o::SqrtDecay, x, Δ)
     t::Float64 = get!(o.iter, x, 0.0)
-    Δ .*= max(sqrt(inv(1 + t/o.decay)), o.lrmin)
+    Δ .*= max(o.lr0 / √(1 + t/o.invdecay), o.lrmin)
     o.iter[x] += o.batchsize
     return Δ
 end
