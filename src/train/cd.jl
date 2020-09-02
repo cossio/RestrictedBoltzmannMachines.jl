@@ -53,11 +53,11 @@ function train!(rbm::RBM, data::Data, cd::Union{CD,PCD} = PCD();
             end
             loss + rbm_reg + λh * hl1 + λg * gl2 + λw/2 * wl1l2
         end
-        isnothing(history) || push!(history, :grad_norm, iter, [norm(gs[p]) for p in ps])
+        isnothing(history) || push!(history, :grad_norm, iter, IdDict(x => norm(gs[x]) for x in ps))
         
         #= record log_pseudolikelihood =#
         if isnothing(history) && (iter % 50data.batchsize == 0)
-            lpl_train = log_pseudolikelihood_rand(rbm, datum.v, 1, data.tensors.w)
+            lpl_train = log_pseudolikelihood_rand(rbm, datum.v, 1, datum.w)
             lpl_tests = log_pseudolikelihood_rand(rbm, tests_datum.v, 1, tests_datum.w)
             push!(history, :lpltrain, iter, lpl_train)
             push!(history, :lpltests, iter, lpl_tests)
