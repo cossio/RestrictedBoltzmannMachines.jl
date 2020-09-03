@@ -31,7 +31,7 @@ Profile.init(n=10^7, delay=0.01)
 @time train!(rbm, train_loader)
 @profiler train!(rbm, train_loader)
 
-train!(rbm, train_loader, PCD(1))
+train!(rbm, train_loader)
 #@descend train!(rbm, train_loader)
 first(train_loader)
 

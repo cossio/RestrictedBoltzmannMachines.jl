@@ -152,7 +152,7 @@ end
     gauge!(student)
     @test norm(teacher.weights) ≈ 1
     ps = params(student.weights)
-    train!(student, train_data, PCD(5); iters=10000 * 32, ps = ps, opt = Flux.ADAM())
+    train!(student, train_data; cd=PCD(5), iters=10000 * 32, ps = ps, opt = Flux.ADAM())
     @test norm(teacher.weights) ≈ 1
     @show dot(teacher.weights, student.weights)
     @test abs(dot(teacher.weights, student.weights)) ≥ 0.8
@@ -174,7 +174,7 @@ end
     gauge!(student)
     @test norm(teacher.weights) ≈ 1
     ps = params(student.weights)
-    train!(student, train_data, PCD(5); iters=10000 * 32, ps = ps, opt = Flux.ADAM())
+    train!(student, train_data; cd=PCD(5), iters=10000 * 32, ps = ps, opt = Flux.ADAM())
     @test norm(teacher.weights) ≈ 1
     @show dot(teacher.weights, student.weights)
     @test abs(dot(teacher.weights, student.weights)) ≥ 0.8

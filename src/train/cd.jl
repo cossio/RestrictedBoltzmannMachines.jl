@@ -16,13 +16,13 @@ end
 end
 
 """
-    train!(rbm, data, [cd])
+    train!(rbm, data)
 
 We measure training time in units of observations presented to the model.
 For example, if you want to train for 100 epochs, then set `iters = 100 * data.nobs`,
 where `data.nobs` is the number of observations in the dataset.
 """
-function train!(rbm::RBM, data::Data, cd::Union{CD,PCD} = PCD();
+function train!(rbm::RBM, data::Data; cd::Union{CD,PCD} = PCD(),
                 iters::Int, opt = ADAM(), ps::Params = params(rbm),
                 vm::AbstractArray = update_chains(rbm, cd, first(data).v), # Markov chains
                 history = nothing, # stores training history
