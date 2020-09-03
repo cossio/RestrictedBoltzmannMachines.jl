@@ -28,7 +28,8 @@ function train!(rbm::RBM, data::Data, cd::Union{CD,PCD} = PCD();
                 history = nothing, # stores training history
                 callback = () -> (),
                 tests_data::Data = Data(),
-                reg = no_regularization, λw::Real = 0, λh::Real = 0, λg::Real = 0 # regularization
+                reg = no_regularization, λw::Real = 0, λh::Real = 0, λg::Real = 0, # regularization
+                min_lpl = -Inf # minimum log-pseudolikelihood
             )
     checkdims(rbm.vis, vm)
     progress_bar = Progress(length(1:data.batchsize:iters))
@@ -61,6 +62,10 @@ function train!(rbm::RBM, data::Data, cd::Union{CD,PCD} = PCD();
             lpl_tests = log_pseudolikelihood_rand(rbm, tests_datum.v, 1, tests_datum.w)
             push!(history, :lpltrain, iter, lpl_train)
             push!(history, :lpltests, iter, lpl_tests)
+            if !(lpl_train > min_lpl) || !(lpl_tests > min_lpl)
+                @error "lpl_train=$lpl_train or lpl_tests=$lpl_tests less than min_lpl=$min_lpl; stopping (iter=$iter)"
+                throw(RBMs.EarlyStop())
+            end
         end
 
         # update RBM parameters

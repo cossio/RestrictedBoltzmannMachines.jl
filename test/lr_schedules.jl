@@ -4,7 +4,7 @@ using Flux: Optimise, Optimiser, Params
 @testset "Learning rate decays" begin
     Random.seed!(84)
     w = randn(10, 10)
-    @testset for Opt in [SqrtDecay]
+    @testset for Opt in [SqrtDecay, GeometricDecay]
         Random.seed!(42)
         w′ = randn(10, 10)
         loss(x) = Flux.Losses.mse(w*x, w′*x)
