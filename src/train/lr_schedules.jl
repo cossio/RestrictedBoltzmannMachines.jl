@@ -43,7 +43,7 @@ end
 
 GeometricDecay(; lr0=1, lrmin=0, decay=0.9999) = GeometricDecay(lr0, lrmin, decay, IdDict())
 
-function apply!(o::GeometricDecay, x, Δ)
+function Flux.Optimise.apply!(o::GeometricDecay, x, Δ)
     lr_t::Float64 = get!(o.lr_t, x, o.lr0)
     lr = max(lr_t, o.lrmin)
     Δ .*= lr
