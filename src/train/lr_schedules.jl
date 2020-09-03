@@ -1,6 +1,7 @@
-export SqrtDecay, GeometricDecay
-
 #= Learning rate decay schedules. Based on the implementations in Flux. =#
+
+using Flux: Optimiser
+export Optimiser, SqrtDecay, GeometricDecay
 
 """
     SqrtDecay
