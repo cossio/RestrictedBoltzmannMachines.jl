@@ -41,6 +41,8 @@ module RestrictedBoltzmannMachines
     include("pseudolikelihood.jl")
     include("partition.jl")
 
+    include("train/hyper_random_search.jl")
+
     #= So we can refer to the package using RBMs instead of
     the verbose RestrictedBoltzmannMachines =#
     export RBMs

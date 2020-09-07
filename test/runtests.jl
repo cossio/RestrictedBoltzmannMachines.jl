@@ -22,3 +22,5 @@ using SafeTestsets, Random, Test
 @time @safetestset "pseudolikelihood" begin include("pseudolikelihood.jl") end
 
 @time @safetestset "learning rate decay schedules" begin include("lr_schedules.jl") end
+
+@time @safetestset "hyper parameter random search" begin include("hyper_search.jl") end
