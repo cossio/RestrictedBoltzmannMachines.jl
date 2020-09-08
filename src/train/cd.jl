@@ -23,13 +23,17 @@ For example, if you want to train for 100 epochs, then set `iters = 100 * data.n
 where `data.nobs` is the number of observations in the dataset.
 """
 function train!(rbm::RBM, data::Data; cd::Union{CD,PCD} = PCD(),
-                iters::Int, opt = ADAM(), ps::Params = params(rbm),
+                iters::Int, # number of iterations (number of examples seen during training)
+                opt = ADAM(), # optimizer algorithm
+                ps::Params = params(rbm), # subset of optimized parameters
                 vm::AbstractArray = update_chains(rbm, cd, first(data).v), # Markov chains
                 history = nothing, # stores training history
-                callback = () -> (),
-                tests_data::Data = Data(),
+                callback = () -> (), # callback function called on each iteration
+                tests_data::Data = Data(), # validation dataset
                 reg = no_regularization, λw::Real = 0, λh::Real = 0, λg::Real = 0, # regularization
-                min_lpl = -Inf # minimum log-pseudolikelihood
+                min_lpl = -Inf, # minimum log-pseudolikelihood
+                lpl_interval = 50data.batchsize, # iterations to wait before computing log-pseudolikelihood
+                print_interval = 200data.batchsize # iterations to wait before printing log-pseudolikelihood
             )
     checkdims(rbm.vis, vm)
     progress_bar = Progress(length(1:data.batchsize:iters))
@@ -57,11 +61,14 @@ function train!(rbm::RBM, data::Data; cd::Union{CD,PCD} = PCD(),
         isnothing(history) || push!(history, :grad_norm, iter, IdDict(x => norm(gs[x]) for x in ps))
         
         #= record log_pseudolikelihood =#
-        if isnothing(history) && (iter % 50data.batchsize == 0)
+        if !isnothing(history) && (iter % lpl_interval == 0)
             lpl_train = log_pseudolikelihood_rand(rbm, datum.v, 1, datum.w)
             lpl_tests = log_pseudolikelihood_rand(rbm, tests_datum.v, 1, tests_datum.w)
             push!(history, :lpltrain, iter, lpl_train)
             push!(history, :lpltests, iter, lpl_tests)
+            if iter % print_interval ≤ lpl_interval
+                println("iter=$iter, lpl_train=$lpl_train")
+            end
             if !(lpl_train > min_lpl) || !(lpl_tests > min_lpl)
                 @error "lpl_train=$lpl_train or lpl_tests=$lpl_tests less than min_lpl=$min_lpl; stopping (iter=$iter)"
                 throw(RBMs.EarlyStop())
