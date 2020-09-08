@@ -26,16 +26,20 @@ function _cd_hyper_random(rbm_init::RBM, train_data::Data; tests_data::Data=trai
                 cdsteps = cdsteps, lltrain = lltrain, lltests = lltests)
 end
 
-function cd_hyper_random_sqrt_lr_decay(rbm_init::RBM, train_data::Data; lrdecays = (@. 10^(2 + 2 * (0:0.1:1))), kwargs...)
+function cd_hyper_random_sqrt_lr_decay(rbm_init::RBM, data::Data;
+                                       lrdecays = (@. 10^(2 + 2 * (0:0.1:1))),
+                                       kwargs...)
     lrdecay = rand(lrdecays)
-    decay = SqrtDecay(invdecay = lrdecay / train_data.batchsize)
-    nt = _cd_hyper_random(rbm_init, train_data; decay=decay, kwargs...)
+    decay = SqrtDecay(invdecay = lrdecay / data.batchsize)
+    nt = _cd_hyper_random(rbm_init, data; decay=decay, kwargs...)
     return (nt..., lrdecay = lrdecay)
 end
 
-function cd_hyper_random_exp_lr_decay(rbm_init::RBM, train_data::Data; lrdecays = (@. 10^(-3 * (0:0.1:1) - 1)), kwargs...)
+function cd_hyper_random_exp_lr_decay(rbm_init::RBM, data::Data;
+                                      lrdecays = (@. 10^(-3 * (0:0.1:1) - 1)),
+                                      no_iters = 30data.nobs, kwargs...)
     lrdecay = rand(lrdecays)
-    decay = GeometricDecay(decay = lrdecay^(train_loader.batchsize / kwargs[:no_iters]))
-    nt = _cd_hyper_random(rbm_init, train_data; decay=decay, kwargs...)
+    decay = GeometricDecay(decay = lrdecay^(data.batchsize / no_iters))
+    nt = _cd_hyper_random(rbm_init, data; decay=decay, no_iters=no_iters, kwargs...)
     return (nt..., lrdecay = lrdecay)
 end
