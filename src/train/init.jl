@@ -60,8 +60,8 @@ function init!(layer::dReLU)
     # break θp = θn = 0 symmetry
     randn!(layer.θp)
     randn!(layer.θn)
-    rbm.hid.θp .*= 1e-6
-    rbm.hid.θn .*= 1e-6
+    layer.θp .*= 1e-6
+    layer.θn .*= 1e-6
     return layer
 end
 
