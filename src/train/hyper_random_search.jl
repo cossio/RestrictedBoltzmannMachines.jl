@@ -9,9 +9,7 @@ function _cd_hyper_random(rbm_init::RBM, train_data::Data; tests_data::Data=trai
 
     # init
     rbm = deepcopy(rbm_init)
-    init!(rbm, train_data.tensors.v)
-    randn!(rbm.weights)
-    rbm.weights .*= w0/√length(rbm.vis)
+    init!(rbm, train_data.tensors.v; w=w0)
 
     # train
     opt = Optimiser(decay, ADAM(η0, (β0, 0.999)))

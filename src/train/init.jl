@@ -5,17 +5,17 @@ export init!, init_weights!
 
 Inits the RBM, computing average visible unit activities from `data`.
 """
-function init!(rbm::RBM, data::AbstractArray; eps = 1e-6)
+function init!(rbm::RBM, data::AbstractArray; w::Real=1, eps = 1e-6)
     init!(rbm.vis, data; eps = eps)
     init!(rbm.hid)
-    init_weights!(rbm)
+    init_weights!(rbm; w=w)
     return rbm
 end
 
-function init!(rbm::RBM)
+function init!(rbm::RBM; w::Real=1)
     init!(rbm.vis)
     init!(rbm.hid)
-    init_weights!(rbm)
+    init_weights!(rbm; w=w)
     return rbm
 end
 
@@ -56,8 +56,12 @@ function init!(layer::Union{Gaussian, ReLU})
 end
 
 function init!(layer::dReLU)
-    layer.θp .= layer.θn .= 0
     layer.γp .= layer.γn .= 1
+    # break θp = θn = 0 symmetry
+    randn!(layer.θp)
+    randn!(layer.θn)
+    rbm.hid.θp .*= 1e-6
+    rbm.hid.θn .*= 1e-6
     return layer
 end
 
@@ -67,26 +71,27 @@ function init!(layer::Union{Potts, Binary, Spin})
 end
 
 """
-    init_weights!(rbm)
+    init_weights!(rbm; w=1)
 
 Random initialization of weights, as independent normals with variance 1/N.
 All patterns are of norm 1.
 """
-function init_weights!(rbm::RBM)
+function init_weights!(rbm::RBM; w::Real = 1)
     randn!(rbm.weights)
-    if rbm.vis isa Potts
-        # zerosum
+    if rbm.vis isa Potts # zerosum
         rbm.weights .-= mean(rbm.weights; dims=1)
     end
-    rescale!(rbm.weights; dims=vdims(rbm))
+    rbm.weights .*= w / √length(rbm.vis)
+    #rescale!(rbm.weights; dims=vdims(rbm))
     return rbm
 end
 
 function init_cov!(rbm::RBM, data::AbstractArray; eps = 1e-6)
+    error("Not implemented")
     init!(rbm.vis, data; eps = eps)
     init!(rbm.hid)
     data_mat = reshape(data, length(rbm.vis), :)
     cov(data_mat)
-    init_weights!(rbm)
+    init_weights!(rbm; w=1)
     return rbm
 end
