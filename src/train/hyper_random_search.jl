@@ -15,21 +15,21 @@ function _cd_hyper_random(rbm_init::RBM, train_data::Data; tests_data::Data=trai
     opt = Optimiser(decay, ADAM(η0, (β0, 0.999)))
     history = MVHistory()
     train!(rbm, train_data; cd = RBMs.PCD(cdsteps), iters=no_iters, tests_data=tests_data,
-        history=history, opt=opt, λw=λw, λg=λg, λh=λh, min_lpl=min_lpl)
+            history=history, opt=opt, λw=λw, λg=λg, λh=λh, min_lpl=min_lpl)
     
     # result
     lltrain = log_pseudolikelihood_rand(rbm, train_data)
     lltests = log_pseudolikelihood_rand(rbm, tests_data)
     return (λw = λw, λg = λg, λh = λh, w0 = w0, β0 = β0, η0 = η0,
-                cdsteps = cdsteps, lltrain = lltrain, lltests = lltests)
+            cdsteps = cdsteps, lltrain = lltrain, lltests = lltests)
 end
 
 function cd_hyper_random_sqrt_lr_decay(rbm_init::RBM, data::Data;
                                        lrdecays = (@. 10^(2 + 2 * (0:0.1:1))),
-                                       kwargs...)
+                                       no_iters = 30data.nobs, kwargs...)
     lrdecay = rand(lrdecays)
-    decay = SqrtDecay(invdecay = lrdecay / data.batchsize)
-    nt = _cd_hyper_random(rbm_init, data; decay=decay, kwargs...)
+    decay = SqrtDecay(decay = lrdecay * data.batchsize / no_iters)
+    nt = _cd_hyper_random(rbm_init, data; decay=decay, no_iters=no_iters, kwargs...)
     return (nt..., lrdecay = lrdecay)
 end
 

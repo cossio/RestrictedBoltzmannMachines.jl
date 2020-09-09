@@ -11,15 +11,15 @@ Learning rate decay of the form 1/sqrt(iter).
 mutable struct SqrtDecay
     lr0::Float64
     lrmin::Float64
-    invdecay::Float64
+    decay::Float64
     iter::IdDict
 end
 
-SqrtDecay(; lr0=1, lrmin=0, invdecay=0.7) = SqrtDecay(lr0, lrmin, invdecay, IdDict())
+SqrtDecay(; lr0=1, lrmin=0, decay=1) = SqrtDecay(lr0, lrmin, decay, IdDict())
 
 function Flux.Optimise.apply!(o::SqrtDecay, x, Δ)
     t::Int = get!(o.iter, x, 0)
-    lr_t = o.lr0 / √(1 + t/o.invdecay)
+    lr_t = o.lr0 / √(1 + t * o.decay)
     lr = max(lr_t, o.lrmin)
     Δ .*= lr
     o.iter[x] += 1
