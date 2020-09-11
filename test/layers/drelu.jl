@@ -220,28 +220,10 @@ end
         v .= sample_v_from_h(teacher, h)
     end
     data = Data((v = v, w = ones(size(v)[end])), batchsize=64)
-    log_pseudolikelihood_rand(teacher, data.tensors.v)
-    log_likelihood(teacher, data.tensors.v) |> mean
 
     student = RBM(Binary(size(teacher.vis)...), dReLU(size(teacher.hid)...))
-    log_likelihood(student, data.tensors.v) |> mean
-
-    cor(free_energy(teacher, data.tensors.v),
-        free_energy(student, data.tensors.v))
-
-    #init!(student, data.tensors.v; eps=1e-10)
-    student.weights .= 0
-    log_pseudolikelihood_rand(student, data.tensors.v)
-    log_likelihood(student, data.tensors.v) |> mean
-    randn!(student.weights)
-    student.weights .*= 1/sqrt(length(student.vis))
-    log_pseudolikelihood_rand(student, data.tensors.v)
-    log_likelihood(student, data.tensors.v) |> mean
-    train!(student, data; iters = 100000, opt = ADAM(0.001, (0.9, 0.999)),
-        λw=1e-5, λh=1e-5, λg=1e-5)
-    log_pseudolikelihood_rand(student, data.tensors.v)
-    log_likelihood(student, data.tensors.v) |> mean
-
+    init!(student, data.tensors.v; eps=1e-10, w=1)
+    train!(student, data; iters = 100000, opt = ADAM(0.001, (0.9, 0.999)), λw=1e-5, λh=1e-5, λg=1e-5)
     @test cor(free_energy(teacher, data.tensors.v),
               free_energy(student, data.tensors.v)) ≥ 0.8
 end
