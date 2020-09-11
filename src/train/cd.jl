@@ -29,7 +29,7 @@ function train!(rbm::RBM, data::Data; cd::Union{CD,PCD} = PCD(),
                 vm::AbstractArray = update_chains(rbm, cd, first(data).v), # Markov chains
                 history = nothing, # stores training history
                 callback = () -> (), # callback function called on each iteration
-                tests_data::Data = Data(), # validation dataset
+                tests_data::Data = data, # validation dataset
                 reg = no_regularization, λw::Real = 0, λh::Real = 0, λg::Real = 0, # regularization
                 min_lpl = -Inf, # minimum log-pseudolikelihood
                 lpl_interval = 50data.batchsize, # iterations to wait before computing log-pseudolikelihood
