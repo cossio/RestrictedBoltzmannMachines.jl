@@ -6,11 +6,11 @@ using Flux: Optimise, Optimiser, Params
     w = randn(10, 10)
     @testset for Opt in [SqrtDecay, GeometricDecay]
         Random.seed!(42)
-        w′ = randn(10, 10)
-        loss(x) = Flux.Losses.mse(w*x, w′*x)
+        w_ = randn(10, 10)
+        loss(x) = Flux.Losses.mse(w*x, w_*x)
         opt = Optimiser(Opt(), ADAM(0.001))
         for t = 1:10^5
-            θ = Params([w′])
+            θ = Params([w_])
             x = rand(10)
             θ̄ = gradient(() -> loss(x), θ)
             Optimise.update!(opt, θ, θ̄)

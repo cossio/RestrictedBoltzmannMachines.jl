@@ -1,4 +1,8 @@
-#= Learning rate decay schedules. Based on the implementations in Flux. =#
+#=
+Learning rate decay schedules. Based on the implementations in Flux. See:
+https://fluxml.ai/Flux.jl/stable/training/optimisers/#Composing-Optimisers-1
+https://github.com/FluxML/Flux.jl/blob/2b1ba184d1a58c37543f4561413cddb2de594289/src/optimise/optimisers.jl#L517-L538
+=#
 
 using Flux: Optimiser
 export Optimiser, SqrtDecay, GeometricDecay
@@ -12,18 +16,14 @@ mutable struct SqrtDecay
     lr0::Float64
     lrmin::Float64
     decay::Float64
-    iter::IdDict
+    t::IdDict
 end
 
 SqrtDecay(; lr0=1, lrmin=0, decay=1) = SqrtDecay(lr0, lrmin, decay, IdDict())
 
 function Flux.Optimise.apply!(o::SqrtDecay, x, Δ)
-    t::Int = get!(o.iter, x, 0)
-    lr_t = o.lr0 / √(1 + t * o.decay)
-    lr = max(lr_t, o.lrmin)
-    Δ .*= lr
-    o.iter[x] += 1
-    return Δ
+    t::Int = o.t[x] = get(o.t, x, 0) + 1
+    Δ .*= max(o.lr0 / √(1 + (t - 1) * o.decay), o.lrmin)
 end
 
 
@@ -38,15 +38,12 @@ mutable struct GeometricDecay
     lr0::Float64
     lrmin::Float64
     decay::Float64
-    lr_t::IdDict
+    t::IdDict
 end
 
 GeometricDecay(; lr0=1, lrmin=0, decay=0.9999) = GeometricDecay(lr0, lrmin, decay, IdDict())
 
 function Flux.Optimise.apply!(o::GeometricDecay, x, Δ)
-    lr_t::Float64 = get!(o.lr_t, x, o.lr0)
-    lr = max(lr_t, o.lrmin)
-    Δ .*= lr
-    o.lr_t[x] *= o.decay
-    return Δ
+    t::Int = o.t[x] = get(o.t, x, 0) + 1
+    Δ .*= max(o.lr0 * o.decay^t, o.lrmin)
 end
