@@ -61,15 +61,15 @@ function train!(rbm::RBM, data::Data; cd::Union{CD,PCD} = PCD(),
         isnothing(history) || push!(history, :grad_norm, iter, IdDict(x => norm(gs[x]) for x in ps))
         
         #= record log_pseudolikelihood =#
-        if !isnothing(history) && (iter % lpl_interval == 0)
+        if !isnothing(history) && (iter % lpl_interval < data.batchsize)
             lpl_train = log_pseudolikelihood_rand(rbm, datum.v, 1, datum.w)
             lpl_tests = log_pseudolikelihood_rand(rbm, tests_datum.v, 1, tests_datum.w)
             push!(history, :lpltrain, iter, lpl_train)
             push!(history, :lpltests, iter, lpl_tests)
-            if iter % print_interval ≤ lpl_interval
-                println("iter=$iter, lpl_train=$lpl_train")
+            if iter % print_interval < data.batchsize
+                println("\niter=$iter, lpl_train=$lpl_train")
             end
-            if !(lpl_train > min_lpl) || !(lpl_tests > min_lpl)
+            if !(lpl_train > min_lpl && lpl_tests > min_lpl)
                 @error "lpl_train=$lpl_train or lpl_tests=$lpl_tests less than min_lpl=$min_lpl; stopping (iter=$iter)"
                 throw(RBMs.EarlyStop())
             end
