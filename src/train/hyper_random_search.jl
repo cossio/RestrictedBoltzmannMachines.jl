@@ -7,6 +7,8 @@ function _cd_hyper_random(rbm_init::RBM, train_data::Data; tests_data::Data=trai
     w0 = rand(w0s); β0 = rand(β0s); η0 = rand(η0s);
     cdsteps = rand(cd_steps)
 
+    println("Training: λw=$λw, λg=$λg, λh=$λh, w0=$w0, β0=$β0, η0=$η0, lrdecay=$(decay.decay), cdsteps=$cdsteps")
+
     # init
     rbm = deepcopy(rbm_init)
     init!(rbm, train_data.tensors.v; w=w0)
