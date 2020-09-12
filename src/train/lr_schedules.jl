@@ -8,7 +8,10 @@ using Flux: Optimiser
 export Optimiser, SqrtDecay, GeometricDecay
 
 abstract type AbstractLrDecay end
-Flux.Optimise.apply!(o::AbstractLrDecay, x, Δ) = Δ .*= update_lr!(o, x)
+function Flux.Optimise.apply!(o::AbstractLrDecay, x, Δ)
+    t::Int = o.t[x] = get(o.t, x, 0) + 1
+    Δ .*= update_lr(o, t)
+end
 
 """
     SqrtDecay
@@ -22,11 +25,7 @@ mutable struct SqrtDecay <: AbstractLrDecay
     t::IdDict
 end
 SqrtDecay(; lr0=1, lrmin=0, decay=0) = SqrtDecay(lr0, lrmin, decay, IdDict())
-
-function update_lr!(o::SqrtDecay, x)
-    t::Int = o.t[x] = get(o.t, x, 0) + 1
-    return max(o.lr0 / √(1 + (t - 1) * o.decay), o.lrmin)
-end
+update_lr(o::SqrtDecay, t::Real) = max(o.lr0 / sqrt(1 + (t - 1) * o.decay), o.lrmin)
 
 """
     GeometricDecay
@@ -42,8 +41,4 @@ mutable struct GeometricDecay <: AbstractLrDecay
     t::IdDict
 end
 GeometricDecay(; lr0=1, lrmin=0, decay=1) = GeometricDecay(lr0, lrmin, decay, IdDict())
-
-function update_lr!(o::GeometricDecay, x)
-    t::Int = o.t[x] = get(o.t, x, 0) + 1
-    return max(o.lr0 * o.decay^t, o.lrmin)
-end
+update_lr(o::GeometricDecay, t::Real) = max(o.lr0 * o.decay^t, o.lrmin)
