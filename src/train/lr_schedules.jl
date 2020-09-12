@@ -7,25 +7,26 @@ https://github.com/FluxML/Flux.jl/blob/2b1ba184d1a58c37543f4561413cddb2de594289/
 using Flux: Optimiser
 export Optimiser, SqrtDecay, GeometricDecay
 
+abstract type AbstractLrDecay end
+Flux.Optimise.apply!(o::AbstractLrDecay, x, Δ) = Δ .*= update_lr!(o, x)
+
 """
     SqrtDecay
 
 Learning rate decay of the form 1/sqrt(iter).
 """
-mutable struct SqrtDecay
+mutable struct SqrtDecay <: AbstractLrDecay
     lr0::Float64
     lrmin::Float64
     decay::Float64
     t::IdDict
 end
+SqrtDecay(; lr0=1, lrmin=0, decay=0) = SqrtDecay(lr0, lrmin, decay, IdDict())
 
-SqrtDecay(; lr0=1, lrmin=0, decay=1) = SqrtDecay(lr0, lrmin, decay, IdDict())
-
-function Flux.Optimise.apply!(o::SqrtDecay, x, Δ)
+function update_lr!(o::SqrtDecay, x)
     t::Int = o.t[x] = get(o.t, x, 0) + 1
-    Δ .*= max(o.lr0 / √(1 + (t - 1) * o.decay), o.lrmin)
+    return max(o.lr0 / √(1 + (t - 1) * o.decay), o.lrmin)
 end
-
 
 """
     GeometricDecay
@@ -34,16 +35,15 @@ Geometric (a.k.a. exponential) decay of learning rate.
 Similar to Flux.Optimisers.ExpDecay, but with a slightly
 different implementation.
 """
-mutable struct GeometricDecay
+mutable struct GeometricDecay <: AbstractLrDecay
     lr0::Float64
     lrmin::Float64
     decay::Float64
     t::IdDict
 end
+GeometricDecay(; lr0=1, lrmin=0, decay=1) = GeometricDecay(lr0, lrmin, decay, IdDict())
 
-GeometricDecay(; lr0=1, lrmin=0, decay=0.9999) = GeometricDecay(lr0, lrmin, decay, IdDict())
-
-function Flux.Optimise.apply!(o::GeometricDecay, x, Δ)
+function update_lr!(o::GeometricDecay, x)
     t::Int = o.t[x] = get(o.t, x, 0) + 1
-    Δ .*= max(o.lr0 * o.decay^t, o.lrmin)
+    return max(o.lr0 * o.decay^t, o.lrmin)
 end
