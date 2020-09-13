@@ -67,7 +67,7 @@ function train!(rbm::RBM, data::Data; cd::Union{CD,PCD} = PCD(),
             push!(history, :lpltrain, iter, lpl_train)
             push!(history, :lpltests, iter, lpl_tests)
             if iter % print_interval < data.batchsize
-                println("\niter=$iter, lpl_train=$lpl_train")
+                println("iter=$iter, lpl_train=$lpl_train")
             end
             if !(lpl_train > min_lpl && lpl_tests > min_lpl)
                 @error "lpl_train=$lpl_train or lpl_tests=$lpl_tests less than min_lpl=$min_lpl; stopping (iter=$iter)"
