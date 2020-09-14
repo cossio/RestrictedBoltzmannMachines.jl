@@ -91,3 +91,20 @@ end
     @test Δ ≈ dot(gs[rbm.weights], pw) + dot(gs[rbm.vis.θ], pg) +
               dot(gs[rbm.hid.θ], pθ) + dot(gs[rbm.hid.γ], pγ)
 end
+
+@testset "Gaussian sample_h_from_v gradient" begin
+    rbm = RBM(Binary(10), Gaussian(5))
+    randn!(rbm.weights)
+    randn!(rbm.vis.θ)
+    randn!(rbm.hid.θ)
+    rand!(rbm.hid.γ)
+    ps = params(rbm)
+    v = sample_v_from_v(rbm, zeros(size(rbm.vis)..., 100); steps=10)
+    h = sample_h_from_v(rbm, v)
+    gs = gradient(ps) do
+        h = sample_h_from_v(rbm, v)
+        mean(2 .* h .+ 1)
+    end
+    @test isnothing(gs[rbm.vis.θ])
+    @test gs[rbm.weights] ≈ mean(v; dims=2) * reshape(gs[rbm.hid.θ], 1, :)
+end
