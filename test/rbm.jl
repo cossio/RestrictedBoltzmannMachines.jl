@@ -286,3 +286,13 @@ end
               dot(gs[rbm.hid.θp], pθp) + dot(gs[rbm.hid.θn], pθn) +
               dot(gs[rbm.hid.γp], pγp) + dot(gs[rbm.hid.γn], pγn)
 end
+
+@testset "flip_layers" begin
+    rbm = RBM(Potts(21, 102), Gaussian(100))
+    randn!(rbm.weights)
+    rbm_ = flip_layers(rbm)
+    rbm__ = RBM(rbm.hid, rbm.vis, permutedims(rbm.weights, (3,1,2)))
+    @test rbm_.weights == rbm__.weights
+    @test rbm_.vis == rbm__.vis
+    @test rbm_.hid == rbm__.hid
+end

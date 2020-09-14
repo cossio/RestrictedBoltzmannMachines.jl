@@ -1,4 +1,4 @@
-export RBM, vdims, hdims, ndvis, ndhid, vsize, hsize
+export RBM, vdims, hdims, ndvis, ndhid, vsize, hsize, flip_layers
 export energy, free_energy
 export inputs_h_to_v, inputs_v_to_h
 export sample_v_from_h, sample_h_from_v
@@ -35,6 +35,14 @@ function checkdims(rbm::RBM, v::AbstractArray, h::AbstractArray)
     checkdims(rbm.hid, h)
     batchsize(rbm.vis, v) == batchsize(rbm.hid, h) || dimserror()
 end
+
+"""
+    flip_layers(rbm)
+
+Returns a new RBM where the visible and hidden layers have been
+interchanged.
+"""
+flip_layers(rbm::RBM) = RBM(rbm.hid, rbm.vis, permutedims(rbm.weights, (hdims(rbm)..., vdims(rbm)...)))
 
 """
     energy(rbm, v, h)
