@@ -174,7 +174,6 @@ end
     @test gs[layer.γn] ≈ -∇cdf[layer.γn] ./ transfer_pdf(layer, h)
 end
 
-
 @testset "dReLU vs Gaussian" begin
     drelu = dReLU(20); gauss = Gaussian(20)
     randn!(gauss.θ); rand!(gauss.γ)
@@ -220,19 +219,18 @@ end
 end
 
 @testset "dReLU sample_h_from_v gradient" begin
-    rbm = RBM(Binary(10), dReLU(5))
-    randn!(rbm.weights)
+    rbm = RBM(Binary(100), dReLU(100))
     randn!(rbm.vis.θ)
-    randn!(rbm.hid.θp); rand!(rbm.hid.γp);
-    randn!(rbm.hid.θn); rand!(rbm.hid.γn);
+    randn!(rbm.hid.θp); randn!(rbm.hid.γp);
+    randn!(rbm.hid.θn); randn!(rbm.hid.γn);
+    randn!(rbm.weights)
+    rbm.weights ./= √length(rbm.vis)
     ps = params(rbm)
-    v = sample_v_from_v(rbm, zeros(size(rbm.vis)..., 100); steps=10)
+    v = sample_v_from_v(rbm, zeros(size(rbm.vis)...); steps=10)
     gs = gradient(ps) do
         h = sample_h_from_v(rbm, v)
         mean(h)
     end
     @test isnothing(gs[rbm.vis.θ])
-    @test gs[rbm.weights] ≈ mean(v; dims=2) * reshape(gs[rbm.hid.θp] .+ gs[rbm.hid.θn], 1, :)
-    gs[rbm.weights]
-    mean(v; dims=2) * reshape(gs[rbm.hid.θp] .+ gs[rbm.hid.θn], 1, :)
+    @test gs[rbm.weights] ≈ v * (gs[rbm.hid.θp] .+ gs[rbm.hid.θn])'
 end

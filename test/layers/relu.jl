@@ -185,20 +185,17 @@ end
 end
 
 @testset "ReLU sample_h_from_v gradient" begin
-    rbm = RBM(Binary(100), ReLU(50))
+    rbm = RBM(Binary(100), ReLU(100))
     randn!(rbm.weights)
     rbm.weights ./= sqrt(length(rbm.vis))
     randn!(rbm.vis.θ)
     randn!(rbm.hid.θ)
-    rand!(rbm.hid.γ)
+    randn!(rbm.hid.γ)
     ps = params(rbm)
-    v = sample_v_from_v(rbm, zeros(size(rbm.vis)..., 100); steps=10)
+    v = sample_v_from_v(rbm, zeros(size(rbm.vis)...); steps=10)
     gs = gradient(ps) do
-        h = sample_h_from_v(rbm, v)
-        mean(h)
+        sum(sample_h_from_v(rbm, v))
     end
     @test isnothing(gs[rbm.vis.θ])
-    @test gs[rbm.weights] ≈ vec(mean(v; dims=2)) * gs[rbm.hid.θ]'
-    gs[rbm.weights]
-    vec(mean(v; dims=2)) * gs[rbm.hid.θ]'
+    @test gs[rbm.weights] ≈ v * gs[rbm.hid.θ]'
 end
