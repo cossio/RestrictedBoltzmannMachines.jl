@@ -33,7 +33,6 @@ end
 
 effective_β(layer::ReLU, β) = ReLU(effective_β(Gaussian(layer), β))
 effective_I(layer::ReLU, I) = ReLU(effective_I(Gaussian(layer), I))
-
 relu_cgf(θ::Real, γ::Real) = logerfcx(-θ/√(2abs(γ))) - log(2abs(γ)/π)/2
 exp_relu_cgf(θ::Real, γ::Real) = erfcx(-θ/√(2abs(γ))) / sqrt(2abs(γ)/π)
 
@@ -86,10 +85,18 @@ function relu_mills(θ::Real, γ::Real, x::Real)
     return √(π/(2γ)) * erfcx(-(θ - x * γ) / √(2γ))
 end
 
+"""
+    relu_survival(θ, γ, x)
+
+The survival function is defined as 1 - CDF(x).
+"""
 relu_survival(θ::Real, γ::Real, x::Real) =
     erfc(-(θ - x * abs(γ)) / √(2abs(γ))) / erfc(-θ / √(2abs(γ)))
 relu_logsurvival(θ::Real, γ::Real, x::Real) =
     logerfc(-(θ - x * abs(γ)) / √(2abs(γ))) - logerfc(-θ / √(2abs(γ)))
+
+relu_cdf(θ::Real, γ::Real, x::Real) = 1 - relu_survival(θ, γ, x)
+
 relu_pdf(θ::Real, γ::Real, x::Real) = exp(relu_logpdf(θ, γ, x))
 function relu_logpdf(θ::Real, γ::Real, x::Real)
     result = -(abs(γ) * x/2 - θ) * x - relu_cgf(θ, γ)
@@ -118,3 +125,5 @@ function _transfer_var(layer::ReLU)
 end
 
 _transfer_mean_abs(layer::ReLU) = _transfer_mean(layer)
+_transfer_pdf(layer::ReLU, x) = relu_pdf.(layer.θ, layer.γ, x)
+_transfer_cdf(layer::ReLU, x) = relu_cdf.(layer.θ, layer.γ, x)

@@ -1,7 +1,8 @@
 export AbstractLayer
 export checkdims, batchdims, batchindices, batchsize,
     energy, random, cgf, effective, fields, fieldtype,
-    transfer_mode, transfer_mean, transfer_std, transfer_var, transfer_mean_abs
+    transfer_mode, transfer_mean, transfer_std, transfer_var, transfer_mean_abs,
+    transfer_pdf, transfer_cdf
 
 abstract type AbstractLayer{T,N} end
 Base.ndims(::AbstractLayer{T,N}) where {T,N} = N
@@ -155,6 +156,26 @@ transfer_std(layer::AbstractLayer, I = 0, β = 1) = _transfer_std(effective(laye
 Variance over the configurations of `layer`.
 """
 transfer_var(layer::AbstractLayer, I = 0, β = 1) = _transfer_var(effective(layer, I, β))
+
+"""
+    transfer_pdf(layer, x, I = 0, β = 1)
+
+PDF of configuration `x`.
+"""
+transfer_pdf(layer::AbstractLayer, x, I = 0, β = 1) = _transfer_pdf(effective(layer, I, β), x)
+
+"""
+    transfer_cdf(layer, x, I = 0, β = 1)
+
+CDF of configuration `x`.
+"""
+transfer_cdf(layer::AbstractLayer, x, I = 0, β = 1) = _transfer_cdf(effective(layer, I, β), x)
+
+transfer_logpdf(layer::AbstractLayer, x, I = 0, β = 1) = _transfer_logpdf(effective(layer, I, β), x)
+transfer_logcdf(layer::AbstractLayer, x, I = 0, β = 1) = _transfer_logcdf(effective(layer, I, β), x)
+transfer_survival(layer::AbstractLayer, x, I = 0, β = 1) = _transfer_survival(effective(layer, I, β), x)
+transfer_logsurvival(layer::AbstractLayer, x, I = 0, β = 1) = _transfer_logsurvival(effective(layer, I, β), x)
+transfer_mills(layer::AbstractLayer, x, I = 0, β = 1) = _transfer_mills(effective(layer, I, β), x)
 
 """
     effective(layer, I = 0, β = 1)

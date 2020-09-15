@@ -64,6 +64,15 @@ sample = random(layer, zeros(size(layer)..., 10^6))
 @test transfer_mean_abs(layer) ≈ mean(abs, sample; dims=3) rtol=0.05
 sample = nothing
 
+@testset "ReLU pdf, cdf" begin
+    layer = ReLU(randn(5,5), randn(5,5))
+    h = random(layer)
+    gs = gradient(params(h)) do
+        sum(transfer_cdf(layer, h))
+    end
+    @test gs[h] ≈ transfer_pdf(layer, h)
+end
+
 @testset "relu_cgf" begin
     for _ = 1:10
         # scalar version
@@ -96,15 +105,18 @@ end
 @testset "ReLU random gradient" begin
     layer = ReLU(randn(2,2), randn(2,2))
     ps = Flux.params(layer)
+    h = random(layer, zeros(size(layer)...))
     gs = gradient(ps) do
         Zygote.@ignore Random.seed!(1)
-        mean(random(layer, zeros(size(layer)..., 10^6)))
+        h_ = random(layer, zeros(size(layer)...))
+        Zygote.@ignore h .= h_
+        sum(h_)
     end
-    gs_ = gradient(ps) do
-        mean(transfer_mean(layer))
+    ∇cdf = gradient(ps) do
+        sum(transfer_cdf(layer, h))
     end
-    @test gs[layer.θ] ≈ gs_[layer.θ] rtol=0.01
-    @test gs[layer.γ] ≈ gs_[layer.γ] rtol=0.01
+    @test gs[layer.θ] ≈ -∇cdf[layer.θ] ./ transfer_pdf(layer, h)
+    @test gs[layer.γ] ≈ -∇cdf[layer.γ] ./ transfer_pdf(layer, h)
 end
 
 @testset "ReLU, contrastive divergence gradient" begin
@@ -170,4 +182,23 @@ end
     @test cor(free_energy(teacher, data.tensors.v),
               free_energy(student, data.tensors.v)) ≥ 0.8
 
+end
+
+@testset "ReLU sample_h_from_v gradient" begin
+    rbm = RBM(Binary(100), ReLU(50))
+    randn!(rbm.weights)
+    rbm.weights ./= sqrt(length(rbm.vis))
+    randn!(rbm.vis.θ)
+    randn!(rbm.hid.θ)
+    rand!(rbm.hid.γ)
+    ps = params(rbm)
+    v = sample_v_from_v(rbm, zeros(size(rbm.vis)..., 100); steps=10)
+    gs = gradient(ps) do
+        h = sample_h_from_v(rbm, v)
+        mean(h)
+    end
+    @test isnothing(gs[rbm.vis.θ])
+    @test gs[rbm.weights] ≈ vec(mean(v; dims=2)) * gs[rbm.hid.θ]'
+    gs[rbm.weights]
+    vec(mean(v; dims=2)) * gs[rbm.hid.θ]'
 end

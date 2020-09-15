@@ -138,8 +138,6 @@ function ∇drelu_rand(θp::Real, θn::Real, γp::Real, γn::Real)
     end
 end
 
-drelu_survival(θp::Real, θn::Real, γp::Real, γn::Real, x::Real) =
-    exp(drelu_logsurvival(θp, θn, γp, γn, x))
 function drelu_logsurvival(θp::Real, θn::Real, γp::Real, γn::Real, x::Real)
     Γp, Γn = relu_cgf(θp, γp), relu_cgf(-θn, γn)
     Γ = logaddexp(Γp, Γn)
@@ -150,8 +148,6 @@ function drelu_logsurvival(θp::Real, θn::Real, γp::Real, γn::Real, x::Real)
     end
 end
 
-drelu_pdf(θp::Real, θn::Real, γp::Real, γn::Real, x::Real) =
-    exp(drelu_logpdf(θp, θn, γp, γn, x))
 function drelu_logpdf(θp::Real, θn::Real, γp::Real, γn::Real, x::Real)
     Γp = relu_cgf(+θp, γp)
     Γn = relu_cgf(-θn, γn)
@@ -167,3 +163,14 @@ function drelu_cgf(θp::Real, θn::Real, γp::Real, γn::Real)
     Γp, Γn = relu_cgf(θp, γp), relu_cgf(-θn, γn)
     return logaddexp(Γp, Γn)
 end
+
+drelu_pdf(θp::Real, θn::Real, γp::Real, γn::Real, x::Real) = exp(drelu_logpdf(θp, θn, γp, γn, x))
+drelu_survival(θp::Real, θn::Real, γp::Real, γn::Real, x::Real) = exp(drelu_logsurvival(θp, θn, γp, γn, x))
+
+function drelu_cdf(θp::Real, θn::Real, γp::Real, γn::Real, x::Real)
+    s = drelu_survival(θp, θn, γp, γn, x)
+    return one(s) - s
+end
+
+_transfer_pdf(layer::dReLU, x) = drelu_pdf.(layer.θp, layer.θn, layer.γp, layer.γn, x)
+_transfer_cdf(layer::dReLU, x) = drelu_cdf.(layer.θp, layer.θn, layer.γp, layer.γn, x)

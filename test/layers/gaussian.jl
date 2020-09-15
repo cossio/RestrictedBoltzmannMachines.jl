@@ -3,7 +3,8 @@ using Zygote, Flux, SpecialFunctions, FiniteDifferences
 using RestrictedBoltzmannMachines
 using Base: front, tail
 using RestrictedBoltzmannMachines
-using RestrictedBoltzmannMachines: randn_like
+using RestrictedBoltzmannMachines: randn_like, 
+    gauss_logpdf, gauss_logcdf, gauss_pdf, gauss_cdf
 
 include("../test_utils.jl")
 
@@ -32,6 +33,17 @@ sample = random(layer, zeros(size(layer)..., 10000))
 @test transfer_var(layer) ≈ var(sample; dims=3) rtol=0.1
 @test transfer_mean_abs(layer) ≈ mean(abs, sample; dims=3) rtol=0.1
 
+@testset "Gaussian pdf, cdf" begin
+    for _ = 1:10
+        θ = randn()
+        γ = randn()
+        x = randn()
+        @test gauss_logcdf(θ, γ, x) ≈ log(gauss_cdf(θ, γ, x))
+        @test gauss_logpdf(θ, γ, x) ≈ log(gauss_pdf(θ, γ, x))
+        @test gauss_pdf(θ, γ, x) ≈ only(gradient(x -> gauss_cdf(θ, γ, x), x))
+    end
+end
+
 @testset "Gaussian energy & cgf gradients" begin
     θ, γ = randn(2,3), rand(2,3)
     # with batch dimensions
@@ -50,19 +62,21 @@ sample = random(layer, zeros(size(layer)..., 10000))
 end
 
 @testset "Gaussian random gradient" begin
-    layer = Gaussian(randn(10,5), rand(10,5))
-    ps = params(layer)
+    layer = Gaussian(randn(5,5), randn(5,5))
+    ps = Flux.params(layer)
+    h = random(layer, zeros(size(layer)...))
     gs = gradient(ps) do
         Zygote.@ignore Random.seed!(1)
-        mean(random(layer))
+        h_ = random(layer, zeros(size(layer)...))
+        Zygote.@ignore h .= h_
+        sum(h_)
     end
-    pθ, pγ = randn(size(layer)), randn(size(layer))
-    Δ = central_fdm(5,1)(0) do ϵ
-        Random.seed!(1)
-        layer_ = Gaussian(layer.θ + ϵ * pθ, layer.γ + ϵ * pγ)
-        mean(random(layer_))
+    pdf = transfer_pdf(layer, h)
+    ∇cdf = gradient(ps) do
+        sum(transfer_cdf(layer, h))
     end
-    @test Δ ≈ dot(gs[layer.θ], pθ) + dot(gs[layer.γ], pγ)
+    @test gs[layer.θ] ≈ -∇cdf[layer.θ] ./ pdf
+    @test gs[layer.γ] ≈ -∇cdf[layer.γ] ./ pdf
 end
 
 @testset "Gaussian, contrastive divergence gradient" begin
@@ -93,18 +107,18 @@ end
 end
 
 @testset "Gaussian sample_h_from_v gradient" begin
-    rbm = RBM(Binary(10), Gaussian(5))
+    rbm = RBM(Binary(20), Gaussian(10))
     randn!(rbm.weights)
+    rbm.weights ./= sqrt(length(rbm.vis))
     randn!(rbm.vis.θ)
     randn!(rbm.hid.θ)
     rand!(rbm.hid.γ)
     ps = params(rbm)
-    v = sample_v_from_v(rbm, zeros(size(rbm.vis)..., 100); steps=10)
-    h = sample_h_from_v(rbm, v)
+    v = sample_v_from_v(rbm, zeros(size(rbm.vis)..., 20); steps=10)
     gs = gradient(ps) do
         h = sample_h_from_v(rbm, v)
         mean(2 .* h .+ 1)
     end
     @test isnothing(gs[rbm.vis.θ])
-    @test gs[rbm.weights] ≈ mean(v; dims=2) * reshape(gs[rbm.hid.θ], 1, :)
+    @test gs[rbm.weights] ≈ vec(mean(v; dims=2)) * gs[rbm.hid.θ]'
 end
