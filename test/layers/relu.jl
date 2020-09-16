@@ -193,9 +193,22 @@ end
     randn!(rbm.hid.γ)
     ps = params(rbm)
     v = sample_v_from_v(rbm, zeros(size(rbm.vis)...); steps=10)
+    h = sample_h_from_v(rbm, v)
     gs = gradient(ps) do
-        sum(sample_h_from_v(rbm, v))
+        h_ = sample_h_from_v(rbm, v)
+        Zygote.@ignore h .= h_
+        mean(2 .* h_ .+ 1)
     end
     @test isnothing(gs[rbm.vis.θ])
     @test gs[rbm.weights] ≈ v * gs[rbm.hid.θ]'
+
+    pdf = transfer_pdf(rbm.hid, h, inputs_v_to_h(rbm, v))
+    gs_ = gradient(ps) do
+        cdf = transfer_cdf(rbm.hid, h, inputs_v_to_h(rbm, v))
+        2mean(-cdf ./ pdf) + 1
+    end
+    @test isnothing(gs_[rbm.vis.θ])
+    @test gs[rbm.hid.θ] ≈ gs_[rbm.hid.θ]
+    @test gs[rbm.hid.γ] ≈ gs_[rbm.hid.γ]
+    @test gs[rbm.weights] ≈ gs_[rbm.weights]
 end

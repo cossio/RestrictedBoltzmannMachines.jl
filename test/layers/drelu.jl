@@ -219,18 +219,32 @@ end
 end
 
 @testset "dReLU sample_h_from_v gradient" begin
-    rbm = RBM(Binary(100), dReLU(100))
+    rbm = RBM(Binary(200), dReLU(100))
     randn!(rbm.vis.θ)
     randn!(rbm.hid.θp); randn!(rbm.hid.γp);
     randn!(rbm.hid.θn); randn!(rbm.hid.γn);
     randn!(rbm.weights)
     rbm.weights ./= √length(rbm.vis)
+    v = sample_v_from_v(rbm, zeros(size(rbm.vis)...); steps=5)
+    h = sample_h_from_v(rbm, v)
+
     ps = params(rbm)
-    v = sample_v_from_v(rbm, zeros(size(rbm.vis)...); steps=10)
     gs = gradient(ps) do
-        h = sample_h_from_v(rbm, v)
-        mean(h)
-    end
+        h_ = sample_h_from_v(rbm, v)
+        Zygote.@ignore h .= h_
+        mean(2 .* h_ .+ 1)    end
     @test isnothing(gs[rbm.vis.θ])
     @test gs[rbm.weights] ≈ v * (gs[rbm.hid.θp] .+ gs[rbm.hid.θn])'
+
+    pdf = transfer_pdf(rbm.hid, h, inputs_v_to_h(rbm, v))
+    gs_ = gradient(ps) do
+        cdf = transfer_cdf(rbm.hid, h, inputs_v_to_h(rbm, v))
+        2mean(-cdf ./ pdf) + 1
+    end
+    @test isnothing(gs_[rbm.vis.θ])
+    @test gs[rbm.hid.θp] ≈ gs_[rbm.hid.θp]
+    @test gs[rbm.hid.θn] ≈ gs_[rbm.hid.θn]
+    @test gs[rbm.hid.γp] ≈ gs_[rbm.hid.γp]
+    @test gs[rbm.hid.γn] ≈ gs_[rbm.hid.γn]
+    @test gs[rbm.weights] ≈ gs_[rbm.weights]
 end
