@@ -29,6 +29,7 @@ hdims(rbm::RBM) = OneHot.tuplen(Val(ndims(rbm.hid))) .+ ndims(rbm.vis)
 vsize(rbm::RBM) = size(rbm.vis)
 hsize(rbm::RBM) = size(rbm.hid)
 vis_type(::RBM{V,H,W}) where {V,H,W} = V
+hid_type(::RBM{V,H,W}) where {V,H,W} = H
 
 function checkdims(rbm::RBM, v::AbstractArray, h::AbstractArray)
     checkdims(rbm.vis, v)
