@@ -27,8 +27,10 @@ end
 function _nobs(tensors::NamedTuple)
     isempty(tensors) && return 0
     @assert length(tensors) > 0
-    ns = values(map(_nobs, tail(tensors)))
-    all(ns .== first(ns)) || throw(DimensionMismatch("All data tensors must contain the same number of observations"))
+    ns = values(map(_nobs, tensors))
+    if !all(ns .== first(ns))
+        throw(DimensionMismatch("All data tensors must contain the same number of observations"))
+    end
     return first(ns)
 end
 _nobs(tensor::AbstractArray) = last(size(tensor))

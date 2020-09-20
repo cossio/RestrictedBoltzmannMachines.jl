@@ -11,6 +11,9 @@ using RestrictedBoltzmannMachines: Data
     @test size(first(d).v) == (100, 4)
     @test size(first(d).y) == (4,)
     @test size(first(d).w) == (4,)
+
+    d = Data((x=train_x,); batchsize=4)
+    @test size(first(d).x) == (100,4)
 end
 
 @testset "data consistent batches" begin
