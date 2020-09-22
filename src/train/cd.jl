@@ -1,4 +1,6 @@
-export CD, PCD, train!, contrastive_divergence, mean_free_energy
+export CD, PCD, train!,
+    contrastive_divergence_v, contrastive_divergence_h,
+    mean_free_energy_v, mean_free_energy_h
 
 # Throw this from a callback to force an early stop of training
 # (or just call stop())
@@ -42,7 +44,7 @@ function train!(rbm::RBM, data::Data; cd::Union{CD,PCD} = PCD(),
         vm = update_chains(rbm, cd, datum.v, vm)
         # train RBM
         gs = gradient(ps) do
-            loss = contrastive_divergence(rbm, datum.v, vm, datum.w)
+            loss = contrastive_divergence_v(rbm, datum.v, vm, datum.w)
             rbm_reg = reg(rbm)
             hl1 = hidden_l1(rbm, datum)
             wl1l2 = weights_l1l2(rbm)
@@ -101,22 +103,35 @@ update_chains(rbm::RBM, cd::CD,  vd::AbstractArray, vm::AbstractArray = vd, β =
 update_chains(rbm::RBM, cd::PCD, vd::AbstractArray, vm::AbstractArray = vd, β = 1) =
     sample_v_from_v(rbm, vm, β; steps = cd.steps)::typeof(vm)
 
-"""
-    contrastive_divergence(rbm, vd, vm, wd = 1, wm = 1)
+    """
+    contrastive_divergence_v(rbm, vd, vm, wd = 1, wm = 1)
 
 Contrastive divergence, defined as free energy difference between data (vd) and
 model sample (vm). The (optional) `wd,wm` are weights for the batches.
 """
-function contrastive_divergence(rbm::RBM, vd::AbstractArray, vm::AbstractArray, wd = 1, wm = 1)
-    Fd = mean_free_energy(rbm, vd, wd)
-    Fm = mean_free_energy(rbm, vm, wm)
+function contrastive_divergence_v(rbm::RBM, vd::AbstractArray, vm::AbstractArray, wd = 1, wm = 1)
+    Fd = mean_free_energy_v(rbm, vd, wd)
+    Fm = mean_free_energy_v(rbm, vm, wm)
     return (Fd - Fm) / length(rbm.vis)
 end
 
 """
-    mean_free_energy(rbm, v, w = 1)
+    contrastive_divergence_h(rbm, hd, hm, wd = 1, wm = 1)
+
+Contrastive divergence, defined as free energy difference between data (hd) and
+model sample (hm). The (optional) `wd,wm` are weights for the batches.
+"""
+function contrastive_divergence_h(rbm::RBM, hd::AbstractArray, hm::AbstractArray, wd = 1, wm = 1)
+    Fd = mean_free_energy_h(rbm, hd, wd)
+    Fm = mean_free_energy_h(rbm, hm, wm)
+    return (Fd - Fm) / length(rbm.hid)
+end
+
+"""
+    mean_free_energy_v(rbm, v, w = 1)
 
 Mean free energy across batches. The optional `w` specifies weights for the
 batches.
 """
-mean_free_energy(rbm::RBM, v::AbstractArray, w = 1) = wmean(free_energy(rbm, v), w)
+mean_free_energy_v(rbm::RBM, v::AbstractArray, w = 1) = wmean(free_energy_v(rbm, v), w)
+mean_free_energy_h(rbm::RBM, h::AbstractArray, w = 1) = wmean(free_energy_h(rbm, h), w)

@@ -1,5 +1,5 @@
 export RBM, vdims, hdims, ndvis, ndhid, vsize, hsize, flip_layers
-export energy, free_energy
+export energy, free_energy_v, free_energy_H
 export inputs_h_to_v, inputs_v_to_h
 export sample_v_from_h, sample_h_from_v
 export sample_v_from_v, sample_h_from_h
@@ -115,15 +115,27 @@ function sample_h_from_h(rbm::RBM, h::AbstractArray, β=1; steps=1)
 end
 
 """
-    free_energy(rbm, v, β=1)
+    free_energy_v(rbm, v, β=1)
 
 Free energy of visible configuration (after marginalizing hidden configurations).
 """
-function free_energy(rbm::RBM, v::AbstractArray, β=1)
+function free_energy_v(rbm::RBM, v::AbstractArray, β=1)
     Ev = energy(rbm.vis, v)
     Ih = inputs_v_to_h(rbm, v)
     Γh = cgf(rbm.hid, Ih, β)
     return Ev - Γh
+end
+
+"""
+    free_energy_h(rbm, v, β=1)
+
+Free energy of hidden configuration (after marginalizing visible configurations).
+"""
+function free_energy_h(rbm::RBM, h::AbstractArray, β=1)
+    Eh = energy(rbm.hid, h)
+    Iv = inputs_h_to_v(rbm, h)
+    Γv = cgf(rbm.vis, Iv, β)
+    return Eh - Γv
 end
 
 """

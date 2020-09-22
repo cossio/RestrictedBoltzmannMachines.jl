@@ -132,7 +132,7 @@ end
     vm = random(rbm.vis, zeros(size(rbm.vis, 10)))
     wd = rand(10)
     gs = gradient(ps) do
-        contrastive_divergence(rbm, vd, vm, wd)
+        contrastive_divergence_v(rbm, vd, vm, wd)
     end
     pw = randn(size(rbm.weights)); pg = randn(size(rbm.vis));
     pθ = randn(size(rbm.hid)); pγ = randn(size(rbm.hid));
@@ -140,7 +140,7 @@ end
         rbm_ = RBM(Potts(rbm.vis.θ .+ ϵ .* pg),
                    ReLU(rbm.hid.θ .+ ϵ .* pθ, rbm.hid.γ .+ ϵ .* pγ),
                    rbm.weights .+ ϵ .* pw)
-        contrastive_divergence(rbm_, vd, vm, wd)
+        contrastive_divergence_v(rbm_, vd, vm, wd)
     end
     @test Δ ≈ dot(gs[rbm.weights], pw) + dot(gs[rbm.vis.θ], pg) +
               dot(gs[rbm.hid.θ], pθ) + dot(gs[rbm.hid.γ], pγ)
@@ -164,8 +164,8 @@ end
     student = RBM(V(size(teacher.vis)...), H(size(teacher.hid)...))
     log_likelihood(student, data.tensors.v) |> mean
 
-    cor(free_energy(teacher, data.tensors.v),
-        free_energy(student, data.tensors.v))
+    cor(free_energy_v(teacher, data.tensors.v),
+        free_energy_v(student, data.tensors.v))
 
     #init!(student, data.tensors.v; eps=1e-10)
     student.weights .= 0
@@ -179,8 +179,8 @@ end
     log_pseudolikelihood_rand(student, data.tensors.v)
     log_likelihood(student, data.tensors.v) |> mean
 
-    @test cor(free_energy(teacher, data.tensors.v),
-              free_energy(student, data.tensors.v)) ≥ 0.8
+    @test cor(free_energy_v(teacher, data.tensors.v),
+              free_energy_v(student, data.tensors.v)) ≥ 0.8
 
 end
 

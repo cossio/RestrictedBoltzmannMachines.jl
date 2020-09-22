@@ -8,16 +8,16 @@ enumeration of visible states. Only defined for discrete visible layers. This
 is exponentially slow for large machines.
 """
 function log_partition(rbm::RBM, β = 1)
-    lZ = zero(free_energy(rbm, random(rbm.vis), β))
+    lZ = zero(free_energy_v(rbm, random(rbm.vis), β))
     for v in seqgen(length(rbm.vis), alphabet(rbm.vis))
-        F = free_energy(rbm, reshape(v, size(rbm.vis)), β)
+        F = free_energy_v(rbm, reshape(v, size(rbm.vis)), β)
         lZ = logaddexp(lZ, -β * F)
     end
     return lZ
 end
 
-alphabet(layer::Binary) = 0:1
-alphabet(layer::Spin) = (-1,1)
+alphabet(::Binary) = 0:1
+alphabet(::Spin) = (-1,1)
 alphabet(layer::Potts) = 1:layer.q
 
 """
@@ -29,7 +29,7 @@ exponentially slow for large machines.
 """
 function log_likelihood(rbm::RBM, v::AbstractArray, β=1)
     lZ = log_partition(rbm, β)
-    F = free_energy(rbm, v, β)
+    F = free_energy_v(rbm, v, β)
     ll = @. -β * F - lZ
     return ll ./ length(rbm.vis)
 end

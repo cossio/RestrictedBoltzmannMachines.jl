@@ -139,7 +139,7 @@ end
     vm = random(rbm.vis, zeros(size(rbm.vis, 10)))
     wd = rand(10)
     gs = gradient(ps) do
-        contrastive_divergence(rbm, vd, vm, wd)
+        contrastive_divergence_v(rbm, vd, vm, wd)
     end
     pw = randn(size(rbm.weights)); pg = randn(size(rbm.vis));
     pθp = randn(size(rbm.hid)); pθn = randn(size(rbm.hid)); pγp = randn(size(rbm.hid)); pγn = randn(size(rbm.hid));
@@ -148,7 +148,7 @@ end
                    dReLU(rbm.hid.θp .+ ϵ .* pθp, rbm.hid.θn .+ ϵ .* pθn,
                          rbm.hid.γp .+ ϵ .* pγp, rbm.hid.γn .+ ϵ .* pγn),
                    rbm.weights .+ ϵ .* pw)
-        contrastive_divergence(rbm_, vd, vm, wd)
+        contrastive_divergence_v(rbm_, vd, vm, wd)
     end
     @test Δ ≈ dot(gs[rbm.weights], pw) + dot(gs[rbm.vis.θ], pg) +
               dot(gs[rbm.hid.θp], pθp) + dot(gs[rbm.hid.θn], pθn) +
@@ -195,7 +195,7 @@ end
     randn!(gauss_rbm.weights)
     drelu_rbm.weights .= gauss_rbm.weights
     v = random(gauss_rbm.vis, zeros(size(gauss_rbm.vis)..., 100))
-    @test free_energy(drelu_rbm, v) ≈ free_energy(gauss_rbm, v)
+    @test free_energy_v(drelu_rbm, v) ≈ free_energy_v(gauss_rbm, v)
 end
 
 @testset "dReLU cd training" begin
@@ -214,8 +214,8 @@ end
     student = RBM(Binary(size(teacher.vis)...), dReLU(size(teacher.hid)...))
     init!(student, data.tensors.v; eps=1e-10, w=1)
     train!(student, data; iters = 100000, opt = ADAM(0.001, (0.9, 0.999)), λw=1e-5, λh=1e-5, λg=1e-5)
-    @test cor(free_energy(teacher, data.tensors.v),
-              free_energy(student, data.tensors.v)) ≥ 0.8
+    @test cor(free_energy_v(teacher, data.tensors.v),
+              free_energy_v(student, data.tensors.v)) ≥ 0.8
 end
 
 @testset "dReLU sample_h_from_v gradient" begin

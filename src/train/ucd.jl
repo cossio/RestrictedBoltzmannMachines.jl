@@ -26,7 +26,7 @@ function train!(rbm::RBM, data::Data, cd::UCD;
         vm = update_chains(rbm, cd, datum.v, vm)
         # train RBM
         gs = gradient(ps) do
-            loss = contrastive_divergence(rbm, datum.v, vm, datum.w)
+            loss = contrastive_divergence_v(rbm, datum.v, vm, datum.w)
             rbm_reg = reg(rbm)
             hl1 = hidden_l1(rbm, datum)
             wl1l2 = weights_l1l2(rbm)
@@ -55,24 +55,24 @@ update_chains(rbm::RBM, cd::PCD, vd::AbstractArray, vm::AbstractArray = vd, β =
     sample_v_from_v(rbm, vm, β; steps = cd.steps)::typeof(vm)
 
 """
-    contrastive_divergence(rbm, vd, vm, wd = 1, wm = 1)
+    contrastive_divergence_v(rbm, vd, vm, wd = 1, wm = 1)
 
 Contrastive divergence, defined as free energy difference between data (vd) and
 model sample (vm). The (optional) `wd,wm` are weights for the batches.
 """
-function contrastive_divergence(rbm::RBM, vd::AbstractArray, vm::AbstractArray, wd = 1, wm = 1)
-    Fd = mean_free_energy(rbm, vd, wd)
-    Fm = mean_free_energy(rbm, vm, wm)
+function contrastive_divergence_v(rbm::RBM, vd::AbstractArray, vm::AbstractArray, wd = 1, wm = 1)
+    Fd = mean_free_energy_v(rbm, vd, wd)
+    Fm = mean_free_energy_v(rbm, vm, wm)
     return (Fd - Fm) / length(rbm.vis)
 end
 
 """
-    mean_free_energy(rbm, v, w = 1)
+    mean_free_energy_v(rbm, v, w = 1)
 
 Mean free energy across batches. The optional `w` specifies weights for the
 batches.
 """
-function mean_free_energy(rbm::RBM, v::AbstractArray, w = 1)
-    F = free_energy(rbm, v)
+function mean_free_energy_v(rbm::RBM, v::AbstractArray, w = 1)
+    F = free_energy_v(rbm, v)
     return wmean(F, w)
 end

@@ -24,10 +24,10 @@ using RestrictedBoltzmannMachines: logsumexp, init_weights!
         site = sites[b]
         vb = v[xidx, b]
         @test size(vb) == size(rbm.vis)
-        Fb = free_energy(rbm, vb, β)
+        Fb = free_energy_v(rbm, vb, β)
         v_ = copy(vb)
         v_[site] = 1 - v_[site]
-        F_ = free_energy(rbm, v_, β)
+        F_ = free_energy_v(rbm, v_, β)
         @test lz[b] ≈ logaddexp(-β * Fb, -β * F_)
         @test lpl[b] ≈ -β * Fb - logaddexp(-β * Fb, -β * F_)
         @test lpl[b] ≈ log_pseudolikelihood(site, rbm, vb, β)
@@ -57,10 +57,10 @@ end
         site = sites[b]
         vb = v[xidx, b]
         @test size(vb) == size(rbm.vis)
-        Fb = free_energy(rbm, vb, β)
+        Fb = free_energy_v(rbm, vb, β)
         v_ = copy(vb)
         v_[site] = -v_[site]
-        F_ = free_energy(rbm, v_, β)
+        F_ = free_energy_v(rbm, v_, β)
         @test lz[b] ≈ logaddexp(-β * Fb, -β * F_)
         @test lpl[b] ≈ -β * Fb - logaddexp(-β * Fb, -β * F_)
         @test lpl[b] ≈ log_pseudolikelihood(site, rbm, vb, β)
@@ -93,12 +93,12 @@ end
         F = zeros(rbm.vis.q)
         for a = 1:rbm.vis.q
             v_[a, site] = true
-            F[a] = free_energy(rbm, v_, β)
+            F[a] = free_energy_v(rbm, v_, β)
             v_[a, site] = false
         end
         lZ = logsumexp(-β .* F)
         @test lz[b] ≈ lZ
-        @test lpl[b] ≈ -β * free_energy(rbm, vb, β) - lZ
+        @test lpl[b] ≈ -β * free_energy_v(rbm, vb, β) - lZ
         @test lpl[b] ≈ log_pseudolikelihood(site, rbm, vb, β)
     end
 end

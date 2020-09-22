@@ -92,7 +92,7 @@ end
     vm = random(rbm.vis, zeros(size(rbm.vis, 10)))
     wd = rand(10)
     gs = gradient(ps) do
-        contrastive_divergence(rbm, vd, vm, wd)
+        contrastive_divergence_v(rbm, vd, vm, wd)
     end
     pw = randn(size(rbm.weights)); pg = randn(size(rbm.vis));
     pθ = randn(size(rbm.hid)); pγ = randn(size(rbm.hid));
@@ -100,7 +100,7 @@ end
         rbm_ = RBM(Potts(rbm.vis.θ .+ ϵ .* pg),
                    Gaussian(rbm.hid.θ .+ ϵ .* pθ, rbm.hid.γ .+ ϵ .* pγ),
                    rbm.weights .+ ϵ .* pw)
-        contrastive_divergence(rbm_, vd, vm, wd)
+        contrastive_divergence_v(rbm_, vd, vm, wd)
     end
     @test Δ ≈ dot(gs[rbm.weights], pw) + dot(gs[rbm.vis.θ], pg) +
               dot(gs[rbm.hid.θ], pθ) + dot(gs[rbm.hid.γ], pγ)

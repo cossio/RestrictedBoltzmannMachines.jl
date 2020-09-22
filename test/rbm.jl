@@ -53,10 +53,10 @@ v1 = sample_v_from_v(rbm, v)
 h1 = sample_h_from_h(rbm, h)
 @test size(h1) == size(h)
 
-@test size(free_energy(rbm, v)) == B
+@test size(free_energy_v(rbm, v)) == B
 @test isfinite(reconstruction_error(rbm, v))
 
-@inferred free_energy(rbm, v)
+@inferred free_energy_v(rbm, v)
 @inferred sample_v_from_v(rbm, v)
 @inferred sample_h_from_h(rbm, h)
 @inferred sample_v_from_v(rbm, v)
@@ -82,7 +82,7 @@ end
     randn!(rbm.vis.θ)
     v = random(rbm.vis)
     @test size(v) == size(rbm.vis)
-    @test free_energy(rbm, v) isa Number
+    @test free_energy_v(rbm, v) isa Number
 end
 
 @testset "inputs_v_to_h gradient" begin
@@ -199,7 +199,7 @@ end
     @test rbm.hid.θ ∈ ps
     @test rbm.hid.γ ∈ ps
     gs = gradient(ps) do
-        contrastive_divergence(rbm, vd, vm, wd)
+        contrastive_divergence_v(rbm, vd, vm, wd)
     end
 
     pg = randn(q,N); pθ = randn(M); pγ = rand(M); pw = randn(q,N,M);
@@ -207,7 +207,7 @@ end
         rbm_ = RBM(Potts(rbm.vis.θ .+ ϵ .* pg),
                   Gaussian(rbm.hid.θ .+ ϵ .* pθ, rbm.hid.γ .+ ϵ .* pγ),
                   rbm.weights .+ ϵ .* pw)
-        contrastive_divergence(rbm_, vd, vm, wd)
+        contrastive_divergence_v(rbm_, vd, vm, wd)
     end
     @test Δ ≈ dot(gs[rbm.weights], pw) + dot(gs[rbm.vis.θ], pg) +
               dot(gs[rbm.hid.θ], pθ) + dot(gs[rbm.hid.γ], pγ)
@@ -232,7 +232,7 @@ end
     @test rbm.hid.θ ∈ ps
     @test rbm.hid.γ ∈ ps
     gs = gradient(ps) do
-        contrastive_divergence(rbm, vd, vm, wd)
+        contrastive_divergence_v(rbm, vd, vm, wd)
     end
 
     pg = randn(N...); pθ = randn(M...); pγ = rand(M...); pw = randn(N...,M...);
@@ -240,7 +240,7 @@ end
         rbm_ = RBM(Spin(rbm.vis.θ .+ ϵ .* pg),
                    Gaussian(rbm.hid.θ .+ ϵ .* pθ, rbm.hid.γ .+ ϵ .* pγ),
                    rbm.weights .+ ϵ .* pw)
-        contrastive_divergence(rbm_, vd, vm, wd)
+        contrastive_divergence_v(rbm_, vd, vm, wd)
     end
     @test Δ ≈ dot(gs[rbm.weights], pw) + dot(gs[rbm.vis.θ], pg) +
               dot(gs[rbm.hid.θ], pθ) + dot(gs[rbm.hid.γ], pγ)
@@ -269,7 +269,7 @@ end
     @test rbm.hid.γp ∈ ps
     @test rbm.hid.γn ∈ ps
     gs = gradient(ps) do
-        contrastive_divergence(rbm, vd, vm, wd)
+        contrastive_divergence_v(rbm, vd, vm, wd)
     end
 
     pw = randn(q,N,M); pg = randn(q,N);
@@ -280,7 +280,7 @@ end
                    dReLU(rbm.hid.θp .+ ϵ .* pθp, rbm.hid.θn .+ ϵ .* pθn,
                          rbm.hid.γp .+ ϵ .* pγp, rbm.hid.γn .+ ϵ .* pγn),
                    rbm.weights .+ ϵ .* pw)
-        contrastive_divergence(rbm_, vd, vm, wd)
+        contrastive_divergence_v(rbm_, vd, vm, wd)
     end
     @test Δ ≈ dot(gs[rbm.weights], pw) + dot(gs[rbm.vis.θ], pg) +
               dot(gs[rbm.hid.θp], pθp) + dot(gs[rbm.hid.θn], pθn) +

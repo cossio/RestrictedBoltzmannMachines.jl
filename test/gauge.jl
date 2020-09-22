@@ -24,7 +24,7 @@ B = (3,1)
         θ_ = (rbm.hid.θ .- rbm.hid.γ .* κ) ./ λ
         γ_ = rbm.hid.γ ./ λ.^2
         rbm_ = RBM(Binary(g_), Gaussian(θ_, γ_), w_)
-        contrastive_divergence(rbm_, vd, vm)
+        contrastive_divergence_v(rbm_, vd, vm)
     end
     @test norm(dλ) ≤ 1e-10
     @test norm(dκ) ≤ 1e-10
@@ -57,8 +57,8 @@ end
     I = randn(n..., B...)
     v1 = random(rbm.vis, +I)
     v2 = random(rbm.vis, -I)
-    Δf = free_energy(rbm,  v1) - free_energy(rbm,  v2)
-    Δg = free_energy(rbm_, v1) - free_energy(rbm_, v2)
+    Δf = free_energy_v(rbm,  v1) - free_energy_v(rbm,  v2)
+    Δg = free_energy_v(rbm_, v1) - free_energy_v(rbm_, v2)
     @test Δf ≈ Δg
 end
 
@@ -90,8 +90,8 @@ end
     I = randn(n..., B...)
     v1 = random(rbm.vis, +I)
     v2 = random(rbm.vis, -I)
-    Δf = free_energy(rbm,  v1) - free_energy(rbm,  v2)
-    Δg = free_energy(rbm_, v1) - free_energy(rbm_, v2)
+    Δf = free_energy_v(rbm,  v1) - free_energy_v(rbm,  v2)
+    Δg = free_energy_v(rbm_, v1) - free_energy_v(rbm_, v2)
     @test Δf ≈ Δg
 end
 
@@ -139,7 +139,7 @@ end
     v = random(rbm.vis)
     gs = gradient(ps) do
         rbm_ = gauge(rbm)
-        free_energy(rbm_, v) + jerome_regularization(rbm_)
+        free_energy_v(rbm_, v) + jerome_regularization(rbm_)
     end
     # weights scale
     @test norm(sum(gs[rbm.weights] .* rbm.weights, dims=vdims(rbm))) ≤ 1e-10
