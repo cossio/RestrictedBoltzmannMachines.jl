@@ -2,7 +2,7 @@ export AbstractLayer
 export checkdims, batchdims, batchindices, batchsize,
     energy, random, cgf, effective, fields, fieldtype,
     transfer_mode, transfer_mean, transfer_std, transfer_var, transfer_mean_abs,
-    transfer_pdf, transfer_cdf
+    transfer_pdf, transfer_cdf, transfer_logpdf, transfer_logcdf
 
 abstract type AbstractLayer{T,N} end
 Base.ndims(::AbstractLayer{T,N}) where {T,N} = N
