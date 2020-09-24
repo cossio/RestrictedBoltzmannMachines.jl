@@ -35,7 +35,5 @@ __cgf(layer::Binary) = log1pexp.(layer.θ)
     return __cgf(layer), Δ -> ((; θ = ∂θ .* Δ),)
 end
 
-function _transfer_logpdf(layer::Binary, x)
-    g = tensormul_ff(layer.θ, x, Val(ndims(layer)))
-    return logsigmoid.(-g)
-end
+__transfer_logpdf(layer::Binary, x) = binary_logpdf.(layer.θ, x)
+binary_logpdf(θ::Real, x::Real) = logsigmoid(θ * ifelse(x > 0, 1, -1))

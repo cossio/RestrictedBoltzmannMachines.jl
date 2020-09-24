@@ -90,14 +90,22 @@ end
 
 The survival function is defined as 1 - CDF(x).
 """
-relu_survival(θ::Real, γ::Real, x::Real) =
-    erfc(-(θ - x * abs(γ)) / √(2abs(γ))) / erfc(-θ / √(2abs(γ)))
-relu_logsurvival(θ::Real, γ::Real, x::Real) =
-    logerfc(-(θ - x * abs(γ)) / √(2abs(γ))) - logerfc(-θ / √(2abs(γ)))
+function relu_survival(θ::Real, γ::Real, x::Real)
+    γ = abs(γ)
+    result = erfc(-(θ - x * γ) / √(2γ)) / erfc(-θ / √(2γ))
+    return ifelse(x < 0, one(result), result)
+end
+
+function relu_logsurvival(θ::Real, γ::Real, x::Real)
+    γ = abs(γ)
+    result = logerfc(-(θ - x * γ) / √(2γ)) - logerfc(-θ / √(2γ))
+    return ifelse(x < 0, zero(result), result)
+end
 
 relu_cdf(θ::Real, γ::Real, x::Real) = 1 - relu_survival(θ, γ, x)
-
 relu_pdf(θ::Real, γ::Real, x::Real) = exp(relu_logpdf(θ, γ, x))
+relu_logcdf(θ::Real, γ::Real, x::Real) = log1p(-relu_survival(θ, γ, x))
+
 function relu_logpdf(θ::Real, γ::Real, x::Real)
     result = -(abs(γ) * x/2 - θ) * x - relu_cgf(θ, γ)
     return ifelse(x < 0, -inf(result), result)
@@ -125,5 +133,5 @@ function _transfer_var(layer::ReLU)
 end
 
 _transfer_mean_abs(layer::ReLU) = _transfer_mean(layer)
-_transfer_pdf(layer::ReLU, x) = relu_pdf.(layer.θ, layer.γ, x)
-_transfer_cdf(layer::ReLU, x) = relu_cdf.(layer.θ, layer.γ, x)
+__transfer_logpdf(layer::ReLU, x) = relu_logpdf.(layer.θ, layer.γ, x)
+__transfer_logcdf(layer::ReLU, x) = relu_logcdf.(layer.θ, layer.γ, x)

@@ -3,8 +3,7 @@ using Zygote, Flux, SpecialFunctions, FiniteDifferences
 using RestrictedBoltzmannMachines
 using Base: front, tail
 using RestrictedBoltzmannMachines
-using RestrictedBoltzmannMachines: randn_like, 
-    gauss_logpdf, gauss_logcdf, gauss_pdf, gauss_cdf
+using RestrictedBoltzmannMachines: randn_like,  gauss_logpdf, gauss_logcdf, gauss_standardize, __transfer_logcdf, __transfer_logpdf
 
 include("../test_utils.jl")
 
@@ -32,15 +31,13 @@ sample = random(layer, zeros(size(layer)..., 10000))
 @test transfer_std(layer) ≈ std(sample; dims=3) rtol=0.1
 @test transfer_var(layer) ≈ var(sample; dims=3) rtol=0.1
 @test transfer_mean_abs(layer) ≈ mean(abs, sample; dims=3) rtol=0.1
+@test iszero(gauss_standardize.(layer.θ, layer.γ, transfer_mean(layer)))
+@test gauss_standardize.(layer.θ, layer.γ, 0) ≈ -transfer_mean(layer) ./ transfer_std(layer)
 
 @testset "Gaussian pdf, cdf" begin
     for _ = 1:10
-        θ = randn()
-        γ = randn()
-        x = randn()
-        @test gauss_logcdf(θ, γ, x) ≈ log(gauss_cdf(θ, γ, x))
-        @test gauss_logpdf(θ, γ, x) ≈ log(gauss_pdf(θ, γ, x))
-        @test gauss_pdf(θ, γ, x) ≈ only(gradient(x -> gauss_cdf(θ, γ, x), x))
+        θ, γ, x = randn(3)
+        @test exp(gauss_logpdf(θ, γ, x)) ≈ only(gradient(x -> exp(gauss_logcdf(θ, γ, x)), x))
     end
 end
 
@@ -64,16 +61,16 @@ end
 @testset "Gaussian random gradient" begin
     layer = Gaussian(randn(5,5), randn(5,5))
     ps = Flux.params(layer)
-    h = random(layer, zeros(size(layer)...))
+    h = random(layer)
     gs = gradient(ps) do
         Zygote.@ignore Random.seed!(1)
-        h_ = random(layer, zeros(size(layer)...))
+        h_ = random(layer)
         Zygote.@ignore h .= h_
         sum(h_)
     end
-    pdf = transfer_pdf(layer, h)
+    pdf = exp.(__transfer_logpdf(layer, h))
     ∇cdf = gradient(ps) do
-        sum(transfer_cdf(layer, h))
+        sum(exp.(__transfer_logcdf(layer, h)))
     end
     @test gs[layer.θ] ≈ -∇cdf[layer.θ] ./ pdf
     @test gs[layer.γ] ≈ -∇cdf[layer.γ] ./ pdf
@@ -124,9 +121,9 @@ end
     @test isnothing(gs[rbm.vis.θ])
     @test gs[rbm.weights] ≈ v * gs[rbm.hid.θ]'
 
-    pdf = transfer_pdf(rbm.hid, h, inputs_v_to_h(rbm, v))
+    pdf = exp.(__transfer_logpdf(rbm.hid, h, inputs_v_to_h(rbm, v)))
     gs_ = gradient(ps) do
-        cdf = transfer_cdf(rbm.hid, h, inputs_v_to_h(rbm, v))
+        cdf = exp.(__transfer_logcdf(rbm.hid, h, inputs_v_to_h(rbm, v)))
         2mean(-cdf ./ pdf) + 1
     end
     @test isnothing(gs_[rbm.vis.θ])

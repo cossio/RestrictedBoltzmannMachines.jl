@@ -1,7 +1,7 @@
 using Test, Random, LinearAlgebra, Statistics
 using NNlib, StatsFuns, Zygote, FiniteDifferences
 using RestrictedBoltzmannMachines, OneHot
-using RestrictedBoltzmannMachines: meandrop
+using RestrictedBoltzmannMachines: meandrop, __transfer_logpdf,  __transfer_pdf
 
 include("../test_utils.jl")
 
@@ -23,6 +23,13 @@ Random.seed!(788)
     (dθ,) = gradient(testfun, θ)
     p = randn(size(θ))
     @test central_fdm(5,1)(ϵ -> testfun(θ + ϵ * p), 0) ≈ sum(dθ .* p)
+end
+
+@testset "Binary pdf" begin
+    layer = Binary(randn(1))
+    E0, E1 = energy(layer, [false]), energy(layer, [true])
+    @test transfer_pdf(layer, [false]) ≈ exp(-E0) / (exp(-E0) + exp(-E1))
+    @test transfer_pdf(layer, [true])  ≈ exp(-E1) / (exp(-E0) + exp(-E1))
 end
 
 @testset "Binary energy & cgf gradients" begin

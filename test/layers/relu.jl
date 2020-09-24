@@ -4,7 +4,8 @@ using Base: front, tail
 using Flux: params
 using RestrictedBoltzmannMachines
 using RestrictedBoltzmannMachines: ∇relu_rand, ∇relu_cgf, ∇drelu_rand,
-    relu_pdf, relu_cgf, exp_relu_cgf, relu_survival
+    relu_pdf, relu_cgf, exp_relu_cgf, relu_survival,
+    __transfer_logpdf, __transfer_logcdf,  __transfer_pdf, __transfer_cdf
 
 include("../test_utils.jl")
 
@@ -68,9 +69,9 @@ sample = nothing
     layer = ReLU(randn(5,5), randn(5,5))
     h = random(layer)
     gs = gradient(params(h)) do
-        sum(transfer_cdf(layer, h))
+        sum(__transfer_cdf(layer, h))
     end
-    @test gs[h] ≈ transfer_pdf(layer, h)
+    @test gs[h] ≈ __transfer_pdf(layer, h)
 end
 
 @testset "relu_cgf" begin
@@ -113,10 +114,11 @@ end
         sum(h_)
     end
     ∇cdf = gradient(ps) do
-        sum(transfer_cdf(layer, h))
+        sum(__transfer_cdf(layer, h))
     end
-    @test gs[layer.θ] ≈ -∇cdf[layer.θ] ./ transfer_pdf(layer, h)
-    @test gs[layer.γ] ≈ -∇cdf[layer.γ] ./ transfer_pdf(layer, h)
+    pdf = __transfer_pdf(layer, h)
+    @test gs[layer.θ] ≈ -∇cdf[layer.θ] ./ pdf
+    @test gs[layer.γ] ≈ -∇cdf[layer.γ] ./ pdf
 end
 
 @testset "ReLU, contrastive divergence gradient" begin
@@ -202,9 +204,9 @@ end
     @test isnothing(gs[rbm.vis.θ])
     @test gs[rbm.weights] ≈ v * gs[rbm.hid.θ]'
 
-    pdf = transfer_pdf(rbm.hid, h, inputs_v_to_h(rbm, v))
+    pdf = exp.(__transfer_logpdf(rbm.hid, h, inputs_v_to_h(rbm, v)))
     gs_ = gradient(ps) do
-        cdf = transfer_cdf(rbm.hid, h, inputs_v_to_h(rbm, v))
+        cdf = __transfer_cdf(rbm.hid, h, inputs_v_to_h(rbm, v))
         2mean(-cdf ./ pdf) + 1
     end
     @test isnothing(gs_[rbm.vis.θ])

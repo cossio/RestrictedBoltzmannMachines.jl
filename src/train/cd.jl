@@ -103,7 +103,7 @@ update_chains(rbm::RBM, cd::CD,  vd::AbstractArray, vm::AbstractArray = vd, β =
 update_chains(rbm::RBM, cd::PCD, vd::AbstractArray, vm::AbstractArray = vd, β = 1) =
     sample_v_from_v(rbm, vm, β; steps = cd.steps)::typeof(vm)
 
-    """
+"""
     contrastive_divergence_v(rbm, vd, vm, wd = 1, wm = 1)
 
 Contrastive divergence, defined as free energy difference between data (vd) and

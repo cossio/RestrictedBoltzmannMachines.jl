@@ -157,24 +157,33 @@ Variance over the configurations of `layer`.
 """
 transfer_var(layer::AbstractLayer, I = 0, β = 1) = _transfer_var(effective(layer, I, β))
 
-"""
-    transfer_pdf(layer, x, I = 0, β = 1)
+transfer_pdf(layer::AbstractLayer, x, I = 0, β = 1) = exp.(transfer_logpdf(layer, x, I, β))
+transfer_cdf(layer::AbstractLayer, x, I = 0, β = 1) = exp.(transfer_logcdf(effective(layer, I, β), x))
+transfer_survival(layer::AbstractLayer, x, I = 0, β = 1) = exp.(transfer_logsurvival(layer, x, I, β))
 
-PDF of configuration `x`.
-"""
-transfer_pdf(layer::AbstractLayer, x, I = 0, β = 1) = _transfer_pdf(effective(layer, I, β), x)
+transfer_logpdf(layer::AbstractLayer, x, I = 0, β = 1) = scalarize(_transfer_logpdf(layer, x, I, β))
+transfer_logcdf(layer::AbstractLayer, x, I = 0, β = 1) = scalarize(_transfer_logcdf(layer, x, I, β))
+transfer_logsurvival(layer::AbstractLayer, x, I = 0, β = 1) = scalarize(_transfer_logsurvival(layer, x, I, β))
 
-"""
-    transfer_cdf(layer, x, I = 0, β = 1)
+_transfer_pdf(layer::AbstractLayer, x, I = 0, β = 1) = exp.(_transfer_logpdf(layer, x, I, β))
+_transfer_cdf(layer::AbstractLayer, x, I = 0, β = 1) = exp.(_transfer_logcdf(layer, x, I, β))
+_transfer_survival(layer::AbstractLayer, x, I = 0, β = 1) = exp.(_transfer_logsurvival(layer, x, I, β))
 
-CDF of configuration `x`.
-"""
-transfer_cdf(layer::AbstractLayer, x, I = 0, β = 1) = _transfer_cdf(effective(layer, I, β), x)
+_transfer_logpdf(layer::AbstractLayer, x, I = 0, β = 1) =
+    sumdropfirst(__transfer_logpdf(layer, x, I, β), Val(ndims(layer)))
+_transfer_logcdf(layer::AbstractLayer, x, I = 0, β = 1) =
+    sumdropfirst(__transfer_logcdf(effective(layer, I, β), x), Val(ndims(layer)))
+_transfer_logsurvival(layer::AbstractLayer, x, I = 0, β = 1) =
+    sumdropfirst(__transfer_logsurvival(layer, x, I, β), Val(ndims(layer)))
 
-transfer_logpdf(layer::AbstractLayer, x, I = 0, β = 1) = _transfer_logpdf(effective(layer, I, β), x)
-transfer_logcdf(layer::AbstractLayer, x, I = 0, β = 1) = _transfer_logcdf(effective(layer, I, β), x)
-transfer_survival(layer::AbstractLayer, x, I = 0, β = 1) = _transfer_survival(effective(layer, I, β), x)
-transfer_logsurvival(layer::AbstractLayer, x, I = 0, β = 1) = _transfer_logsurvival(effective(layer, I, β), x)
+__transfer_logpdf(layer::AbstractLayer, x, I, β = 1) = __transfer_logpdf(effective(layer, I, β), x)
+__transfer_logcdf(layer::AbstractLayer, x, I, β = 1) = __transfer_logcdf(effective(layer, I, β), x)
+__transfer_logsurvival(layer::AbstractLayer, x, I, β = 1) = __transfer_logsurvival(effective(layer, I, β), x)
+
+__transfer_pdf(layer::AbstractLayer, x, I = 0, β = 1) = exp.(__transfer_logpdf(layer, x, I, β))
+__transfer_cdf(layer::AbstractLayer, x, I = 0, β = 1) = exp.(__transfer_logcdf(layer, x, I, β))
+__transfer_survival(layer::AbstractLayer, x, I = 0, β = 1) = exp.(__transfer_logsurvival(layer, x, I, β))
+
 transfer_mills(layer::AbstractLayer, x, I = 0, β = 1) = _transfer_mills(effective(layer, I, β), x)
 
 """

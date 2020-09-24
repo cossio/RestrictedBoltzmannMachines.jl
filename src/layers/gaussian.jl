@@ -22,23 +22,21 @@ _transfer_std(layer::Gaussian) = sqrt.(_transfer_var(layer))
 _transfer_mode(layer::Gaussian) = _transfer_mean(layer)
 effective_β(layer::Gaussian, β) = Gaussian(β .* layer.θ, β .* layer.γ)
 effective_I(layer::Gaussian, I) = Gaussian(layer.θ .+ I, broadlike(layer.γ, I))
-_transfer_pdf(layer::Gaussian, x) = gauss_pdf.(layer.θ, layer.γ, x)
-_transfer_cdf(layer::Gaussian, x) = gauss_cdf.(layer.θ, layer.γ, x)
-_transfer_logpdf(layer::Gaussian, x) = gauss_logpdf.(layer.θ, layer.γ, x)
-_transfer_logcdf(layer::Gaussian, x) = gauss_logcdf.(layer.θ, layer.γ, x)
+__transfer_logpdf(layer::Gaussian, x) = gauss_logpdf.(layer.θ, layer.γ, x)
+__transfer_logcdf(layer::Gaussian, x) = gauss_logcdf.(layer.θ, layer.γ, x)
 
 function gauss_logpdf(θ::Real, γ::Real, x::Real)
-    ξ = (x - θ / abs(γ)) * √abs(γ)
+    ξ = gauss_standardize(θ, γ, x)
     return -ξ^2 / 2 + log(abs(γ) / 2π) / 2
 end
 
 function gauss_logcdf(θ::Real, γ::Real, x::Real)
-    ξ = (x - θ / abs(γ)) * √abs(γ)
-    return logerfc(-ξ / √2) - log(2)
+    ξ = gauss_standardize(θ, γ, x)
+    two = oftype(ξ, 2)
+    return logerfc(-ξ / √two) - log(two)
 end
 
-gauss_pdf(θ::Real, γ::Real, x::Real) = exp(gauss_logpdf(θ, γ, x))
-gauss_cdf(θ::Real, γ::Real, x::Real) = exp(gauss_logcdf(θ, γ, x))
+gauss_standardize(θ::Real, γ::Real, x::Real) = (x - θ / abs(γ)) * √abs(γ)
 
 function _transfer_mean_abs(layer::Gaussian)
     μ = _transfer_mean(layer)

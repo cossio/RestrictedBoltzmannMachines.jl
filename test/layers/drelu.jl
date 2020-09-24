@@ -4,7 +4,8 @@ using RestrictedBoltzmannMachines
 using Flux: params
 using Base: front, tail
 using RestrictedBoltzmannMachines: ∇relu_rand, ∇relu_cgf, ∇drelu_rand, mills,
-    drelu_rand, drelu_survival, drelu_pdf
+    drelu_rand, drelu_cdf, __transfer_logpdf, __transfer_logcdf,  __transfer_pdf, __transfer_cdf,
+    drelu_pdf, drelu_cdf, drelu_logpdf, drelu_logcdf
 
 include("../test_utils.jl")
 
@@ -32,10 +33,10 @@ end
     @test -2dγn ≈ first(transfer_var(ReLU([2.0], [3.0]))) * pn + dθn^2 / pn
 end
 
-@testset "dReLU, survival" begin
+@testset "dReLU, cdf" begin
     x, dθp_, dθn_, dγp_, dγn_ = ∇drelu_rand(θp, θn, γp, γn)
-    dθp, dθn, dγp, dγn, dx = gradient(drelu_survival, θp, θn, γp, γn, x)
-    @test drelu_pdf(θp, θn, γp, γn, x) ≈ -dx
+    dθp, dθn, dγp, dγn, dx = gradient(drelu_cdf, θp, θn, γp, γn, x)
+    @test drelu_pdf(θp, θn, γp, γn, x) ≈ dx
     @test dθp_ ≈ -dθp / dx
     @test dθn_ ≈ -dθn / dx
     @test dγp_ ≈ -dγp / dx
@@ -91,9 +92,9 @@ sample = random(layer, zeros(size(layer)..., 100000))
     layer = dReLU(randn(5,5), randn(5,5), randn(5,5), randn(5,5))
     h = random(layer)
     gs = gradient(params(h)) do
-        sum(transfer_cdf(layer, h))
+        sum(__transfer_cdf(layer, h))
     end
-    @test gs[h] ≈ transfer_pdf(layer, h)
+    @test gs[h] ≈ __transfer_pdf(layer, h)
 end
 
 @testset "dReLU energy & cgf gradients" begin
@@ -166,12 +167,13 @@ end
         sum(h_)
     end
     ∇cdf = gradient(ps) do
-        sum(transfer_cdf(layer, h))
+        sum(__transfer_cdf(layer, h))
     end
-    @test gs[layer.θp] ≈ -∇cdf[layer.θp] ./ transfer_pdf(layer, h)
-    @test gs[layer.θn] ≈ -∇cdf[layer.θn] ./ transfer_pdf(layer, h)
-    @test gs[layer.γp] ≈ -∇cdf[layer.γp] ./ transfer_pdf(layer, h)
-    @test gs[layer.γn] ≈ -∇cdf[layer.γn] ./ transfer_pdf(layer, h)
+    pdf = __transfer_pdf(layer, h)
+    @test gs[layer.θp] ≈ -∇cdf[layer.θp] ./ pdf
+    @test gs[layer.θn] ≈ -∇cdf[layer.θn] ./ pdf
+    @test gs[layer.γp] ≈ -∇cdf[layer.γp] ./ pdf
+    @test gs[layer.γn] ≈ -∇cdf[layer.γn] ./ pdf
 end
 
 @testset "dReLU vs Gaussian" begin
@@ -236,9 +238,9 @@ end
     @test isnothing(gs[rbm.vis.θ])
     @test gs[rbm.weights] ≈ v * (gs[rbm.hid.θp] .+ gs[rbm.hid.θn])'
 
-    pdf = transfer_pdf(rbm.hid, h, inputs_v_to_h(rbm, v))
+    pdf = __transfer_pdf(rbm.hid, h, inputs_v_to_h(rbm, v))
     gs_ = gradient(ps) do
-        cdf = transfer_cdf(rbm.hid, h, inputs_v_to_h(rbm, v))
+        cdf = __transfer_cdf(rbm.hid, h, inputs_v_to_h(rbm, v))
         2mean(-cdf ./ pdf) + 1
     end
     @test isnothing(gs_[rbm.vis.θ])
