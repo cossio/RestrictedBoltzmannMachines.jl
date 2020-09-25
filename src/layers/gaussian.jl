@@ -13,8 +13,6 @@ Gaussian{T}(n::Int...) where {T} = Gaussian(zeros(T, n...), ones(T, n...))
 Gaussian(n::Int...) = Gaussian{Float64}(n...)
 fields(layer::Gaussian) = (layer.θ, layer.γ)
 Flux.@functor Gaussian
-__energy(layer::Gaussian, x::AbstractArray) = @. (abs(layer.γ) * x/2 - layer.θ) * x
-__cgf(layer::Gaussian) = @. layer.θ^2 / abs(layer.γ) / 2 - log(abs(layer.γ)/π/2)/2
 _random(layer::Gaussian) = randn_like(layer.θ) ./ sqrt.(abs.(layer.γ)) .+ layer.θ ./ abs.(layer.γ)
 _transfer_mean(layer::Gaussian) = @. layer.θ / abs(layer.γ)
 _transfer_var(layer::Gaussian) = @. inv(abs(layer.γ))
@@ -22,21 +20,19 @@ _transfer_std(layer::Gaussian) = sqrt.(_transfer_var(layer))
 _transfer_mode(layer::Gaussian) = _transfer_mean(layer)
 effective_β(layer::Gaussian, β) = Gaussian(β .* layer.θ, β .* layer.γ)
 effective_I(layer::Gaussian, I) = Gaussian(layer.θ .+ I, broadlike(layer.γ, I))
-__transfer_logpdf(layer::Gaussian, x) = gauss_logpdf.(layer.θ, layer.γ, x)
-__transfer_logcdf(layer::Gaussian, x) = gauss_logcdf.(layer.θ, layer.γ, x)
 
-function gauss_logpdf(θ::Real, γ::Real, x::Real)
-    ξ = gauss_standardize(θ, γ, x)
-    return -ξ^2 / 2 + log(abs(γ) / 2π) / 2
+function __transfer_logpdf(layer::Gaussian, x)
+    θ, γ = layer.θ, abs.(layer.γ)
+    ξ = @. (x - θ / γ) * √γ
+    return @. -ξ^2 / 2 + log(γ/2/π) / 2
 end
 
-function gauss_logcdf(θ::Real, γ::Real, x::Real)
-    ξ = gauss_standardize(θ, γ, x)
-    two = oftype(ξ, 2)
-    return logerfc(-ξ / √two) - log(two)
+function __transfer_logcdf(layer::Gaussian, x)
+    θ, γ = layer.θ, abs.(layer.γ)
+    ξ = @. (x - θ / γ) * √γ
+    two = convert(eltype(ξ), 2)
+    @. logerfc(-ξ / √two) - log(two)
 end
-
-gauss_standardize(θ::Real, γ::Real, x::Real) = (x - θ / abs(γ)) * √abs(γ)
 
 function _transfer_mean_abs(layer::Gaussian)
     μ = _transfer_mean(layer)
@@ -46,6 +42,7 @@ end
 
 #= gradients =#
 
+__energy(layer::Gaussian, x::AbstractArray) = @. (abs(layer.γ) * x/2 - layer.θ) * x
 @adjoint function __energy(layer::Gaussian, x::AbstractArray)
     ∂θ = -x
     ∂γ = @. sign(layer.γ) * x^2/2
@@ -53,6 +50,7 @@ end
     return __energy(layer, x), back
 end
 
+__cgf(layer::Gaussian) = @. layer.θ^2 / abs(layer.γ) / 2 - log(abs(layer.γ)/π/2)/2
 @adjoint function __cgf(layer::Gaussian)
     Γ = __cgf(layer)
     θ, γ = layer.θ, layer.γ

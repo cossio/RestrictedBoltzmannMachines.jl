@@ -27,12 +27,6 @@ Computes log(normcdf(a, b)), but retaining accuracy.
 """
 lognormcdf(a::Real, b::Real) = logerf(a / √two(a), b / √two(b)) - log(two(a + b))
 
-function standardize(x::Real, μ::Real, σ::Real)
-	result = (x - μ) / σ
-	isfinite(x) ? result : oftype(result, x)
-end
-standardize(x::Real, d::Normal) = standardize(x, mean(d), std(d))
-
 """
 	tnmean(a)
 

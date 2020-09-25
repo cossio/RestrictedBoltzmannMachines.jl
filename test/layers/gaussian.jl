@@ -3,7 +3,8 @@ using Zygote, Flux, SpecialFunctions, FiniteDifferences
 using RestrictedBoltzmannMachines
 using Base: front, tail
 using RestrictedBoltzmannMachines
-using RestrictedBoltzmannMachines: randn_like,  gauss_logpdf, gauss_logcdf, gauss_standardize, __transfer_logcdf, __transfer_logpdf
+using RestrictedBoltzmannMachines: randn_like,
+    __transfer_logcdf, __transfer_logpdf, __transfer_cdf, __transfer_pdf
 
 include("../test_utils.jl")
 
@@ -31,13 +32,13 @@ sample = random(layer, zeros(size(layer)..., 10000))
 @test transfer_std(layer) ≈ std(sample; dims=3) rtol=0.1
 @test transfer_var(layer) ≈ var(sample; dims=3) rtol=0.1
 @test transfer_mean_abs(layer) ≈ mean(abs, sample; dims=3) rtol=0.1
-@test iszero(gauss_standardize.(layer.θ, layer.γ, transfer_mean(layer)))
-@test gauss_standardize.(layer.θ, layer.γ, 0) ≈ -transfer_mean(layer) ./ transfer_std(layer)
 
 @testset "Gaussian pdf, cdf" begin
     for _ = 1:10
-        θ, γ, x = randn(3)
-        @test exp(gauss_logpdf(θ, γ, x)) ≈ only(gradient(x -> exp(gauss_logcdf(θ, γ, x)), x))
+        layer = Gaussian(randn(3), randn(3))
+        x = randn(3)
+        @test __transfer_pdf(layer, x) ≈ only(gradient(x -> sum(__transfer_cdf(layer, x)), x))
+        @test __transfer_pdf(layer, x) ≈ only(gradient(x -> transfer_logcdf(layer, x), x)) .* __transfer_cdf(layer, x)
     end
 end
 
