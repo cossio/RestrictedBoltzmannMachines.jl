@@ -2,7 +2,7 @@ export AbstractLayer
 export checkdims, batchdims, batchindices, batchsize,
     energy, random, cgf, effective, fields, fieldtype,
     transfer_mode, transfer_mean, transfer_std, transfer_var, transfer_mean_abs,
-    transfer_pdf, transfer_cdf, transfer_logpdf, transfer_logcdf
+    transfer_pdf, transfer_cdf, transfer_logpdf, transfer_logcdf, transfer_entropy
 
 abstract type AbstractLayer{T,N} end
 Base.ndims(::AbstractLayer{T,N}) where {T,N} = N
@@ -164,6 +164,7 @@ transfer_survival(layer::AbstractLayer, x, I = 0, β = 1) = exp.(transfer_logsur
 transfer_logpdf(layer::AbstractLayer, x, I = 0, β = 1) = scalarize(_transfer_logpdf(layer, x, I, β))
 transfer_logcdf(layer::AbstractLayer, x, I = 0, β = 1) = scalarize(_transfer_logcdf(layer, x, I, β))
 transfer_logsurvival(layer::AbstractLayer, x, I = 0, β = 1) = scalarize(_transfer_logsurvival(layer, x, I, β))
+transfer_entropy(layer::AbstractLayer, I = 0, β = 1) = scalarize(_transfer_entropy(layer, I, β))
 
 _transfer_pdf(layer::AbstractLayer, x, I = 0, β = 1) = exp.(_transfer_logpdf(layer, x, I, β))
 _transfer_cdf(layer::AbstractLayer, x, I = 0, β = 1) = exp.(_transfer_logcdf(layer, x, I, β))
@@ -175,6 +176,8 @@ _transfer_logcdf(layer::AbstractLayer, x, I = 0, β = 1) =
     sumdropfirst(__transfer_logcdf(effective(layer, I, β), x), Val(ndims(layer)))
 _transfer_logsurvival(layer::AbstractLayer, x, I = 0, β = 1) =
     sumdropfirst(__transfer_logsurvival(layer, x, I, β), Val(ndims(layer)))
+_transfer_entropy(layer::AbstractLayer, I = 0, β = 1) =
+    sumdropfirst(__transfer_entropy(layer, I, β), Val(ndims(layer)))
 
 __transfer_logpdf(layer::AbstractLayer, x, I, β = 1) = __transfer_logpdf(effective(layer, I, β), x)
 __transfer_logcdf(layer::AbstractLayer, x, I, β = 1) = __transfer_logcdf(effective(layer, I, β), x)
@@ -183,6 +186,8 @@ __transfer_logsurvival(layer::AbstractLayer, x, I, β = 1) = __transfer_logsurvi
 __transfer_pdf(layer::AbstractLayer, x, I = 0, β = 1) = exp.(__transfer_logpdf(layer, x, I, β))
 __transfer_cdf(layer::AbstractLayer, x, I = 0, β = 1) = exp.(__transfer_logcdf(layer, x, I, β))
 __transfer_survival(layer::AbstractLayer, x, I = 0, β = 1) = exp.(__transfer_logsurvival(layer, x, I, β))
+
+__transfer_entropy(layer::AbstractLayer, I, β = 1) = __transfer_entropy(effective(layer, I, β))
 
 transfer_mills(layer::AbstractLayer, x, I = 0, β = 1) = _transfer_mills(effective(layer, I, β), x)
 

@@ -40,6 +40,11 @@ function _transfer_mean_abs(layer::Gaussian)
     @. √(2ν/π) * exp(-μ^2 / (2ν)) + μ * erf(μ / √(2ν))
 end
 
+function __transfer_entropy(layer::Gaussian)
+    ν = _transfer_var(layer)
+    return @. log(2ν * π * ℯ)
+end
+
 #= gradients =#
 
 __energy(layer::Gaussian, x::AbstractArray) = @. (abs(layer.γ) * x/2 - layer.θ) * x
