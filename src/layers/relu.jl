@@ -18,7 +18,7 @@ Gaussian{T,N}(layer::ReLU{T,N}) where {T,N} = Gaussian(layer.θ, layer.γ)
 fields(layer::ReLU) = (layer.θ, layer.γ)
 Flux.@functor ReLU
 
-function __energy(layer::ReLU, x::AbstractArray)
+function __energy(layer::ReLU, x::NumArray)
     E = __energy(Gaussian(layer), x)
     return @. ifelse(x < 0, inf(E), E)
 end
@@ -36,7 +36,7 @@ effective_I(layer::ReLU, I) = ReLU(effective_I(Gaussian(layer), I))
 relu_cgf(θ::Real, γ::Real) = logerfcx(-θ/√(2abs(γ))) - log(2abs(γ)/π)/2
 exp_relu_cgf(θ::Real, γ::Real) = erfcx(-θ/√(2abs(γ))) / sqrt(2abs(γ)/π)
 
-function ∇relu_cgf(θ::Numeric, γ::Numeric)
+function ∇relu_cgf(θ::Num, γ::Num)
     #all(γ .> 0) || throw(ArgumentError("All γ must be positive"))
     Γ = @. relu_cgf(θ, γ)
     dθ = @. (θ + inv(exp(Γ))) / abs(γ)
@@ -47,7 +47,7 @@ end
     z, dθ, dγ = ∇relu_cgf(θ, γ)
     return z, Δ -> (Δ * dθ, Δ * dγ)
 end
-@adjoint function broadcasted(::typeof(relu_cgf), θ::Numeric, γ::Numeric)
+@adjoint function broadcasted(::typeof(relu_cgf), θ::Num, γ::Num)
     z, dθ, dγ = ∇relu_cgf(θ, γ)
     return z, Δ -> (nothing, Δ .* dθ, Δ .* dγ)
 end
@@ -57,7 +57,7 @@ function relu_rand(θ::Real, γ::Real)
     σ = √inv(abs(γ))
     return randnt_half(μ, σ)
 end
-function ∇relu_rand(θ::Numeric, γ::Numeric) # ∇(survival) / pdf (implicit grads for ReLU samples)
+function ∇relu_rand(θ::Num, γ::Num) # ∇(survival) / pdf (implicit grads for ReLU samples)
     μ = @. θ / abs(γ)
     σ = @. inv(√abs(γ))
     z, dμ, dσ = ∇randnt_half(μ, σ)
@@ -69,7 +69,7 @@ end
     z, dθ, dγ = ∇relu_rand(θ, γ)
     return z, Δ -> (Δ * dθ, Δ * dγ)
 end
-@adjoint function broadcasted(::typeof(relu_rand), θ::Numeric, γ::Numeric)
+@adjoint function broadcasted(::typeof(relu_rand), θ::Num, γ::Num)
     z, dθ, dγ = ∇relu_rand(θ, γ)
     return z, Δ -> (nothing, Δ .* dθ, Δ .* dγ)
 end

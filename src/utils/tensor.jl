@@ -1,11 +1,14 @@
 export tensormul_ff, tensormul_ll, tensormul_lf, tensormul_fl, tensordot
 
+NumArray{T<:Number,N} = AbstractArray{<:T,N}
+Num{T<:Number,N} = Union{T, AbstractArray{<:T,N}}
+
 """
     tensormul_ff(A, B, Val(dims))
 
 `A*B` contracting first `dims` dimensions of `A` with first `dims` dimensions of `B`.
 """
-function tensormul_ff(A::AbstractArray, B::AbstractArray, ::Val{dims}) where {dims}
+function tensormul_ff(A::NumArray, B::NumArray, ::Val{dims}) where {dims}
 	dims::Int
 	@assert ndims(A) ≥ dims && ndims(B) ≥ dims
 	A_contracted = ntuple(d -> size(A, d), Val(dims))
@@ -28,7 +31,7 @@ end
 
 `A*B` contracting last `dims` dimensions of `A` with last `dims` dimensions of `B`.
 """
-function tensormul_ll(A::AbstractArray, B::AbstractArray, ::Val{dims}) where {dims}
+function tensormul_ll(A::NumArray, B::NumArray, ::Val{dims}) where {dims}
 	dims::Int
 	@assert ndims(A) ≥ dims && ndims(B) ≥ dims
 	A_contracted = ntuple(d -> size(A, ndims(A) - dims + d), Val(dims))
@@ -51,7 +54,7 @@ end
 
 `A*B` contracting last `dims` dimensions of `A` with first `dims` dimensions of `B`.
 """
-function tensormul_lf(A::AbstractArray, B::AbstractArray, ::Val{dims}) where {dims}
+function tensormul_lf(A::NumArray, B::NumArray, ::Val{dims}) where {dims}
 	dims::Int
 	@assert ndims(A) ≥ dims && ndims(B) ≥ dims
 	A_contracted = ntuple(d -> size(A, ndims(A) - dims + d), Val(dims))
@@ -74,7 +77,7 @@ end
 
 `A*B` contracting first `dims` dimensions of `A` with last `dims` dimensions of `B`.
 """
-function tensormul_fl(A::AbstractArray, B::AbstractArray, ::Val{dims}) where {dims}
+function tensormul_fl(A::NumArray, B::NumArray, ::Val{dims}) where {dims}
 	dims::Int
 	@assert ndims(A) ≥ dims && ndims(B) ≥ dims
 	A_contracted = ntuple(d -> size(A, d), Val(dims))
@@ -100,7 +103,7 @@ dimensions of `X` and `Y`, and matching the remaining last dimensions of
 
 For example, `C[b] = sum(X[i,j,b] * W[i,j,μ,ν] * Y[μ,ν,b])`.
 """
-function tensordot(X::AbstractArray, W::AbstractArray, Y::AbstractArray)
+function tensordot(X::NumArray, W::NumArray, Y::NumArray)
 	xsize, ysize, bsize = tensorsizes(X, W, Y)
 	Xmat = reshape(X, prod(xsize), prod(bsize))
 	Ymat = reshape(Y, prod(ysize), prod(bsize))
@@ -113,7 +116,7 @@ function tensordot(X::AbstractArray, W::AbstractArray, Y::AbstractArray)
 	return reshape(Cmat, bsize)
 end
 
-function tensorsizes(X::AbstractArray, W::AbstractArray, Y::AbstractArray)
+function tensorsizes(X::NumArray, W::NumArray, Y::NumArray)
 	@assert iseven(ndims(X) + ndims(Y) - ndims(W))
 	bdims = div(ndims(X) + ndims(Y) - ndims(W), 2)
 	@assert ndims(X) ≥ bdims && ndims(Y) ≥ bdims

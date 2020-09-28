@@ -31,7 +31,7 @@ function probs_pair(layer::dReLU)
     return pp, pn
 end
 
-function __energy(layer::dReLU, x::AbstractArray)
+function __energy(layer::dReLU, x::NumArray)
     checkdims(layer, x)
     xp = @. max( x, zero(x))
     xn = @. max(-x, zero(x))
@@ -50,12 +50,12 @@ function _transfer_mode(layer::dReLU)
     return @. ifelse(Ep ≤ En, xp, xn)
 end
 
-function effective_β(layer::dReLU, β)
+function effective_β(layer::dReLU, β::Num)
     p, n = relus_pair(layer)
     return dReLU(effective_β(p, β), effective_β(n, β))
 end
 
-function effective_I(layer::dReLU, I)
+function effective_I(layer::dReLU, I::Num)
     p, n = relus_pair(layer)
     return dReLU(effective_I(p, I), effective_I(n, -I))
 end
@@ -105,11 +105,11 @@ end
     z, dθp, dθn, dγp, dγn = ∇drelu_rand(θp, θn, γp, γn)
     return z, δ -> (δ * dθp, δ * dθn, δ * dγp, δ * dγn)
 end
-@adjoint function broadcasted(::typeof(drelu_rand), θp::Numeric, θn::Numeric, γp::Numeric, γn::Numeric)
+@adjoint function broadcasted(::typeof(drelu_rand), θp::Num, θn::Num, γp::Num, γn::Num)
     z, dθp, dθn, dγp, dγn = ∇drelu_rand(θp, θn, γp, γn)
     return z, δ -> (nothing, δ .* dθp, δ .* dθn, δ .* dγp, δ .* dγn)
 end
-function ∇drelu_rand(θp::Numeric, θn::Numeric, γp::Numeric, γn::Numeric)
+function ∇drelu_rand(θp::Num, θn::Num, γp::Num, γn::Num)
     zipped = ∇drelu_rand.(θp, θn, γp, γn)
     return unzip(zipped)
 end

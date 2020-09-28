@@ -31,7 +31,7 @@ hsize(rbm::RBM) = size(rbm.hid)
 vis_type(::RBM{V,H,W}) where {V,H,W} = V
 hid_type(::RBM{V,H,W}) where {V,H,W} = H
 
-function checkdims(rbm::RBM, v::AbstractArray, h::AbstractArray)
+function checkdims(rbm::RBM, v::NumArray, h::NumArray)
     checkdims(rbm.vis, v)
     checkdims(rbm.hid, h)
     batchsize(rbm.vis, v) == batchsize(rbm.hid, h) || dimserror()
@@ -51,7 +51,7 @@ flip_layers(rbm::RBM) =
 
 Energy of the rbm in the configuration (v,h).
 """
-function energy(rbm::RBM, v::AbstractArray, h::AbstractArray)
+function energy(rbm::RBM, v::NumArray, h::NumArray)
     checkdims(rbm, v, h)
     Ev = energy(rbm.vis, v)
     Eh = energy(rbm.hid, h)
@@ -64,7 +64,7 @@ end
 
 Weight mediated interaction energy.
 """
-function interaction_energy(rbm::RBM, v::AbstractArray, h::AbstractArray)
+function interaction_energy(rbm::RBM, v::NumArray, h::NumArray)
     checkdims(rbm, v, h)
     return -tensordot(v, rbm.weights, h)
 end
@@ -74,7 +74,7 @@ end
 
 Samples a hidden configuration conditional on the visible configuration `v`.
 """
-function sample_h_from_v(rbm::RBM, v::AbstractArray, β::Numeric = 1)
+function sample_h_from_v(rbm::RBM, v::NumArray, β::Num = 1)
     Ih = inputs_v_to_h(rbm, v)
     return random(rbm.hid, Ih, β)
 end
@@ -84,7 +84,7 @@ end
 
 Samples a visible configuration conditional on the hidden configuration `h`.
 """
-function sample_v_from_h(rbm::RBM, h::AbstractArray, β::Numeric = 1)
+function sample_v_from_h(rbm::RBM, h::NumArray, β::Num = 1)
     Iv = inputs_h_to_v(rbm, h)
     return random(rbm.vis, Iv, β)
 end
@@ -94,7 +94,7 @@ end
 
 Samples a visible configuration conditional on another visible configuration `v`.
 """
-function sample_v_from_v(rbm::RBM, v::AbstractArray, β::Numeric = 1; steps=1)
+function sample_v_from_v(rbm::RBM, v::NumArray, β::Num = 1; steps=1)
     for step in 1:steps
         h = sample_h_from_v(rbm, v, β)
         v = sample_v_from_h(rbm, h, β)
@@ -107,7 +107,7 @@ end
 
 Samples a hidden configuration conditional on another hidden configuration `h`.
 """
-function sample_h_from_h(rbm::RBM, h::AbstractArray, β::Numeric = 1; steps=1)
+function sample_h_from_h(rbm::RBM, h::NumArray, β::Num = 1; steps=1)
     for step in 1:steps
         v = sample_v_from_h(rbm, h, β)
         h = sample_h_from_v(rbm, v, β)
@@ -120,7 +120,7 @@ end
 
 Free energy of visible configuration (after marginalizing hidden configurations).
 """
-function free_energy_v(rbm::RBM, v::AbstractArray, β::Numeric = 1)
+function free_energy_v(rbm::RBM, v::NumArray, β::Num = 1)
     Ev = energy(rbm.vis, v)
     Ih = inputs_v_to_h(rbm, v)
     Γh = cgf(rbm.hid, Ih, β)
@@ -132,7 +132,7 @@ end
 
 Free energy of hidden configuration (after marginalizing visible configurations).
 """
-function free_energy_h(rbm::RBM, h::AbstractArray, β::Numeric = 1)
+function free_energy_h(rbm::RBM, h::NumArray, β::Num = 1)
     Eh = energy(rbm.hid, h)
     Iv = inputs_h_to_v(rbm, h)
     Γv = cgf(rbm.vis, Iv, β)
@@ -144,7 +144,7 @@ end
 
 Stochastic reconstruction error of `v`.
 """
-reconstruction_error(rbm::RBM, v::AbstractArray, β::Numeric = 1) =
+reconstruction_error(rbm::RBM, v::NumArray, β::Num = 1) =
     mean(abs.(v .- sample_v_from_v(rbm, v, β)))
 
 """
@@ -152,7 +152,7 @@ reconstruction_error(rbm::RBM, v::AbstractArray, β::Numeric = 1) =
 
 Interaction inputs from visible to hidden layer.
 """
-inputs_v_to_h(rbm::RBM, v::AbstractArray) =
+inputs_v_to_h(rbm::RBM, v::NumArray) =
     _inputs_v_to_h(rbm.weights, v, Val(ndims(rbm.vis)))
 
 """
@@ -160,7 +160,7 @@ inputs_v_to_h(rbm::RBM, v::AbstractArray) =
 
 Interaction inputs from hidden to visible layer, considering all hidden units.
 """
-inputs_h_to_v(rbm::RBM, h::AbstractArray, hsel::Nothing = nothing) =
+inputs_h_to_v(rbm::RBM, h::NumArray, hsel::Nothing = nothing) =
     _inputs_h_to_v(rbm.weights, h, Val(ndims(rbm.hid)))
 
 """
@@ -169,7 +169,7 @@ inputs_h_to_v(rbm::RBM, h::AbstractArray, hsel::Nothing = nothing) =
 Interaction inputs from hidden to visible layer. Pass `hsel` (CartesianIndices)
 to consider the contributions of a subset of hidden units only.
 """
-function inputs_h_to_v(rbm::RBM, h::AbstractArray, hsel::CartesianIndices)
+function inputs_h_to_v(rbm::RBM, h::NumArray, hsel::CartesianIndices)
     vsel = CartesianIndices(size(rbm.vis))
     bidx = batchindices(rbm.hid, h)
     return _inputs_h_to_v(rbm.weights, h, Val(ndims(rbm.hid)), vsel, hsel, bidx)

@@ -58,11 +58,11 @@ http://papers.nips.cc/paper/7326-implicit-reparameterization-gradients
     z, da = ∇randnt(rng, a)
     return z, δ -> (nothing, δ * da)
 end
-@adjoint function broadcasted(::typeof(randnt), rng::AbstractRNG, a::Numeric)
+@adjoint function broadcasted(::typeof(randnt), rng::AbstractRNG, a::Num)
     z, da = ∇randnt(rng, a)
     return z, δ -> (nothing, nothing, δ .* da)
 end
-function ∇randnt(rng::AbstractRNG, a::Numeric)
+function ∇randnt(rng::AbstractRNG, a::Num)
     z = randnt.(rng, a)
     log1mu = @. logerfc(z / √two(z)) - logerfc(a / √two(a))
     da = @. exp((z - a) * (z + a) / 2 + log1mu)
@@ -84,12 +84,12 @@ randnt_half(μ::Real, σ::Real) = randnt_half(GLOBAL_RNG, μ, σ)
     z, dμ, dσ = ∇randnt_half(rng, μ, σ)
     return z, δ -> (nothing, δ * dμ, δ * dσ)
 end
-@adjoint function broadcasted(::typeof(randnt_half), rng::AbstractRNG, μ::Numeric, σ::Numeric)
+@adjoint function broadcasted(::typeof(randnt_half), rng::AbstractRNG, μ::Num, σ::Num)
     z, dμ, dσ = ∇randnt_half(rng, μ, σ)
     back(δ) = (nothing, nothing, δ .* dμ, δ .* dσ)
     return z, δ -> (nothing, nothing, δ .* dμ, δ .* dσ)
 end
-function ∇randnt_half(rng::AbstractRNG, μ::Numeric, σ::Numeric)
+function ∇randnt_half(rng::AbstractRNG, μ::Num, σ::Num)
     α = @. -μ / σ
     ζ, dα = ∇randnt(rng, α)
     z = @. μ + σ * ζ
@@ -102,8 +102,8 @@ end
     z, dμ, dσ = ∇randnt_half(μ, σ)
     return z, δ -> (δ * dμ, δ * dσ)
 end
-@adjoint function broadcasted(::typeof(randnt_half), μ::Numeric, σ::Numeric)
+@adjoint function broadcasted(::typeof(randnt_half), μ::Num, σ::Num)
     z, dμ, dσ = ∇randnt_half(μ, σ)
     return z, δ -> (nothing, δ .* dμ, δ .* dσ)
 end
-∇randnt_half(μ::Numeric, σ::Numeric) = ∇randnt_half(GLOBAL_RNG, μ, σ)
+∇randnt_half(μ::Num, σ::Num) = ∇randnt_half(GLOBAL_RNG, μ, σ)

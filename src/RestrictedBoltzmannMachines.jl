@@ -7,7 +7,7 @@ module RestrictedBoltzmannMachines
     using Base: tail, front, OneTo, @propagate_inbounds, @kwdef
     using Random: GLOBAL_RNG
     using Flux: throttle, params, Params, ADAM
-    using Zygote: unbroadcast, @adjoint, Numeric, Grads
+    using Zygote: unbroadcast, @adjoint, Grads
     import NNlib
 
     export MVHistory, Data

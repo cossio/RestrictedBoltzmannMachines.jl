@@ -27,7 +27,7 @@ function zerosum(rbm::RBM{<:Potts})::typeof(rbm)
 end
 zerosum(layer::AbstractLayer) = layer
 zerosum(layer::Potts) = Potts(zerosum(layer.θ; dims=1))
-zerosum(A::AbstractArray; dims=1) = A .- mean(A; dims=dims)
+zerosum(A::NumArray; dims=1) = A .- mean(A; dims=dims)
 
 """
     rescale(rbm)
@@ -62,7 +62,7 @@ function zerosum!(layer::Potts)
     zerosum!(layer.θ; dims=1)
     return layer
 end
-function zerosum!(A::AbstractArray; dims=1)
+function zerosum!(A::NumArray; dims=1)
     A .-= mean(A; dims=dims)
     return A
 end
@@ -72,7 +72,7 @@ function rescale!(rbm::RBM)
     return rbm
 end
 
-function rescale!(A::AbstractArray; dims)
+function rescale!(A::NumArray; dims)
     λ = sqrt.(sum(A.^2; dims=dims))
     all(x -> x > 0, λ) || throw(ArgumentError("can't normalize array"))
     A ./= λ

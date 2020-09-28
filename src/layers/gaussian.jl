@@ -47,8 +47,8 @@ end
 
 #= gradients =#
 
-__energy(layer::Gaussian, x::AbstractArray) = @. (abs(layer.γ) * x/2 - layer.θ) * x
-@adjoint function __energy(layer::Gaussian, x::AbstractArray)
+__energy(layer::Gaussian, x::NumArray) = @. (abs(layer.γ) * x/2 - layer.θ) * x
+@adjoint function __energy(layer::Gaussian, x::NumArray)
     ∂θ = -x
     ∂γ = @. sign(layer.γ) * x^2/2
     back(Δ) = ((θ = ∂θ .* Δ, γ = ∂γ .* Δ), nothing)

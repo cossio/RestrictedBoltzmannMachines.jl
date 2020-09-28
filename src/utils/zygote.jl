@@ -13,14 +13,14 @@ end
 #     return y, δ -> (δ * dx,)
 # end
 
-@adjoint function broadcasted(::typeof(logerfcx), x::Numeric)
+@adjoint function broadcasted(::typeof(logerfcx), x::Num)
     y = logerfcx.(x)
     PI = convert(eltype(x), π)
     dx = @. 2x - 2/exp(y)/√PI
     y, δ -> (nothing, δ .* dx)
 end
 
-@adjoint function broadcasted(::typeof(log1pexp), x::Numeric)
+@adjoint function broadcasted(::typeof(log1pexp), x::Num)
     y = log1pexp.(x)
     D = NNlib.sigmoid.(x)
     y, δ -> (nothing, δ .* D)
@@ -31,34 +31,34 @@ end
     back(δ) = (δ * dx, δ * dy)
     return result, back
 end
-@adjoint function broadcasted(::typeof(logaddexp), x::Numeric, y::Numeric)
+@adjoint function broadcasted(::typeof(logaddexp), x::Num, y::Num)
     result, dx, dy = ∇logaddexp(x, y)
     back(δ) = (nothing, unbroadcast(x, δ .* dx), unbroadcast(y, δ .* dy))
     return result, back
 end
-function ∇logaddexp(x::Numeric, y::Numeric)
+function ∇logaddexp(x::Num, y::Num)
     result = logaddexp.(x, y)
     t = @. exp(-abs(x - y))
     dx, dy = select(x .≥ y, inv.(one.(t) .+ t), t ./ (one.(t) .+ t))
     return result, dx, dy
 end
 
-@adjoint function broadcasted(::typeof(sqrt), x::Numeric)
+@adjoint function broadcasted(::typeof(sqrt), x::Num)
     result = sqrt.(x)
     result, δ -> (nothing, δ ./ result ./ 2)
 end
 
-@adjoint function sumdrop(xs::AbstractArray; dims)
+@adjoint function sumdrop(xs::NumArray; dims)
     S = sum(xs; dims=dims)
-	back(δ::AbstractArray) = (similar(xs) .= reshape(δ, size(S)...),)
+	back(δ::NumArray) = (similar(xs) .= reshape(δ, size(S)...),)
 	back(δ::Number) = (similar(xs) .= δ,)
     dropdims(S; dims=dims), back
 end
 
-@adjoint function sumdropfirst(A::AbstractArray, ::Val{N}) where {N}
+@adjoint function sumdropfirst(A::NumArray, ::Val{N}) where {N}
 	dims = OneHot.tuplen(Val(N))
 	S = sum(A; dims=dims)
-	back(δ::AbstractArray) = (similar(A) .= reshape(δ, size(S)...), nothing)
+	back(δ::NumArray) = (similar(A) .= reshape(δ, size(S)...), nothing)
 	back(δ::Number) = (similar(A) .= δ, nothing)
 	dropdims(S; dims=dims), back
 end

@@ -28,7 +28,7 @@ function train!(rbm::RBM, data::Data; cd::Union{CD,PCD} = PCD(),
                 iters::Int, # number of iterations (number of examples seen during training)
                 opt = ADAM(), # optimizer algorithm
                 ps::Params = params(rbm), # subset of optimized parameters
-                vm::AbstractArray = update_chains(rbm, cd, first(data).v), # Markov chains
+                vm::NumArray = update_chains(rbm, cd, first(data).v), # Markov chains
                 history = nothing, # stores training history
                 callback = () -> (), # callback function called on each iteration
                 tests_data::Data = data, # validation dataset
@@ -97,10 +97,10 @@ function train!(rbm::RBM, data::Data; cd::Union{CD,PCD} = PCD(),
     return nothing
 end
 
-update_chains(rbm::RBM, cd::CD,  vd::AbstractArray, vm::AbstractArray = vd, β = 1) =
+update_chains(rbm::RBM, cd::CD,  vd::NumArray, vm::NumArray = vd, β::Num = 1) =
     sample_v_from_v(rbm, vd, β; steps = cd.steps)::typeof(vd)
 
-update_chains(rbm::RBM, cd::PCD, vd::AbstractArray, vm::AbstractArray = vd, β = 1) =
+update_chains(rbm::RBM, cd::PCD, vd::NumArray, vm::NumArray = vd, β::Num = 1) =
     sample_v_from_v(rbm, vm, β; steps = cd.steps)::typeof(vm)
 
 """
@@ -109,7 +109,7 @@ update_chains(rbm::RBM, cd::PCD, vd::AbstractArray, vm::AbstractArray = vd, β =
 Contrastive divergence, defined as free energy difference between data (vd) and
 model sample (vm). The (optional) `wd,wm` are weights for the batches.
 """
-function contrastive_divergence_v(rbm::RBM, vd::AbstractArray, vm::AbstractArray, wd = 1, wm = 1)
+function contrastive_divergence_v(rbm::RBM, vd::NumArray, vm::NumArray, wd::Num = 1, wm::Num = 1)
     Fd = mean_free_energy_v(rbm, vd, wd)
     Fm = mean_free_energy_v(rbm, vm, wm)
     return (Fd - Fm) / length(rbm.vis)
@@ -121,7 +121,7 @@ end
 Contrastive divergence, defined as free energy difference between data (hd) and
 model sample (hm). The (optional) `wd,wm` are weights for the batches.
 """
-function contrastive_divergence_h(rbm::RBM, hd::AbstractArray, hm::AbstractArray, wd = 1, wm = 1)
+function contrastive_divergence_h(rbm::RBM, hd::NumArray, hm::NumArray, wd::Num = 1, wm::Num = 1)
     Fd = mean_free_energy_h(rbm, hd, wd)
     Fm = mean_free_energy_h(rbm, hm, wm)
     return (Fd - Fm) / length(rbm.hid)
@@ -133,5 +133,7 @@ end
 Mean free energy across batches. The optional `w` specifies weights for the
 batches.
 """
-mean_free_energy_v(rbm::RBM, v::AbstractArray, w = 1) = wmean(free_energy_v(rbm, v), w)
-mean_free_energy_h(rbm::RBM, h::AbstractArray, w = 1) = wmean(free_energy_h(rbm, h), w)
+mean_free_energy_v(rbm::RBM, v::NumArray, w::Num = 1) =
+    wmean(free_energy_v(rbm, v), w)
+mean_free_energy_h(rbm::RBM, h::NumArray, w::Num = 1) =
+    wmean(free_energy_h(rbm, h), w)

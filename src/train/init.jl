@@ -86,7 +86,7 @@ function init_weights!(rbm::RBM; w::Real = 1)
     return rbm
 end
 
-function init_cov!(rbm::RBM, data::AbstractArray; eps = 1e-6)
+function init_cov!(rbm::RBM, data::NumArray; eps = 1e-6)
     error("Not implemented")
     init!(rbm.vis, data; eps = eps)
     init!(rbm.hid)

@@ -37,14 +37,14 @@ end
 
 BooleanLayers{T,N} = Union{Binary{T,N}, Potts{T,N}, Spin{T,N}}
 
-function _energy(layer::BooleanLayers{T,N}, x::AbstractArray) where {T,N}
+function _energy(layer::BooleanLayers{T,N}, x::NumArray) where {T,N}
     checkdims(layer, x)
     _binary_energy(layer.θ, x, Val(N))
 end
 
-_binary_energy(θ::AbstractArray, x::AbstractArray, ::Val{dims}) where {dims} = -tensormul_ff(θ, x, Val(dims))
-@adjoint function _binary_energy(θ::AbstractArray, x::AbstractArray, ::Val{dims}) where {dims}
-    back(Δ::AbstractArray) = (-tensormul_fl(Δ, x, Val(ndims(x) - dims)), nothing, nothing)
+_binary_energy(θ::NumArray, x::NumArray, ::Val{dims}) where {dims} = -tensormul_ff(θ, x, Val(dims))
+@adjoint function _binary_energy(θ::NumArray, x::NumArray, ::Val{dims}) where {dims}
+    back(Δ::NumArray) = (-tensormul_fl(Δ, x, Val(ndims(x) - dims)), nothing, nothing)
     back(Δ::Number) = (-Δ .* x, nothing, nothing)
     return _binary_energy(θ, x, Val(dims)), back
 end
