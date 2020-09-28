@@ -88,8 +88,7 @@ function tensormul_fl(A::AbstractArray, B::AbstractArray, ::Val{dims}) where {di
 	Bmat = reshape(B, prod(B_non_contracted), :)
 	Cmat = (Bmat * Amat)'
 	C_size = (A_non_contracted..., B_non_contracted...)
-	C = reshape(Cmat, C_size)
-	return C
+	return reshape(Cmat, C_size)
 end
 
 """
