@@ -18,7 +18,7 @@ RBM(v::AbstractLayer, h::AbstractLayer, w::AbstractArray) =
     RBM{typeof(v), typeof(h), typeof(w)}(v, h, w)
 function RBM(v::AbstractLayer{T}, h::AbstractLayer{T}) where {T}
     w = zeros(T, size(v)..., size(h)...)
-    RBM(v, h, w)
+    return RBM(v, h, w)
 end
 
 # Make RBM parameters reachable via `Flux.params`
@@ -56,7 +56,7 @@ function energy(rbm::RBM, v::AbstractArray, h::AbstractArray)
     Ev = energy(rbm.vis, v)
     Eh = energy(rbm.hid, h)
     Ew = interaction_energy(rbm, v, h)
-    Ev + Eh + Ew
+    return Ev + Eh + Ew
 end
 
 """
@@ -66,7 +66,7 @@ Weight mediated interaction energy.
 """
 function interaction_energy(rbm::RBM, v::AbstractArray, h::AbstractArray)
     checkdims(rbm, v, h)
-    -tensordot(v, rbm.weights, h)
+    return -tensordot(v, rbm.weights, h)
 end
 
 """
@@ -76,7 +76,7 @@ Samples a hidden configuration conditional on the visible configuration `v`.
 """
 function sample_h_from_v(rbm::RBM, v::AbstractArray, β::Numeric = 1)
     Ih = inputs_v_to_h(rbm, v)
-    random(rbm.hid, Ih, β)
+    return random(rbm.hid, Ih, β)
 end
 
 """
@@ -86,7 +86,7 @@ Samples a visible configuration conditional on the hidden configuration `h`.
 """
 function sample_v_from_h(rbm::RBM, h::AbstractArray, β::Numeric = 1)
     Iv = inputs_h_to_v(rbm, h)
-    random(rbm.vis, Iv, β)
+    return random(rbm.vis, Iv, β)
 end
 
 """
@@ -144,9 +144,8 @@ end
 
 Stochastic reconstruction error of `v`.
 """
-function reconstruction_error(rbm::RBM, v::AbstractArray, β::Numeric = 1)
+reconstruction_error(rbm::RBM, v::AbstractArray, β::Numeric = 1) =
     mean(abs.(v .- sample_v_from_v(rbm, v, β)))
-end
 
 """
     inputs_v_to_h(rbm, v)
@@ -173,7 +172,7 @@ to consider the contributions of a subset of hidden units only.
 function inputs_h_to_v(rbm::RBM, h::AbstractArray, hsel::CartesianIndices)
     vsel = CartesianIndices(size(rbm.vis))
     bidx = batchindices(rbm.hid, h)
-    _inputs_h_to_v(rbm.weights, h, Val(ndims(rbm.hid)), vsel, hsel, bidx)
+    return _inputs_h_to_v(rbm.weights, h, Val(ndims(rbm.hid)), vsel, hsel, bidx)
 end
 
 #= gradients =#
@@ -186,12 +185,12 @@ _inputs_h_to_v(w, h, ::Val{dims}, vidx, hidx, bidx) where {dims} =
 
 @adjoint function _inputs_v_to_h(w, v, ::Val{dims}) where {dims}
     back(Δ) = (tensormul_ll(v, Δ, Val(ndims(v) - dims)), nothing, nothing)
-    _inputs_v_to_h(w, v, Val(dims)), back
+    return _inputs_v_to_h(w, v, Val(dims)), back
 end
 
 @adjoint function _inputs_h_to_v(w, h, ::Val{dims}) where {dims}
     back(Δ) = (tensormul_ll(Δ, h, Val(ndims(h) - dims)), nothing, nothing)
-    _inputs_h_to_v(w, h, Val(dims)), back
+    return _inputs_h_to_v(w, h, Val(dims)), back
 end
 
 @adjoint function _inputs_h_to_v(w, h, ::Val{dims}, vidx, hidx, bidx) where {dims}
@@ -200,5 +199,5 @@ end
         ∂w[vidx, hidx] .= tensormul_ll(Δ, h[hidx, bidx], Val(ndims(h) - dims))
         return (∂w, nothing, nothing, nothing, nothing, nothing)
     end
-    _inputs_h_to_v(w, h, Val(dims), vidx, hidx, bidx), back
+    return _inputs_h_to_v(w, h, Val(dims), vidx, hidx, bidx), back
 end
