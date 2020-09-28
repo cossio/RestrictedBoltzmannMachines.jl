@@ -43,7 +43,8 @@ end
 Returns a new RBM where the visible and hidden layers have been
 interchanged.
 """
-flip_layers(rbm::RBM) = RBM(rbm.hid, rbm.vis, permutedims(rbm.weights, (hdims(rbm)..., vdims(rbm)...)))
+flip_layers(rbm::RBM) =
+    RBM(rbm.hid, rbm.vis, permutedims(rbm.weights, (hdims(rbm)..., vdims(rbm)...)))
 
 """
     energy(rbm, v, h)
@@ -73,7 +74,7 @@ end
 
 Samples a hidden configuration conditional on the visible configuration `v`.
 """
-function sample_h_from_v(rbm::RBM, v::AbstractArray, β=1)
+function sample_h_from_v(rbm::RBM, v::AbstractArray, β::Numeric = 1)
     Ih = inputs_v_to_h(rbm, v)
     random(rbm.hid, Ih, β)
 end
@@ -83,7 +84,7 @@ end
 
 Samples a visible configuration conditional on the hidden configuration `h`.
 """
-function sample_v_from_h(rbm::RBM, h::AbstractArray, β=1)
+function sample_v_from_h(rbm::RBM, h::AbstractArray, β::Numeric = 1)
     Iv = inputs_h_to_v(rbm, h)
     random(rbm.vis, Iv, β)
 end
@@ -93,7 +94,7 @@ end
 
 Samples a visible configuration conditional on another visible configuration `v`.
 """
-function sample_v_from_v(rbm::RBM, v::AbstractArray, β=1; steps=1)
+function sample_v_from_v(rbm::RBM, v::AbstractArray, β::Numeric = 1; steps=1)
     for step in 1:steps
         h = sample_h_from_v(rbm, v, β)
         v = sample_v_from_h(rbm, h, β)
@@ -106,7 +107,7 @@ end
 
 Samples a hidden configuration conditional on another hidden configuration `h`.
 """
-function sample_h_from_h(rbm::RBM, h::AbstractArray, β=1; steps=1)
+function sample_h_from_h(rbm::RBM, h::AbstractArray, β::Numeric = 1; steps=1)
     for step in 1:steps
         v = sample_v_from_h(rbm, h, β)
         h = sample_h_from_v(rbm, v, β)
@@ -119,7 +120,7 @@ end
 
 Free energy of visible configuration (after marginalizing hidden configurations).
 """
-function free_energy_v(rbm::RBM, v::AbstractArray, β=1)
+function free_energy_v(rbm::RBM, v::AbstractArray, β::Numeric = 1)
     Ev = energy(rbm.vis, v)
     Ih = inputs_v_to_h(rbm, v)
     Γh = cgf(rbm.hid, Ih, β)
@@ -131,7 +132,7 @@ end
 
 Free energy of hidden configuration (after marginalizing visible configurations).
 """
-function free_energy_h(rbm::RBM, h::AbstractArray, β=1)
+function free_energy_h(rbm::RBM, h::AbstractArray, β::Numeric = 1)
     Eh = energy(rbm.hid, h)
     Iv = inputs_h_to_v(rbm, h)
     Γv = cgf(rbm.vis, Iv, β)
@@ -143,7 +144,7 @@ end
 
 Stochastic reconstruction error of `v`.
 """
-function reconstruction_error(rbm::RBM, v::AbstractArray, β=1)
+function reconstruction_error(rbm::RBM, v::AbstractArray, β::Numeric = 1)
     mean(abs.(v .- sample_v_from_v(rbm, v, β)))
 end
 
