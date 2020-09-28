@@ -97,8 +97,8 @@ energy also takes care of converting zero-dimensional arrays to scalars
 
 Energy of `layer` in configuration `x`.
 """
-energy(layer::AbstractLayer, x::Numeric) = scalarize(_energy(layer, x))
-function _energy(layer::AbstractLayer, x::Numeric)
+energy(layer::AbstractLayer, x::AbstractArray) = scalarize(_energy(layer, x))
+function _energy(layer::AbstractLayer, x::AbstractArray)
     checkdims(layer, x)
     sumdropfirst(__energy(layer, x), Val(ndims(layer)))
 end
@@ -164,56 +164,56 @@ Variance over the configurations of `layer`.
 transfer_var(layer::AbstractLayer, I::Numeric = 0, β::Numeric = 1) =
     _transfer_var(effective(layer, I, β))
 
-transfer_pdf(layer::AbstractLayer, x::Numeric, I::Numeric = 0, β::Numeric = 1) =
+transfer_pdf(layer::AbstractLayer, x::AbstractArray, I::Numeric = 0, β::Numeric = 1) =
     exp.(transfer_logpdf(layer, x, I, β))
-transfer_cdf(layer::AbstractLayer, x::Numeric, I::Numeric = 0, β::Numeric = 1) =
+transfer_cdf(layer::AbstractLayer, x::AbstractArray, I::Numeric = 0, β::Numeric = 1) =
     exp.(transfer_logcdf(effective(layer, I, β), x))
-transfer_survival(layer::AbstractLayer, x::Numeric, I::Numeric = 0, β::Numeric = 1) =
+transfer_survival(layer::AbstractLayer, x::AbstractArray, I::Numeric = 0, β::Numeric = 1) =
     exp.(transfer_logsurvival(layer, x, I, β))
 
-transfer_logpdf(layer::AbstractLayer, x::Numeric, I::Numeric = 0, β::Numeric = 1) =
+transfer_logpdf(layer::AbstractLayer, x::AbstractArray, I::Numeric = 0, β::Numeric = 1) =
     scalarize(_transfer_logpdf(layer, x, I, β))
-transfer_logcdf(layer::AbstractLayer, x::Numeric, I::Numeric = 0, β::Numeric = 1) =
+transfer_logcdf(layer::AbstractLayer, x::AbstractArray, I::Numeric = 0, β::Numeric = 1) =
     scalarize(_transfer_logcdf(layer, x, I, β))
-transfer_logsurvival(layer::AbstractLayer, x::Numeric, I::Numeric = 0, β::Numeric = 1) =
+transfer_logsurvival(layer::AbstractLayer, x::AbstractArray, I::Numeric = 0, β::Numeric = 1) =
     scalarize(_transfer_logsurvival(layer, x, I, β))
 transfer_entropy(layer::AbstractLayer, I::Numeric = 0, β::Numeric = 1) =
     scalarize(_transfer_entropy(layer, I, β))
 
-_transfer_pdf(layer::AbstractLayer, x::Numeric, I::Numeric = 0, β::Numeric = 1) =
+_transfer_pdf(layer::AbstractLayer, x::AbstractArray, I::Numeric = 0, β::Numeric = 1) =
     exp.(_transfer_logpdf(layer, x, I, β))
-_transfer_cdf(layer::AbstractLayer, x::Numeric, I::Numeric = 0, β::Numeric = 1) =
+_transfer_cdf(layer::AbstractLayer, x::AbstractArray, I::Numeric = 0, β::Numeric = 1) =
     exp.(_transfer_logcdf(layer, x, I, β))
-_transfer_survival(layer::AbstractLayer, x::Numeric, I::Numeric = 0, β::Numeric = 1) =
+_transfer_survival(layer::AbstractLayer, x::AbstractArray, I::Numeric = 0, β::Numeric = 1) =
     exp.(_transfer_logsurvival(layer, x, I, β))
 
-_transfer_logpdf(layer::AbstractLayer, x::Numeric, I::Numeric = 0, β::Numeric = 1) =
+_transfer_logpdf(layer::AbstractLayer, x::AbstractArray, I::Numeric = 0, β::Numeric = 1) =
     sumdropfirst(__transfer_logpdf(layer, x, I, β), Val(ndims(layer)))
-_transfer_logcdf(layer::AbstractLayer, x::Numeric, I = 0, β = 1) =
+_transfer_logcdf(layer::AbstractLayer, x::AbstractArray, I = 0, β = 1) =
     sumdropfirst(__transfer_logcdf(effective(layer, I, β), x), Val(ndims(layer)))
-_transfer_logsurvival(layer::AbstractLayer, x::Numeric, I::Numeric = 0, β::Numeric = 1) =
+_transfer_logsurvival(layer::AbstractLayer, x::AbstractArray, I::Numeric = 0, β::Numeric = 1) =
     sumdropfirst(__transfer_logsurvival(layer, x, I, β), Val(ndims(layer)))
 _transfer_entropy(layer::AbstractLayer, I::Numeric = 0, β::Numeric = 1) =
     sumdropfirst(__transfer_entropy(layer, I, β), Val(ndims(layer)))
 
-__transfer_logpdf(layer::AbstractLayer, x::Numeric, I::Numeric, β::Numeric = 1) =
+__transfer_logpdf(layer::AbstractLayer, x::AbstractArray, I::Numeric, β::Numeric = 1) =
     __transfer_logpdf(effective(layer, I, β), x)
-__transfer_logcdf(layer::AbstractLayer, x::Numeric, I::Numeric, β::Numeric = 1) =
+__transfer_logcdf(layer::AbstractLayer, x::AbstractArray, I::Numeric, β::Numeric = 1) =
     __transfer_logcdf(effective(layer, I, β), x)
-__transfer_logsurvival(layer::AbstractLayer, x::Numeric, I::Numeric, β::Numeric = 1) =
+__transfer_logsurvival(layer::AbstractLayer, x::AbstractArray, I::Numeric, β::Numeric = 1) =
     __transfer_logsurvival(effective(layer, I, β), x)
 
-__transfer_pdf(layer::AbstractLayer, x::Numeric, I::Numeric = 0, β::Numeric = 1) =
+__transfer_pdf(layer::AbstractLayer, x::AbstractArray, I::Numeric = 0, β::Numeric = 1) =
     exp.(__transfer_logpdf(layer, x, I, β))
-__transfer_cdf(layer::AbstractLayer, x::Numeric, I::Numeric = 0, β::Numeric = 1) =
+__transfer_cdf(layer::AbstractLayer, x::AbstractArray, I::Numeric = 0, β::Numeric = 1) =
     exp.(__transfer_logcdf(layer, x, I, β))
-__transfer_survival(layer::AbstractLayer, x::Numeric, I::Numeric = 0, β::Numeric = 1) =
+__transfer_survival(layer::AbstractLayer, x::AbstractArray, I::Numeric = 0, β::Numeric = 1) =
     exp.(__transfer_logsurvival(layer, x, I, β))
 
 __transfer_entropy(layer::AbstractLayer, I::Numeric, β::Numeric = 1) =
     __transfer_entropy(effective(layer, I, β))
 
-transfer_mills(layer::AbstractLayer, x::Numeric, I::Numeric = 0, β::Numeric = 1) =
+transfer_mills(layer::AbstractLayer, x::AbstractArray, I::Numeric = 0, β::Numeric = 1) =
     _transfer_mills(effective(layer, I, β), x)
 
 """
