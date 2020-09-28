@@ -184,20 +184,23 @@ _inputs_h_to_v(w, h, ::Val{dims}, vidx, hidx, bidx) where {dims} =
     tensormul_lf(w[vidx, hidx], h[hidx, bidx], Val(dims))
 
 @adjoint function _inputs_v_to_h(w, v, ::Val{dims}) where {dims}
-    back(Δ) = (tensormul_ll(v, Δ, Val(ndims(v) - dims)), nothing, nothing)
+    back(Δ::Num) = (tensormul_ll(v, Δ, Val(ndims(v) - dims)), nothing, nothing)
+    back(::AbstractArray{Nothing}) = (nothing, nothing, nothing)
     return _inputs_v_to_h(w, v, Val(dims)), back
 end
 
 @adjoint function _inputs_h_to_v(w, h, ::Val{dims}) where {dims}
-    back(Δ) = (tensormul_ll(Δ, h, Val(ndims(h) - dims)), nothing, nothing)
+    back(Δ::Num) = (tensormul_ll(Δ, h, Val(ndims(h) - dims)), nothing, nothing)
+    back(::AbstractArray{Nothing}) = (nothing, nothing, nothing)
     return _inputs_h_to_v(w, h, Val(dims)), back
 end
 
 @adjoint function _inputs_h_to_v(w, h, ::Val{dims}, vidx, hidx, bidx) where {dims}
-    function back(Δ)
+    function back(Δ::Num)
         ∂w = zero(w)
         ∂w[vidx, hidx] .= tensormul_ll(Δ, h[hidx, bidx], Val(ndims(h) - dims))
         return (∂w, nothing, nothing, nothing, nothing, nothing)
     end
+    back(::AbstractArray{Nothing}) = (nothing, nothing, nothing, nothing, nothing, nothing)
     return _inputs_h_to_v(w, h, Val(dims), vidx, hidx, bidx), back
 end
