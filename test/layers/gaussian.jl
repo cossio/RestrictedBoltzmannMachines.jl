@@ -33,6 +33,8 @@ sample = random(layer, zeros(size(layer)..., 10000))
 @test transfer_var(layer) ≈ var(sample; dims=3) rtol=0.1
 @test transfer_mean_abs(layer) ≈ mean(abs, sample; dims=3) rtol=0.1
 
+@test transfer_entropy(layer) ≈ sum(log.(2π * ℯ * transfer_var(layer)) / 2)
+
 @testset "Gaussian pdf, cdf" begin
     for _ = 1:10
         layer = Gaussian(randn(3), randn(3))
