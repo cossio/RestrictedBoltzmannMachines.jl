@@ -42,7 +42,7 @@ Average L1 norm of hidden layer activity conditioned on configurations `v` of
 the visible layer. The average is taken by weighting configurations with `w`.
 """
 function hidden_l1(rbm::RBM, v::AbstractArray, w::Number = 1)
-    Ivh = inputs_v_to_h(rbm, datum.v)
+    Ivh = inputs_v_to_h(rbm, v)
     absh = transfer_mean_abs(rbm.hid, Ivh)
     return mean(absh)
 end
