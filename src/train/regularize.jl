@@ -9,6 +9,7 @@ Based on 10.7554/eLife.39397.
 """
 jerome_regularization(rbm::RBM; λv::Real = 1//10^4, λw::Real = 1//10) =
     λv/2 * fields_l2(rbm.vis) + λw/2 * weights_l1l2(rbm)
+
 fields_l2(layer::Union{Potts,Binary,Spin,Gaussian,ReLU}) = l2(layer.θ)
 weights_l1l2(rbm::RBM) = l1l2(rbm.weights, Val(ndims(rbm.vis)))
 l2(A::AbstractArray{<:Real}) = mean(A.^2)
@@ -33,24 +34,26 @@ Average L1 norm of hidden layer activity conditioned on configurations `datum.v`
 of the visible layer. The average is taken by weighting configurations with
 `datum.w`.
 """
-hidden_l1(rbm::RBM, datum::NamedTuple) = hidden_l1(rbm, datum.v, datum.w)
-
-"""
-    hidden_l1(rbm, v, w = 1)
-
-Average L1 norm of hidden layer activity conditioned on configurations `v` of
-the visible layer. The average is taken by weighting configurations with `w`.
-"""
-function hidden_l1(rbm::RBM, v::AbstractArray, w::Number = 1)
-    Ivh = inputs_v_to_h(rbm, v)
-    absh = transfer_mean_abs(rbm.hid, Ivh)
-    return mean(absh)
+function hidden_l1(rbm::RBM, datum::NamedTuple)
+    Ih = inputs_v_to_h(rbm, datum.v)
+    return hidden_l1(rbm, Ih, datum.w)
 end
-function hidden_l1(rbm::RBM, v::AbstractArray, w::AbstractArray)
-    Ivh = inputs_v_to_h(rbm, v)
-    absh = transfer_mean_abs(rbm.hid, Ivh)
+function hidden_l1(rbm::RBM, Ih::AbstractArray, w::AbstractArray)
+    absh = hidden_l1(rbm, Ih)
     bdim = batchndims(rbm.hid, absh)
     return mean(tensormul_ll(absh, w, Val(bdim)))
+end
+hidden_l1(rbm::RBM, Ih::AbstractArray, w::Number = 1) = transfer_mean_abs(rbm.hid, Ih)
+
+hidden_l1l2(rbm::RBM, datum::NamedTuple) = hidden_l1(rbm, datum)^2 / 2
+hidden_l1l2(rbm::RBM, Ih::AbstractArray, w::Num) = hidden_l1(rbm, Ih, w)^2 / 2
+
+function default_regularization(rbm::RBM, datum::NamedTuple;
+                                λw::Real, λh::Real, λg::Real)
+    hl1 = hidden_l1(rbm, datum)
+    wl1l2 = weights_l1l2(rbm)
+    gl2 = fields_l2(rbm.vis)
+    return λh * hl1 + λg/2 * gl2 + λw/2 * wl1l2
 end
 
 #= gradient =#
