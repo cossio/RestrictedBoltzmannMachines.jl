@@ -16,14 +16,14 @@ end
 function train!(rbm::RBM, data::Data, cd::UCD;
                 iters::Int, opt = ADAM(), ps::Params = params(rbm),
                 reg = no_regularization, history = nothing,
-                vm::AbstractArray = update_chains(rbm, cd, first(data).v), # Markov chains
+                vm::AbstractArray = update_chains_v(rbm, cd, first(data).v), # Markov chains
                 callback = () -> (),
                 λw::Real = 0, λh::Real = 0, λg::Real = 0)
     checkdims(rbm.vis, vm)
     progress_bar = Progress(length(1:data.batchsize:iters))
     for (iter, datum) in zip(1:data.batchsize:iters, data)
         # update model samples
-        vm = update_chains(rbm, cd, datum.v, vm)
+        vm = update_chains_v(rbm, cd, datum.v, vm)
         # train RBM
         gs = gradient(ps) do
             loss = contrastive_divergence_v(rbm, datum.v, vm, datum.w)
@@ -48,10 +48,10 @@ function train!(rbm::RBM, data::Data, cd::UCD;
     return nothing
 end
 
-update_chains(rbm::RBM, cd::CD,  vd::AbstractArray, vm::AbstractArray = vd, β = 1) =
+update_chains_v(rbm::RBM, cd::CD,  vd::AbstractArray, vm::AbstractArray = vd, β = 1) =
     sample_v_from_v(rbm, vd, β; steps = cd.steps)::typeof(vd)
 
-update_chains(rbm::RBM, cd::PCD, vd::AbstractArray, vm::AbstractArray = vd, β = 1) =
+update_chains_v(rbm::RBM, cd::PCD, vd::AbstractArray, vm::AbstractArray = vd, β = 1) =
     sample_v_from_v(rbm, vm, β; steps = cd.steps)::typeof(vm)
 
 """
