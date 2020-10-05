@@ -15,6 +15,8 @@ _transfer_mean(layer::Spin) = tanh.(layer.θ)
 _transfer_std(layer::Spin) = sech.(layer.θ)
 _transfer_var(layer::Spin) = _transfer_std(layer).^2
 _transfer_mean_abs(layer::Spin) = ones(eltype(layer.θ), size(layer.θ))
+__transfer_logpdf(layer::Spin, x) = spin_logpdf.(layer.θ, x)
+spin_logpdf(θ::Real, x::Real) = logsigmoid(2θ * x)
 
 function _random(layer::Spin)
     pinv = @. one(layer.θ) + exp(-2layer.θ)

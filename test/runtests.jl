@@ -9,6 +9,7 @@ using SafeTestsets, Random, Test
 
 @time @safetestset "layers" begin include("layers/layers.jl") end
 @time @safetestset "binary" begin include("layers/binary.jl") end
+@time @safetestset "spin" begin include("layers/spin.jl") end
 @time @safetestset "potts" begin include("layers/potts.jl") end
 @time @safetestset "gaussian" begin include("layers/gaussian.jl") end
 @time @safetestset "relu" begin include("layers/relu.jl") end

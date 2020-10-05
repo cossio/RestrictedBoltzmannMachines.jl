@@ -28,7 +28,7 @@ function train!(rbm::RBM, data::Data; cd::Union{CD,PCD} = PCD(),
                 iters::Int, # number of iterations (number of examples seen during training)
                 opt = ADAM(), # optimizer algorithm
                 ps::Params = params(rbm), # subset of optimized parameters
-                vm::NumArray = update_chains(rbm, cd, first(data).v), # Markov chains
+                vm::NumArray = update_chains_v(rbm, cd, first(data).v), # Markov chains
                 history = nothing, # stores training history
                 callback = () -> (), # callback function called on each iteration
                 tests_data::Data = data, # validation dataset
@@ -41,7 +41,7 @@ function train!(rbm::RBM, data::Data; cd::Union{CD,PCD} = PCD(),
     progress_bar = Progress(length(1:data.batchsize:iters))
     for (iter, datum, tests_datum) in zip(1:data.batchsize:iters, data, tests_data)
         # update model samples
-        vm = update_chains(rbm, cd, datum.v, vm)
+        vm = update_chains_v(rbm, cd, datum.v, vm)
         # train RBM
         gs = gradient(ps) do
             loss = contrastive_divergence_v(rbm, datum.v, vm, datum.w)
@@ -97,11 +97,15 @@ function train!(rbm::RBM, data::Data; cd::Union{CD,PCD} = PCD(),
     return nothing
 end
 
-update_chains(rbm::RBM, cd::CD,  vd::NumArray, vm::NumArray = vd, β::Num = 1) =
+update_chains_v(rbm::RBM, cd::CD,  vd::NumArray, vm::NumArray = vd, β::Num = 1) =
     sample_v_from_v(rbm, vd, β; steps = cd.steps)::typeof(vd)
-
-update_chains(rbm::RBM, cd::PCD, vd::NumArray, vm::NumArray = vd, β::Num = 1) =
+update_chains_v(rbm::RBM, cd::PCD, vd::NumArray, vm::NumArray = vd, β::Num = 1) =
     sample_v_from_v(rbm, vm, β; steps = cd.steps)::typeof(vm)
+
+update_chains_h(rbm::RBM, cd::CD,  hd::NumArray, hm::NumArray = hd, β::Num = 1) =
+    sample_h_from_h(rbm, hd, β; steps = cd.steps)::typeof(hd)
+update_chains_h(rbm::RBM, cd::PCD, hd::NumArray, hm::NumArray = hd, β::Num = 1) =
+    sample_h_from_h(rbm, hm, β; steps = cd.steps)::typeof(hm)
 
 """
     contrastive_divergence_v(rbm, vd, vm, wd = 1, wm = 1)
@@ -130,10 +134,15 @@ end
 """
     mean_free_energy_v(rbm, v, w = 1)
 
-Mean free energy across batches. The optional `w` specifies weights for the
-batches.
+Mean free energy across batches of visible configurations.
+The optional `w` specifies weights for the batches.
 """
-mean_free_energy_v(rbm::RBM, v::NumArray, w::Num = 1) =
-    wmean(free_energy_v(rbm, v), w)
-mean_free_energy_h(rbm::RBM, h::NumArray, w::Num = 1) =
-    wmean(free_energy_h(rbm, h), w)
+mean_free_energy_v(rbm::RBM, v::NumArray, w::Num = 1) = wmean(free_energy_v(rbm, v), w)
+
+"""
+    mean_free_energy_h(rbm, h, w = 1)
+
+Mean free energy across batches of hidden configurations.
+The optional `w` specifies weights for the batches.
+"""
+mean_free_energy_h(rbm::RBM, h::NumArray, w::Num = 1) = wmean(free_energy_h(rbm, h), w)
