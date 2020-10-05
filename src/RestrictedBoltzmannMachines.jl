@@ -2,7 +2,7 @@ module RestrictedBoltzmannMachines
     using Random, Statistics, LinearAlgebra,
         StatsFuns, SpecialFunctions, Distributions,
         Roots, ProgressMeter, Zygote, Flux, ValueHistories
-    using OneHot
+    using OneHot, SimpleDataLoader
     using Base.Broadcast: broadcasted
     using Base: tail, front, OneTo, @propagate_inbounds, @kwdef
     using Random: GLOBAL_RNG
@@ -33,7 +33,6 @@ module RestrictedBoltzmannMachines
 
     include("train/oadam.jl")
     include("train/init.jl")
-    include("train/data.jl")
     include("train/cd.jl")
     include("train/regularize.jl")
     include("train/lr_schedules.jl")

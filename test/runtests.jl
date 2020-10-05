@@ -7,8 +7,6 @@ using SafeTestsets, Random, Test
 @time @safetestset "truncnorm" begin include("truncnorm/truncnorm.jl") end
 @time @safetestset "truncnorm rejection" begin include("truncnorm/rejection.jl") end
 
-@time @safetestset "data" begin include("data.jl") end
-
 @time @safetestset "layers" begin include("layers/layers.jl") end
 @time @safetestset "binary" begin include("layers/binary.jl") end
 @time @safetestset "potts" begin include("layers/potts.jl") end
