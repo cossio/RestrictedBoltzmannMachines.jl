@@ -30,6 +30,11 @@ _transfer_mean(layer::Potts) = OneHot.softmax(layer.θ)
 _transfer_mean_abs(layer::Potts) = _transfer_mean(layer)
 _random(layer::Potts{T}) where {T} = T.(OneHot.sample_from_logits(layer.θ))
 
+function __transfer_logpdf(layer::Potts, x)
+    logp = NNlib.logsoftmax(layer.θ)
+    return logp .* x
+end
+
 function _transfer_mode(layer::Potts{T}) where {T}
     classes = OneHot.classify(layer.θ)
     T.(OneHot.encode(classes))

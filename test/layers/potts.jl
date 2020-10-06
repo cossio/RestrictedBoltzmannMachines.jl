@@ -114,3 +114,9 @@ layer = Potts(randn(10,5))
 sample = random(layer, zeros(size(layer)..., 10000))
 @test transfer_mean(layer) ≈ mean(sample; dims=3) rtol=0.1
 @test transfer_mean_abs(layer) ≈ mean(abs, sample; dims=3) rtol=0.1
+
+@testset "Potts pdf" begin
+    configs = OneHot.encode.(vec(collect(RBMs.seqgen(3, 1:3))), 3)
+    layer = Potts(randn(3,3))
+    @test sum(transfer_pdf(layer, x) for x in configs) ≈ 1
+end
