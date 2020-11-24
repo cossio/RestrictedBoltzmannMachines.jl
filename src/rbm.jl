@@ -1,5 +1,5 @@
 export RBM, vdims, hdims, ndvis, ndhid, vsize, hsize, flip_layers
-export energy, free_energy_v, free_energy_H
+export energy, free_energy_v, free_energy_h
 export inputs_h_to_v, inputs_v_to_h
 export sample_v_from_h, sample_h_from_v
 export sample_v_from_v, sample_h_from_h
