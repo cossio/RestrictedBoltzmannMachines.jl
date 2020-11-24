@@ -54,9 +54,11 @@ h1 = sample_h_from_h(rbm, h)
 @test size(h1) == size(h)
 
 @test size(free_energy_v(rbm, v)) == B
+@test size(free_energy_h(rbm, h)) == B
 @test isfinite(reconstruction_error(rbm, v))
 
 @inferred free_energy_v(rbm, v)
+@inferred free_energy_h(rbm, h)
 @inferred sample_v_from_v(rbm, v)
 @inferred sample_h_from_h(rbm, h)
 @inferred sample_v_from_v(rbm, v)
@@ -81,8 +83,11 @@ end
     init_weights!(rbm)
     randn!(rbm.vis.θ)
     v = random(rbm.vis)
+    h = random(rbm.hid)
     @test size(v) == size(rbm.vis)
+    @test size(h) == size(rbm.hid)
     @test free_energy_v(rbm, v) isa Number
+    @test free_energy_h(rbm, h) isa Number
 end
 
 @testset "inputs_v_to_h gradient" begin

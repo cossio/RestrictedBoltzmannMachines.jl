@@ -197,7 +197,9 @@ end
     randn!(gauss_rbm.weights)
     drelu_rbm.weights .= gauss_rbm.weights
     v = random(gauss_rbm.vis, zeros(size(gauss_rbm.vis)..., 100))
+    h = random(gauss_rbm.hid, zeros(size(gauss_rbm.hid)..., 100))
     @test free_energy_v(drelu_rbm, v) ≈ free_energy_v(gauss_rbm, v)
+    @test free_energy_h(drelu_rbm, h) ≈ free_energy_h(gauss_rbm, h)
 end
 
 @testset "dReLU cd training" begin
