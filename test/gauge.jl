@@ -5,8 +5,6 @@ using RestrictedBoltzmannMachines: sumdrop, meandrop,
     gauge!, zerosum!, rescale!,
     gauge!, rescale!
 
-cosangle(x,y) = dot(x, y) / norm(x) / norm(y)
-
 n = (5,2,3,5)
 m = (4,3,2)
 B = (3,1)
@@ -260,17 +258,17 @@ end
 # rbm.vis.θ
 #
 # A = [reshape(rbm.weights, length(g), :)' kron(I(length(rbm.hid)), vec(rbm.vis.θ)')]
-# [cosangle([vec(gs[rbm.weights]); vec(gs[rbm.vis.θ])], row) for row in eachrow(A)]
+# [dotcos([vec(gs[rbm.weights]); vec(gs[rbm.vis.θ])], row) for row in eachrow(A)]
 #
-# [cosangle([vec(dw0 .- gs[rbm.weights]); vec(dg0 .- gs[rbm.vis.θ])], row) for row in eachrow(A)]
-# [cosangle([vec(gs[rbm.weights]); vec(gs[rbm.vis.θ])], row) for row in eachrow(A)]
+# [dotcos([vec(dw0 .- gs[rbm.weights]); vec(dg0 .- gs[rbm.vis.θ])], row) for row in eachrow(A)]
+# [dotcos([vec(gs[rbm.weights]); vec(gs[rbm.vis.θ])], row) for row in eachrow(A)]
 
 
 #norm.(eachrow(A))
 
-# cosangle([vec(dw0 .- gs[rbm.weights]); vec(dg0 .- gs[rbm.vis.θ])],
+# dotcos([vec(dw0 .- gs[rbm.weights]); vec(dg0 .- gs[rbm.vis.θ])],
 #          [vec(rbm.vis.θ); vec(rbm.weights)])
-# cosangle([vec(gs[rbm.weights]); vec(gs[rbm.vis.θ])],
+# dotcos([vec(gs[rbm.weights]); vec(gs[rbm.vis.θ])],
 #          [vec(rbm.vis.θ); vec(rbm.weights)])
 
 
@@ -283,8 +281,8 @@ end
 #
 # rbm0 = deepcopy(rbm)
 #
-# [cosangle(rbm.weights[:,μ] .- RBMs.center(rbm).weights[:,μ], rbm.vis.θ) for μ = 1:3]
-# [cosangle(RBMs.center(rbm).weights[:,μ], rbm.vis.θ) for μ = 1:3]
+# [dotcos(rbm.weights[:,μ] .- RBMs.center(rbm).weights[:,μ], rbm.vis.θ) for μ = 1:3]
+# [dotcos(RBMs.center(rbm).weights[:,μ], rbm.vis.θ) for μ = 1:3]
 # norm(RBMs.center(rbm).weights)
 #
 #

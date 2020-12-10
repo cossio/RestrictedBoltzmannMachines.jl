@@ -1,4 +1,4 @@
-export <|, throttlen
+export <|, throttlen, dotcos
 
 # convenience functions to get generic Inf and NaN
 inf(::Union{Type{T}, T}) where {T} = convert(T, Inf)
@@ -351,3 +351,10 @@ Converts zero-dimensional arrays to scalars.
 """
 scalarize(a::AbstractArray{T,0}) where {T} = first(a)
 scalarize(a::AbstractArray{T,N}) where {T,N} = a
+
+"""
+    dotcos(x, y)
+
+Compute the dot product between vectors `x,y` after normalizing them.
+"""
+dotcos(x, y) = dot(x / norm(x), y / norm(y))

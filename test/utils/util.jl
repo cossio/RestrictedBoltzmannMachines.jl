@@ -158,3 +158,9 @@ end
     @test scalarize(A) == A
     @test scalarize(zeros()) == 0.0
 end
+
+@testset "dotcos" begin
+    x = randn(5)
+    y = randn(5)
+    @test dotcos(x, y) ≈ dot(x, y) / norm(x) / norm(y)
+end
