@@ -1,4 +1,4 @@
-using Test, Random, StatsFuns
+using Test, Random, StatsFuns, LinearAlgebra
 using NNlib: softmax
 using RestrictedBoltzmannMachines
 using RestrictedBoltzmannMachines: sumdrop, sumdropfirst, meandrop, wmean,
