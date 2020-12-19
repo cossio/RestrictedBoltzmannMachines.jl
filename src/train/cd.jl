@@ -38,8 +38,8 @@ function train!(rbm::RBM, data::Data; cd::Union{CD,PCD} = PCD(),
                 print_interval = 200data.batchsize # iterations to wait before printing log-pseudolikelihood
             )
     checkdims(rbm.vis, vm)
-    progress_bar = Progress(length(1:data.batchsize:iters))
-    for (iter, datum, tests_datum) in zip(1:data.batchsize:iters, data, tests_data)
+    progress_bar = Progress(length(data.batchsize:data.batchsize:iters))
+    for (iter, datum, tests_datum) in zip(data.batchsize:data.batchsize:iters, data, tests_data)
         # update model samples
         vm = update_chains_v(rbm, cd, datum.v, vm)
         # train RBM
