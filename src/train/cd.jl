@@ -32,7 +32,7 @@ function train!(rbm::RBM, data::Data; cd::Union{CD,PCD} = PCD(),
                 history = nothing, # stores training history
                 callback = () -> (), # callback function called on each iteration
                 tests_data::Data = data, # validation dataset
-                reg = no_regularization, λw::Real = 0, λh::Real = 0, λg::Real = 0, # regularization
+                reg = _ -> 0, λw::Real = 0, λh::Real = 0, λg::Real = 0, # regularization
                 min_lpl = -Inf, # minimum log-pseudolikelihood
                 lpl_interval = 50data.batchsize, # iterations to wait before computing log-pseudolikelihood
                 print_interval = 200data.batchsize # iterations to wait before printing log-pseudolikelihood

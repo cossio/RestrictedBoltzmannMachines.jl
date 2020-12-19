@@ -26,7 +26,4 @@ using RestrictedBoltzmannMachines: fields_l2, weights_l1l2, l1l2, l2
     @test jerome_regularization(rbm; λv=2, λw=0) ≈ fields_l2(rbm.vis)
     @test jerome_regularization(rbm; λv=1, λw=1) ≈ jerome_regularization(rbm; λv=1, λw=0) + jerome_regularization(rbm; λv=0, λw=1)
     @inferred jerome_regularization(rbm; λv=1, λw=1)
-
-    @test iszero(no_regularization(rbm))
-    @inferred no_regularization(rbm)
 end

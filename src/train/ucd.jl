@@ -15,7 +15,7 @@ end
 
 function train!(rbm::RBM, data::Data, cd::UCD;
                 iters::Int, opt = ADAM(), ps::Params = params(rbm),
-                reg = no_regularization, history = nothing,
+                reg = _ -> 0, history = nothing,
                 vm::AbstractArray = update_chains_v(rbm, cd, first(data).v), # Markov chains
                 callback = () -> (),
                 λw::Real = 0, λh::Real = 0, λg::Real = 0)

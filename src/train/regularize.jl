@@ -1,6 +1,4 @@
-export no_regularization, jerome_regularization
-
-no_regularization(obj) = 0
+export jerome_regularization
 
 """
     jerome_regularization(rbm; λv, λw)
