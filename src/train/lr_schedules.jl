@@ -8,6 +8,7 @@ using Flux: Optimiser
 export Optimiser, SqrtDecay, GeometricDecay
 
 abstract type AbstractLrDecay end
+
 function Flux.Optimise.apply!(o::AbstractLrDecay, x, Δ)
     t::Int = o.t[x] = get(o.t, x, 0) + 1
     Δ .*= update_lr(o, t)
