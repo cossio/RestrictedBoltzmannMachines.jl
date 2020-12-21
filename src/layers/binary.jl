@@ -1,6 +1,6 @@
 export Binary
 
-struct Binary{T,N} <: AbstractLayer{T,N}
+struct Binary{T,N} <: AbstractDiscreteLayer{T,N}
     θ::Array{T,N}
 end
 Binary{T}(n::Int...) where {T} = Binary(zeros(T, n...))

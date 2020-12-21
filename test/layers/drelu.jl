@@ -236,7 +236,8 @@ end
     gs = gradient(ps) do
         h_ = sample_h_from_v(rbm, v)
         Zygote.@ignore h .= h_
-        mean(2 .* h_ .+ 1)    end
+        mean(2 .* h_ .+ 1)
+    end
     @test isnothing(gs[rbm.vis.θ])
     @test gs[rbm.weights] ≈ v * (gs[rbm.hid.θp] .+ gs[rbm.hid.θn])'
 

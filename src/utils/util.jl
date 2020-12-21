@@ -349,7 +349,7 @@ seqgen(n::Int, A = 0:1) =
 
 Converts zero-dimensional arrays to scalars.
 """
-scalarize(a::AbstractArray{T,0}) where {T} = first(a)
+scalarize(a::AbstractArray{T,0}) where {T} = only(a)
 scalarize(a::AbstractArray{T,N}) where {T,N} = a
 
 """

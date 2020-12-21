@@ -1,6 +1,6 @@
 export Spin
 
-struct Spin{T,N} <: AbstractLayer{T,N}
+struct Spin{T,N} <: AbstractDiscreteLayer{T,N}
     θ::Array{T,N}
 end
 Spin{T}(n::Int...) where {T} = Spin(zeros(T, n...))

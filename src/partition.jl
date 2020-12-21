@@ -7,13 +7,22 @@ Log-partition of the `rbm` at inverse temperature `β`, computed by extensive
 enumeration of visible states. Only defined for discrete visible layers. This
 is exponentially slow for large machines.
 """
-function log_partition(rbm::RBM, β::Num = 1)
+function log_partition(rbm::RBM{V,H,W}, β::Num = 1) where {V<:AbstractDiscreteLayer,H,W}
     lZ = zero(free_energy_v(rbm, random(rbm.vis), β))
     for v in seqgen(length(rbm.vis), alphabet(rbm.vis))
         F = free_energy_v(rbm, reshape(v, size(rbm.vis)), β)
         lZ = logaddexp(lZ, -β * F)
     end
     return lZ
+end
+
+__energy(layer::Gaussian, x::NumArray) = @. (abs(layer.γ) * x/2 - layer.θ) * x
+
+function log_partition(rbm::RBM{<:Gaussian, <:Gaussian}, β::Num = 1)
+    W = reshape(rbm.weights, length(rbm.vis), length(rbm.hid))
+    A = [diagm(vec(rbm.vis.γ)) -W;
+         -W' diagm(vec(rbm.hid.γ))] * β
+    return (length(rbm.vis) + length(rbm.hid)) / 2 * log(2π) - logdet(A) / 2
 end
 
 alphabet(::Binary) = 0:1

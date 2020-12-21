@@ -11,7 +11,7 @@ export sitedims, sitesize, siteindices
 Encodes categorical variables as one-hot vectors. The number of classes
 is the size of the first dimension.
 """
-struct Potts{T,N} <: AbstractLayer{T,N}
+struct Potts{T,N} <: AbstractDiscreteLayer{T,N}
     θ::Array{T,N}
 end
 Potts{T}(n::Int...) where {T} = Potts(zeros(T, n...))

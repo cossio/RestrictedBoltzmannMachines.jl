@@ -5,6 +5,7 @@ export checkdims, batchdims, batchindices, batchsize,
     transfer_pdf, transfer_cdf, transfer_logpdf, transfer_logcdf, transfer_entropy
 
 abstract type AbstractLayer{T,N} end
+abstract type AbstractDiscreteLayer{T,N} <: AbstractLayer{T,N} end
 Base.ndims(::AbstractLayer{T,N}) where {T,N} = N
 Base.ndims(::Type{<:AbstractLayer{T,N}}) where {T,N} = N
 fieldtype(::AbstractLayer{T,N}) where {T,N} = T

@@ -9,6 +9,22 @@ n = (5,2,3,5)
 m = (4,3,2)
 B = (3,1)
 
+@testset "zerosum" begin
+    rbm = RBM(Potts(5,6), Gaussian(3))
+    rand!(rbm.vis.θ); rand!(rbm.weights);
+    rand!(rbm.hid.θ); rand!(rbm.hid.γ);
+    
+    rbm.vis.θ .+= 1
+    @test norm(sum(rbm.vis.θ; dims=1)) > 1
+    zerosum!(rbm.vis)
+    @test norm(sum(rbm.vis.θ; dims=1)) < 1e-10
+
+    rbm.weights .+= 1
+    @test norm(sum(rbm.weights); dims=1) > 1
+    zerosum!(rbm)
+    @test norm(sum(rbm.weights); dims=1) < 1e-10
+end
+
 @testset "cd gauge invariance Binary / Gaussian" begin
     rbm = RBM(Binary(5), Gaussian(3))
     randn!(rbm.vis.θ); randn!(rbm.weights);
