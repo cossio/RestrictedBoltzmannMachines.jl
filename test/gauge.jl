@@ -20,9 +20,9 @@ B = (3,1)
     @test norm(sum(rbm.vis.θ; dims=1)) < 1e-10
 
     rbm.weights .+= 1
-    @test norm(sum(rbm.weights); dims=1) > 1
+    @test norm(sum(rbm.weights; dims=1)) > 1
     zerosum!(rbm)
-    @test norm(sum(rbm.weights); dims=1) < 1e-10
+    @test norm(sum(rbm.weights; dims=1)) < 1e-10
 end
 
 @testset "cd gauge invariance Binary / Gaussian" begin
