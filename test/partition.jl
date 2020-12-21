@@ -1,6 +1,6 @@
 using Test, Random, Statistics, LinearAlgebra
 import StatsFuns: logaddexp
-using Zygote
+using Zygote, Flux
 using RestrictedBoltzmannMachines
 using RestrictedBoltzmannMachines: logsumexp, init_weights!
 

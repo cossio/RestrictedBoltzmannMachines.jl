@@ -20,9 +20,8 @@ __energy(layer::Gaussian, x::NumArray) = @. (abs(layer.γ) * x/2 - layer.θ) * x
 
 function log_partition(rbm::RBM{<:Gaussian, <:Gaussian}, β::Num = 1)
     W = reshape(rbm.weights, length(rbm.vis), length(rbm.hid))
-    A = [diagm(vec(rbm.vis.γ)) -W;
-         -W' diagm(vec(rbm.hid.γ))] * β
-    return (length(rbm.vis) + length(rbm.hid)) / 2 * log(2π) - logdet(A) / 2
+    ldet = sum(log, rbm.hid.γ) + logdet(diagm(vec(rbm.vis.γ)) - W * diagm(1 ./ vec(rbm.hid.γ)) * W')
+    return (length(rbm.vis) + length(rbm.hid)) / 2 * log(2π/β) - ldet / 2
 end
 
 alphabet(::Binary) = 0:1
