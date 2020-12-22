@@ -25,6 +25,10 @@ using RestrictedBoltzmannMachines: broadlike, tensordot,
     @test size(tensordot(X, W, Y)) == (5, 6)
     @test tensordot(X, W, Y) ≈ C
     @inferred tensordot(X, W, Y)
+
+    A = randn(10, 10)
+    v = randn(10, 100)
+    @test tensordot(v, A, v) ≈ diag(v' * A * v)
 end
 
 @testset "tensormul_ff" begin
