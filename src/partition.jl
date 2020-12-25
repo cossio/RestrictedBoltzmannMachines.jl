@@ -16,8 +16,6 @@ function log_partition(rbm::RBM{V,H,W}, β::Num = 1) where {V<:AbstractDiscreteL
     return lZ
 end
 
-__energy(layer::Gaussian, x::NumArray) = @. (abs(layer.γ) * x/2 - layer.θ) * x
-
 function log_partition(rbm::RBM{<:Gaussian, <:Gaussian}, β::Num = 1)
     W = reshape(rbm.weights, length(rbm.vis), length(rbm.hid))
     ldet = sum(log, rbm.hid.γ) + logdet(diagm(vec(rbm.vis.γ)) - W * diagm(1 ./ vec(rbm.hid.γ)) * W')
