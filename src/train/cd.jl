@@ -34,8 +34,8 @@ function train!(rbm::RBM, data::Data; cd::Union{CD,PCD} = PCD(),
                 tests_data::Data = data, # validation dataset
                 reg = _ -> 0, λw::Real = 0, λh::Real = 0, λg::Real = 0, # regularization
                 min_lpl = -Inf, # minimum log-pseudolikelihood
-                lpl_interval = 50data.batchsize, # iterations to wait before computing log-pseudolikelihood
-                print_interval = 200data.batchsize # iterations to wait before printing log-pseudolikelihood
+                lpl_interval = data.nobs, # iterations to wait before computing log-pseudolikelihood
+                print_interval = data.nobs # iterations to wait before printing log-pseudolikelihood
             )
     checkdims(rbm.vis, vm)
     progress_bar = Progress(length(data.batchsize:data.batchsize:iters))
