@@ -1,4 +1,4 @@
-using Test, Random
+using Test, Random, LinearAlgebra
 using RestrictedBoltzmannMachines
 using RestrictedBoltzmannMachines: broadlike, tensordot,
     tensormul_ff, tensormul_ll, tensormul_fl, tensormul_lf
