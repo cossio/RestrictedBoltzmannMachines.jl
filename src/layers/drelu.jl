@@ -1,6 +1,6 @@
 export dReLU
 
-struct dReLU{T,N} <: AbstractLayer{T,N}
+struct dReLU{T,N} <: AbstractContinuousLayer{T,N}
     θp::Array{T,N}
     θn::Array{T,N}
     γp::Array{T,N}

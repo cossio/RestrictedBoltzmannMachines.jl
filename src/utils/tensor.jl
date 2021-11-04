@@ -134,6 +134,6 @@ end
 """
     broadlike(A, B...)
 
-Broadcasts `A` to the size of `A .+ B .+ ...`, without actually summing anything.
+Reshapes (broadcasts) `A` into the size of `A .+ B .+ ...`, without doing the sum.
 """
 broadlike(A, B...) = broadcast(first ∘ tuple, A, B...)

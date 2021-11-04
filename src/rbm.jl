@@ -5,18 +5,18 @@ export sample_v_from_h, sample_h_from_v
 export sample_v_from_v, sample_h_from_h
 export reconstruction_error
 
-struct RBM{V<:AbstractLayer, H<:AbstractLayer, W<:AbstractArray}
+struct RBM{V<:AbstractHomogeneousLayer, H<:AbstractHomogeneousLayer, W<:AbstractArray}
     vis::V
     hid::H
     weights::W
-    function RBM{V,H,W}(v::V, h::H, w::W) where {T,V<:AbstractLayer{T},H<:AbstractLayer{T},W<:AbstractArray{T}}
+    function RBM{V,H,W}(v::V, h::H, w::W) where {T,V<:AbstractHomogeneousLayer{T},H<:AbstractHomogeneousLayer{T},W<:AbstractArray{T}}
         size(w) == (size(v)..., size(h)...) || dimserror()
         new{V,H,W}(v, h, w)
     end
 end
-RBM(v::AbstractLayer, h::AbstractLayer, w::AbstractArray) =
+RBM(v::AbstractHomogeneousLayer, h::AbstractHomogeneousLayer, w::AbstractArray) =
     RBM{typeof(v), typeof(h), typeof(w)}(v, h, w)
-function RBM(v::AbstractLayer{T}, h::AbstractLayer{T}) where {T}
+function RBM(v::AbstractHomogeneousLayer{T}, h::AbstractHomogeneousLayer{T}) where {T}
     w = zeros(T, size(v)..., size(h)...)
     return RBM(v, h, w)
 end

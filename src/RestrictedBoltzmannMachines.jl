@@ -29,9 +29,7 @@ module RestrictedBoltzmannMachines
     include("layers/drelu2.jl")
 
     include("rbm.jl")
-    include("dbm.jl")
 
-    include("train/oadam.jl")
     include("train/init.jl")
     include("train/cd.jl")
     include("train/regularize.jl")

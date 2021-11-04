@@ -1,5 +1,7 @@
 export <|, throttlen, dotcos
 
+
+
 # convenience functions to get generic Inf and NaN
 inf(::Union{Type{T}, T}) where {T} = convert(T, Inf)
 nan(::Union{Type{T}, T}) where {T} = convert(T, NaN)

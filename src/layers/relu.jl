@@ -1,6 +1,6 @@
 export ReLU
 
-struct ReLU{T,N} <: AbstractLayer{T,N}
+struct ReLU{T,N} <: AbstractContinuousLayer{T,N}
     θ::Array{T,N}
     γ::Array{T,N}
     function ReLU{T,N}(θ::Array{T,N}, γ::Array{T,N}) where {T,N}

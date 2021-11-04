@@ -3,8 +3,8 @@ export gauge, zerosum, rescale, gauge!, zerosum!, rescale!
 """
     gauge(rbm)
 
-Fixes a gauge on `rbm`, removing parameter degeneracies. The resulting RBM can
-share parameter vectors with the original.
+Fixes a gauge on `rbm`, removing parameter degeneracies.
+The resulting RBM share parameter vectors with the original.
 """
 function gauge(rbm::RBM)::typeof(rbm)
     rbm_zs = zerosum(rbm)
@@ -15,26 +15,30 @@ end
 """
     zerosum(rbm)
 
-Set fields to zero-sum gauge. Only affects RBMs with visible Potts.
-For other kinds of RBMs this function does nothing. The returned
+Set fields to zero-sum gauge. Only affects RBMs with visible or hidden
+Potts layers. For other kinds of layers this function does nothing. The returned
 RBM shares other parameters (e.g. hidden layer) with the original.
 """
-zerosum(rbm::RBM{<:AbstractLayer}) = rbm
+zerosum(rbm::RBM{<:AbstractHomogeneousLayer}) = rbm
 function zerosum(rbm::RBM{<:Potts})::typeof(rbm)
     vis = zerosum(rbm.vis)
     wsz = zerosum(rbm.weights; dims=1)
     return RBM(vis, rbm.hid, wsz)
 end
-zerosum(layer::AbstractLayer) = layer
+function zerosum(rbm::RBM{<:Potts})::typeof(rbm)
+    vis = zerosum(rbm.vis)
+    wsz = zerosum(rbm.weights; dims=1)
+    return RBM(vis, rbm.hid, wsz)
+end
+zerosum(layer::AbstractHomogeneousLayer) = layer
 zerosum(layer::Potts) = Potts(zerosum(layer.θ; dims=1))
 zerosum(A::NumArray; dims=1) = A .- mean(A; dims=dims)
 
 """
     rescale(rbm)
 
-Rescales weights so that norm(w[:,μ]) = 1 for all μ (which makes individual
-weights ~ 1/√N). The resulting RBM shares layer parameters with the original,
-but weights are a new array.
+Rescales weights so that norm(w[:,μ]) = 1 for all μ (making individual weights ~ 1/√N).
+The resulting RBM shares layer parameters with the original, but weights are a new array.
 """
 function rescale(rbm::RBM)::typeof(rbm)
     ω = sqrt.(sum(rbm.weights.^2; dims = vdims(rbm)))
@@ -51,13 +55,13 @@ function gauge!(rbm::RBM)
     return rbm
 end
 
-zerosum!(rbm::RBM{<:AbstractLayer}) = rbm
+zerosum!(rbm::RBM{<:AbstractHomogeneousLayer}) = rbm
 function zerosum!(rbm::RBM{<:Potts})
     zerosum!(rbm.vis)
     zerosum!(rbm.weights; dims=1)
     return rbm
 end
-zerosum!(layer::AbstractLayer) = layer
+zerosum!(layer::AbstractHomogeneousLayer) = layer
 function zerosum!(layer::Potts)
     zerosum!(layer.θ; dims=1)
     return layer
@@ -106,7 +110,7 @@ function zerosum!(gs::Grads, rbm::RBM{<:Potts})
     end
     return gs
 end
-zerosum!(gs::Grads, rbm::RBM{<:AbstractLayer}) = gs
+zerosum!(gs::Grads, rbm::RBM{<:AbstractHomogeneousLayer}) = gs
 
 """
     rescale!(gs, rbm)

@@ -1,6 +1,6 @@
 export Gaussian
 
-struct Gaussian{T,N} <: AbstractLayer{T,N}
+struct Gaussian{T,N} <: AbstractContinuousLayer{T,N}
     θ::Array{T,N}
     γ::Array{T,N}
     function Gaussian{T,N}(θ::Array{T,N}, γ::Array{T,N}) where {T,N}
