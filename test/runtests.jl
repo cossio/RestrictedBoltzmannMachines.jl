@@ -16,7 +16,6 @@ using SafeTestsets, Random, Test
 @time @safetestset "drelu" begin include("layers/drelu.jl") end
 
 @time @safetestset "rbm" begin include("rbm.jl") end
-@time @safetestset "dbm" begin include("dbm.jl") end
 @time @safetestset "regularize" begin include("regularize.jl") end
 @time @safetestset "pseudolikelihood" begin include("pseudolikelihood.jl") end
 

@@ -1,40 +1,43 @@
-export AbstractLayer
-export checkdims, batchdims, batchindices, batchsize,
-    energy, random, cgf, effective, fields, fieldtype,
-    transfer_mode, transfer_mean, transfer_std, transfer_var, transfer_mean_abs,
-    transfer_pdf, transfer_cdf, transfer_logpdf, transfer_logcdf, transfer_entropy
+export AbstractLayer, AbstractHomogeneousLayer
+export AbstractDiscreteLayer, AbstractContinuousLayer
+export checkdims, batchdims, batchindices, batchsize, fieldtype
+export energy, random, cgf, effective, fields
+export transfer_mode, transfer_mean, transfer_std, transfer_var, transfer_mean_abs
+export transfer_pdf, transfer_cdf, transfer_logpdf, transfer_logcdf, transfer_entropy
 
-abstract type AbstractLayer{T,N} end
-abstract type AbstractDiscreteLayer{T,N} <: AbstractLayer{T,N} end
-Base.ndims(::AbstractLayer{T,N}) where {T,N} = N
-Base.ndims(::Type{<:AbstractLayer{T,N}}) where {T,N} = N
-fieldtype(::AbstractLayer{T,N}) where {T,N} = T
-fieldtype(::Type{<:AbstractLayer{T,N}}) where {T,N} = T
+abstract type AbstractLayer end
+abstract type AbstractHomogeneousLayer{T,N} <: AbstractLayer end
+abstract type AbstractDiscreteLayer{T,N} <: AbstractHomogeneousLayer{T,N} end
+abstract type AbstractContinuousLayer{T,N} <: AbstractHomogeneousLayer{T,N} end
+Base.ndims(::AbstractHomogeneousLayer{T,N}) where {T,N} = N
+Base.ndims(::Type{<:AbstractHomogeneousLayer{T,N}}) where {T,N} = N
+fieldtype(::AbstractHomogeneousLayer{T,N}) where {T,N} = T
+fieldtype(::Type{<:AbstractHomogeneousLayer{T,N}}) where {T,N} = T
 
 """
     checkdims(layer, x)
 
 Checks dimensional consistency between `layer` and configuration `x`.
 """
-function checkdims(layer::AbstractLayer, x::NumArray)
+function checkdims(layer::AbstractHomogeneousLayer, x::NumArray)
     ndims(x) ≥ ndims(layer) || dimserror()
     x_size = ntuple(d -> size(x, d), Val(ndims(layer)))
     x_size == size(layer) || dimserror()
 end
 
-function Base.size(layer::AbstractLayer, dim::Int)
+function Base.size(layer::AbstractHomogeneousLayer, dim::Int)
     allequal(size.(fields(layer))...) ||
         throw(DimensionMismatch("Inconsistent parameter sizes"))
     size(first(fields(layer)), dim)
 end
 
-function Base.size(layer::AbstractLayer)
+function Base.size(layer::AbstractHomogeneousLayer)
     allequal(size.(fields(layer))...) ||
         throw(DimensionMismatch("Inconsistent parameter sizes"))
     size(first(fields(layer)))
 end
 
-function Base.length(layer::AbstractLayer)
+function Base.length(layer::AbstractHomogeneousLayer)
     allequal(size.(fields(layer))...) ||
         throw(DimensionMismatch("Inconsistent parameter sizes"))
     length(first(fields(layer)))
@@ -49,7 +52,7 @@ pardimserror() = throw(DimensionMismatch("Inconsistent parameter sizes"))
 Returns the batch sizes of the configurations in `x`, as implied by
 the dimensions of `layer`.
 """
-@generated batchsize(::AbstractLayer{T,N}, x::NumArray) where {N,T} =
+@generated batchsize(::AbstractHomogeneousLayer{T,N}, x::NumArray) where {N,T} =
     Expr(:tuple, (:(size(x, $d)) for d in N + 1 : ndims(x))...)
 
 """
@@ -58,30 +61,30 @@ the dimensions of `layer`.
 Returns a tuple of the batch dimensions, statically determined from the types
 of `layer` and `x`.
 """
-@generated batchdims(layer::AbstractLayer, x::NumArray) = Tuple(ndims(layer) + 1 : ndims(x))
+@generated batchdims(layer::AbstractHomogeneousLayer, x::NumArray) = Tuple(ndims(layer) + 1 : ndims(x))
 
 """
     batchndims(layer, x)
 
 Statically determine the number of batch dimensions in `x`.
 """
-@generated batchndims(layer::AbstractLayer, x::NumArray) = ndims(x) - ndims(layer)
+@generated batchndims(layer::AbstractHomogeneousLayer, x::NumArray) = ndims(x) - ndims(layer)
 
 """
     sitedims(layer)
 
 Returns a tuple of the site dimensions of layer, statically.
 """
-@generated sitedims(layer::AbstractLayer) = Tuple(1:ndims(layer))
-siteindices(layer::AbstractLayer) = CartesianIndices(first(fields(layer)))
-sitesize(layer::AbstractLayer) = size(layer)
+@generated sitedims(layer::AbstractHomogeneousLayer) = Tuple(1:ndims(layer))
+siteindices(layer::AbstractHomogeneousLayer) = CartesianIndices(first(fields(layer)))
+sitesize(layer::AbstractHomogeneousLayer) = size(layer)
 
 """
     batchindices(layer, x)
 
 Returns a `CartesianIndices` over the batch indices of `x`.
 """
-function batchindices(layer::AbstractLayer, x::NumArray)
+function batchindices(layer::AbstractHomogeneousLayer, x::NumArray)
     checkdims(layer, x)
     bsize = batchsize(layer, x)
     CartesianIndices(OneTo.(bsize))
@@ -98,8 +101,8 @@ energy also takes care of converting zero-dimensional arrays to scalars
 
 Energy of `layer` in configuration `x`.
 """
-energy(layer::AbstractLayer, x::NumArray) = scalarize(_energy(layer, x))
-function _energy(layer::AbstractLayer, x::NumArray)
+energy(layer::AbstractHomogeneousLayer, x::NumArray) = scalarize(_energy(layer, x))
+function _energy(layer::AbstractHomogeneousLayer, x::NumArray)
     checkdims(layer, x)
     sumdropfirst(__energy(layer, x), Val(ndims(layer)))
 end
@@ -110,8 +113,8 @@ end
 Cumulative generating function of layer conditioned on
 input from other layer.
 """
-cgf(layer::AbstractLayer, I::Num = 0, β::Num = 1) = scalarize(_cgf(layer, I, β))
-function _cgf(layer::AbstractLayer, I::Num = 0, β::Num = 1)
+cgf(layer::AbstractHomogeneousLayer, I::Num = 0, β::Num = 1) = scalarize(_cgf(layer, I, β))
+function _cgf(layer::AbstractHomogeneousLayer, I::Num = 0, β::Num = 1)
     Γ = __cgf(effective(layer, I, β)) ./ β
     return sumdropfirst(Γ, Val(ndims(layer)))
 end
@@ -121,21 +124,21 @@ end
 
 Sample a random layer configuration.
 """
-random(layer::AbstractLayer, I::Num = 0, β::Num = 1) = _random(effective(layer, I, β))
+random(layer::AbstractHomogeneousLayer, I::Num = 0, β::Num = 1) = _random(effective(layer, I, β))
 
 """
     transfer_mode(unit, I = 0)
 
 Most likely unit state conditional on input from other layer.
 """
-transfer_mode(layer::AbstractLayer, I::Num = 0, β::Num = 1) = _transfer_mode(effective(layer, I, β))
+transfer_mode(layer::AbstractHomogeneousLayer, I::Num = 0, β::Num = 1) = _transfer_mode(effective(layer, I, β))
 
 """
     transfer_mean(layer, I = 0, β = 1)
 
 Mean over the configurations of `layer`, <h | v>
 """
-transfer_mean(layer::AbstractLayer, I::Num = 0, β::Num = 1) =
+transfer_mean(layer::AbstractHomogeneousLayer, I::Num = 0, β::Num = 1) =
     _transfer_mean(effective(layer, I, β))
 
 """
@@ -143,7 +146,7 @@ transfer_mean(layer::AbstractLayer, I::Num = 0, β::Num = 1) =
 
 Mean over the absolute values of the configurations of `layer`, <|h| | v>.
 """
-transfer_mean_abs(layer::AbstractLayer, I::Num = 0, β::Num = 1) =
+transfer_mean_abs(layer::AbstractHomogeneousLayer, I::Num = 0, β::Num = 1) =
     _transfer_mean_abs(effective(layer, I, β))
 
 """
@@ -151,7 +154,7 @@ transfer_mean_abs(layer::AbstractLayer, I::Num = 0, β::Num = 1) =
 
 Standard deviation over the configurations of `layer`.
 """
-transfer_std(layer::AbstractLayer, I::Num = 0, β::Num = 1) =
+transfer_std(layer::AbstractHomogeneousLayer, I::Num = 0, β::Num = 1) =
     _transfer_std(effective(layer, I, β))
 
 """
@@ -159,59 +162,59 @@ transfer_std(layer::AbstractLayer, I::Num = 0, β::Num = 1) =
 
 Variance over the configurations of `layer`.
 """
-transfer_var(layer::AbstractLayer, I::Num = 0, β::Num = 1) =
+transfer_var(layer::AbstractHomogeneousLayer, I::Num = 0, β::Num = 1) =
     _transfer_var(effective(layer, I, β))
 
-transfer_pdf(layer::AbstractLayer, x::NumArray, I::Num = 0, β::Num = 1) =
+transfer_pdf(layer::AbstractHomogeneousLayer, x::NumArray, I::Num = 0, β::Num = 1) =
     exp.(transfer_logpdf(layer, x, I, β))
-transfer_cdf(layer::AbstractLayer, x::NumArray, I::Num = 0, β::Num = 1) =
+transfer_cdf(layer::AbstractHomogeneousLayer, x::NumArray, I::Num = 0, β::Num = 1) =
     exp.(transfer_logcdf(effective(layer, I, β), x))
-transfer_survival(layer::AbstractLayer, x::NumArray, I::Num = 0, β::Num = 1) =
+transfer_survival(layer::AbstractHomogeneousLayer, x::NumArray, I::Num = 0, β::Num = 1) =
     exp.(transfer_logsurvival(layer, x, I, β))
 
-transfer_logpdf(layer::AbstractLayer, x::NumArray, I::Num = 0, β::Num = 1) =
+transfer_logpdf(layer::AbstractHomogeneousLayer, x::NumArray, I::Num = 0, β::Num = 1) =
     scalarize(_transfer_logpdf(layer, x, I, β))
-transfer_logcdf(layer::AbstractLayer, x::NumArray, I::Num = 0, β::Num = 1) =
+transfer_logcdf(layer::AbstractHomogeneousLayer, x::NumArray, I::Num = 0, β::Num = 1) =
     scalarize(_transfer_logcdf(layer, x, I, β))
-transfer_logsurvival(layer::AbstractLayer, x::NumArray, I::Num = 0, β::Num = 1) =
+transfer_logsurvival(layer::AbstractHomogeneousLayer, x::NumArray, I::Num = 0, β::Num = 1) =
     scalarize(_transfer_logsurvival(layer, x, I, β))
-transfer_entropy(layer::AbstractLayer, I::Num = 0, β::Num = 1) =
+transfer_entropy(layer::AbstractHomogeneousLayer, I::Num = 0, β::Num = 1) =
     scalarize(_transfer_entropy(layer, I, β))
 
-_transfer_pdf(layer::AbstractLayer, x::NumArray, I::Num = 0, β::Num = 1) =
+_transfer_pdf(layer::AbstractHomogeneousLayer, x::NumArray, I::Num = 0, β::Num = 1) =
     exp.(_transfer_logpdf(layer, x, I, β))
-_transfer_cdf(layer::AbstractLayer, x::NumArray, I::Num = 0, β::Num = 1) =
+_transfer_cdf(layer::AbstractHomogeneousLayer, x::NumArray, I::Num = 0, β::Num = 1) =
     exp.(_transfer_logcdf(layer, x, I, β))
-_transfer_survival(layer::AbstractLayer, x::NumArray, I::Num = 0, β::Num = 1) =
+_transfer_survival(layer::AbstractHomogeneousLayer, x::NumArray, I::Num = 0, β::Num = 1) =
     exp.(_transfer_logsurvival(layer, x, I, β))
 
-_transfer_logpdf(layer::AbstractLayer, x::NumArray, I::Num = 0, β::Num = 1) =
+_transfer_logpdf(layer::AbstractHomogeneousLayer, x::NumArray, I::Num = 0, β::Num = 1) =
     sumdropfirst(__transfer_logpdf(layer, x, I, β), Val(ndims(layer)))
-_transfer_logcdf(layer::AbstractLayer, x::NumArray, I = 0, β = 1) =
+_transfer_logcdf(layer::AbstractHomogeneousLayer, x::NumArray, I = 0, β = 1) =
     sumdropfirst(__transfer_logcdf(effective(layer, I, β), x), Val(ndims(layer)))
-_transfer_logsurvival(layer::AbstractLayer, x::NumArray, I::Num = 0, β::Num = 1) =
+_transfer_logsurvival(layer::AbstractHomogeneousLayer, x::NumArray, I::Num = 0, β::Num = 1) =
     sumdropfirst(__transfer_logsurvival(layer, x, I, β), Val(ndims(layer)))
-_transfer_entropy(layer::AbstractLayer, I::Num = 0, β::Num = 1) =
+_transfer_entropy(layer::AbstractHomogeneousLayer, I::Num = 0, β::Num = 1) =
     sumdropfirst(__transfer_entropy(layer, I, β), Val(ndims(layer)))
 
-__transfer_logpdf(layer::AbstractLayer, x::NumArray, I::Num, β::Num = 1) =
+__transfer_logpdf(layer::AbstractHomogeneousLayer, x::NumArray, I::Num, β::Num = 1) =
     __transfer_logpdf(effective(layer, I, β), x)
-__transfer_logcdf(layer::AbstractLayer, x::NumArray, I::Num, β::Num = 1) =
+__transfer_logcdf(layer::AbstractHomogeneousLayer, x::NumArray, I::Num, β::Num = 1) =
     __transfer_logcdf(effective(layer, I, β), x)
-__transfer_logsurvival(layer::AbstractLayer, x::NumArray, I::Num, β::Num = 1) =
+__transfer_logsurvival(layer::AbstractHomogeneousLayer, x::NumArray, I::Num, β::Num = 1) =
     __transfer_logsurvival(effective(layer, I, β), x)
 
-__transfer_pdf(layer::AbstractLayer, x::NumArray, I::Num = 0, β::Num = 1) =
+__transfer_pdf(layer::AbstractHomogeneousLayer, x::NumArray, I::Num = 0, β::Num = 1) =
     exp.(__transfer_logpdf(layer, x, I, β))
-__transfer_cdf(layer::AbstractLayer, x::NumArray, I::Num = 0, β::Num = 1) =
+__transfer_cdf(layer::AbstractHomogeneousLayer, x::NumArray, I::Num = 0, β::Num = 1) =
     exp.(__transfer_logcdf(layer, x, I, β))
-__transfer_survival(layer::AbstractLayer, x::NumArray, I::Num = 0, β::Num = 1) =
+__transfer_survival(layer::AbstractHomogeneousLayer, x::NumArray, I::Num = 0, β::Num = 1) =
     exp.(__transfer_logsurvival(layer, x, I, β))
 
-__transfer_entropy(layer::AbstractLayer, I::Num, β::Num = 1) =
+__transfer_entropy(layer::AbstractHomogeneousLayer, I::Num, β::Num = 1) =
     __transfer_entropy(effective(layer, I, β))
 
-transfer_mills(layer::AbstractLayer, x::NumArray, I::Num = 0, β::Num = 1) =
+transfer_mills(layer::AbstractHomogeneousLayer, x::NumArray, I::Num = 0, β::Num = 1) =
     _transfer_mills(effective(layer, I, β), x)
 
 """
@@ -219,5 +222,5 @@ transfer_mills(layer::AbstractLayer, x::NumArray, I::Num = 0, β::Num = 1) =
 
 Effective unit given input from other layer and inverse temperature β.
 """
-effective(layer::AbstractLayer, I::Num = 0, β::Num = 1) =
+effective(layer::AbstractHomogeneousLayer, I::Num = 0, β::Num = 1) =
     effective_β(effective_I(layer, I), β)
