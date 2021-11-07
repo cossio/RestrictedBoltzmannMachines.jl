@@ -1,56 +1,49 @@
 module RestrictedBoltzmannMachines
-    using Random, Statistics, LinearAlgebra,
-        StatsFuns, SpecialFunctions, Distributions,
-        Roots, ProgressMeter, Zygote, Flux, ValueHistories
-    using OneHot, SimpleDataLoader
+    using Random, Statistics, LinearAlgebra
+    using SpecialFunctions, ProgressMeter, Flux, ValueHistories, OneHot
     using Base.Broadcast: broadcasted
-    using Base: tail, front, OneTo, @propagate_inbounds, @kwdef
-    using Random: GLOBAL_RNG
-    using Flux: throttle, params, Params, ADAM
-    using Zygote: unbroadcast, @adjoint, Grads
-    import NNlib
+    using Flux: params, Params, ADAM
+    using LogExpFunctions: logsumexp, logaddexp, log1pexp
 
     export MVHistory, Data
+    export Binary, Spin, Potts
+    export Gaussian, StdGaussian
+    export ReLU, dReLU, pReLU
+    export RBM, flip_layers
 
-    include("utils/util.jl")
-    include("utils/tensor.jl")
-    include("utils/zygote.jl")
+    export energy, interaction_energy, free_energy, mean_free_energy, cgf
+    export inputs_h_to_v, inputs_v_to_h
+    export sample_v_from_h, sample_h_from_v, sample_v_from_v, sample_h_from_h
+    export reconstruction_error
+    export init!, init_weights!
+    export train!, contrastive_divergence
+
+    # export log_likelihood, log_partition, mean_log_likelihood
+    # export log_pseudolikelihood, log_pseudolikelihood_rand
+
+    include("util.jl")
+    include("minibatches.jl")
 
     include("truncnorm/truncnorm.jl")
     include("truncnorm/rejection.jl")
 
-    include("layers/layer.jl")
     include("layers/binary.jl")
     include("layers/spin.jl")
     include("layers/potts.jl")
     include("layers/gaussian.jl")
     include("layers/relu.jl")
     include("layers/drelu.jl")
-    include("layers/drelu2.jl")
+    include("layers/prelu.jl")
+    include("layers/common.jl")
 
     include("rbm.jl")
 
     include("train/init.jl")
     include("train/cd.jl")
-    include("train/regularize.jl")
-    include("train/lr_schedules.jl")
-    include("train/gauge.jl")
-    include("pseudolikelihood.jl")
-    include("partition.jl")
+    #include("train/regularize.jl")
 
-    include("train/hyper_random_search.jl")
-
-    #= So we can refer to the package using RBMs instead of
-    the verbose RestrictedBoltzmannMachines =#
-    export RBMs
-    const RBMs = RestrictedBoltzmannMachines
-
-    #= So I know the tree hash of the version I am using =#
-    using Pkg
-    const RBMsPath = joinpath(dirname(pathof(RestrictedBoltzmannMachines)), "..")
-    const RBMsHash = bytes2hex(Pkg.GitTools.tree_hash(RBMsPath))
-    function print_hash()
-        println("Find current RBMs commit id by running this on the git repo:")
-        println("git log --format=\"%H %T\" | grep $RBMsHash")
-    end
+    #include("train/lr_schedules.jl")
+    #include("train/gauge.jl")
+    #include("pseudolikelihood.jl")
+    #include("partition.jl")
 end

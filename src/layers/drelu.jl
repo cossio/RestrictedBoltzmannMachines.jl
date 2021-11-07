@@ -1,95 +1,54 @@
-export dReLU
-
-struct dReLU{T,N} <: AbstractContinuousLayer{T,N}
-    θp::Array{T,N}
-    θn::Array{T,N}
-    γp::Array{T,N}
-    γn::Array{T,N}
-    function dReLU{T,N}(ps::Vararg{Array{T,N}, 4}) where {T,N}
-        allequal(size.(ps)...) || pardimserror()
-        return new{T,N}(ps...)
+struct dReLU{A<:AbstractArray}
+    θp::A
+    θn::A
+    γp::A
+    γn::A
+    function dReLU(θp::A, θn::A, γp::A, γn::A) where {A<:AbstractArray}
+        @assert size(θp) == size(θn) == size(γp) == size(γn)
+        return new{A}(θp, θn, γp, γn)
     end
 end
-dReLU(ps::Vararg{Array{T,N}, 4}) where {T,N} = dReLU{T,N}(ps...)
-function dReLU(p::Union{Gaussian,ReLU}, n::Union{Gaussian,ReLU})
-    size(p) == size(n) || pardimserror()
-    return dReLU(p.θ, -n.θ, p.γ, n.γ)
+
+function dReLU(::Type{T}, n::Int...) where {T}
+    θp = zeros(T, n...)
+    θn = zeros(T, n...)
+    γp = ones(T, n...)
+    γn = ones(T, n...)
+    return dReLU(θp, θn, γp, γn)
 end
-dReLU{T}(n::Int...) where {T} = dReLU(ReLU{T}(n...), ReLU{T}(n...))
-dReLU(n::Int...) = dReLU{Float64}(n...)
+
+dReLU(n::Int...) = dReLU(Float64, n...)
+
 Flux.@functor dReLU
-fields(l::dReLU) = (l.θp, l.θn, l.γp, l.γn)
-relus_pair(l::dReLU) = ReLU(l.θp, l.γp), ReLU(-l.θn, l.γn)
-gauss_pair(l::dReLU) = Gaussian(l.θp, l.γp), Gaussian(-l.θn, l.γn)
 
-function probs_pair(layer::dReLU)
-    lp, ln = relus_pair(layer)
-    Γp, Γn = __cgf(lp), __cgf(ln)
-    Γ = logaddexp.(Γp, Γn)
-    pp = @. exp(Γp - Γ)
-    pn = @. exp(Γn - Γ)
-    return pp, pn
-end
-
-function __energy(layer::dReLU, x::NumArray)
-    checkdims(layer, x)
+function energy(layer::dReLU, x::AbstractArray)
     xp = @. max( x, zero(x))
     xn = @. max(-x, zero(x))
-    lp, ln = relus_pair(layer)
-    Ep, En = __energy(lp, xp), __energy(ln, xn)
+    Ep = energy(ReLU( layer.θp, layer.γp), xp)
+    En = energy(ReLU(-layer.θn, layer.γn), xn)
     return Ep .+ En
 end
 
-__cgf(layer::dReLU) = drelu_cgf.(layer.θp, layer.θn, layer.γp, layer.γn)
-_random(layer::dReLU) = drelu_rand.(layer.θp, layer.θn, layer.γp, layer.γn)
-
-function _transfer_mode(layer::dReLU)
-    lp, ln = relus_pair(layer)
-    xp, xn = _transfer_mode(lp), -_transfer_mode(ln)
-    Ep, En = __energy(lp, +xp), __energy(ln, -xn)
-    return @. ifelse(Ep ≤ En, xp, xn)
+function cgf(layer::dReLU, inputs::AbstractArray)
+    Γp = relu_cgf.(inputs .+ layer.θp, layer.γp)
+    Γn = relu_cgf.(inputs .- layer.θn, layer.γn)
+    Γ = logaddexp.(Γp, Γn)
+    return sum_(Γ; dims = layerdims(layer))
 end
 
-function effective_β(layer::dReLU, β::Num)
-    p, n = relus_pair(layer)
-    return dReLU(effective_β(p, β), effective_β(n, β))
+function cgf(layer::dReLU, inputs::AbstractArray, β::Real)
+    layer_ = dReLU(layer.θp .* β, layer.θn .* β, layer.γp .* β, layer.γn .* β)
+    return cgf(layer_, inputs .* β) / β
 end
 
-function effective_I(layer::dReLU, I::Num)
-    p, n = relus_pair(layer)
-    return dReLU(effective_I(p, I), effective_I(n, -I))
+function sample_from_inputs(layer::dReLU, inputs::AbstractArray)
+    return @. drelu_rand(layer.θp + inputs, layer.θn + inputs, layer.γp, layer.γn)
 end
 
-function _transfer_mean(layer::dReLU)
-    lp, ln = relus_pair(layer)
-    pp, pn = probs_pair(layer)
-    return pp .* _transfer_mean(lp) .- pn .* _transfer_mean(ln)
+function sample_from_inputs(layer::dReLU, inputs::AbstractArray, β::Real)
+    layer_ = dReLU(β .* layer.θp, β .* layer.θn, β .* layer.γp, β .* layer.γn)
+    return sample_from_inputs(layer_, inputs .* β)
 end
-
-_transfer_std(layer::dReLU) = sqrt.(_transfer_var(layer))
-
-function _transfer_var(layer::dReLU)
-    lp, ln = relus_pair(layer)
-    pp, pn = probs_pair(layer)
-    μp, μn = _transfer_mean(lp), _transfer_mean(ln)
-    νp, νn = _transfer_var(lp),  _transfer_var(ln)
-    μ = @. pp * μp - pn * μn
-    return @. pp * (νp + μp^2) + pn * (νn + μn^2) - μ^2
-end
-
-function _transfer_mean_abs(layer::dReLU)
-    lp, ln = relus_pair(layer)
-    pp, pn = probs_pair(layer)
-    return pp .* _transfer_mean(lp) .+ pn .* _transfer_mean(ln)
-end
-
-#=
-Compute gradients using the approach of:
-http://papers.nips.cc/paper/7326-implicit-reparameterization-gradients
-
-It is easier to write the adjoint for a function that takes scalar inputs,
-than for a function that takes struct inputs.
-=#
 
 function drelu_rand(θp::Real, θn::Real, γp::Real, γn::Real)
     Γp = relu_cgf(+θp, γp)
@@ -101,78 +60,7 @@ function drelu_rand(θp::Real, θn::Real, γp::Real, γn::Real)
         return -relu_rand(-θn, γn)
     end
 end
-@adjoint function drelu_rand(θp::Real, θn::Real, γp::Real, γn::Real)
-    z, dθp, dθn, dγp, dγn = ∇drelu_rand(θp, θn, γp, γn)
-    return z, δ -> (δ * dθp, δ * dθn, δ * dγp, δ * dγn)
-end
-@adjoint function broadcasted(::typeof(drelu_rand), θp::Num, θn::Num, γp::Num, γn::Num)
-    z, dθp, dθn, dγp, dγn = ∇drelu_rand(θp, θn, γp, γn)
-    return z, δ -> (nothing, δ .* dθp, δ .* dθn, δ .* dγp, δ .* dγn)
-end
-function ∇drelu_rand(θp::Num, θn::Num, γp::Num, γn::Num)
-    zipped = ∇drelu_rand.(θp, θn, γp, γn)
-    return unzip(zipped)
-end
-function ∇drelu_rand(θp::Real, θn::Real, γp::Real, γn::Real)
-    Γp, dΓp_dθp, dΓp_dγp = ∇relu_cgf(+θp, γp)
-    Γn, dΓn_dθn, dΓn_dγn = ∇relu_cgf(-θn, γn)
-    Γ = logaddexp(Γp, Γn)
-    pp = exp(Γp - Γ)
-    pn = exp(Γn - Γ)
-    if rand_like(Γ) ≤ pp
-        xp, dxp_dθp, dxp_dγp = ∇relu_rand(+θp, γp)
-        m = relu_mills(θp, γp, xp)
-        dθp = m * (1 - pp) * dΓp_dθp + dxp_dθp
-        dγp = m * (1 - pp) * dΓp_dγp + dxp_dγp
-        dθn = -m * pn * dΓn_dθn
-        dγn = -m * pn * dΓn_dγn
-        return +xp, dθp, -dθn, dγp, dγn
-    else
-        xn, dxn_dθn, dxn_dγn = ∇relu_rand(-θn, γn)
-        m = relu_mills(-θn, γn, xn)
-        dθn = -m * (1 - pn) * dΓn_dθn - dxn_dθn
-        dγn = -m * (1 - pn) * dΓn_dγn - dxn_dγn
-        dθp = m * pp * dΓp_dθp
-        dγp = m * pp * dΓp_dγp
-        return -xn, dθp, -dθn, dγp, dγn
-    end
-end
 
-function drelu_logsurvival(θp::Real, θn::Real, γp::Real, γn::Real, x::Real)
-    Γp, Γn = relu_cgf(θp, γp), relu_cgf(-θn, γn)
-    Γ = logaddexp(Γp, Γn)
-    if x < 0
-        return log1mexp(Γn - Γ + relu_logsurvival(-θn, γn, -x))
-    else
-        return Γp - Γ + relu_logsurvival(+θp, γp, +x)
-    end
-end
-
-drelu_logcdf(θp::Real, θn::Real, γp::Real, γn::Real, x::Real) =
-    log1mexp(drelu_logsurvival(θp, θn, γp, γn, x))
-
-function drelu_logpdf(θp::Real, θn::Real, γp::Real, γn::Real, x::Real)
-    Γp = relu_cgf(+θp, γp)
-    Γn = relu_cgf(-θn, γn)
-    Γ = logaddexp(Γp, Γn)
-    if x > 0
-        return -(abs(γp) * x/2 - θp) * x - Γ
-    else
-        return -(abs(γn) * x/2 - θn) * x - Γ
-    end
-end
-
-drelu_cdf(θp::Real, θn::Real, γp::Real, γn::Real, x::Real) =
-    exp(drelu_logcdf(θp, θn, γp, γn, x))
-drelu_pdf(θp::Real, θn::Real, γp::Real, γn::Real, x::Real) =
-    exp(drelu_logpdf(θp, θn, γp, γn, x))
-
-function drelu_cgf(θp::Real, θn::Real, γp::Real, γn::Real)
-    Γp, Γn = relu_cgf(θp, γp), relu_cgf(-θn, γn)
-    return logaddexp(Γp, Γn)
-end
-
-__transfer_logcdf(layer::dReLU, x) = drelu_logcdf.(layer.θp, layer.θn, layer.γp, layer.γn, x)
-__transfer_logpdf(layer::dReLU, x) = drelu_logpdf.(layer.θp, layer.θn, layer.γp, layer.γn, x)
-__transfer_logsurvival(layer::dReLU, x) =
-    drelu_logsurvival.(layer.θp, layer.θn, layer.γp, layer.γn, x)
+Base.size(layer::dReLU) = size(layer.θp)
+Base.ndims(layer::dReLU) = ndims(layer.θp)
+Base.length(layer::dReLU) = length(layer.θp)

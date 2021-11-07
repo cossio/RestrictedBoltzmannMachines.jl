@@ -49,61 +49,14 @@ function _sqrt1half(x)
     end
 end
 
-#=
-Compute gradients using the approach of:
-http://papers.nips.cc/paper/7326-implicit-reparameterization-gradients
-=#
-
-@adjoint function randnt(rng::AbstractRNG, a::Real)
-    z, da = ∇randnt(rng, a)
-    return z, δ -> (nothing, δ * da)
-end
-@adjoint function broadcasted(::typeof(randnt), rng::AbstractRNG, a::Num)
-    z, da = ∇randnt(rng, a)
-    return z, δ -> (nothing, nothing, δ .* da)
-end
-function ∇randnt(rng::AbstractRNG, a::Num)
-    z = randnt.(rng, a)
-    log1mu = @. logerfc(z / √two(z)) - logerfc(a / √two(a))
-    da = @. exp((z - a) * (z + a) / 2 + log1mu)
-    return z, da
-end
-
 """
     randnt_half([rng], μ, σ)
 
 Samples the normal distribution with mean `μ` and standard deviation `σ`
-truncated to non-negative values.
+truncated to positive values.
 """
 function randnt_half(rng::AbstractRNG, μ::Real, σ::Real)
     z = randnt(rng, -μ / σ)
     return μ + σ * z
 end
-randnt_half(μ::Real, σ::Real) = randnt_half(GLOBAL_RNG, μ, σ)
-@adjoint function randnt_half(rng::AbstractRNG, μ::Real, σ::Real)
-    z, dμ, dσ = ∇randnt_half(rng, μ, σ)
-    return z, δ -> (nothing, δ * dμ, δ * dσ)
-end
-@adjoint function broadcasted(::typeof(randnt_half), rng::AbstractRNG, μ::Num, σ::Num)
-    z, dμ, dσ = ∇randnt_half(rng, μ, σ)
-    back(δ) = (nothing, nothing, δ .* dμ, δ .* dσ)
-    return z, δ -> (nothing, nothing, δ .* dμ, δ .* dσ)
-end
-function ∇randnt_half(rng::AbstractRNG, μ::Num, σ::Num)
-    α = @. -μ / σ
-    ζ, dα = ∇randnt(rng, α)
-    z = @. μ + σ * ζ
-    dμ = @. 1 - dα
-    dσ = @. ζ - dα * α
-    return z, dμ, dσ
-end
-
-@adjoint function randnt_half(μ::Real, σ::Real)
-    z, dμ, dσ = ∇randnt_half(μ, σ)
-    return z, δ -> (δ * dμ, δ * dσ)
-end
-@adjoint function broadcasted(::typeof(randnt_half), μ::Num, σ::Num)
-    z, dμ, dσ = ∇randnt_half(μ, σ)
-    return z, δ -> (nothing, δ .* dμ, δ .* dσ)
-end
-∇randnt_half(μ::Num, σ::Num) = ∇randnt_half(GLOBAL_RNG, μ, σ)
+randnt_half(μ::Real, σ::Real) = randnt_half(Random.GLOBAL_RNG, μ, σ)

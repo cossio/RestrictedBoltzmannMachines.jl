@@ -1,14 +1,14 @@
 """
 	normcdf(x)
 
-Probablity that Z ≤ x, where Z is a standard normal random variable.
+Probablity that Z ≤ x, where Z is a standard normal sample_from_inputs variable.
 """
 normcdf(x::Real) = erfc(-x / √two(x)) / 2
 
 """
 	normcdf(a, b)
 
-Probablity that a ≤ Z ≤ b, where Z is a standard normal random variable.
+Probablity that a ≤ Z ≤ b, where Z is a standard normal sample_from_inputs variable.
 WARNING: Silently returns a negative value if a > b.
 """
 normcdf(a::Real, b::Real) = erf(a / √two(a), b / √two(b)) / 2

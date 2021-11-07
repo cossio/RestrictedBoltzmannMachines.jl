@@ -1,25 +1,34 @@
-export Spin
-
-struct Spin{T,N} <: AbstractDiscreteLayer{T,N}
-    θ::Array{T,N}
+struct Spin{T}
+    θ::T
 end
-Spin{T}(n::Int...) where {T} = Spin(zeros(T, n...))
-Spin(n::Int...) = Spin{Float64}(n...)
-fields(layer::Spin) = (layer.θ,)
+Spin(::Type{T}, n::Int...) where {T} = Spin(zeros(T, n...))
+Spin(n::Int...) = Spin(Float64, n...)
 Flux.@functor Spin
-effective_β(layer::Spin, β) = Spin(β .* layer.θ)
-effective_I(layer::Spin, I) = Spin(layer.θ .+ I)
-_transfer_mode(layer::Spin) = @. ifelse(layer.θ > 0, one(layer.θ), -one(layer.θ))
-__cgf(layer::Spin) = @. logaddexp(layer.θ, -layer.θ)
-_transfer_mean(layer::Spin) = tanh.(layer.θ)
-_transfer_std(layer::Spin) = sech.(layer.θ)
-_transfer_var(layer::Spin) = _transfer_std(layer).^2
-_transfer_mean_abs(layer::Spin) = ones(eltype(layer.θ), size(layer.θ))
-__transfer_logpdf(layer::Spin, x) = spin_logpdf.(layer.θ, x)
-spin_logpdf(θ::Real, x::Real) = logsigmoid(2θ * x)
 
-function _random(layer::Spin)
-    pinv = @. one(layer.θ) + exp(-2layer.θ)
-    u = rand_like(pinv)
-    @. ifelse(u * pinv ≤ 1, one(layer.θ), -one(layer.θ))
+function sample_from_inputs(layer::Spin, inputs::AbstractArray)
+    x = layer.θ .+ inputs
+    pinv = @. one(x) + exp(-2x)
+    u = rand(eltype(pinv), size(pinv))
+    return @. ifelse(u * pinv ≤ 1, one(x), -one(x))
+end
+
+function sample_from_inputs(layer::Spin, inputs::AbstractArray, β::Real)
+    layer_ = Spin(layer.θ .* β)
+    return sample_from_inputs(layer_, inputs .* β)
+end
+
+function cgf(layer::Spin, inputs::AbstractArray)
+    x = layer.θ .+ inputs
+    Γ = logaddexp.(x, -x)
+    return sum_(Γ; dims = layerdims(layer))
+end
+
+function cgf(layer::Spin, inputs::AbstractArray, β::Real)
+    layer_ = Spin(layer.θ .* β)
+    return cgf(layer_, inputs .* β) / β
+end
+
+function iterate_states(layer::Spin)
+    itr = generate_sequences(length(layer.θ), (-1, 1))
+    return map(x -> reshape(x, size(layer.θ)), itr)
 end

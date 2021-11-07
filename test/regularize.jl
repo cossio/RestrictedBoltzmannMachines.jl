@@ -16,14 +16,14 @@ using RestrictedBoltzmannMachines: fields_l2, weights_l1l2, l1l2, l2
 
     rbm = RBM(Binary(3,5), Gaussian(3,2))
     randn!(rbm.weights)
-    randn!(rbm.vis.θ)
+    randn!(rbm.visible.θ)
     @test weights_l1l2(rbm) ≈ l1l2(rbm.weights, Val(2))
     @inferred weights_l1l2(rbm)
-    @test fields_l2(rbm.vis) ≈ l2(rbm.vis.θ)
-    @inferred fields_l2(rbm.vis)
+    @test fields_l2(rbm.visible) ≈ l2(rbm.visible.θ)
+    @inferred fields_l2(rbm.visible)
 
     @test jerome_regularization(rbm; λv=0, λw=2) ≈ weights_l1l2(rbm)
-    @test jerome_regularization(rbm; λv=2, λw=0) ≈ fields_l2(rbm.vis)
+    @test jerome_regularization(rbm; λv=2, λw=0) ≈ fields_l2(rbm.visible)
     @test jerome_regularization(rbm; λv=1, λw=1) ≈ jerome_regularization(rbm; λv=1, λw=0) + jerome_regularization(rbm; λv=0, λw=1)
     @inferred jerome_regularization(rbm; λv=1, λw=1)
 end

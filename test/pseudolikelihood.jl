@@ -1,6 +1,4 @@
-using RestrictedBoltzmannMachines, Test, Random, Statistics
-import StatsFuns: logaddexp
-using RestrictedBoltzmannMachines: logsumexp, init_weights!
+include("tests_init.jl")
 
 @testset "binary pseudolikelihood" begin
     n = (5,2)
@@ -10,11 +8,11 @@ using RestrictedBoltzmannMachines: logsumexp, init_weights!
 
     rbm = RBM(Binary(n...), Gaussian(m...))
     init_weights!(rbm)
-    randn!(rbm.vis.θ)
+    randn!(rbm.visible.θ)
 
     v = rand(Bool, n..., B...)
-    xidx = siteindices(rbm.vis)
-    bidx = batchindices(rbm.vis, v)
+    xidx = siteindices(rbm.visible)
+    bidx = batchindices(rbm.visible, v)
     sites = [rand(xidx) for b in bidx]
     lpl = log_pseudolikelihood(sites, rbm, v, β)
     lz = RBMs.log_site_traces(sites, rbm, v, β)
@@ -23,11 +21,11 @@ using RestrictedBoltzmannMachines: logsumexp, init_weights!
     for b in bidx
         site = sites[b]
         vb = v[xidx, b]
-        @test size(vb) == size(rbm.vis)
-        Fb = free_energy_v(rbm, vb, β)
+        @test size(vb) == size(rbm.visible)
+        Fb = free_energy(rbm, vb, β)
         v_ = copy(vb)
         v_[site] = 1 - v_[site]
-        F_ = free_energy_v(rbm, v_, β)
+        F_ = free_energy(rbm, v_, β)
         @test lz[b] ≈ logaddexp(-β * Fb, -β * F_)
         @test lpl[b] ≈ -β * Fb - logaddexp(-β * Fb, -β * F_)
         @test lpl[b] ≈ log_pseudolikelihood(site, rbm, vb, β)
@@ -42,12 +40,12 @@ end
 
     rbm = RBM(Spin(n...), Gaussian(m...))
     init_weights!(rbm)
-    randn!(rbm.vis.θ)
+    randn!(rbm.visible.θ)
     I = randn(n..., B...)
-    v = random(rbm.vis, I)
+    v = sample_from_inputs(rbm.visible, I)
 
-    xidx = siteindices(rbm.vis)
-    bidx = batchindices(rbm.vis, v)
+    xidx = siteindices(rbm.visible)
+    bidx = batchindices(rbm.visible, v)
     sites = [rand(xidx) for b in bidx]
     lpl = log_pseudolikelihood(sites, rbm, v, β)
     lz = RBMs.log_site_traces(sites, rbm, v, β)
@@ -56,11 +54,11 @@ end
     for b in bidx
         site = sites[b]
         vb = v[xidx, b]
-        @test size(vb) == size(rbm.vis)
-        Fb = free_energy_v(rbm, vb, β)
+        @test size(vb) == size(rbm.visible)
+        Fb = free_energy(rbm, vb, β)
         v_ = copy(vb)
         v_[site] = -v_[site]
-        F_ = free_energy_v(rbm, v_, β)
+        F_ = free_energy(rbm, v_, β)
         @test lz[b] ≈ logaddexp(-β * Fb, -β * F_)
         @test lpl[b] ≈ -β * Fb - logaddexp(-β * Fb, -β * F_)
         @test lpl[b] ≈ log_pseudolikelihood(site, rbm, vb, β)
@@ -75,11 +73,11 @@ end
 
     rbm = RBM(Potts(n...), Gaussian(m...))
     init_weights!(rbm)
-    randn!(rbm.vis.θ)
+    randn!(rbm.visible.θ)
 
-    v = random(rbm.vis, randn(n..., B...))
-    xidx = siteindices(rbm.vis)
-    bidx = batchindices(rbm.vis, v)
+    v = sample_from_inputs(rbm.visible, randn(n..., B...))
+    xidx = siteindices(rbm.visible)
+    bidx = batchindices(rbm.visible, v)
     sites = [rand(xidx) for b in bidx]
     lz = RBMs.log_site_traces(sites, rbm, v, β)
     lpl = log_pseudolikelihood(sites, rbm, v, β)
@@ -90,15 +88,15 @@ end
         site = sites[b]
         v_ = copy(vb)
         v_[:, site] .= false
-        F = zeros(rbm.vis.q)
-        for a = 1:rbm.vis.q
+        F = zeros(rbm.visible.q)
+        for a = 1:rbm.visible.q
             v_[a, site] = true
-            F[a] = free_energy_v(rbm, v_, β)
+            F[a] = free_energy(rbm, v_, β)
             v_[a, site] = false
         end
         lZ = logsumexp(-β .* F)
         @test lz[b] ≈ lZ
-        @test lpl[b] ≈ -β * free_energy_v(rbm, vb, β) - lZ
+        @test lpl[b] ≈ -β * free_energy(rbm, vb, β) - lZ
         @test lpl[b] ≈ log_pseudolikelihood(site, rbm, vb, β)
     end
 end
