@@ -21,20 +21,21 @@ include("tests_init.jl")
 end
 
 @testset "Gaussian-Gaussian RBM" begin
-    rbm = RBM(Gaussian(2), Gaussian(3), reshape(1:6, 2,3) / 20)
-    rbm.visible.γ .= 2:3
-    rbm.hidden.γ .= 2:4
-    rbm.visible.θ .= 1:2
-    rbm.hidden.θ .= 6:8
+    N, M = 2, 3
+    rbm = RBM(Gaussian(N), Gaussian(M), reshape(1:(N*M), N, M) / (10*N*M))
+    rbm.visible.γ .= randperm(N)
+    rbm.hidden.γ .= randperm(M)
+    rbm.visible.θ .= randperm(N)
+    rbm.hidden.θ .= randperm(M)
     J = [diagm(rbm.visible.γ) rbm.weights;
          rbm.weights'  diagm(rbm.hidden.γ)]
-    @test log_partition(rbm) ≈ (2 + 3)/2 * log(2π) - logdet(J)/2
+    @test log_partition(rbm) ≈ (N + M)/2 * log(2π) - logdet(J)/2
 
-    v = reshape([2,3], :, 1)
+    v = reshape(1:N, :, 1)
     Ev = sum(@. rbm.visible.γ * v^2 / 2 - rbm.visible.θ * v)
     Γv = sum((rbm.hidden.θ .+ rbm.weights' * v).^2 ./ 2rbm.hidden.γ)
     @test free_energy(rbm, v)[1] ≈ Ev - Γv - sum(log.(2π ./ rbm.hidden.γ)) / 2
 
-    v = reshape([-1,1], :, 1)
+    v = reshape((1:N) .- M, :, 1)
     @test log_likelihood(rbm, v) ≈ -free_energy(rbm, v) .- log_partition(rbm)
 end
