@@ -27,8 +27,3 @@ function cgf(layer::Spin, inputs::AbstractArray, β::Real)
     layer_ = Spin(layer.θ .* β)
     return cgf(layer_, inputs .* β) / β
 end
-
-function iterate_states(layer::Spin)
-    itr = generate_sequences(length(layer.θ), (-1, 1))
-    return map(x -> reshape(x, size(layer.θ)), itr)
-end

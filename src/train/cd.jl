@@ -14,17 +14,18 @@ function train!(rbm::RBM, data::AbstractArray;
     history = MVHistory(), # stores training history
     callback = () -> (), # callback function called on each iteration
     lossadd = () -> 0, # regularization
-    verbose::Bool = false,
+    verbose::Bool = true,
     weights::AbstractVector = trues(_nobs(data)), # data point weights
     steps::Int = 1 # Monte Carlo steps to update fantasy particles
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert _nobs(data) == _nobs(weights)
-    vm = sample_v_from_v(rbm, first(data).v, true, steps)
+    _vm = selectdim(data, ndims(data), randperm(_nobs(data))[1:batchsize])
+    vm = sample_v_from_v(rbm, _vm, β; steps = steps)
     progress_bar = Progress(minibatch_count(_nobs(data); batchsize = batchsize) * epochs)
     for epoch in 1:epochs
         for (vd, wd) in minibatches(data, weights; batchsize = batchsize)
-            vm = update_chains(rbm, cd, vd, vm)
+            vm = sample_v_from_v(rbm, vm, β; steps = steps)
             gs = gradient(ps) do
                 L = contrastive_divergence(rbm, vd, vm, wd)
                 R = lossadd()
@@ -37,7 +38,6 @@ function train!(rbm::RBM, data::AbstractArray;
                 return L + R
             end
             Flux.update!(opt, ps, gs)
-
             try
                 callback()
             catch ex
@@ -47,32 +47,24 @@ function train!(rbm::RBM, data::AbstractArray;
                     rethrow(ex)
                 end
             end
-
             next!(progress_bar)
         end
 
-        #= record pseudo-likelihood over full dataset =#
-        if !isnothing(history)
-            lpl = log_pseudolikelihood_rand(rbm, data, 1, datum.w)
-            push!(history, :lpl, iter, lpl)
-            if iter % print_interval < data.batchsize
-                println("iter=$iter, lpl_train=$lpl_train")
-            end
-            if !(lpl_train > min_lpl && lpl_tests > min_lpl)
-                @error "lpl_train=$lpl_train or lpl_tests=$lpl_tests less than min_lpl=$min_lpl; stopping (iter=$iter)"
-                throw(EarlyStop())
-            end
-        end
+        pl = weighted_mean(log_pseudolikelihood(rbm, data), weights)
+        push!(history, :lpl, iter, pl)
+        verbose && println("iter=$iter, log(pseudolikelihood)=$pl")
     end
-    return nothing
+    return rbm, history
 end
 
-function update_chains(rbm::RBM, vd::AbstractArray, vm::AbstractArray = vd, β::Real = 1)
-    return sample_v_from_v(rbm, vm, β, cd.steps)::typeof(vm)
-end
-
-function update_chains(rbm::RBM, vd::AbstractArray, vm::AbstractArray = vd, β::Real = 1)
-    return sample_v_from_v(rbm, vm, β, cd.steps)::typeof(vm)
+function update_chains(
+    rbm::RBM,
+    vd::AbstractArray,
+    vm::AbstractArray = vd,
+    β::Real = 1;
+    steps::Int = 1
+)
+    return sample_v_from_v(rbm, vm, β; steps = steps)::typeof(vm)
 end
 
 """
@@ -82,15 +74,8 @@ Contrastive divergence, defined as free energy difference between data (vd) and
 model sample (vm). The (optional) `wd, wm` are weights for the batches.
 """
 function contrastive_divergence(rbm::RBM, vd, vm, wd = 1, wm = 1)
-    Fd = mean_free_energy(rbm, vd, wd)
-    Fm = mean_free_energy(rbm, vm, wm)
+    Fd = free_energy(rbm, vd)
+    Fm = free_energy(rbm, vm)
+    return weighted_mean(Fd, wd) - weighted_mean(Fm, wm)
     return Fd - Fm
 end
-
-"""
-    mean_free_energy(rbm, v, w = 1)
-
-Mean free energy across visible configurations.
-The optional `w` specifies weights for the data points.
-"""
-mean_free_energy(rbm::RBM, v::AbstractArray, w = 1) = weighted_mean(free_energy(rbm, v), w)

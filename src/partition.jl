@@ -2,31 +2,24 @@
     log_partition(rbm, β = 1)
 
 Log-partition of the `rbm` at inverse temperature `β`, computed by extensive
-enumeration of  states. Only defined for discrete visible layers. This
-is exponentially slow for large machines.
+enumeration of  states (except for particular cases such as Gaussian-Gaussian)
+RBM). This is exponentially slow for large machines.
 """
-function log_partition_from_visible(rbm::RBM, β::Real = 1)
-    lZ = zero(free_energy(rbm, sample_from_inputs(rbm.visible), β))
-    for v in iterate_states(rbm.visible)
-        F = free_energy(rbm, reshape(v, size(rbm.visible)), β)
-        lZ = logaddexp(lZ, -β * F)
-    end
-    return lZ
+function log_partition(rbm::RBM, β::Real = 1)
+    v = cat(iterate_states(rbm.visible)...; dims=ndims(rbm.visible) + 1)
+    @assert size(v) == (size(rbm.visible)..., size(v)[end])
+    F = free_energy(rbm, v, β)
+    return logsumexp(-β * F)
 end
 
+# For a Gaussian-Gaussian RBM we have an analytical expression
 function log_partition(rbm::RBM{<:Gaussian, <:Gaussian}, β::Real = 1)
-    W = reshape(rbm.weights, length(rbm.visible), length(rbm.hidden))
-    ldet = sum(log, rbm.hidden.γ) + logdet(diagm(vec(rbm.visible.γ)) - W * diagm(1 ./ vec(rbm.hidden.γ)) * W')
-    return (length(rbm.visible) + length(rbm.hidden)) / 2 * log(2π/β) - ldet / 2
-end
-
-alphabet(::Binary) = 0:1
-alphabet(::Spin) = (-1,1)
-alphabet(layer::Potts) = 1:layer.q
-
-function iterate_states(layer::Bernoulli)
-    itr = generate_sequences(length(layer.θ), 0:1)
-    return map(x -> reshape(x, size(layer.θ)), itr)
+    N, M = length(rbm.visible), length(rbm.hidden)
+    Γv = Diagonal(vec(β * rbm.visible.γ))
+    Γh = Diagonal(vec(β * rbm.hidden.γ))
+    W = reshape(β * rbm.weights, N, M)
+    ldet = logdet(Γv) + logdet(Γh - W' * inv(Γv) * W)
+    return (N + M)/2 * log(2π) - ldet/2
 end
 
 """
@@ -38,10 +31,21 @@ extensive enumeration. For discrete layers, this is exponentially slow for large
 function log_likelihood(rbm::RBM, v::AbstractArray, β::Real = 1)
     lZ = log_partition(rbm, β)
     F = free_energy(rbm, v, β)
-    ll = @. -β * F - lZ
-    return ll ./ length(rbm.visible)
+    ll = -β .* F .- lZ
+    return ll
 end
 
-function mean_log_likelihood(rbm::RBM, v::AbstractArray, β::Real = 1, w = 1)
-    return weighted_mean(log_likelihood(rbm, v, β), w)
+
+function iterate_states(layer::Binary)
+    itr = generate_sequences(length(layer.θ), 0:1)
+    return map(x -> reshape(x, size(layer.θ)), itr)
+end
+
+function iterate_states(layer::Spin)
+    itr = generate_sequences(length(layer.θ), (-1, 1))
+    return map(x -> reshape(x, size(layer.θ)), itr)
+end
+
+function iterate_states(layer::Potts)
+    error("not implemented")
 end

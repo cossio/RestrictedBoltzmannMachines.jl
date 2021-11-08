@@ -11,15 +11,13 @@ module RestrictedBoltzmannMachines
     export ReLU, dReLU, pReLU
     export RBM, flip_layers
 
-    export energy, interaction_energy, free_energy, mean_free_energy, cgf
+    export energy, interaction_energy, free_energy, cgf
     export inputs_h_to_v, inputs_v_to_h
     export sample_v_from_h, sample_h_from_v, sample_v_from_v, sample_h_from_h
     export reconstruction_error
     export init!, init_weights!
     export train!, contrastive_divergence
-
-    # export log_likelihood, log_partition, mean_log_likelihood
-    # export log_pseudolikelihood, log_pseudolikelihood_rand
+    export log_likelihood, log_partition, log_pseudolikelihood
 
     include("util.jl")
     include("minibatches.jl")
@@ -44,6 +42,7 @@ module RestrictedBoltzmannMachines
 
     #include("train/lr_schedules.jl")
     #include("train/gauge.jl")
-    #include("pseudolikelihood.jl")
-    #include("partition.jl")
+
+    include("pseudolikelihood.jl")
+    include("partition.jl")
 end

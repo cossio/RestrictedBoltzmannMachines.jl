@@ -67,7 +67,8 @@ end
 
 Interaction inputs from hidden to visible layer.
 """
-function inputs_h_to_v(rbm::RBM, h)
+function inputs_h_to_v(rbm::RBM, h::AbstractArray)
+    @assert size(h) == (size(rbm.hidden)..., size(h)[end])
     wmat = reshape(rbm.weights, length(rbm.visible), length(rbm.hidden))
     hmat = reshape(h, length(rbm.hidden), :)
     return reshape(wmat * hmat, size(rbm.visible)..., :)
@@ -107,48 +108,44 @@ function sample_v_from_h(rbm::RBM, h::AbstractArray, β::Real = 1)
 end
 
 """
-    sample_v_from_v(rbm, v, β = 1, steps = 1)
+    sample_v_from_v(rbm, v, β = 1; steps = 1)
 
 Samples a visible configuration conditional on another visible configuration `v`.
 """
-function sample_v_from_v(rbm::RBM, v::AbstractArray, β::Real, steps::Int)
-    v_ = sample_v_from_v(rbm, v, β)
-    for _ in 1:(steps - 1)
-        v_ = sample_v_from_v(rbm, v_, β)
-    end
-    return v_
-end
-
-function sample_v_from_v(rbm::RBM, v::AbstractArray, β::Real = 1)
+function sample_v_from_v(rbm::RBM, v::AbstractArray, β::Real = 1; steps::Int = 1)
+    @assert size(v) == (size(rbm.visible)..., size(v)[end])
+    @assert steps ≥ 1
     h = sample_h_from_v(rbm, v, β)
+    for _ in 1:(steps - 1)
+        v_ = sample_v_from_h(rbm, h, β)
+        h = sample_h_from_v(rbm, v_, β)
+    end
     return sample_v_from_h(rbm, h, β)
 end
 
 """
-    sample_h_from_h(rbm, h, β = 1, steps = 1)
+    sample_h_from_h(rbm, h, β = 1; steps = 1)
 
 Samples a hidden configuration conditional on another hidden configuration `h`.
 """
-function sample_h_from_h(rbm::RBM, h::AbstractArray, β::Real, steps::Int)
-    h_ = sample_h_from_h(rbm, h, β)
-    for _ in 1:(steps - 1)
-        h_ = sample_h_from_h(rbm, h_, β)
-    end
-    return h_
-end
-
-function sample_h_from_h(rbm::RBM, h::AbstractArray, β::Real = 1)
+function sample_h_from_h(rbm::RBM, h::AbstractArray, β::Real = 1; steps::Int = 1)
+    @assert size(h) == (size(rbm.hidden)..., size(h)[end])
+    @assert steps ≥ 1
     v = sample_v_from_h(rbm, h, β)
+    for _ in 1:(steps - 1)
+        h_ = sample_h_from_v(rbm, v, β)
+        v = sample_v_from_h(rbm, h_, β)
+    end
     return sample_h_from_v(rbm, v, β)
 end
 
 """
-    reconstruction_error(rbm, v, β = 1, steps = 1)
+    reconstruction_error(rbm, v, β = 1; steps = 1)
 
 Stochastic reconstruction error of `v`.
 """
-function reconstruction_error(rbm::RBM, v::AbstractArray, β::Real = 1, steps::Int = 1)
-    v_ = sample_v_from_v(rbm, v, β, steps)
+function reconstruction_error(rbm::RBM, v::AbstractArray, β::Real = 1; steps::Int = 1)
+    v_ = sample_v_from_v(rbm, v, β; steps = steps)
     return mean_(abs.(v .- v_); dims = layerdims(rbm.visible))
 end
 

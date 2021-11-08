@@ -19,3 +19,20 @@ include("tests_init.jl")
     @test size(@inferred free_energy(rbm, v)) == (7,)
     @test size(@inferred reconstruction_error(rbm, v)) == (7,)
 end
+
+@testset "Gaussian-Gaussian RBM" begin
+    rbm = RBM(Gaussian(2), Gaussian(3), rand(2,3))
+    rbm.visible.γ .= 2:3
+    rbm.hidden.γ .= 2:4
+    J = [diagm(rbm.visible.γ) rbm.weights;
+         rbm.weights'  diagm(rbm.hidden.γ)]
+    @test log_partition(rbm) ≈ (2 + 3)/2 * log(2π) - logdet(J)/2
+
+    v = randn(2, 1)
+    Ev = sum(@. rbm.visible.γ * v^2 / 2 - rbm.visible.θ * v)
+    Γv = sum((rbm.hidden.θ .+ rbm.weights' * v).^2 ./ 2rbm.hidden.γ)
+    @test free_energy(rbm, v)[1] ≈ Ev - Γv - sum(log.(2π ./ rbm.hidden.γ)) / 2
+
+    v = randn(2, 4)
+    @test log_likelihood(rbm, v) ≈ -free_energy(rbm, v) .- log_partition(rbm)
+end
