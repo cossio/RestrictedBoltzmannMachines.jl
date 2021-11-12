@@ -11,33 +11,35 @@ function train!(rbm::RBM, data::AbstractArray;
     epochs = 100,
     opt = ADAM(), # optimizer algorithm
     ps::Params = params(rbm), # subset of optimized parameters
-    history = MVHistory(), # stores training history
+    history::MVHistory = MVHistory(), # stores training history
     callback = () -> (), # callback function called on each iteration
-    lossadd = () -> 0, # regularization
+    lossadd = (_...) -> 0, # regularization
     verbose::Bool = true,
     weights::AbstractVector = trues(_nobs(data)), # data point weights
-    steps::Int = 1 # Monte Carlo steps to update fantasy particles
+    steps::Int = 1, # Monte Carlo steps to update fantasy particles
+    batchnorm::Bool = true
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert _nobs(data) == _nobs(weights)
-    _vm = selectdim(data, ndims(data), randperm(_nobs(data))[1:batchsize])
-    vm = sample_v_from_v(rbm, _vm, β; steps = steps)
+    _idx = randperm(_nobs(data))[1:batchsize]
+    _vm = selectdim(data, ndims(data), idx)
+    vm = sample_v_from_v(rbm, _idx, β; steps = steps)
     progress_bar = Progress(minibatch_count(_nobs(data); batchsize = batchsize) * epochs)
     for epoch in 1:epochs
-        for (vd, wd) in minibatches(data, weights; batchsize = batchsize)
+        for (batch, vd, wd) in enumerate(minibatches(data, weights; batchsize = batchsize))
             vm = sample_v_from_v(rbm, vm, β; steps = steps)
             gs = gradient(ps) do
-                L = contrastive_divergence(rbm, vd, vm, wd)
-                R = lossadd()
-                if !isnothing(history)
-                    ignore() do
-                        push!(history, :loss, iter, L)
-                        push!(history, :regularization, iter, R)
-                    end
+                loss = contrastive_divergence(rbm, vd, vm, wd)
+                regu = lossadd(rbm, vd, vm, wd)
+                ChainRulesCore.ignore_derivatives() do
+                    push!(history, :pcd_loss, loss)
+                    push!(history, :reg_loss, regu)
                 end
-                return L + R
+                return loss + regu
             end
             Flux.update!(opt, ps, gs)
+            push!(history, :epoch, epoch)
+            push!(history, :batch, batch)
             try
                 callback()
             catch ex

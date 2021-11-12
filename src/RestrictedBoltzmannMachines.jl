@@ -4,6 +4,7 @@ module RestrictedBoltzmannMachines
     using Base.Broadcast: broadcasted
     using Flux: params, Params, ADAM
     using LogExpFunctions: logsumexp, logaddexp, log1pexp
+    using ChainRulesCore
 
     export MVHistory, Data
     export Binary, Spin, Potts
