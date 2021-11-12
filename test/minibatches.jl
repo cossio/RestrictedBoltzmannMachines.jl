@@ -1,9 +1,8 @@
 include("tests_init.jl")
 
 @testset "minibatches" begin
-    @test minibatches(10; batchsize = 3, full = true)  == [1:3, 4:6, 7:9]
-    @test minibatches(10; batchsize = 3, full = false) == [1:3, 4:6, 7:9, 10:10]
-    @test minibatches(10; batchsize = 3) == minibatches(10; batchsize = 3, full = false)
-    @test minibatch_count(10; batchsize = 3, full = true) == 3
-    @test minibatch_count(10; batchsize = 3, full = false) == 4
+    @test minibatch_count(10; batchsize = 3) == 4
+    @test minibatches(10; batchsize=3) == [[1,2,3], [4,5,6], [7,8,9], [10,1,2]]
+    @test minibatches(10; batchsize=5) == [[1,2,3,4,5], [6,7,8,9,10]]
+    @test length(minibatches(10; batchsize=3)) == minibatch_count(10; batchsize=3)
 end
