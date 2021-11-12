@@ -5,6 +5,8 @@ stop() = throw(EarlyStop())
 
 """
     train!(rbm, data)
+
+Trains the RBM on data.
 """
 function train!(rbm::RBM, data::AbstractArray;
     batchsize = 128,
@@ -21,12 +23,18 @@ function train!(rbm::RBM, data::AbstractArray;
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert _nobs(data) == _nobs(weights)
+
+    # initialize fantasy chains
     _idx = randperm(_nobs(data))[1:batchsize]
-    _vm = selectdim(data, ndims(data), idx)
-    vm = sample_v_from_v(rbm, _idx, β; steps = steps)
+    _vm = selectdim(data, ndims(data), _idx)
+    vm = sample_v_from_v(rbm, _vm, β; steps = steps)
+
+    # a nice progress bar to track training
     progress_bar = Progress(minibatch_count(_nobs(data); batchsize = batchsize) * epochs)
+
     for epoch in 1:epochs
         for (batch, vd, wd) in enumerate(minibatches(data, weights; batchsize = batchsize))
+            # update fantasy chains
             vm = sample_v_from_v(rbm, vm, β; steps = steps)
             gs = gradient(ps) do
                 loss = contrastive_divergence(rbm, vd, vm, wd)
@@ -38,8 +46,10 @@ function train!(rbm::RBM, data::AbstractArray;
                 return loss + regu
             end
             Flux.update!(opt, ps, gs)
+
             push!(history, :epoch, epoch)
             push!(history, :batch, batch)
+
             try
                 callback()
             catch ex
