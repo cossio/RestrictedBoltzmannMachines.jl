@@ -8,12 +8,12 @@ struct RBM{V, H, W<:AbstractArray}
     hidden::H
     weights::W
     function RBM(visible::V, hidden::H, weights::W) where {V, H, W<:AbstractArray}
-        @assert size(weights) == (size(vis)..., size(hid)...)
+        @assert size(weights) == (size(visible)..., size(hidden)...)
         return new{V,H,W}(visible, hidden, weights)
     end
 end
 
-function RBM(visible, hidden, ::Type{T} = Float64)
+function RBM(visible, hidden, ::Type{T} = Float64) where {T}
     weights = zeros(T, size(visible)..., size(hidden)...)
     return RBM(visible, hidden, weights)
 end
