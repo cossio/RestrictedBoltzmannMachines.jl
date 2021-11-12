@@ -1,3 +1,8 @@
+"""
+    Gaussian(θ, γ)
+
+Gaussian layer, with location parameters `θ` and scale parameters `γ`.
+"""
 struct Gaussian{A<:AbstractArray}
     θ::A
     γ::A

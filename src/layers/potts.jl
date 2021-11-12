@@ -3,10 +3,11 @@ floats 0.0 / 1.0 instead of Booleans, because these hit faster
 BLAS linear algebra routines. =#
 
 """
-    Potts
+    Potts(θ)
 
-Encodes categorical variables as one-hot vectors. The number of classes
-is the size of the first dimension.
+Potts layer, with external fields `θ`.
+Encodes categorical variables as one-hot vectors.
+The number of classes is the size of the first dimension.
 """
 struct Potts{A<:AbstractArray}
     θ::A

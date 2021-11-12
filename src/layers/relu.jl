@@ -1,3 +1,8 @@
+"""
+    ReLU(θ, γ)
+
+ReLU layer, with location parameters `θ` and scale parameters `γ`.
+"""
 struct ReLU{A<:AbstractArray}
     θ::A
     γ::A

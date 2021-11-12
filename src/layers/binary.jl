@@ -1,3 +1,8 @@
+"""
+    Binary(θ)
+
+Binary layer, with external fields `θ`.
+"""
 struct Binary{A<:AbstractArray}
     θ::A
 end

@@ -1,3 +1,8 @@
+"""
+    Spin(θ)
+
+Spin layer, with external fields `θ`.
+"""
 struct Spin{T}
     θ::T
 end
