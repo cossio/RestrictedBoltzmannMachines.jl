@@ -17,7 +17,7 @@ module RestrictedBoltzmannMachines
     export sample_v_from_h, sample_h_from_v, sample_v_from_v, sample_h_from_h
     export reconstruction_error
     export init!, init_weights!
-    export train!, contrastive_divergence
+    export train!
     export log_likelihood, log_partition, log_pseudolikelihood
 
     include("util.jl")
