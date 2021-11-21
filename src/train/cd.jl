@@ -67,9 +67,9 @@ function train!(rbm::RBM, data::AbstractArray;
             next!(progress_bar)
         end
 
-        pl = weighted_mean(log_pseudolikelihood(rbm, data), weights)
-        push!(history, :lpl, iter, pl)
-        verbose && println("iter=$iter, log(pseudolikelihood)=$pl")
+        lpl = weighted_mean(log_pseudolikelihood(rbm, data), weights)
+        push!(history, :lpl, iter, lpl)
+        verbose && println("iter=$iter, log(pseudolikelihood)=$lpl")
     end
     return rbm, history
 end
