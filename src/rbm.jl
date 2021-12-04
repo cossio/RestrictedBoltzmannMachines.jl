@@ -14,7 +14,7 @@ struct RBM{V, H, W<:AbstractArray}
 end
 
 function RBM(visible, hidden, ::Type{T} = Float64) where {T}
-    weights = zeros(T, size(visible)..., size(hidden)...)
+    weights = init_weights(T, size(visible), size(hidden))
     return RBM(visible, hidden, weights)
 end
 
@@ -44,11 +44,11 @@ function interaction_energy(rbm::RBM, v::AbstractArray, h::AbstractArray)
     vmat = reshape(v, length(rbm.visible), :)
     hmat = reshape(h, length(rbm.hidden), :)
     if length(rbm.visible) ≥ length(rbm.hidden)
-		E = -sum((wmat' * vmat) .* hmat; dims=1)
-	else
-		E = -sum(vmat .* (wmat * hmat); dims=1)
-	end
-	return reshape(E, last(size(vmat)))
+        E = -sum((wmat' * vmat) .* hmat; dims=1)
+    else
+        E = -sum(vmat .* (wmat * hmat); dims=1)
+    end
+    return reshape(E, last(size(vmat)))
 end
 
 """
@@ -165,4 +165,17 @@ function flip_layers(rbm::RBM)
     end
     perm = ntuple(p, ndims(rbm.weights))
     return RBM(rbm.hidden, rbm.visible, permutedims(rbm.weights, perm))
+end
+
+"""
+    normalize_weights(rbm)
+
+Rescales weights so that norm(w[:,μ]) = 1 for all μ (making individual weights ~ 1/√N).
+The resulting RBM shares layer parameters with the original, but weights are a new array.
+"""
+function normalize_weights(rbm::RBM)::typeof(rbm)
+    ω = sqrt.(sum(rbm.weights.^2; dims = vdims(rbm)))
+    @assert all(x -> x > 0, ω)
+    weights = rbm.weights ./ ω
+    return RBM(rbm.visible, rbm.hidden, weights)
 end

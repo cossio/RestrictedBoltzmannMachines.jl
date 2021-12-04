@@ -24,8 +24,8 @@ end
     rbm = RBM(Binary(5), Gaussian(3))
     randn!(rbm.visible.θ); randn!(rbm.weights);
     randn!(rbm.hidden.θ); rand!(rbm.hidden.γ);
-    vd = sample_from_inputs(rbm.visible, zeros(size(rbm.visible)..., 10))
-    vm = sample_from_inputs(rbm.visible, zeros(size(rbm.visible)..., 10))
+    vd = RBMs.sample_from_inputs(rbm.visible, zeros(size(rbm.visible)..., 10))
+    vm = RBMs.sample_from_inputs(rbm.visible, zeros(size(rbm.visible)..., 10))
     λ, κ = rand(size(rbm.hidden)...), randn(size(rbm.hidden)...)
     dλ, dκ = gradient(λ, κ) do λ, κ
         g_ = rbm.visible.θ .+ tensormul_lf(rbm.weights, κ, Val(ndims(rbm.hidden)))
@@ -64,8 +64,8 @@ end
     rbm_.hid.θ .*= ω
     rbm_.hid.γ .*= ω .* ω
     I = randn(n..., B...)
-    v1 = sample_from_inputs(rbm.visible, +I)
-    v2 = sample_from_inputs(rbm.visible, -I)
+    v1 = RBMs.sample_from_inputs(rbm.visible, +I)
+    v2 = RBMs.sample_from_inputs(rbm.visible, -I)
     Δf = free_energy(rbm,  v1) - free_energy(rbm,  v2)
     Δg = free_energy(rbm_, v1) - free_energy(rbm_, v2)
     @test Δf ≈ Δg
@@ -93,12 +93,12 @@ end
     @test rbm_.hid.γ ≈ rbm.hidden.γ
     @test rbm_.weights ≈ zerosum(rbm.weights) .* ω
     ω = dropdims(ω; dims=vdims(rbm))
-    rbm_.hid.θ .+= sum_(Δw; dims = vdims(rbm))
+    rbm_.hid.θ .+= RBMs.sum_(Δw; dims = vdims(rbm))
     rbm_.hid.θ .*= ω
     rbm_.hid.γ .*= ω .* ω
     I = randn(n..., B...)
-    v1 = sample_from_inputs(rbm.visible, +I)
-    v2 = sample_from_inputs(rbm.visible, -I)
+    v1 = RBMs.sample_from_inputs(rbm.visible, +I)
+    v2 = RBMs.sample_from_inputs(rbm.visible, -I)
     Δf = free_energy(rbm,  v1) - free_energy(rbm,  v2)
     Δg = free_energy(rbm_, v1) - free_energy(rbm_, v2)
     @test Δf ≈ Δg
@@ -144,8 +144,8 @@ end
     randn!(rbm.hidden.θ)
     rand!(rbm.hidden.γ)
 
-    ps = params(rbm)
-    v = sample_from_inputs(rbm.visible)
+    ps = Flux.params(rbm)
+    v = RBMs.sample_from_inputs(rbm.visible)
     gs = gradient(ps) do
         rbm_ = gauge(rbm)
         free_energy(rbm_, v) + jerome_regularization(rbm_)

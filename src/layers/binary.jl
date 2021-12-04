@@ -30,7 +30,7 @@ end
 
 function cgf(layer::Binary, inputs::AbstractArray)
     @assert size(inputs) == (size(layer.θ)..., size(inputs)[end])
-    Γ = log1pexp.(layer.θ .+ inputs)
+    Γ = LogExpFunctions.log1pexp.(layer.θ .+ inputs)
     return sum_(Γ; dims = layerdims(layer))
 end
 

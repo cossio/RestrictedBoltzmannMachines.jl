@@ -17,6 +17,7 @@ end
 const _LayersWithTheta = Union{Binary,Spin,Potts,Gaussian,StdGaussian,ReLU,pReLU}
 Base.ndims(layer::_LayersWithTheta) = ndims(layer.θ)
 Base.size(layer::_LayersWithTheta) = size(layer.θ)
+Base.size(layer::_LayersWithTheta, d::Int) = size(layer.θ, d)
 Base.length(layer::_LayersWithTheta) = length(layer.θ)
 
 layerdims(layer) = ntuple(identity, ndims(layer))

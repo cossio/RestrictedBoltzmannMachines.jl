@@ -6,8 +6,8 @@ include("tests_init.jl")
     B = (3,1)
     β = 2.0
 
-    rbm = RBM(Binary(n...), Gaussian(m...))
-    init_weights!(rbm)
+    rbm = RBMs.RBM(Binary(n...), Gaussian(m...))
+    RBMs.init_weights!(rbm)
     randn!(rbm.visible.θ)
 
     v = rand(Bool, n..., B...)
@@ -39,10 +39,10 @@ end
     β = 2.0
 
     rbm = RBM(Spin(n...), Gaussian(m...))
-    init_weights!(rbm)
+    RBMs.init_weights!(rbm)
     randn!(rbm.visible.θ)
     I = randn(n..., B...)
-    v = sample_from_inputs(rbm.visible, I)
+    v = RBMs.sample_from_inputs(rbm.visible, I)
 
     xidx = siteindices(rbm.visible)
     bidx = batchindices(rbm.visible, v)
@@ -72,10 +72,10 @@ end
     β = 2.0
 
     rbm = RBM(Potts(n...), Gaussian(m...))
-    init_weights!(rbm)
+    RBMs.init_weights!(rbm)
     randn!(rbm.visible.θ)
 
-    v = sample_from_inputs(rbm.visible, randn(n..., B...))
+    v = RBMs.sample_from_inputs(rbm.visible, randn(n..., B...))
     xidx = siteindices(rbm.visible)
     bidx = batchindices(rbm.visible, v)
     sites = [rand(xidx) for b in bidx]

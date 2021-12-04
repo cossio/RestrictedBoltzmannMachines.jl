@@ -14,15 +14,15 @@ l2(A::AbstractArray{<:Real}) = mean(A.^2)
 l1(A::AbstractArray{<:Real}) = mean(abs.(A))
 
 """
-    l1l2(w::AbstractArray, Val(dim))
+    l1l2(weights::AbstractArray, Val(dim))
 
-L1/L2 norm of `w`, which can be a tensor. Then dimensions ≤ `dim` will be
-reduced with L1 norm and dimensions > `dim` with L2 norm (without taking
-square root).
+L1/L2 norm of `w`, which can be a tensor.
+Dimensions ≤ `dim` will be reduced with L1 norm and
+dimensions > `dim` with L2 norm (without taking square root).
 """
-function l1l2(w::AbstractArray{<:Any,N}, ::Val{dim}) where {N,dim}
-    dims = OneHot.tuplen(Val(dim))
-    return mean(mean(abs.(w); dims = dims).^2)
+function l1l2(weights::AbstractArray{<:Any,N}, ::Val{dim}) where {N,dim}
+    dims = tuplen(Val(dim))
+    return mean(mean(abs.(weights); dims = dims).^2)
 end
 
 function default_regularization(rbm::RBM, datum::NamedTuple;

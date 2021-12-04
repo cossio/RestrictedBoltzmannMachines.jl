@@ -9,7 +9,7 @@ function log_partition(rbm::RBM, β::Real = 1)
     v = cat(iterate_states(rbm.visible)...; dims=ndims(rbm.visible) + 1)
     @assert size(v) == (size(rbm.visible)..., size(v)[end])
     F = free_energy(rbm, v, β)
-    return logsumexp(-β * F)
+    return LogExpFunctions.logsumexp(-β * F)
 end
 
 # For a Gaussian-Gaussian RBM we have an analytical expression

@@ -50,7 +50,7 @@ function log_site_traces(
         v_[sites[b], b] = 1 - v_[sites[b], b]
     end
     F_ = free_energy(rbm, v_, β)
-    return logaddexp.(-β .* F, -β .* F_)
+    return LogExpFunctions.logaddexp.(-β .* F, -β .* F_)
 end
 
 function log_site_traces(
@@ -66,7 +66,7 @@ function log_site_traces(
         v_[sites[b], b] = -v_[sites[b], b]
     end
     F_ = free_energy(rbm, v_, β)
-    logaddexp.(-β .* F, -β .* F_)
+    return LogExpFunctions.logaddexp.(-β .* F, -β .* F_)
 end
 
 function log_site_traces(
@@ -90,14 +90,18 @@ function log_site_trace(rbm::RBM{<:Binary}, v::AbstractArray, site::CartesianInd
     size(rbm.visible) == size(v) || dimserror() # single batch
     v_ = copy(v)
     v_[site] = 1 - v_[site]
-    logaddexp(-β * free_energy(rbm, v, β), -β * free_energy(rbm, v_, β))
+    F = free_energy(rbm, v, β)
+    F_ = free_energy(rbm, v_, β)
+    return LogExpFunctions.logaddexp(-β * F, -β * F_)
 end
 
 function log_site_trace(site::CartesianIndex, rbm::RBM{<:Spin}, v::AbstractArray, β::Real = 1)
     size(rbm.visible) == size(v) || dimserror() # single batch
     v_ = copy(v)
     v_[site] = -v_[site]
-    logaddexp(-β * free_energy(rbm, v, β), -β * free_energy(rbm, v_, β))
+    F = free_energy(rbm, v, β)
+    F_ = free_energy(rbm, v_, β)
+    return LogExpFunctions.logaddexp(-β * F, -β * F_)
 end
 
 function log_site_trace(site::CartesianIndex, rbm::RBM{<:Potts}, v::AbstractArray, β::Real = 1)
@@ -105,7 +109,7 @@ function log_site_trace(site::CartesianIndex, rbm::RBM{<:Potts}, v::AbstractArra
     v_ = copy(v)
     v_[:, site] .= false
     Fs = [free_energy_flip!(v_, site, a, rbm, β) for a in 1:rbm.visible.q]
-    logsumexp(-β .* Fs)
+    return LogExpFunctions.logsumexp(-β .* Fs)
 end
 
 function free_energy_flip!(v::AbstractArray, site::CartesianIndex, a::Int, rbm::RBM{<:Potts}, β::Real = 1)

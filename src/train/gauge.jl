@@ -44,7 +44,7 @@ The resulting RBM shares layer parameters with the original, but weights are a n
 """
 function rescale(rbm::RBM)::typeof(rbm)
     ω = sqrt.(sum(rbm.weights.^2; dims = vdims(rbm)))
-    all(x -> x > 0, ω) || throw(ArgumentError("can't normalize weights"))
+    @assert all(x -> x > 0, ω)
     weights = rbm.weights ./ ω
     return RBM(rbm.visible, rbm.hidden, weights)
 end
@@ -80,7 +80,7 @@ end
 
 function rescale!(A::AbstractArray; dims)
     λ = sqrt.(sum(A.^2; dims=dims))
-    all(x -> x > 0, λ) || throw(ArgumentError("can't normalize array"))
+    @assert all(x -> x > 0, λ)
     A ./= λ
     return A
 end

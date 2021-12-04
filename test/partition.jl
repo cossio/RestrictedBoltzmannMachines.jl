@@ -2,7 +2,6 @@ using Test, Random, Statistics, LinearAlgebra
 import StatsFuns: logaddexp
 using Zygote, Flux
 using RestrictedBoltzmannMachines
-using RestrictedBoltzmannMachines: init_weights!
 
 @testset "gaussian partition" begin
     rbm = RBM(Gaussian(10), Gaussian(7))
@@ -22,7 +21,7 @@ using RestrictedBoltzmannMachines: init_weights!
     @test log_partition(rbm, 2) ≈ -logdet(2A)/2 + (length(rbm.visible) + length(rbm.hidden)) / 2 * log(2π)
 
     rbm.weights .= 0
-    ps = params(rbm)
+    ps = Flux.params(rbm)
     gs = gradient(ps) do
         log_partition(rbm)
     end

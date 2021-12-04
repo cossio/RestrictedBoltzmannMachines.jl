@@ -38,3 +38,10 @@ Retruns an iterator over all sequences of length `n` out of the alphabet `A`.
 function generate_sequences(n::Int, A = 0:1)
     return (collect(seq) for seq in Iterators.product(Iterators.repeated(A, n)...))
 end
+
+"""
+    tuplen(Val(N))
+
+Constructs the tuple `(1, 2, ..., N)`.
+"""
+@generated tuplen(::Val{N}) where {N} = ntuple(identity, Val(N))

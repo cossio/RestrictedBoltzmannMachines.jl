@@ -2,7 +2,7 @@
 # but implementing a dataset that loops infinitely instead of by epochs.
 
 function _nobs(ds::AbstractArray...)
-    sz = map(d -> size(d, ndims(d)), ds)
+    sz = map(d -> size(d)[end], ds)
     @assert all(sz .== first(sz))
     return first(sz)
 end

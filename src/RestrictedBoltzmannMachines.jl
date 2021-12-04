@@ -1,10 +1,9 @@
 module RestrictedBoltzmannMachines
     using Random, Statistics, LinearAlgebra
-    using SpecialFunctions, ProgressMeter, Flux, ValueHistories, OneHot
-    using Base.Broadcast: broadcasted
-    using Flux: params, Params, ADAM
-    using LogExpFunctions: logsumexp, logaddexp, log1pexp
-    using ChainRulesCore
+    using SpecialFunctions, ValueHistories
+    import ChainRulesCore
+    import LogExpFunctions
+    import Flux
 
     export MVHistory, Data
     export Binary, Spin, Potts
@@ -22,6 +21,7 @@ module RestrictedBoltzmannMachines
 
     include("util.jl")
     include("minibatches.jl")
+    include("onehot.jl")
 
     include("truncnorm/truncnorm.jl")
     include("truncnorm/rejection.jl")
@@ -39,6 +39,7 @@ module RestrictedBoltzmannMachines
 
     include("train/init.jl")
     include("train/cd.jl")
+
     #include("train/regularize.jl")
 
     #include("train/lr_schedules.jl")

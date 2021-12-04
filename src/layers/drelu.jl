@@ -32,7 +32,7 @@ end
 function cgf(layer::dReLU, inputs::AbstractArray)
     Γp = relu_cgf.(inputs .+ layer.θp, layer.γp)
     Γn = relu_cgf.(inputs .- layer.θn, layer.γn)
-    Γ = logaddexp.(Γp, Γn)
+    Γ = LogExpFunctions.logaddexp.(Γp, Γn)
     return sum_(Γ; dims = layerdims(layer))
 end
 
@@ -53,7 +53,7 @@ end
 function drelu_rand(θp::Real, θn::Real, γp::Real, γn::Real)
     Γp = relu_cgf(+θp, γp)
     Γn = relu_cgf(-θn, γn)
-    Γ = logaddexp(Γp, Γn)
+    Γ = LogExpFunctions.logaddexp(Γp, Γn)
     if rand(typeof(Γ)) ≤ exp(Γp - Γ)
         return +relu_rand(+θp, γp)
     else
@@ -62,5 +62,6 @@ function drelu_rand(θp::Real, θn::Real, γp::Real, γn::Real)
 end
 
 Base.size(layer::dReLU) = size(layer.θp)
+Base.size(layer::dReLU, d::Int) = size(layer.θp, d)
 Base.ndims(layer::dReLU) = ndims(layer.θp)
 Base.length(layer::dReLU) = length(layer.θp)

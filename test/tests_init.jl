@@ -1,20 +1,10 @@
 using Test, Random, LinearAlgebra, Statistics
-using StatsFuns, Zygote, Flux, FiniteDifferences, OneHot, SpecialFunctions, Distributions
+using StatsFuns, Zygote, Flux, FiniteDifferences, SpecialFunctions, Distributions
 using LogExpFunctions: logaddexp, softmax, log1pexp, logsumexp, logistic
-using Flux: params
+import Flux
 
 using RestrictedBoltzmannMachines
 import RestrictedBoltzmannMachines as RBMs
-using RestrictedBoltzmannMachines: sum_, mean_, weighted_mean
-using RestrictedBoltzmannMachines: sample_from_inputs
-using RestrictedBoltzmannMachines: inf, two, generate_sequences
-using RestrictedBoltzmannMachines: tnmean, tnstd, tnvar, randnt, randnt_half, sqrt1half, relu_cgf
-using RestrictedBoltzmannMachines: sum_, mean_, init_weights!, minibatches, minibatch_count
-
-# using RestrictedBoltzmannMachines: sum_, mean_,
-#     gauge, zerosum, rescale,
-#     gauge!, zerosum!, rescale!,
-#     gauge!, rescale!
 
 function gradtest(f, args...)
     ftest(xs...) = sum(sin.(f(xs...)))

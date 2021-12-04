@@ -81,3 +81,8 @@ function init_weights!(rbm::RBM; w::Real = 1)
     #rescale!(rbm.weights; dims=vdims(rbm))
     return rbm
 end
+
+function init_weights(n::Tuple{N,Int}, m::NTuple{M,Int}, ::Type{T} = Float64) where {N,M,T}
+    w = randn(T, n..., m...) / √prod(n)
+    return T(0.1) * w
+end

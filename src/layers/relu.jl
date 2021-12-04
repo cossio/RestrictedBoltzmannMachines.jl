@@ -47,7 +47,9 @@ function sample_from_inputs(layer::ReLU, inputs::AbstractArray, β::Real)
     return sample_from_inputs(layer_, inputs .* β)
 end
 
-relu_cgf(θ::Real, γ::Real) = logerfcx(-θ / √(2abs(γ))) - log(2abs(γ)/π)/2
+function relu_cgf(θ::Real, γ::Real)
+    return SpecialFunctions.logerfcx(-θ / √(2abs(γ))) - log(2abs(γ)/π)/2
+end
 
 function relu_rand(θ::Real, γ::Real)
     μ = θ / abs(γ)

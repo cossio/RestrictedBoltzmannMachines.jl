@@ -24,7 +24,7 @@ end
 
 function cgf(layer::Spin, inputs::AbstractArray)
     x = layer.θ .+ inputs
-    Γ = logaddexp.(x, -x)
+    Γ = LogExpFunctions.logaddexp.(x, -x)
     return sum_(Γ; dims = layerdims(layer))
 end
 
