@@ -10,14 +10,14 @@ Sums `A` over dimensions `dims` and drops them.
 sum_(A::AbstractArray; dims) = dropdims(sum(A; dims=dims); dims=dims)
 
 """
-	mean_(A, dims)
+    mean_(A, dims)
 
 Takes the mean of `A` across dimensions `dims` and drops them.
 """
 mean_(A::AbstractArray; dims) = dropdims(mean(A; dims=dims); dims=dims)
 
 """
-	weighted_mean(v, w)
+    weighted_mean(v, w)
 
 Mean of `v` with weights `w`.
 """
@@ -36,5 +36,5 @@ end
 Retruns an iterator over all sequences of length `n` out of the alphabet `A`.
 """
 function generate_sequences(n::Int, A = 0:1)
-	return (collect(seq) for seq in Iterators.product(Iterators.repeated(A, n)...))
+    return (collect(seq) for seq in Iterators.product(Iterators.repeated(A, n)...))
 end
