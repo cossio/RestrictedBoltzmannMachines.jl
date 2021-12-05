@@ -4,6 +4,7 @@ module RestrictedBoltzmannMachines
     import ChainRulesCore
     import LogExpFunctions
     import Flux
+    import Zygote
 
     export MVHistory, Data
     export Binary, Spin, Potts

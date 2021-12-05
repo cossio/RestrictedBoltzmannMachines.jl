@@ -5,7 +5,7 @@ Log-pseudolikelihood of randomly chosen sites conditioned on the other sites.
 For each configuration choses a sample_from_inputs site, and returns the mean of the
 computed pseudo-likelihoods.
 """
-function log_pseudolikelihood(rbm::RBM, v::AbstractArray, β::Real = 1)
+function log_pseudolikelihood(rbm::RBM, v::AbstractArray, β::Real = true)
     @assert size(v) = (size(rbm.visible)..., size(v)[end])
     xidx = CartesianIndices(size(rbm.visible))
     sites = [rand(xidx) for b in 1:_nobs(v)]
@@ -23,7 +23,7 @@ function log_pseudolikelihood(
     rbm::RBM,
     v::AbstractArray,
     sites::AbstractVector{<:CartesianIndex},
-    β::Real = 1
+    β::Real = true
 )
     F = free_energy(rbm, v, β)
     F_ = log_site_traces(rbm, v, sites, β)
@@ -41,7 +41,7 @@ function log_site_traces(
     rbm::RBM,
     v::AbstractArray,
     sites::AbstractVector{<:CartesianIndex},
-    β::Real = 1
+    β::Real = true
 )
     @assert size(v) == (size(rbm.visible)..., size(v)[end])
     F = free_energy(rbm, v, β)
@@ -86,7 +86,7 @@ end
 Log of the trace over configurations of `site`. Here `v` must consist of
 a single batch.
 """
-function log_site_trace(rbm::RBM{<:Binary}, v::AbstractArray, site::CartesianIndex, β::Real = 1)
+function log_site_trace(rbm::RBM{<:Binary}, v::AbstractArray, site::CartesianIndex, β::Real = true)
     size(rbm.visible) == size(v) || dimserror() # single batch
     v_ = copy(v)
     v_[site] = 1 - v_[site]
@@ -95,7 +95,7 @@ function log_site_trace(rbm::RBM{<:Binary}, v::AbstractArray, site::CartesianInd
     return LogExpFunctions.logaddexp(-β * F, -β * F_)
 end
 
-function log_site_trace(site::CartesianIndex, rbm::RBM{<:Spin}, v::AbstractArray, β::Real = 1)
+function log_site_trace(site::CartesianIndex, rbm::RBM{<:Spin}, v::AbstractArray, β::Real = true)
     size(rbm.visible) == size(v) || dimserror() # single batch
     v_ = copy(v)
     v_[site] = -v_[site]

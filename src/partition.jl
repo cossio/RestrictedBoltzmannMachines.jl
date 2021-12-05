@@ -28,7 +28,7 @@ end
 Log-likelihood of `v` under `rbm`, with the partition function compued by
 extensive enumeration. For discrete layers, this is exponentially slow for large machines.
 """
-function log_likelihood(rbm::RBM, v::AbstractArray, β::Real = 1)
+function log_likelihood(rbm::RBM, v::AbstractArray, β::Real = true)
     lZ = log_partition(rbm, β)
     F = free_energy(rbm, v, β)
     ll = -β .* F .- lZ

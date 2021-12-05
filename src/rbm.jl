@@ -80,7 +80,7 @@ end
 
 Free energy of visible configuration (after marginalizing hidden configurations).
 """
-function free_energy(rbm::RBM, v::AbstractArray, β::Real = 1)
+function free_energy(rbm::RBM, v::AbstractArray, β::Real = true)
     @assert size(v) == (size(rbm.visible)..., size(v)[end])
     E = energy(rbm.visible, v)
     inputs = inputs_v_to_h(rbm, v)
@@ -93,7 +93,7 @@ end
 
 Samples a hidden configuration conditional on the visible configuration `v`.
 """
-function sample_h_from_v(rbm::RBM, v::AbstractArray, β::Real = 1)
+function sample_h_from_v(rbm::RBM, v::AbstractArray, β::Real = true)
     inputs = inputs_v_to_h(rbm, v)
     return sample_from_inputs(rbm.hidden, inputs, β)
 end
@@ -103,7 +103,7 @@ end
 
 Samples a visible configuration conditional on the hidden configuration `h`.
 """
-function sample_v_from_h(rbm::RBM, h::AbstractArray, β::Real = 1)
+function sample_v_from_h(rbm::RBM, h::AbstractArray, β::Real = true)
     inputs = inputs_h_to_v(rbm, h)
     return sample_from_inputs(rbm.visible, inputs, β)
 end
@@ -113,7 +113,7 @@ end
 
 Samples a visible configuration conditional on another visible configuration `v`.
 """
-function sample_v_from_v(rbm::RBM, v::AbstractArray, β::Real = 1; steps::Int = 1)
+function sample_v_from_v(rbm::RBM, v::AbstractArray, β::Real = true; steps::Int = 1)
     @assert size(v) == (size(rbm.visible)..., size(v)[end])
     @assert steps ≥ 1
     h = sample_h_from_v(rbm, v, β)
@@ -129,7 +129,7 @@ end
 
 Samples a hidden configuration conditional on another hidden configuration `h`.
 """
-function sample_h_from_h(rbm::RBM, h::AbstractArray, β::Real = 1; steps::Int = 1)
+function sample_h_from_h(rbm::RBM, h::AbstractArray, β::Real = true; steps::Int = 1)
     @assert size(h) == (size(rbm.hidden)..., size(h)[end])
     @assert steps ≥ 1
     v = sample_v_from_h(rbm, h, β)
@@ -145,7 +145,7 @@ end
 
 Stochastic reconstruction error of `v`.
 """
-function reconstruction_error(rbm::RBM, v::AbstractArray, β::Real = 1; steps::Int = 1)
+function reconstruction_error(rbm::RBM, v::AbstractArray, β::Real = true; steps::Int = 1)
     v_ = sample_v_from_v(rbm, v, β; steps = steps)
     return mean_(abs.(v .- v_); dims = layerdims(rbm.visible))
 end

@@ -44,15 +44,15 @@ function train!(rbm::RBM, data::AbstractArray;
     # initialize fantasy chains
     _idx = randperm(_nobs(data))[1:batchsize]
     _vm = selectdim(data, ndims(data), _idx)
-    vm = sample_v_from_v(rbm, _vm, β; steps = steps)
+    vm = sample_v_from_v(rbm, _vm; steps = steps)
 
     for epoch in 1:epochs
-        Δt = @elapsed for (b, vd, wd) in enumerate(minibatches(data, weights; batchsize = batchsize))
+        Δt = @elapsed for (b, (vd, wd)) in enumerate(minibatches(data, weights; batchsize = batchsize))
             # update fantasy chains
-            vm = sample_v_from_v(rbm, vm, β; steps = steps)
+            vm = sample_v_from_v(rbm, vm; steps = steps)
 
             # compute contrastive divergence gradient
-            gs = gradient(ps) do
+            gs = Zygote.gradient(ps) do
                 Fd = free_energy(rbm, vd)
                 Fm = free_energy(rbm, vm)
                 loss = weighted_mean(Fd, wd) - weighted_mean(Fm)
