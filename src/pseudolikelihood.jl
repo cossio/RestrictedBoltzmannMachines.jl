@@ -6,7 +6,7 @@ For each configuration choses a sample_from_inputs site, and returns the mean of
 computed pseudo-likelihoods.
 """
 function log_pseudolikelihood(rbm::RBM, v::AbstractArray, β::Real = true)
-    @assert size(v) = (size(rbm.visible)..., size(v)[end])
+    @assert size(v) == (size(rbm.visible)..., size(v)[end])
     xidx = CartesianIndices(size(rbm.visible))
     sites = [rand(xidx) for b in 1:_nobs(v)]
     return log_pseudolikelihood(rbm, v, sites, β)
