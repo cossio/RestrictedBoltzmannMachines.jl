@@ -86,7 +86,8 @@ function train!(rbm::RBM, data::AbstractArray;
         push!(history, :lpl, lpl)
         if verbose
             Δt_ = round(Δt, digits=2)
-            println("epoch $epoch/$epochs ($(Δt_)s), log(pseudolikelihood)=$lpl")
+            lpl_ = round(lpl, digits=2)
+            println("epoch $epoch/$epochs ($(Δt_)s), log(pseudolikelihood)=$lpl_")
         end
     end
     return history
