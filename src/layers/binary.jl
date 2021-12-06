@@ -19,7 +19,7 @@ function sample_from_inputs(layer::Binary, inputs::AbstractArray)
     x = layer.θ .+ inputs
     pinv = @. one(x) + exp(-x)
     u = rand(eltype(pinv), size(pinv))
-    return u .* pinv .≤ 1
+    return oftype(x, u .* pinv .≤ 1)
 end
 
 function sample_from_inputs(layer::Binary, inputs::AbstractArray, β::Real)

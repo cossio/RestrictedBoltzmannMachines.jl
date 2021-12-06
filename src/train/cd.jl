@@ -26,8 +26,8 @@ end
 Trains the RBM on data.
 """
 function train!(rbm::RBM, data::AbstractArray;
-    batchsize = 128,
-    epochs = 100,
+    batchsize = 1,
+    epochs = 1,
     opt = Flux.ADAM(), # optimizer algorithm
     ps::Flux.Params = Flux.params(rbm), # subset of optimized parameters
     history::MVHistory = MVHistory(), # stores training history
@@ -36,18 +36,19 @@ function train!(rbm::RBM, data::AbstractArray;
     verbose::Bool = true,
     weights::AbstractVector = trues(_nobs(data)), # data point weights
     steps::Int = 1, # Monte Carlo steps to update fantasy particles
-    white::Bool = true # input to hidden layer is whitened (similar to batch normalization)
+    white::Bool = false # input to hidden layer is whitened (similar to batch normalization)
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert _nobs(data) == _nobs(weights)
 
     # initialize fantasy chains
-    _idx = randperm(_nobs(data))[1:batchsize]
+    _idx = rand(1:_nobs(data), batchsize)
     _vm = selectdim(data, ndims(data), _idx)
     vm = sample_v_from_v(rbm, _vm; steps = steps)
 
     for epoch in 1:epochs
-        Δt = @elapsed for (b, (vd, wd)) in enumerate(minibatches(data, weights; batchsize = batchsize))
+        batches = minibatches(data, weights; batchsize = batchsize)
+        Δt = @elapsed for (b, (vd, wd)) in enumerate(batches)
             # update fantasy chains
             vm = sample_v_from_v(rbm, vm; steps = steps)
 
@@ -83,7 +84,10 @@ function train!(rbm::RBM, data::AbstractArray;
 
         lpl = weighted_mean(log_pseudolikelihood(rbm, data), weights)
         push!(history, :lpl, lpl)
-        verbose && println("epoch $epoch/$epochs ($(Δt)s), log(pseudolikelihood)=$lpl")
+        if verbose
+            Δt_ = round(Δt, digits=2)
+            println("epoch $epoch/$epochs ($(Δt_)s), log(pseudolikelihood)=$lpl")
+        end
     end
     return history
 end
