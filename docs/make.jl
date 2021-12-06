@@ -47,11 +47,11 @@ makedocs(
             "MNIST" => "literate/MNIST.md"
         ],
         "Reference" => "reference.md"
-    ]
+    ],
+    strict = true
 )
 
 deploydocs(
     repo = "github.com/cossio/RestrictedBoltzmannMachines.jl.git",
-    devbranch = "master",
-    strict = true
+    devbranch = "master"
 )
