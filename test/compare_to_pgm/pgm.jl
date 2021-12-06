@@ -23,5 +23,5 @@ in the same way.
 
     rbm = RBMs.RBM(RBMs.Binary(g), RBMs.Binary(θ), w)
     @test RBMs.energy(rbm, v, h) ≈ E rtol=1e-5
-    @test RBMs.free_energy(rbm, v, h) ≈ F rtol=1e-5
+    @test RBMs.free_energy(rbm, v) ≈ F rtol=1e-5
 end
