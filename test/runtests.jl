@@ -7,6 +7,7 @@ using SafeTestsets, Random, Test
 @time @safetestset "truncnorm rejection" begin include("truncnorm/rejection.jl") end
 @time @safetestset "layers" begin include("layers.jl") end
 @time @safetestset "rbm" begin include("rbm.jl") end
+@time @safetestset "pgm" begin include("compare_to_pgm/pgm.jl") end
 
 #@time @safetestset "regularize" begin include("regularize.jl") end
 # @time @safetestset "pseudolikelihood" begin include("pseudolikelihood.jl") end
