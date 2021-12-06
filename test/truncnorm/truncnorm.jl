@@ -1,7 +1,7 @@
 include("../tests_init.jl")
 
 for a = -10:10
-    d = truncated(Normal(), a, Inf)
+    d = Distributions.truncated(Distributions.Normal(), a, Inf)
     @test RBMs.tnmean(a) ≈ mean(d)
     @test RBMs.tnstd(a)  ≈ std(d)
     @test RBMs.tnvar(a)  ≈ var(d)

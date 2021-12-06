@@ -21,19 +21,19 @@ B = (3,1)
 end
 
 @testset "cd gauge invariance Binary / Gaussian" begin
-    rbm = RBM(Binary(5), Gaussian(3))
+    rbm = RBMs.RBM(RBMs.Binary(5), RBMs.Gaussian(3))
     randn!(rbm.visible.θ); randn!(rbm.weights);
     randn!(rbm.hidden.θ); rand!(rbm.hidden.γ);
     vd = RBMs.sample_from_inputs(rbm.visible, zeros(size(rbm.visible)..., 10))
     vm = RBMs.sample_from_inputs(rbm.visible, zeros(size(rbm.visible)..., 10))
     λ, κ = rand(size(rbm.hidden)...), randn(size(rbm.hidden)...)
-    dλ, dκ = gradient(λ, κ) do λ, κ
+    dλ, dκ = Zygote.gradient(λ, κ) do λ, κ
         g_ = rbm.visible.θ .+ tensormul_lf(rbm.weights, κ, Val(ndims(rbm.hidden)))
         w_ = rbm.weights ./ reshape(λ, ones(Int, ndims(rbm.visible))..., size(rbm.hidden)...)
         θ_ = (rbm.hidden.θ .- rbm.hidden.γ .* κ) ./ λ
         γ_ = rbm.hidden.γ ./ λ.^2
-        rbm_ = RBM(Binary(g_), Gaussian(θ_, γ_), w_)
-        contrastive_divergence(rbm_, vd, vm)
+        rbm_ = RBMs.RBM(RBMs.Binary(g_), RBMs.Gaussian(θ_, γ_), w_)
+        RBMs.contrastive_divergence(rbm_, vd, vm)
     end
     @test norm(dλ) ≤ 1e-10
     @test norm(dκ) ≤ 1e-10

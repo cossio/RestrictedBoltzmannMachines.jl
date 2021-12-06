@@ -94,7 +94,7 @@ end
             F[a] = free_energy(rbm, v_, β)
             v_[a, site] = false
         end
-        lZ = logsumexp(-β .* F)
+        lZ = LogExpFunctions.logsumexp(-β .* F)
         @test lz[b] ≈ lZ
         @test lpl[b] ≈ -β * free_energy(rbm, vb, β) - lZ
         @test lpl[b] ≈ log_pseudolikelihood(site, rbm, vb, β)
