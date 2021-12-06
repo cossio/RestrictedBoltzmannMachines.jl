@@ -9,7 +9,7 @@ end
 
 @testset "minibatches" begin
     @test RBMs.minibatch_count(10; batchsize = 3) == 4
-    @test RBMs.minibatches(10; batchsize=3) == [[1,2,3], [4,5,6], [7,8,9], [10,1,2]]
-    @test RBMs.minibatches(10; batchsize=5) == [[1,2,3,4,5], [6,7,8,9,10]]
-    @test length(RBMs.minibatches(10; batchsize=3)) == RBMs.minibatch_count(10; batchsize=3)
+    @test RBMs.minibatches(7; batchsize=3, shuffle=false) == [[1,2,3], [4,5,6], [7,1,2]]
+    @test RBMs.minibatches(7; batchsize=5, shuffle=false) == [[1,2,3,4,5], [6,7,1,2,3]]
+    @test length(RBMs.minibatches(7; batchsize=3)) == RBMs.minibatch_count(7; batchsize=3)
 end
