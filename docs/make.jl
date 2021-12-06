@@ -2,16 +2,13 @@ using Documenter, Literate
 import RestrictedBoltzmannMachines as RBMs
 
 examples = Vector{Pair{String,String}}()
-for ex in readdir("literate"; join=true)
+for ex in readdir(joinpath(@__DIR__, "literate"); join=true)
     if endswith(ex, ".jl")
         name = first(splitext(basename(ex)))
-        @show name
-        Literate.markdown(ex, "src/literate"; name=name)
+        Literate.markdown(ex, joinpath(@__DIR__, "src/literate"); name=name)
         push!(examples, name => "literate/$name.md")
     end
 end
-
-@show examples
 
 makedocs(
     modules=[RBMs],
