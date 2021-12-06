@@ -52,5 +52,6 @@ makedocs(
 
 deploydocs(
     repo = "github.com/cossio/RestrictedBoltzmannMachines.jl.git",
-    devbranch = "master"
+    devbranch = "master",
+    strict = true
 )

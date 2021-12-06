@@ -33,7 +33,7 @@ containing things like the pseudo-likelihood of the data during training.
 We print here the time spent in the training as a rough benchmark.
 =#
 history = RBMs.train!(rbm, train_x[:,:,1:512]; epochs=10, batchsize=128)
-nothing #hide
+nothing # hide
 
 #=
 Plot log-pseudolikelihood during learning.
