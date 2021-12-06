@@ -7,8 +7,8 @@ Random.seed!(18)
 @test RBMs.randnt_half(Float32(1.0), Float32(2.0)) isa Float32
 
 # compare exact 1st and 2nd moments to Monte Carlo estimates
-m1(μ,σ) = μ + σ * √(2/π) / erfcx(-μ/σ/√2)
-m2(μ,σ) = μ^2 + σ^2 + μ * σ * √(2/π) / erfcx(-μ/σ/√2)
+m1(μ,σ) = μ + σ * √(2/π) / SpecialFunctions.erfcx(-μ/σ/√2)
+m2(μ,σ) = μ^2 + σ^2 + μ * σ * √(2/π) / SpecialFunctions.erfcx(-μ/σ/√2)
 
 for μ = -1:1, σ = 1:2
     samples = [RBMs.randnt_half(μ,σ) for _ = 1:10^6]

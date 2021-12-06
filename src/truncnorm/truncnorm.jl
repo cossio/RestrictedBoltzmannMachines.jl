@@ -33,7 +33,7 @@ lognormcdf(a::Real, b::Real) = logerf(a / √two(a), b / √two(b)) - log(two(a 
 Mean of the standard normal distribution,
 truncated to the interval (a, +∞).
 """
-tnmean(a::Real) = sqrt(two(a)/π) / erfcx(a/√two(a))
+tnmean(a::Real) = sqrt(two(a)/π) / SpecialFunctions.erfcx(a/√two(a))
 
 """
     tnvar(a)
@@ -61,4 +61,4 @@ tnstd(a::Real) = √tnvar(a)
 Mills ratio of the standard normal distribution.
 Defined as (1 - cdf(x)) / pdf(x).
 """
-mills(x::Real) = erfcx(x / √two(x)) * √(π/two(x))
+mills(x::Real) = SpecialFunctions.erfcx(x / √two(x)) * √(π/two(x))

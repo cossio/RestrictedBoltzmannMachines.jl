@@ -30,7 +30,7 @@ function train!(rbm::RBM, data::AbstractArray;
     epochs = 1,
     opt = Flux.ADAM(), # optimizer algorithm
     ps::Flux.Params = Flux.params(rbm), # subset of optimized parameters
-    history::MVHistory = MVHistory(), # stores training history
+    history::MVHistory = MVHistory(), # stores training log
     callback = () -> (), # callback function called on each iteration
     lossadd = (_...) -> 0, # regularization
     verbose::Bool = true,

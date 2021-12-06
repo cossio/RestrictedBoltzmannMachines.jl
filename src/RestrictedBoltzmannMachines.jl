@@ -1,12 +1,11 @@
 module RestrictedBoltzmannMachines
     using Random, Statistics, LinearAlgebra
-    using SpecialFunctions, ValueHistories
-    import ChainRulesCore
-    import LogExpFunctions
-    import Flux
-    import Zygote
+    import SpecialFunctions, LogExpFunctions
+    import Flux, Zygote, ChainRulesCore
 
-    export MVHistory, Data
+    using ValueHistories: MVHistory
+    export MVHistory
+
     export Binary, Spin, Potts
     export Gaussian, StdGaussian
     export ReLU, dReLU, pReLU
