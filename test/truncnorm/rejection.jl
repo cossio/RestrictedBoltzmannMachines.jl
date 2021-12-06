@@ -18,6 +18,6 @@ end
 
 # broadcasted versions
 μ = 3randn(2,2); σ = 3rand(2,2)
-dμ, dσ = gradient(μ,σ) do μ,σ
+dμ, dσ = Zygote.gradient(μ,σ) do μ,σ
     mean(m1.(μ,σ))
 end

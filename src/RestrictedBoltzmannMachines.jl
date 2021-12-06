@@ -9,7 +9,8 @@ module RestrictedBoltzmannMachines
     export Binary, Spin, Potts
     export Gaussian, StdGaussian
     export ReLU, dReLU, pReLU
-    export RBM, flip_layers
+    export RBM
+    export flip_layers
 
     export energy, interaction_energy
     export cgf, free_energy
