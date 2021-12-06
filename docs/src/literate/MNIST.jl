@@ -1,6 +1,6 @@
+import RestrictedBoltzmannMachines as RBMs
 using CairoMakie
 import MLDatasets
-import RestrictedBoltzmannMachines as RBMs
 
 #=
 First we load the MNIST dataset.
