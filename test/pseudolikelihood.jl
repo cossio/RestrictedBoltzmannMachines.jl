@@ -26,8 +26,8 @@ include("tests_init.jl")
         v_ = copy(vb)
         v_[site] = 1 - v_[site]
         F_ = free_energy(rbm, v_, β)
-        @test lz[b] ≈ logaddexp(-β * Fb, -β * F_)
-        @test lpl[b] ≈ -β * Fb - logaddexp(-β * Fb, -β * F_)
+        @test lz[b] ≈ LogExpFunctions.logaddexp(-β * Fb, -β * F_)
+        @test lpl[b] ≈ -β * Fb - LogExpFunctions.logaddexp(-β * Fb, -β * F_)
         @test lpl[b] ≈ log_pseudolikelihood(site, rbm, vb, β)
     end
 end
@@ -59,8 +59,8 @@ end
         v_ = copy(vb)
         v_[site] = -v_[site]
         F_ = free_energy(rbm, v_, β)
-        @test lz[b] ≈ logaddexp(-β * Fb, -β * F_)
-        @test lpl[b] ≈ -β * Fb - logaddexp(-β * Fb, -β * F_)
+        @test lz[b] ≈ LogExpFunctions.logaddexp(-β * Fb, -β * F_)
+        @test lpl[b] ≈ -β * Fb - LogExpFunctions.logaddexp(-β * Fb, -β * F_)
         @test lpl[b] ≈ log_pseudolikelihood(site, rbm, vb, β)
     end
 end

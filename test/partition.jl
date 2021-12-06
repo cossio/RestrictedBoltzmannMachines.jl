@@ -1,7 +1,4 @@
-using Test, Random, Statistics, LinearAlgebra
-import StatsFuns: logaddexp
-using Zygote, Flux
-using RestrictedBoltzmannMachines
+include("tests_init.jl")
 
 @testset "gaussian partition" begin
     rbm = RBM(Gaussian(10), Gaussian(7))

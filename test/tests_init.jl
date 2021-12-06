@@ -1,7 +1,7 @@
 using Test, Random, LinearAlgebra, Statistics
 using StatsFuns, Zygote, Flux, FiniteDifferences, SpecialFunctions, Distributions
-using LogExpFunctions: logaddexp, softmax, log1pexp, logsumexp, logistic
-import Flux
+using LogExpFunctions: softmax, log1pexp, logsumexp, logistic
+import Flux, LogExpFunctions
 
 using RestrictedBoltzmannMachines
 import RestrictedBoltzmannMachines as RBMs

@@ -5,7 +5,7 @@ m = (4,3,2)
 B = (3,1)
 
 @testset "zerosum" begin
-    rbm = RBM(Potts(5,6), Gaussian(3))
+    rbm = RBMs.RBM(RBMs.Potts(5,6), RBMs.Gaussian(3))
     rand!(rbm.visible.θ); rand!(rbm.weights);
     rand!(rbm.hidden.θ); rand!(rbm.hidden.γ);
 
@@ -208,7 +208,7 @@ end
     @test gs[rbm.hidden.θ] ≈ gs_[rbm.hidden.θ]
     @test gs[rbm.hidden.γ] ≈ gs_[rbm.hidden.γ]
 
-    rbm = RBM(Potts(n...), ReLU(m...))
+    rbm = RBMs.RBM(RBMs.Potts(n...), RBMs.ReLU(m...))
     randn!(rbm.weights)
     randn!(rbm.visible.θ)
     randn!(rbm.hidden.θ)
@@ -219,9 +219,9 @@ end
         fun(rbm)
     end
     gs_ = gradient(ps) do
-        fun(gauge(rbm))
+        fun(RBMs.gauge(rbm))
     end
-    gauge!(gs, rbm)
+    RBMs.gauge!(gs, rbm)
     @test gs[rbm.weights] ≈ gs_[rbm.weights]
     @test gs[rbm.visible.θ] ≈ gs_[rbm.visible.θ]
     @test gs[rbm.hidden.θ] ≈ gs_[rbm.hidden.θ]
