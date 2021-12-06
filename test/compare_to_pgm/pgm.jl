@@ -1,5 +1,4 @@
-using DelimitedFiles
-import RestrictedBoltzmannMachines as RBMs
+include("../tests_init.jl")
 
 #=
 Comparisons against https://github.com/jertubiana/PGM.

@@ -1,4 +1,4 @@
-using Test, Random, LinearAlgebra, Statistics
-import Zygote, Flux, SpecialFunctions, Distributions, StatsFuns
-import Flux, LogExpFunctions, FiniteDifferences
+using Test, Random, LinearAlgebra, Statistics, DelimitedFiles
+import Zygote, Distributions
+import SpecialFunctions, LogExpFunctions
 import RestrictedBoltzmannMachines as RBMs

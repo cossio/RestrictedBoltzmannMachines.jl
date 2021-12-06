@@ -1,6 +1,3 @@
-# Based on https://github.com/FluxML/Flux.jl/pull/1221/
-# but implementing a dataset that loops infinitely instead of by epochs.
-
 function _nobs(ds::AbstractArray...)
     sz = map(d -> size(d)[end], ds)
     @assert all(sz .== first(sz))

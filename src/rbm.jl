@@ -13,11 +13,6 @@ struct RBM{V, H, W<:AbstractArray}
     end
 end
 
-function RBM(visible, hidden, ::Type{T} = Float64) where {T}
-    weights = init_weights(T, size(visible), size(hidden))
-    return RBM(visible, hidden, weights)
-end
-
 Flux.@functor RBM
 
 """
