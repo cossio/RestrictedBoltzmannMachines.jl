@@ -32,4 +32,4 @@ history = RBMs.train!(rbm, train_x; epochs=10, batchsize=128);
 #=
 Plot log-pseudolikelihood during learning.
 =#
-lines(get(history, :lpl))
+lines(get(history, :lpl)...)
