@@ -46,7 +46,7 @@ function log_site_traces(
     @assert size(v) == (size(rbm.visible)..., size(v)[end])
     F = free_energy(rbm, v, β)
     v_ = copy(v)
-    for b in 1:size(v, ndims(v))
+    for b in 1:_nobs(v)
         v_[sites[b], b] = 1 - v_[sites[b], b]
     end
     F_ = free_energy(rbm, v_, β)
