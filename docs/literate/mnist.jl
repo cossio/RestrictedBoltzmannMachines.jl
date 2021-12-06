@@ -26,8 +26,9 @@ rbm = RBMs.RBM(RBMs.Binary(28,28), RBMs.Binary(100), randn(28, 28, 100) / 28);
 Train the RBM on the data.
 This returns a MVHistory object (from https://github.com/JuliaML/ValueHistories.jl),
 containing things like the pseudo-likelihood of the data during training.
+We print here the time spent in the training as a rough benchmark.
 =#
-history = RBMs.train!(rbm, train_x; epochs=10, batchsize=128);
+@elapsed history = RBMs.train!(rbm, train_x[:,:,1:512]; epochs=10, batchsize=128)
 
 #=
 Plot log-pseudolikelihood during learning.
