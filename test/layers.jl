@@ -28,7 +28,7 @@ _layers = (
     @test RBMs.cgf(layer, inputs, 1) ≈ RBMs.cgf(layer, inputs)
 end
 
-@testset "fields only layers ($Layer)" for Layer in (RBMs.Binary, RBMs.Spin, RBMs.Potts)
+@testset "discrete layers ($Layer)" for Layer in (RBMs.Binary, RBMs.Spin, RBMs.Potts)
     layer = Layer(3,4,5)
     x = bitrand(size(layer)..., 7)
     @test RBMs.energy(layer, x) ≈ -vec(sum(layer.θ .* x; dims=(1,2,3)))
@@ -77,8 +77,11 @@ end
 @testset "Potts" begin
     layer = RBMs.Potts(randn(3,4,5))
     v = rand(0.0:1.0, size(layer)..., 7)
+    # samples are proper one-hot
     @test sort(unique(RBMs.sample_from_inputs(layer, v))) == [0, 1]
     @test all(sum(RBMs.sample_from_inputs(layer, v); dims=1) .== 1)
+    @test RBMs.energy(layer, v) ≈ -vec(sum(layer.θ .* v; dims=(1,2,3)))
+    @test RBMs.energy(layer, v) ≈ RBMs.energy(RBMs.Binary(layer.θ), v)
 
     Γ = vec(sum(LogExpFunctions.logsumexp(layer.θ .+ v; dims=1); dims=(1,2,3)))
     @test RBMs.cgf(layer, v) ≈ Γ
