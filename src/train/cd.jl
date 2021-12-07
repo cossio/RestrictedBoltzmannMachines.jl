@@ -28,7 +28,7 @@ Trains the RBM on data.
 function train!(rbm::RBM, data::AbstractArray;
     batchsize = 1,
     epochs = 1,
-    opt = Flux.ADAM(), # optimizer algorithm
+    optimizer = Flux.ADAM(), # optimizer algorithm
     ps::Flux.Params = Flux.params(rbm), # subset of optimized parameters
     history::MVHistory = MVHistory(), # stores training log
     callback = () -> (), # callback function called on each iteration
@@ -66,7 +66,7 @@ function train!(rbm::RBM, data::AbstractArray;
             end
 
             # update parameters using gradient
-            Flux.update!(opt, ps, gs)
+            Flux.update!(optimizer, ps, gs)
 
             push!(history, :epoch, epoch)
             push!(history, :batch, b)
