@@ -22,16 +22,16 @@ dReLU(n::Int...) = dReLU(Float64, n...)
 Flux.@functor dReLU
 
 function energy(layer::dReLU, x::AbstractArray)
-    xp = @. max( x, zero(x))
-    xn = @. max(-x, zero(x))
-    Ep = energy(ReLU( layer.θp, layer.γp), xp)
-    En = energy(ReLU(-layer.θn, layer.γn), xn)
+    xp = @. max(x, zero(x))
+    xn = @. min(x, zero(x))
+    Ep = energy(ReLU( layer.θp, layer.γp),  xp)
+    En = energy(ReLU(-layer.θn, layer.γn), -xn)
     return Ep .+ En
 end
 
 function cgf(layer::dReLU, inputs::AbstractArray)
-    Γp = relu_cgf.(inputs .+ layer.θp, layer.γp)
-    Γn = relu_cgf.(inputs .- layer.θn, layer.γn)
+    Γp = relu_cgf.( inputs .+ layer.θp, layer.γp)
+    Γn = relu_cgf.(-inputs .- layer.θn, layer.γn)
     Γ = LogExpFunctions.logaddexp.(Γp, Γn)
     return sum_(Γ; dims = layerdims(layer))
 end
