@@ -1,6 +1,6 @@
+import RestrictedBoltzmannMachines as RBMs
 using CairoMakie
 import MLDatasets
-import RestrictedBoltzmannMachines as RBMs
 
 #=
 First we load the MNIST dataset.
@@ -21,6 +21,9 @@ nothing #hide
 
 #=
 Initialize an RBM with 100 hidden units.
+It is recommended to initialize the weights as random normals with zero mean and
+standard deviation `= 1/sqrt(number of hidden units)`.
+See [Glorot & Bengio 2010](http://proceedings.mlr.press/v9/glorot10a).
 =#
 rbm = RBMs.RBM(RBMs.Binary(28,28), RBMs.Binary(100), randn(28, 28, 100) / 28)
 nothing #hide
