@@ -32,6 +32,26 @@ tests_y = float(tests_y)
 nothing #hide
 
 #=
+In the previous code block, notice how we converted `train_x`, `train_y`, ..., and so on,
+to floats using `float`, which in this case converts to `Float64`.
+The RBM we will define below also uses `Float64` to store weights.
+This is important if we want to hit blas matrix multiplies, which are much faster than,
+*e.g.*, using a `BitArray` to store the data.
+Thus be careful that the data and the RBM weights have the same float type.
+=#
+
+#=
+Plot some examples of the binarized data (same digits as above).
+=#
+fig = Figure(resolution=(500, 500))
+for i in 1:5, j in 1:5
+    ax = Axis(fig[i,j])
+    hidedecorations!(ax)
+    heatmap!(ax, train_x[:,:,5 * (i - 1) + j])
+end
+fig
+
+#=
 Initialize an RBM with 100 hidden units.
 It is recommended to initialize the weights as random normals with zero mean and
 standard deviation `= 1/sqrt(number of hidden units)`.
