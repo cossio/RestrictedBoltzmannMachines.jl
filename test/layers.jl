@@ -115,17 +115,33 @@ end
 end
 
 @testset "pReLU / dReLU convert" begin
-    layer = RBMs.pReLU(randn(10), randn(10), rand(10), rand(10) .- 0.5)
-    layer_ = RBMs.pReLU(RBMs.dReLU(layer))
-    @test layer.θ ≈ layer_.θ
-    @test layer.Δ ≈ layer_.Δ
-    @test layer.γ ≈ layer_.γ
-    @test layer.η ≈ layer_.η
+    N = 10
+    B = 13
+    x = randn(N, B)
 
-    layer = RBMs.dReLU(randn(10), randn(10), rand(10), rand(10))
-    layer_ = RBMs.dReLU(RBMs.pReLU(layer))
-    @test layer.θp ≈ layer_.θp
-    @test layer.θn ≈ layer_.θn
-    @test layer.γp ≈ layer_.γp
-    @test layer.γn ≈ layer_.γn
+    layer = RBMs.pReLU(randn(N), randn(N), randn(N), randn(N))
+    @test layer.θ ≈ RBMs.pReLU(RBMs.dReLU(layer)).θ
+    @test layer.Δ ≈ RBMs.pReLU(RBMs.dReLU(layer)).Δ
+    @test layer.γ ≈ RBMs.pReLU(RBMs.dReLU(layer)).γ
+    @test layer.η ≈ RBMs.pReLU(RBMs.dReLU(layer)).η
+    @test RBMs.energy(layer, x) ≈ RBMs.energy(RBMs.dReLU(layer), x)
+
+    layer = RBMs.dReLU(randn(N), randn(N), randn(N), randn(N))
+    @test layer.θp ≈ RBMs.dReLU(RBMs.pReLU(layer)).θp
+    @test layer.θn ≈ RBMs.dReLU(RBMs.pReLU(layer)).θn
+    @test layer.γp ≈ RBMs.dReLU(RBMs.pReLU(layer)).γp
+    @test layer.γn ≈ RBMs.dReLU(RBMs.pReLU(layer)).γn
+    @test RBMs.energy(layer, x) ≈ RBMs.energy(RBMs.pReLU(layer), x)
+end
+
+@testset "dReLU" begin
+    N = 10
+    B = 13
+    x = randn(N, B)
+    xp = max.(x, 0)
+    xn = min.(x, 0)
+
+    layer = RBMs.dReLU(randn(N), randn(N), rand(N), rand(N))
+    E = @. abs(layer.γp) * xp^2 / 2 + abs(layer.γn) * xn^2 / 2 - layer.θp * xp - layer.θn * xn
+    @test RBMs.energy(layer, x) ≈ vec(sum(E; dims=1))
 end
