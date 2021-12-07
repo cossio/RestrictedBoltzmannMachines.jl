@@ -68,10 +68,23 @@ This returns a MVHistory object
 containing things like the pseudo-likelihood of the data during training.
 We print here the time spent in the training as a rough benchmark.
 =#
-history = RBMs.train!(rbm, train_x; epochs=10, batchsize=128)
+history = RBMs.train!(rbm, train_x; epochs=100, batchsize=128)
 nothing #hide
 
 #=
 Plot log-pseudolikelihood during learning.
 =#
 lines(get(history, :lpl)...)
+
+#=
+Generate some RBM samples.
+=#
+dream_x = RBMs.sample_v_from_v(rbm, train_x; steps=20);
+
+fig = Figure(resolution=(500, 500))
+for i in 1:5, j in 1:5
+    ax = Axis(fig[i,j])
+    hidedecorations!(ax)
+    heatmap!(ax, dream_x[:,:,5 * (i - 1) + j])
+end
+fig
