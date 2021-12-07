@@ -1,6 +1,18 @@
+#=
+We begin by importing the required packages. We load MNIST via MLDatasets.jl.
+=#
+
 import RestrictedBoltzmannMachines as RBMs
 using CairoMakie
 import MLDatasets
+
+fig = Figure(resolution=(500, 500))
+for i in 1:5, j in 1:5
+    ax = Axis(fig[i,j])
+    hidedecorations!(ax)
+    heatmap!(ax, first(MLDatasets.MNIST.traindata(5 * (i - 1) + j)))
+end
+fig
 
 #=
 First we load the MNIST dataset.
