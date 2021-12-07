@@ -7,20 +7,72 @@ I computed the energy, free_energy, and so on, using the PGM
 code. So here we compare if using the same RBM I obtain the same
 values of energies, etc. with my code.
 These comparisons confirm that we interpet things like weights and fields
-in the same way.
+in the same way, or highlight the differences.
+
+The only difference is in the definition of some θ's (for Gaussian, ReLU, and dReLU layers).
+I wanted to be consistent with the definition of the external fields, which appear with
+a minus sign in the energy for discrete units. Therefore in the following tests pay
+attention to these minus signs.
 =#
 
 @testset "Binary / Binary RBM" begin
-    g = vec(readdlm("compare_to_pgm/RBM_bin_bin_gv.txt"));
-    θ = vec(readdlm("compare_to_pgm/RBM_bin_bin_gh.txt"));
-    w = readdlm("compare_to_pgm/RBM_bin_bin_w.txt")';
+    g = vec(readdlm("compare_to_pgm/RBM_bin_bin_g_v.txt"))
+    θ = vec(readdlm("compare_to_pgm/RBM_bin_bin_g_h.txt"))
+    w = readdlm("compare_to_pgm/RBM_bin_bin_w.txt")'
 
-    v = readdlm("compare_to_pgm/RBM_bin_v.txt")'
-    h = readdlm("compare_to_pgm/RBM_bin_h.txt")'
+    v = readdlm("compare_to_pgm/RBM_bin_bin_v.txt")'
+    h = readdlm("compare_to_pgm/RBM_bin_bin_h.txt")'
     E = vec(readdlm("compare_to_pgm/RBM_bin_bin_E.txt"))
     F = vec(readdlm("compare_to_pgm/RBM_bin_bin_F.txt"))
 
     rbm = RBMs.RBM(RBMs.Binary(g), RBMs.Binary(θ), w)
     @test RBMs.energy(rbm, v, h) ≈ E rtol=1e-5
     @test RBMs.free_energy(rbm, v) ≈ F rtol=1e-5
+end
+
+@testset "Binary / Gaussian RBM" begin
+    #= Note the minus sign in front of θ =#
+    θ = -vec(readdlm("compare_to_pgm/RBM_bin_gauss_theta_h.txt"))
+    γ =  vec(readdlm("compare_to_pgm/RBM_bin_gauss_gamma_h.txt"))
+    g = vec(readdlm("compare_to_pgm/RBM_bin_gauss_g_v.txt"))
+    w = readdlm("compare_to_pgm/RBM_bin_gauss_w.txt")'
+
+    v = readdlm("compare_to_pgm/RBM_bin_gauss_v.txt")'
+    h = readdlm("compare_to_pgm/RBM_bin_gauss_h.txt")'
+    Ev = vec(readdlm("compare_to_pgm/RBM_bin_gauss_Ev.txt"))
+    Eh = vec(readdlm("compare_to_pgm/RBM_bin_gauss_Eh.txt"))
+    E = vec(readdlm("compare_to_pgm/RBM_bin_gauss_E.txt"))
+    F = vec(readdlm("compare_to_pgm/RBM_bin_gauss_F.txt"))
+
+    rbm = RBMs.RBM(RBMs.Binary(g), RBMs.Gaussian(θ, γ), w)
+    @test RBMs.energy(rbm.visible, v) ≈ Ev rtol=1e-5
+    @test RBMs.energy(rbm.hidden,  h) ≈ Eh rtol=1e-5
+    @test RBMs.energy(rbm, v, h) ≈ E rtol=1e-5
+    @test RBMs.free_energy(rbm, v) ≈ F rtol=1e-5
+end
+
+@testset "Binary / dReLU RBM" begin
+    #= Note the minus sign in front of θp. For Gaussian, ReLU, and dReLU layers
+    (as well as for the reparameterized pReLU), my θ's are minus those of Jerome.
+    I did this because I wanted to be consistent with the external field of Binary,
+    Spin and Potts layer, for which the field appears with this sign. =#
+    θp = -vec(readdlm("compare_to_pgm/RBM_bin_dReLU_thetap_h.txt"))
+    θm =  vec(readdlm("compare_to_pgm/RBM_bin_dReLU_thetam_h.txt"))
+    γp = vec(readdlm("compare_to_pgm/RBM_bin_dReLU_gammap_h.txt"))
+    γm = vec(readdlm("compare_to_pgm/RBM_bin_dReLU_gammam_h.txt"))
+    g = vec(readdlm("compare_to_pgm/RBM_bin_dReLU_g_v.txt"))
+    w = readdlm("compare_to_pgm/RBM_bin_dReLU_w.txt")'
+
+    v = readdlm("compare_to_pgm/RBM_bin_dReLU_v.txt")'
+    h = readdlm("compare_to_pgm/RBM_bin_dReLU_h.txt")'
+    Ev = vec(readdlm("compare_to_pgm/RBM_bin_dReLU_Ev.txt"))
+    Eh = vec(readdlm("compare_to_pgm/RBM_bin_dReLU_Eh.txt"))
+    E = vec(readdlm("compare_to_pgm/RBM_bin_dReLU_E.txt"))
+    F = vec(readdlm("compare_to_pgm/RBM_bin_dReLU_F.txt"))
+
+    rbm = RBMs.RBM(RBMs.Binary(g), RBMs.dReLU(θp, θm, γp, γm), w)
+    @test RBMs.energy(rbm.visible, v) ≈ Ev rtol=1e-5
+    @test RBMs.energy(rbm.hidden,  h) ≈ Eh rtol=1e-5
+    @test RBMs.energy(rbm, v, h) ≈ E rtol=1e-5
+    @test RBMs.free_energy(rbm, v) ≈ F rtol=1e-3
 end
