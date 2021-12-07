@@ -1,5 +1,6 @@
 #=
 We begin by importing the required packages. We load MNIST via MLDatasets.jl.
+Here we also plot some of the first digits.
 =#
 
 import RestrictedBoltzmannMachines as RBMs
@@ -67,7 +68,7 @@ This returns a MVHistory object
 containing things like the pseudo-likelihood of the data during training.
 We print here the time spent in the training as a rough benchmark.
 =#
-history = RBMs.train!(rbm, train_x[:,:,1:512]; epochs=10, batchsize=128)
+history = RBMs.train!(rbm, train_x; epochs=10, batchsize=128)
 nothing #hide
 
 #=
