@@ -35,7 +35,7 @@ nothing #hide
 #=
 In the previous code block, notice how we converted `train_x`, `train_y`, ..., and so on,
 to floats using `float`, which in this case converts to `Float64`.
-The RBM we will define below also uses `Float64` to store weights.
+The RBM we will define below also uses `Float64` to store weights (it's the default).
 This is important if we want to hit blas matrix multiplies, which are much faster than,
 *e.g.*, using a `BitArray` to store the data.
 Thus be careful that the data and the RBM weights have the same float type.
