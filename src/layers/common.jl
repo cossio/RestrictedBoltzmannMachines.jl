@@ -1,9 +1,16 @@
+"""
+    sample_from_inputs(layer, inputs, β = 1)
+
+Samples layer configurations conditioned on inputs.
+"""
+function sample_from_inputs end
+
 function energy(layer::Union{Binary, Spin, Potts}, x::AbstractArray)
     @assert size(x) == (size(layer)..., size(x)[end])
     return -reshape(x, length(layer), size(x)[end])' * vec(layer.θ)
 end
 
-const _ThetaLayers = Union{Binary, Spin, Potts, Gaussian, StdGaussian, ReLU, pReLU}
+const _ThetaLayers = Union{Binary, Spin, Potts, Gaussian, ReLU, pReLU}
 Base.ndims(layer::_ThetaLayers) = ndims(layer.θ)
 Base.size(layer::_ThetaLayers) = size(layer.θ)
 Base.size(layer::_ThetaLayers, d::Int) = size(layer.θ, d)

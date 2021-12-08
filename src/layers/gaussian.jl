@@ -35,7 +35,6 @@ function sample_from_inputs(layer::Gaussian, inputs::AbstractArray)
 end
 
 function sample_from_inputs(layer::Gaussian, inputs::AbstractArray, β::Real)
-    @assert size(inputs) == (size(layer)..., size(inputs)[end])
     layer_ = Gaussian(layer.θ .* β, layer.γ .* β)
     return sample_from_inputs(layer_, inputs .* β)
 end
@@ -47,7 +46,6 @@ function cgf(layer::Gaussian, inputs::AbstractArray)
 end
 
 function cgf(layer::Gaussian, inputs::AbstractArray, β::Real)
-    @assert size(inputs) == (size(layer)..., size(inputs)[end])
     layer_ = Gaussian(layer.θ .* β, layer.γ .* β)
     return cgf(layer_, inputs .* β) / β
 end
@@ -65,7 +63,11 @@ function energy(layer::StdGaussian, x::AbstractArray)
     return sum_(E; dims = layerdims(layer))
 end
 
-function sample_from_inputs(layer::StdGaussian, inputs::AbstractArray, β::Real = one(eltype(inputs)))
+function sample_from_inputs(
+    layer::StdGaussian,
+    inputs::AbstractArray,
+    β::Real = one(eltype(inputs))
+)
     @assert size(inputs) == (size(layer)..., size(inputs)[end])
     x = inputs ./ √β
     z = randn(eltype(x), size(x))
@@ -80,4 +82,5 @@ end
 
 Base.ndims(layer::StdGaussian) = length(layer.size)
 Base.size(layer::StdGaussian) = layer.size
+Base.size(layer::StdGaussian, d::Int) = layer.size[d]
 Base.length(layer::StdGaussian) = prod(layer.size)

@@ -12,8 +12,8 @@ The number of classes is the size of the first dimension.
 struct Potts{A<:AbstractArray}
     θ::A
 end
-Potts(::Type{T}, n::Int...) where {T} = Potts(zeros(T, n...))
-Potts(n::Int...) = Potts(Float64, n...)
+Potts(::Type{T}, q::Int, n::Int...) where {T} = Potts(zeros(T, q, n...))
+Potts(q::Int, n::Int...) = Potts(Float64, q, n...)
 Flux.@functor Potts
 
 Base.propertynames(::Potts) = (:q, fieldnames(Potts)...)
