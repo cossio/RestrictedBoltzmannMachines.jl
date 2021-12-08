@@ -1,121 +1,215 @@
 """
-    log_pseudolikelihood_rand(rbm, v, β=1)
+    log_pseudolikelihood(rbm, v, β=1; exact=false)
 
-Log-pseudolikelihood of randomly chosen sites conditioned on the other sites.
-For each configuration choses a sample_from_inputs site, and returns the mean of the
-computed pseudo-likelihoods.
+Log-pseudolikelihood of `v`. If `exact` is `true`, the exact pseudolikelihood is returned.
+But this is slow if `v` consists of many samples. Therefore by default `exact` is `false`,
+in which case the result is a stochastic approximation, where a random site is selected
+for each sample, and its conditional probability is calculated. In average the results
+with `exact = false` coincide with the deterministic result, and the estimate is more
+precise as the number of samples increases.
 """
-function log_pseudolikelihood(rbm::RBM, v::AbstractArray, β::Real = true)
+function log_pseudolikelihood(rbm::RBM, v::AbstractArray, β::Real=true; exact::Bool=false)
     @assert size(v) == (size(rbm.visible)..., size(v)[end])
-    xidx = CartesianIndices(size(rbm.visible))
-    sites = [rand(xidx) for b in 1:_nobs(v)]
-    return log_pseudolikelihood(rbm, v, sites, β)
+    if exact
+        return log_pseudolikelihood_exact(rbm, v, β)
+    else
+        return log_pseudolikelihood_stoch(rbm, v, β)
+    end
 end
 
 """
-    log_pseudolikelihood(rbm, v, sites, β=1)
+    log_pseudolikelihood_stoch(rbm, v, β=1)
+
+Log-pseudolikelihood of `v`. This function computes an stochastic approximation, by doing
+a trace over random sites for each sample. For large number of samples, this is in average
+close to the exact value of the pseudolikelihood.
+"""
+function log_pseudolikelihood_stoch(rbm::RBM, v::AbstractArray, β::Real = true)
+    @assert size(v) == (size(rbm.visible)..., size(v)[end])
+    all_sites = site_grid(rbm.visible)
+    sites = [rand(all_sites) for _ in 1:size(v)[end]]
+    return log_pseudolikelihood_sites(rbm, v, sites, β)
+end
+
+site_grid(layer::Potts) = CartesianIndices(size(layer)[2:end])
+site_grid(layer) = CartesianIndices(size(layer))
+
+"""
+    log_pseudolikelihood_sites(rbm, v, sites, β=1)
 
 Log-pseudolikelihood of a site conditioned on the other sites, where `sites`
-is an array of site indices (CartesianIndex), one for each batch. Returns
-an array of log-pseudolikelihood, for each batch.
+is an array of site indices (CartesianIndex), one for each sample.
+Returns an array of log-pseudolikelihood values, for each sample.
 """
-function log_pseudolikelihood(
+function log_pseudolikelihood_sites(
     rbm::RBM,
     v::AbstractArray,
     sites::AbstractVector{<:CartesianIndex},
     β::Real = true
 )
-    F = free_energy(rbm, v, β)
-    F_ = log_site_traces(rbm, v, sites, β)
-    return -β .* F - F_
+    @assert size(v) == (size(rbm.visible)..., length(sites))
+    ΔE = substitution_matrix_sites(rbm, v, sites, β)
+    @assert size(ΔE) == (size(ΔE, 1), length(sites))
+    lPL = -LogExpFunctions.logsumexp(-β * ΔE; dims=1)
+    @assert size(lPL) == (1, length(sites))
+    return vec(lPL)
 end
 
 """
-    log_site_traces(rbm, v, sites, β=1)
+    log_pseudolikelihood_exact(rbm, v, β = 1)
 
-Log of the trace over configurations of `sites`, where `sites` is an array of
-site indices (CartesianIndex), for each batch. Returns an array of the
-log-traces for each batch.
+Log-pseudolikelihood of `v`. This function computes the exact pseudolikelihood, doing
+traces over all sites. Note that this can be slow for large number of samples.
 """
-function log_site_traces(
-    rbm::RBM,
-    v::AbstractArray,
-    sites::AbstractVector{<:CartesianIndex},
-    β::Real = true
-)
+function log_pseudolikelihood_exact(rbm::RBM, v::AbstractArray, β::Real = true)
     @assert size(v) == (size(rbm.visible)..., size(v)[end])
-    F = free_energy(rbm, v, β)
-    v_ = copy(v)
-    for b in 1:_nobs(v)
-        v_[sites[b], b] = 1 - v_[sites[b], b]
-    end
-    F_ = free_energy(rbm, v_, β)
-    return LogExpFunctions.logaddexp.(-β .* F, -β .* F_)
+    ΔE = substitution_matrix_exhaustive(rbm, v, β)
+    @assert size(ΔE)[end] == size(v)[end]
+    lPLsites = -LogExpFunctions.logsumexp(-β * ΔE; dims=1)
+    lPL = mean(lPLsites; dims=ntuple(identity, ndims(lPLsites) - 1))
+    return vec(lPL)
 end
 
-function log_site_traces(
+"""
+    substitution_matrix_sites(rbm, v, sites, β = 1)
+
+Returns an q x B matrix of free energies `F`, where `q` is the number of possible values
+of each site, and `B` the number of data points. The entry `F[x,b]` gives the free energy
+cost of flipping site `site[b]` of `v[b]` from its original value to `x`, that is:
+
+    F[x, b] = free_energy(rbm, v_, β) - free_energy(rbm, v[b], β)
+
+where `v_` is the same as `v[b]` in all sites but `site[b]`, where `v_` has the value `x`.
+"""
+function substitution_matrix_sites end
+
+function substitution_matrix_sites(
+    rbm::RBM{<:Binary},
+    v::AbstractArray,
+    sites::AbstractVector{<:CartesianIndex},
+    β::Real = true
+)
+    @assert size(v) == (size(rbm.visible)..., length(sites))
+    E = free_energy(rbm, v, β)
+    ΔE = zeros(2, length(sites))
+    for (k, x) in enumerate((false, true))
+        v_ = copy(v)
+        for (b, i) in enumerate(sites)
+            v_[i, b] = x
+        end
+        ΔE[k,:] .= free_energy(rbm, v_, β) - E
+    end
+    return ΔE
+end
+
+function substitution_matrix_sites(
     rbm::RBM{<:Spin},
     v::AbstractArray,
     sites::AbstractVector{<:CartesianIndex},
-    β::Real = 1
+    β::Real = true
 )
-    bidx = batchindices(rbm.visible, v)
-    F = free_energy(rbm, v, β)
-    v_ = copy(v)
-    for b in bidx
-        v_[sites[b], b] = -v_[sites[b], b]
+    @assert size(v) == (size(rbm.visible)..., length(sites))
+    E = free_energy(rbm, v, β)
+    ΔE = zeros(2, length(sites))
+    for (k, x) in enumerate((-1, +1))
+        v_ = copy(v)
+        for (b, i) in enumerate(sites)
+            v_[i, b] = x
+        end
+        ΔE[k,:] .= free_energy(rbm, v_, β) - E
     end
-    F_ = free_energy(rbm, v_, β)
-    return LogExpFunctions.logaddexp.(-β .* F, -β .* F_)
+    return ΔE
 end
 
-function log_site_traces(
+function substitution_matrix_sites(
     rbm::RBM{<:Potts},
     v::AbstractArray,
     sites::AbstractVector{<:CartesianIndex},
-    β::Real = 1
+    β::Real = true
 )
-    bidx = batchindices(rbm.visible, v)
-    xidx = siteindices(rbm.visible)
-    [log_site_trace(rbm, v[:, xidx, b], sites[b], β) for b in bidx]
+    @assert size(v) == (size(rbm.visible)..., length(sites))
+    E = free_energy(rbm, v, β)
+    ΔE = zeros(rbm.visible.q, length(sites))
+    for x in 1:rbm.visible.q
+        v_ = copy(v)
+        for (b, i) in enumerate(sites)
+            v_[:, i, b] .= false
+            v_[x, i, b] = true
+        end
+        ΔE[x,:] .= free_energy(rbm, v_, β) - E
+    end
+    return ΔE
 end
 
 """
-    log_site_trace(site, rbm, v, β=1)
+    substitution_matrix_exhaustive(rbm, v, β = 1)
 
-Log of the trace over configurations of `site`. Here `v` must consist of
-a single batch.
+Returns an q x N x B tensor of free energies `F`, where `q` is the number of possible
+values of each site, `B` the number of data points, and `N` the sequence length:
+
+````
+q, N, B = size(v)
+```
+
+Thus `F` and `v` have the same size.
+The entry `F[x,i,b]` gives the free energy cost of flipping site `i` to `x`
+of `v[b]` from its original value to `x`, that is:
+
+    F[x,i,b] = free_energy(rbm, v_, β) - free_energy(rbm, v[b], β)
+
+where `v_` is the same as `v[b]` in all sites but `i`, where `v_` has the value `x`.
+
+Note that `i` can be a set of indices.
 """
-function log_site_trace(rbm::RBM{<:Binary}, v::AbstractArray, site::CartesianIndex, β::Real = true)
-    size(rbm.visible) == size(v) || dimserror() # single batch
-    v_ = copy(v)
-    v_[site] = 1 - v_[site]
-    F = free_energy(rbm, v, β)
-    F_ = free_energy(rbm, v_, β)
-    return LogExpFunctions.logaddexp(-β * F, -β * F_)
+function substitution_matrix_exhaustive end
+
+function substitution_matrix_exhaustive(
+    rbm::RBM{<:Binary}, v::AbstractArray, β::Real = true
+)
+    @assert size(v) == (size(rbm.visible)..., size(v)[end])
+    E = free_energy(rbm, v, β)
+    ΔE = zeros(2, size(v)...)
+    for i in CartesianIndices(size(v)[begin:(end - 1)])
+        v_ = copy(v)
+        for (k, x) in enumerate((false, true))
+            v_[i, :] .= x
+            ΔE[k, i, :] .= free_energy(rbm, v_, β) - E
+        end
+    end
+    return ΔE
 end
 
-function log_site_trace(site::CartesianIndex, rbm::RBM{<:Spin}, v::AbstractArray, β::Real = true)
-    size(rbm.visible) == size(v) || dimserror() # single batch
-    v_ = copy(v)
-    v_[site] = -v_[site]
-    F = free_energy(rbm, v, β)
-    F_ = free_energy(rbm, v_, β)
-    return LogExpFunctions.logaddexp(-β * F, -β * F_)
+function substitution_matrix_exhaustive(
+    rbm::RBM{<:Spin}, v::AbstractArray, β::Real = true
+)
+    @assert size(v) == (size(rbm.visible)..., size(v)[end])
+    E = free_energy(rbm, v, β)
+    ΔE = zeros(2, size(v)...)
+    for i in CartesianIndices(size(v)[begin:(end - 1)])
+        v_ = copy(v)
+        for (k, x) in enumerate((-1, 1))
+            v_[i, :] .= x
+            ΔE[k, i, :] .= free_energy(rbm, v_, β) - E
+        end
+    end
+    return ΔE
 end
 
-function log_site_trace(site::CartesianIndex, rbm::RBM{<:Potts}, v::AbstractArray, β::Real = 1)
-    size(rbm.visible) == size(v) || dimserror() # single batch code
-    v_ = copy(v)
-    v_[:, site] .= false
-    Fs = [free_energy_flip!(v_, site, a, rbm, β) for a in 1:rbm.visible.q]
-    return LogExpFunctions.logsumexp(-β .* Fs)
-end
-
-function free_energy_flip!(v::AbstractArray, site::CartesianIndex, a::Int, rbm::RBM{<:Potts}, β::Real = 1)
-    size(rbm.visible) == size(v) || dimserror() # single batch code
-    v[a, site] = true
-    F = free_energy(rbm, v, β)::Number
-    v[a, site] = false
-    return F
+function substitution_matrix_exhaustive(
+    rbm::RBM{<:Potts},
+    v::AbstractArray,
+    β::Real = true
+)
+    @assert size(v) == (size(rbm.visible)..., size(v)[end])
+    E = free_energy(rbm, v, β)
+    ΔE = zeros(size(v))
+    for i in CartesianIndices(size(v)[(begin + 1):(end - 1)])
+        v_ = copy(v)
+        for x in 1:rbm.visible.q
+            v_[:, i, :] .= false
+            v_[x, i, :] .= true
+            ΔE[x, i, :] .= free_energy(rbm, v_, β) - E
+        end
+    end
+    return ΔE
 end
