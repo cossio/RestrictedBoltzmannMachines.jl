@@ -110,16 +110,16 @@ function substitution_matrix_sites(
     β::Real = true
 )
     @assert size(v) == (size(rbm.visible)..., length(sites))
-    E = free_energy(rbm, v, β)
-    ΔE = zeros(2, length(sites))
-    for (k, x) in enumerate((-1, +1))
+    E_ = zeros(2, length(sites))
+    for (k, x) in enumerate((-1, 1))
         v_ = copy(v)
         for (b, i) in enumerate(sites)
             v_[i, b] = x
         end
-        ΔE[k,:] .= free_energy(rbm, v_, β) - E
+        E_[k,:] .= free_energy(rbm, v_, β)
     end
-    return ΔE
+    E = [E_[(v[i, b] > 0) + 1, b] for (b, i) in enumerate(sites)]
+    return E_ .- reshape(E, 1, length(sites))
 end
 
 function substitution_matrix_sites(
