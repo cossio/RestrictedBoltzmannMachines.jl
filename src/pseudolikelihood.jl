@@ -222,3 +222,38 @@ function substitution_matrix_exhaustive(
     E = [E_[c[i, b], i, b] for i in site_grid(rbm.visible), b in 1:B]
     return E_ .- reshape(E, 1, size(E)...)
 end
+
+#= ***
+For Binary and Spin layers, a specialized log_pseudolikelihood_sites is a bit faster.
+*** =#
+function log_pseudolikelihood_sites(
+    rbm::RBM{<:Binary},
+    v::AbstractArray,
+    sites::AbstractVector{<:CartesianIndex},
+    β::Real = true
+)
+    @assert size(v) == (size(rbm.visible)..., length(sites))
+    v_ = copy(v)
+    for (b, i) in enumerate(sites)
+        v_[i, b] = 1 - v_[i, b]
+    end
+    F = free_energy(rbm, v, β)
+    F_ = free_energy(rbm, v_, β)
+    return -LogExpFunctions.log1pexp.(β * (F - F_))
+end
+
+function log_pseudolikelihood_sites(
+    rbm::RBM{<:Spin},
+    v::AbstractArray,
+    sites::AbstractVector{<:CartesianIndex},
+    β::Real = true
+)
+    @assert size(v) == (size(rbm.visible)..., length(sites))
+    v_ = copy(v)
+    for (b, i) in enumerate(sites)
+        v_[i, b] = -v_[i, b]
+    end
+    F = free_energy(rbm, v, β)
+    F_ = free_energy(rbm, v_, β)
+    return -LogExpFunctions.log1pexp.(β * (F - F_))
+end
