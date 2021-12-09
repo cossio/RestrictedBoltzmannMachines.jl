@@ -74,12 +74,13 @@ end
     substitution_matrix_sites(rbm, v, sites, β = 1)
 
 Returns an q x B matrix of free energies `F`, where `q` is the number of possible values
-of each site, and `B` the number of data points. The entry `F[x,b]` gives the free energy
-cost of flipping site `site[b]` of `v[b]` from its original value to `x`, that is:
+of each site, and `B` the number of data points. The entry `F[x,b]` equals the free energy
+cost of flipping `site[b]` of `v[b]` to `x`, that is (schemetically):
 
-    F[x, b] = free_energy(rbm, v_, β) - free_energy(rbm, v[b], β)
+    F[x, b] = free_energy(rbm, v_) - free_energy(rbm, v)
 
-where `v_` is the same as `v[b]` in all sites but `site[b]`, where `v_` has the value `x`.
+where `v = v[b]`, and `v_` is the same as `v` in all sites except `site[b]`,
+where `v_` has the value `x`.
 """
 function substitution_matrix_sites end
 
@@ -90,16 +91,16 @@ function substitution_matrix_sites(
     β::Real = true
 )
     @assert size(v) == (size(rbm.visible)..., length(sites))
-    E = free_energy(rbm, v, β)
-    ΔE = zeros(2, length(sites))
+    E_ = zeros(2, length(sites))
     for (k, x) in enumerate((false, true))
         v_ = copy(v)
         for (b, i) in enumerate(sites)
             v_[i, b] = x
         end
-        ΔE[k,:] .= free_energy(rbm, v_, β) - E
+        E_[k,:] .= free_energy(rbm, v_, β)
     end
-    return ΔE
+    E = [E_[(v[i, b] > 0) + 1, b] for (b, i) in enumerate(sites)]
+    return E_ .- reshape(E, 1, length(sites))
 end
 
 function substitution_matrix_sites(
