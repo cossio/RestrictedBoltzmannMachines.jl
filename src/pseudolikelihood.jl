@@ -90,8 +90,9 @@ function substitution_matrix_sites(
     sites::AbstractVector{<:CartesianIndex},
     β::Real = true
 )
-    @assert size(v) == (size(rbm.visible)..., length(sites))
-    E_ = zeros(2, length(sites))
+    B = length(sites)
+    @assert size(v) == (size(rbm.visible)..., B)
+    E_ = zeros(2, B)
     for (k, x) in enumerate((false, true))
         v_ = copy(v)
         for (b, i) in enumerate(sites)
@@ -100,7 +101,7 @@ function substitution_matrix_sites(
         E_[k,:] .= free_energy(rbm, v_, β)
     end
     E = [E_[(v[i, b] > 0) + 1, b] for (b, i) in enumerate(sites)]
-    return E_ .- reshape(E, 1, length(sites))
+    return E_ .- reshape(E, 1, B)
 end
 
 function substitution_matrix_sites(
@@ -109,8 +110,9 @@ function substitution_matrix_sites(
     sites::AbstractVector{<:CartesianIndex},
     β::Real = true
 )
-    @assert size(v) == (size(rbm.visible)..., length(sites))
-    E_ = zeros(2, length(sites))
+    B = length(sites)
+    @assert size(v) == (size(rbm.visible)..., B)
+    E_ = zeros(2, B)
     for (k, x) in enumerate((-1, 1))
         v_ = copy(v)
         for (b, i) in enumerate(sites)
@@ -119,7 +121,7 @@ function substitution_matrix_sites(
         E_[k,:] .= free_energy(rbm, v_, β)
     end
     E = [E_[(v[i, b] > 0) + 1, b] for (b, i) in enumerate(sites)]
-    return E_ .- reshape(E, 1, length(sites))
+    return E_ .- reshape(E, 1, B)
 end
 
 function substitution_matrix_sites(
@@ -128,18 +130,20 @@ function substitution_matrix_sites(
     sites::AbstractVector{<:CartesianIndex},
     β::Real = true
 )
-    @assert size(v) == (size(rbm.visible)..., length(sites))
-    E = free_energy(rbm, v, β)
-    ΔE = zeros(rbm.visible.q, length(sites))
+    B = length(sites)
+    @assert size(v) == (size(rbm.visible)..., B)
+    E_ = zeros(rbm.visible.q, B)
     for x in 1:rbm.visible.q
         v_ = copy(v)
         for (b, i) in enumerate(sites)
             v_[:, i, b] .= false
             v_[x, i, b] = true
         end
-        ΔE[x,:] .= free_energy(rbm, v_, β) - E
+        E_[x, :] .= free_energy(rbm, v_, β)
     end
-    return ΔE
+    c = onehot_decode(v)
+    E = [E_[c[i, b], b] for (b, i) in enumerate(sites)]
+    return E_ .- reshape(E, 1, B)
 end
 
 """
@@ -167,33 +171,35 @@ function substitution_matrix_exhaustive end
 function substitution_matrix_exhaustive(
     rbm::RBM{<:Binary}, v::AbstractArray, β::Real = true
 )
-    @assert size(v) == (size(rbm.visible)..., size(v)[end])
-    E = free_energy(rbm, v, β)
-    ΔE = zeros(2, size(v)...)
-    for i in CartesianIndices(size(v)[begin:(end - 1)])
+    B = size(v)[end]
+    @assert size(v) == (size(rbm.visible)..., B)
+    E_ = zeros(2, size(v)...)
+    for i in site_grid(rbm.visible)
         v_ = copy(v)
         for (k, x) in enumerate((false, true))
             v_[i, :] .= x
-            ΔE[k, i, :] .= free_energy(rbm, v_, β) - E
+            E_[k, i, :] .= free_energy(rbm, v_, β)
         end
     end
-    return ΔE
+    E = [E_[(v[i,b] > 0) + 1, i, b] for i in site_grid(rbm.visible), b in 1:B]
+    return E_ .- reshape(E, 1, size(v)...)
 end
 
 function substitution_matrix_exhaustive(
     rbm::RBM{<:Spin}, v::AbstractArray, β::Real = true
 )
-    @assert size(v) == (size(rbm.visible)..., size(v)[end])
-    E = free_energy(rbm, v, β)
-    ΔE = zeros(2, size(v)...)
-    for i in CartesianIndices(size(v)[begin:(end - 1)])
+    B = size(v)[end]
+    @assert size(v) == (size(rbm.visible)..., B)
+    E_ = zeros(2, size(v)...)
+    for i in site_grid(rbm.visible)
         v_ = copy(v)
         for (k, x) in enumerate((-1, 1))
             v_[i, :] .= x
-            ΔE[k, i, :] .= free_energy(rbm, v_, β) - E
+            E_[k, i, :] .= free_energy(rbm, v_, β)
         end
     end
-    return ΔE
+    E = [E_[(v[i,b] > 0) + 1, i, b] for i in site_grid(rbm.visible), b in 1:B]
+    return E_ .- reshape(E, 1, size(v)...)
 end
 
 function substitution_matrix_exhaustive(
@@ -201,16 +207,18 @@ function substitution_matrix_exhaustive(
     v::AbstractArray,
     β::Real = true
 )
-    @assert size(v) == (size(rbm.visible)..., size(v)[end])
-    E = free_energy(rbm, v, β)
-    ΔE = zeros(size(v))
-    for i in CartesianIndices(size(v)[(begin + 1):(end - 1)])
+    B = size(v)[end]
+    @assert size(v) == (size(rbm.visible)..., B)
+    E_ = zeros(size(v))
+    for i in site_grid(rbm.visible)
         v_ = copy(v)
         for x in 1:rbm.visible.q
             v_[:, i, :] .= false
             v_[x, i, :] .= true
-            ΔE[x, i, :] .= free_energy(rbm, v_, β) - E
+            E_[x, i, :] .= free_energy(rbm, v_, β)
         end
     end
-    return ΔE
+    c = onehot_decode(v)
+    E = [E_[c[i, b], i, b] for i in site_grid(rbm.visible), b in 1:B]
+    return E_ .- reshape(E, 1, size(E)...)
 end
