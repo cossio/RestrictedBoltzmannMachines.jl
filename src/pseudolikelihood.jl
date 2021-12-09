@@ -226,6 +226,7 @@ end
 #= ***
 For Binary and Spin layers, a specialized log_pseudolikelihood_sites is a bit faster.
 *** =#
+
 function log_pseudolikelihood_sites(
     rbm::RBM{<:Binary},
     v::AbstractArray,
