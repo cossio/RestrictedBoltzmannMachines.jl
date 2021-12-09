@@ -22,3 +22,5 @@ Install with:
 ```
 ] add RestrictedBoltzmannMachines
 ```
+
+For examples see the documentation (check out the badges above).
