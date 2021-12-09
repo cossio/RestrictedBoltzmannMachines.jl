@@ -1,7 +1,14 @@
-"""
+@doc raw"""
     Spin(θ)
 
 Spin layer, with external fields `θ`.
+The energy of a layer with units ``s_i`` is given by:
+
+```math
+E = -\sum_i \theta_i s_i
+```
+
+where each spin ``s_i`` takes values ``\pm 1``.
 """
 struct Spin{T}
     θ::T
