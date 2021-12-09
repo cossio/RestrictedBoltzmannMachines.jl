@@ -1,7 +1,7 @@
 """
     onehot_encode(A, code)
 
-Given an array `A` of `N` dimensions, returns a one-hot encoded array of
+Given an array `A` of `N` dimensions, returns a one-hot encoded `BitArray` of
 `N + 1` dimensions where single entries of the first dimension are one.
 """
 function onehot_encode(A::AbstractArray{T}, code = sort(unique(A))) where {T}
