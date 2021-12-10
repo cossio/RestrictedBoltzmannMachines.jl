@@ -123,6 +123,7 @@ end
     x = randn(N, B)
 
     prelu = RBMs.pReLU(randn(N), randn(N), randn(N), randn(N))
+    drelu = RBMs.dReLU(prelu)
     @test prelu.θ ≈ RBMs.pReLU(drelu).θ
     @test prelu.Δ ≈ RBMs.pReLU(drelu).Δ
     @test prelu.γ ≈ RBMs.pReLU(drelu).γ
@@ -131,7 +132,7 @@ end
     @test RBMs.cgf(prelu, x) ≈ @inferred RBMs.cgf(drelu, x)
 
     drelu = RBMs.dReLU(randn(N), randn(N), randn(N), randn(N))
-    prelu = pReLU(drelu)
+    prelu = RBMs.pReLU(drelu)
     @test drelu.θp ≈ RBMs.dReLU(prelu).θp
     @test drelu.θn ≈ RBMs.dReLU(prelu).θn
     @test drelu.γp ≈ RBMs.dReLU(prelu).γp
