@@ -1,23 +1,29 @@
 #=
-We begin by importing the required packages. We load MNIST via MLDatasets.jl.
-Here we also plot some of the first digits.
+We begin by importing the required packages.
+We load MNIST via the MLDatasets.jl package.
 =#
 
 import RestrictedBoltzmannMachines as RBMs
 using CairoMakie
 import MLDatasets
+nothing #hide
 
-fig = Figure(resolution=(500, 500))
-for i in 1:5, j in 1:5
+#=
+Let's visualize some random digits.
+=#
+
+fig = Figure(resolution=(700, 300))
+for i in 1:3, j in 1:7
     ax = Axis(fig[i,j])
     hidedecorations!(ax)
-    heatmap!(ax, first(MLDatasets.MNIST.traindata(5 * (i - 1) + j)))
+    heatmap!(ax, MLDatasets.MNIST.traintensor(rand(1:60000)))
 end
 fig
 
 #=
 First we load the MNIST dataset.
 =#
+
 train_x, train_y = MLDatasets.MNIST.traindata()
 tests_x, tests_y = MLDatasets.MNIST.testdata()
 nothing #hide
@@ -26,6 +32,7 @@ nothing #hide
 We will train an RBM with binary (0,1) visible and hidden units.
 Therefore we binarize the data first.
 =#
+
 train_x = float(train_x .≥ 0.5)
 tests_x = float(tests_x .≥ 0.5)
 train_y = float(train_y)
@@ -42,13 +49,14 @@ Thus be careful that the data and the RBM weights have the same float type.
 =#
 
 #=
-Plot some examples of the binarized data (same digits as above).
+Plot some examples of the binarized data.
 =#
-fig = Figure(resolution=(500, 500))
-for i in 1:5, j in 1:5
+
+fig = Figure(resolution=(700, 300))
+for i in 1:3, j in 1:7
     ax = Axis(fig[i,j])
     hidedecorations!(ax)
-    heatmap!(ax, train_x[:,:,5 * (i - 1) + j])
+    heatmap!(ax, train_x[:,:, rand(1:60000)])
 end
 fig
 
@@ -58,6 +66,7 @@ It is recommended to initialize the weights as random normals with zero mean and
 standard deviation `= 1/sqrt(number of hidden units)`.
 See [Glorot & Bengio 2010](http://proceedings.mlr.press/v9/glorot10a).
 =#
+
 rbm = RBMs.RBM(RBMs.Binary(28,28), RBMs.Binary(100), randn(28, 28, 100) / 28)
 nothing #hide
 
@@ -68,23 +77,50 @@ This returns a MVHistory object
 containing things like the pseudo-likelihood of the data during training.
 We print here the time spent in the training as a rough benchmark.
 =#
+
 history = RBMs.train!(rbm, train_x; epochs=100, batchsize=128)
 nothing #hide
 
 #=
-Plot log-pseudolikelihood during learning.
+Plot of log-pseudolikelihood during learning.
 =#
 lines(get(history, :lpl)...)
 
 #=
-Generate some RBM samples.
+Now let's generate some random RBM samples.
+First, we select random data digits to be initial conditions for the Gibbs sampling:
 =#
-dream_x = RBMs.sample_v_from_v(rbm, train_x; steps=20);
 
-fig = Figure(resolution=(500, 500))
-for i in 1:5, j in 1:5
+fantasy_x_init = train_x[:, :, rand(1:60000, 21)]
+
+#=
+Let's plot the selected digits.
+=#
+
+fantasy_x_init_ = reshape(fantasy_x_init, 28, 28, 3, 7)
+fig = Figure(resolution=(700, 300))
+for i in 1:3, j in 1:7
     ax = Axis(fig[i,j])
     hidedecorations!(ax)
-    heatmap!(ax, dream_x[:,:,5 * (i - 1) + j])
+    heatmap!(ax, fantasy_x_init_[:,:,i,j])
+end
+fig
+
+#=
+Now we do the Gibbs sampling
+=#
+
+@elapsed fantasy_x = RBMs.sample_v_from_v(rbm, fantasy_x_init; steps=100)
+
+#=
+Plot the resulting samples
+=#
+
+fantasy_x_ = reshape(fantasy_x, 28, 28, 3, 7)
+fig = Figure(resolution=(700, 300))
+for i in 1:3, j in 1:7
+    ax = Axis(fig[i,j])
+    hidedecorations!(ax)
+    heatmap!(ax, fantasy_x_[:,:,i,j])
 end
 fig
