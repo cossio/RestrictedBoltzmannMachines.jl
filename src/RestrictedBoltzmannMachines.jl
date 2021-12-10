@@ -51,4 +51,10 @@ module RestrictedBoltzmannMachines
 
     include("pseudolikelihood.jl")
     include("partition.jl")
+
+    #=
+    Here we import ForwardDiff, which must come last.
+    So let's put this include last.
+    =#
+    include("diffrules.jl")
 end
