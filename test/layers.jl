@@ -113,8 +113,8 @@ end
 
     layer = RBMs.Gaussian([0.4], [0.2])
     samples = RBMs.sample_from_inputs(layer, zeros(1, 10^6))
-    @test mean(samples) ≈ 0.4 / 0.2 rtol=0.1
-    @test std(samples) ≈ 1 / √0.2 rtol=0.1
+    @test mean(samples) ≈ 2 rtol=0.1
+    @test std(samples) ≈ √5 rtol=0.1
 end
 
 @testset "pReLU / dReLU convert" begin
@@ -122,19 +122,22 @@ end
     B = 13
     x = randn(N, B)
 
-    layer = RBMs.pReLU(randn(N), randn(N), randn(N), randn(N))
-    @test layer.θ ≈ RBMs.pReLU(RBMs.dReLU(layer)).θ
-    @test layer.Δ ≈ RBMs.pReLU(RBMs.dReLU(layer)).Δ
-    @test layer.γ ≈ RBMs.pReLU(RBMs.dReLU(layer)).γ
-    @test layer.η ≈ RBMs.pReLU(RBMs.dReLU(layer)).η
-    @test RBMs.energy(layer, x) ≈ RBMs.energy(RBMs.dReLU(layer), x)
+    prelu = RBMs.pReLU(randn(N), randn(N), randn(N), randn(N))
+    @test prelu.θ ≈ RBMs.pReLU(drelu).θ
+    @test prelu.Δ ≈ RBMs.pReLU(drelu).Δ
+    @test prelu.γ ≈ RBMs.pReLU(drelu).γ
+    @test prelu.η ≈ RBMs.pReLU(drelu).η
+    @test RBMs.energy(prelu, x) ≈ @inferred RBMs.energy(drelu, x)
+    @test RBMs.cgf(prelu, x) ≈ @inferred RBMs.cgf(drelu, x)
 
-    layer = RBMs.dReLU(randn(N), randn(N), randn(N), randn(N))
-    @test layer.θp ≈ RBMs.dReLU(RBMs.pReLU(layer)).θp
-    @test layer.θn ≈ RBMs.dReLU(RBMs.pReLU(layer)).θn
-    @test layer.γp ≈ RBMs.dReLU(RBMs.pReLU(layer)).γp
-    @test layer.γn ≈ RBMs.dReLU(RBMs.pReLU(layer)).γn
-    @test RBMs.energy(layer, x) ≈ RBMs.energy(RBMs.pReLU(layer), x)
+    drelu = RBMs.dReLU(randn(N), randn(N), randn(N), randn(N))
+    prelu = pReLU(drelu)
+    @test drelu.θp ≈ RBMs.dReLU(prelu).θp
+    @test drelu.θn ≈ RBMs.dReLU(prelu).θn
+    @test drelu.γp ≈ RBMs.dReLU(prelu).γp
+    @test drelu.γn ≈ RBMs.dReLU(prelu).γn
+    @test RBMs.energy(drelu, x) ≈ @inferred RBMs.energy(prelu, x)
+    @test RBMs.cgf(drelu, x) ≈ @inferred RBMs.cgf(prelu, x)
 end
 
 @testset "dReLU" begin
@@ -143,7 +146,6 @@ end
     x = randn(N, B)
     xp = max.(x, 0)
     xn = min.(x, 0)
-
     layer = RBMs.dReLU(randn(N), randn(N), rand(N), rand(N))
     E = @. abs(layer.γp) * xp^2 / 2 + abs(layer.γn) * xn^2 / 2 - layer.θp * xp - layer.θn * xn
     @test RBMs.energy(layer, x) ≈ vec(sum(E; dims=1))
