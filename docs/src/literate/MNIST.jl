@@ -97,12 +97,12 @@ fantasy_x_init = train_x[:, :, rand(1:60000, 21)]
 Let's plot the selected digits.
 =#
 
-fantasy_x_init = reshape(fantasy_x_init, 28, 28, 3, 7)
+fantasy_x_init_ = reshape(fantasy_x_init, 28, 28, 3, 7)
 fig = Figure(resolution=(700, 300))
 for i in 1:3, j in 1:7
     ax = Axis(fig[i,j])
     hidedecorations!(ax)
-    heatmap!(ax, fantasy_x_init[:,:,i,j])
+    heatmap!(ax, fantasy_x_init_[:,:,i,j])
 end
 fig
 
@@ -116,11 +116,11 @@ Now we do the Gibbs sampling
 Plot the resulting samples
 =#
 
-fantasy_x = reshape(fantasy_x, 28, 28, 3, 7)
+fantasy_x_ = reshape(fantasy_x, 28, 28, 3, 7)
 fig = Figure(resolution=(700, 300))
 for i in 1:3, j in 1:7
     ax = Axis(fig[i,j])
     hidedecorations!(ax)
-    heatmap!(ax, fantasy_x[:,:,i,j])
+    heatmap!(ax, fantasy_x_[:,:,i,j])
 end
 fig
