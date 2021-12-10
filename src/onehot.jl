@@ -4,7 +4,7 @@
 Given an array `A` of `N` dimensions, returns a one-hot encoded `BitArray` of
 `N + 1` dimensions where single entries of the first dimension are one.
 """
-function onehot_encode(A::AbstractArray{T}, code = sort(unique(A))) where {T}
+function onehot_encode(A::AbstractArray, code = sort(unique(A)))
     return reshape(A, 1, size(A)...) .== code
 end
 
