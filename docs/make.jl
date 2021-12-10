@@ -27,11 +27,6 @@ that doesn't happen.
 clear_md_files(literate_dir)
 
 #=
-Helper function to extract filename (without extension) from file paths.
-=#
-filename(file) = first(splitext(basename(file)))
-
-#=
 Run Literate.jl on the .jl source files within docs/literate.
 This creates the markdown .md files inside docs/src/literate,
 with the same name but with the extension changes (.jl -> .md).
