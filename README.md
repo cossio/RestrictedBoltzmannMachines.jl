@@ -12,7 +12,8 @@ https://github.com/dfdx/Boltzmann.jl
 
 https://github.com/stefan-m-lenz/BoltzmannMachines.jl
 
-In contrast to those packages, here we adopt a generic approach that allows defining any kind of unit potentials (such as ReLU units, which are not included in those two packages).
+In contrast to those packages, here we adopt a generic approach that allows defining any kind of unit potentials (such as ReLU units, which are not included in those two packages), and use them as visible or hidden layers of the RBM.
+On the other hand, those two repos support deep Boltzmann machines, which we do not.
 
 For a Python 3 implementation checkout https://github.com/jertubiana/PGM, which originates the `dReLU` layer and showcases nice applications to protein and neural data.
 
