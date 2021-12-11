@@ -7,8 +7,7 @@ module RestrictedBoltzmannMachines
     export MVHistory
 
     export Binary, Spin, Potts
-    export Gaussian, StdGaussian
-    export ReLU, dReLU, pReLU
+    export Gaussian, ReLU, dReLU, pReLU
     export RBM
     export flip_layers
 

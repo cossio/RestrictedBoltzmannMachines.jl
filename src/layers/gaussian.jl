@@ -49,38 +49,3 @@ function cgf(layer::Gaussian, inputs::AbstractArray, β::Real)
     layer_ = Gaussian(layer.θ .* β, layer.γ .* β)
     return cgf(layer_, inputs .* β) / β
 end
-
-struct StdGaussian{N}
-    size::NTuple{N,Int}
-    function StdGaussian(n::Int...)
-        @assert all(n .≥ 0)
-        return new{length(n)}(n)
-    end
-end
-
-function energy(layer::StdGaussian, x::AbstractArray)
-    E = @. x^2 / 2
-    return sum_(E; dims = layerdims(layer))
-end
-
-function sample_from_inputs(
-    layer::StdGaussian,
-    inputs::AbstractArray,
-    β::Real = one(eltype(inputs))
-)
-    @assert size(inputs) == (size(layer)..., size(inputs)[end])
-    x = inputs ./ √β
-    z = randn(eltype(x), size(x))
-    return @. z / √β + x
-end
-
-function cgf(layer::StdGaussian, inputs::AbstractArray, β::Real = one(eltype(inputs)))
-    @assert size(inputs) == (size(layer)..., size(inputs)[end])
-    Γ = @. inputs^2 / 2 - log(β/π/2)/(2β)
-    return sum_(Γ; dims = layerdims(layer))
-end
-
-Base.ndims(layer::StdGaussian) = length(layer.size)
-Base.size(layer::StdGaussian) = layer.size
-Base.size(layer::StdGaussian, d::Int) = layer.size[d]
-Base.length(layer::StdGaussian) = prod(layer.size)

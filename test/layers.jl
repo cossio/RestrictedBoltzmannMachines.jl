@@ -5,7 +5,6 @@ _layers = (
     RBMs.Spin,
     RBMs.Potts,
     RBMs.Gaussian,
-    RBMs.StdGaussian,
     RBMs.ReLU,
     RBMs.dReLU,
     RBMs.pReLU
