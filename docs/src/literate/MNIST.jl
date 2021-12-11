@@ -123,11 +123,11 @@ nothing #hide
 After training, the pseudolikelihood score of the data improves significantly.
 =#
 
-@time RBMs.log_pseudolikelihood(rbm, train_x) |> mean
+RBMs.log_pseudolikelihood(rbm, train_x) |> mean
 
 #
 
-@time RBMs.log_pseudolikelihood(rbm, tests_x) |> mean
+RBMs.log_pseudolikelihood(rbm, tests_x) |> mean
 
 #=
 Plot of log-pseudolikelihood during learning.
