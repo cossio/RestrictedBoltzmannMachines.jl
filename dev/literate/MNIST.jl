@@ -5,7 +5,7 @@ We load MNIST via the MLDatasets.jl package.
 
 import RestrictedBoltzmannMachines as RBMs
 using CairoMakie
-import MLDatasets
+import MLDatasets, Flux
 nothing #hide
 
 #=
@@ -33,20 +33,26 @@ We will train an RBM with binary (0,1) visible and hidden units.
 Therefore we binarize the data first.
 =#
 
-train_x = float(train_x .≥ 0.5)
-tests_x = float(tests_x .≥ 0.5)
-train_y = float(train_y)
-tests_y = float(tests_y)
+train_x = train_x .≥ 0.5
+tests_x = tests_x .≥ 0.5
 nothing #hide
 
 #=
-In the previous code block, notice how we converted `train_x`, `train_y`, ..., and so on,
-to floats using `float`, which in this case converts to `Float64`.
-The RBM we will define below also uses `Float64` to store weights (it's the default).
-This is important if we want to hit blas matrix multiplies, which are much faster than,
-*e.g.*, using a `BitArray` to store the data.
-Thus be careful that the data and the RBM weights have the same float type.
+The above `train_x` and `tests_x` are `BitArray`s.
+Though convenient in terms of memory space, these are very slow in linear algebra.
+Since we frequently multiply data configurations times the weights of our RBM,
+we want to speed this up.
+So we convert to floats, which have much faster matrix multiplies thanks to BLAS.
+We will use `Float32` here.
+To hit BLAS, this must be consistent with the types we use in the parameters of the RBM
+below.
 =#
+
+Float = Float32
+train_x = Float.(train_x)
+tests_x = Float.(tests_x)
+train_y = Float.(train_y)
+tests_y = Float.(tests_y)
 
 #=
 Plot some examples of the binarized data.
@@ -65,20 +71,25 @@ Initialize an RBM with 100 hidden units.
 It is recommended to initialize the weights as random normals with zero mean and
 standard deviation `= 1/sqrt(number of hidden units)`.
 See [Glorot & Bengio 2010](http://proceedings.mlr.press/v9/glorot10a).
+
+Notice how we pass the `Float` type, to set the parameter type of the layers and weights
+in the RBM.
 =#
 
-rbm = RBMs.RBM(RBMs.Binary(28,28), RBMs.Binary(100), randn(28, 28, 100) / 28)
+rbm = RBMs.RBM(RBMs.Binary(Float,28,28), RBMs.Binary(Float,200), randn(Float,28,28,200)/28)
 nothing #hide
 
 #=
 Train the RBM on the data.
-This returns a MVHistory object
-(from [ValueHistories.jl](https://github.com/JuliaML/ValueHistories.jl)),
+This returns a [MVHistory](https://github.com/JuliaML/ValueHistories.jl) object
 containing things like the pseudo-likelihood of the data during training.
 We print here the time spent in the training as a rough benchmark.
 =#
 
-history = RBMs.train!(rbm, train_x; epochs=100, batchsize=128)
+history = RBMs.train!(
+    rbm, train_x; epochs=100, batchsize=128,
+    optimizer=Flux.ADAMW(0.001f0, (0.9f0, 0.999f0), 0.001f0)
+)
 nothing #hide
 
 #=
@@ -92,6 +103,7 @@ First, we select random data digits to be initial conditions for the Gibbs sampl
 =#
 
 fantasy_x_init = train_x[:, :, rand(1:60000, 21)]
+nothing #hide
 
 #=
 Let's plot the selected digits.
@@ -107,13 +119,13 @@ end
 fig
 
 #=
-Now we do the Gibbs sampling
+Now we do the Gibbs sampling to generate the RBM digits.
 =#
 
-@elapsed fantasy_x = RBMs.sample_v_from_v(rbm, fantasy_x_init; steps=100)
+@elapsed fantasy_x = RBMs.sample_v_from_v(rbm, fantasy_x_init; steps=1000)
 
 #=
-Plot the resulting samples
+Plot the resulting samples.
 =#
 
 fantasy_x_ = reshape(fantasy_x, 28, 28, 3, 7)
