@@ -30,9 +30,7 @@ function energy(layer::dReLU, x::AbstractArray)
 end
 
 function cgf(layer::dReLU, inputs::AbstractArray)
-    Γp = relu_cgf.( inputs .+ layer.θp, layer.γp)
-    Γn = relu_cgf.(-inputs .- layer.θn, layer.γn)
-    Γ = LogExpFunctions.logaddexp.(Γp, Γn)
+    Γ = drelu_cgf.(inputs .+ layer.θp, inputs .+ layer.θn, layer.γp, layer.γn)
     return sum_(Γ; dims = layerdims(layer))
 end
 
@@ -50,12 +48,18 @@ function sample_from_inputs(layer::dReLU, inputs::AbstractArray, β::Real)
     return sample_from_inputs(layer_, inputs .* β)
 end
 
+function drelu_cgf(θp::Real, θn::Real, γp::Real, γn::Real)
+    Γp = relu_cgf( θp, γp)
+    Γn = relu_cgf(-θn, γn)
+    return LogExpFunctions.logaddexp(Γp, Γn)
+end
+
 function drelu_rand(θp::Real, θn::Real, γp::Real, γn::Real)
-    Γp = relu_cgf(+θp, γp)
+    Γp = relu_cgf( θp, γp)
     Γn = relu_cgf(-θn, γn)
     Γ = LogExpFunctions.logaddexp(Γp, Γn)
     if rand(typeof(Γ)) ≤ exp(Γp - Γ)
-        return +relu_rand(+θp, γp)
+        return  relu_rand( θp, γp)
     else
         return -relu_rand(-θn, γn)
     end

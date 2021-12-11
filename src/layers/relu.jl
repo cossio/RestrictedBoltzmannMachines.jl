@@ -48,11 +48,13 @@ function sample_from_inputs(layer::ReLU, inputs::AbstractArray, β::Real)
 end
 
 function relu_cgf(θ::Real, γ::Real)
-    return SpecialFunctions.logerfcx(-θ / √(2abs(γ))) - log(2abs(γ)/π)/2
+    γa = abs(γ)
+    return SpecialFunctions.logerfcx(-θ / √(2γa)) - log(2γa/π)/2
 end
 
 function relu_rand(θ::Real, γ::Real)
-    μ = θ / abs(γ)
-    σ = √inv(abs(γ))
+    γa = abs(γ)
+    μ = θ / γa
+    σ = √inv(γa)
     return randnt_half(μ, σ)
 end

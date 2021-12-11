@@ -14,26 +14,28 @@ We specialize to the case where `b = Inf`.
 
 Random standard normal lower truncated at `a` (that is, Z ≥ a).
 """
-function randnt(rng::AbstractRNG, a::Real)
-    T = typeof(float(a))
+randnt(rng::AbstractRNG, a::Real) = randnt(rng, float(a))
+randnt(rng::AbstractRNG, a::BigFloat) = randnt(rng, Float64(a))
+randnt(a::Real) = randnt(Random.GLOBAL_RNG, a)
+
+function randnt(rng::AbstractRNG, a::Base.IEEEFloat)
     if a ≤ 0
         while true
-            r = randn(rng, T)
+            r = randn(rng, typeof(a))
             r ≥ a && return r
         end
     else
         t = sqrt1half(a)
-        !(t < Inf) && return float(a)
+        !(t < Inf) && return a
         while true
-            r = a + randexp(rng, T) / t
-            u = rand(rng, T)
+            r = a + randexp(rng, typeof(a)) / t
+            u = rand(rng, typeof(a))
             if u < exp(-(r - t)^2 / 2)
                 return r
             end
         end
     end
 end
-randnt(a::Real) = randnt(Random.GLOBAL_RNG, a)
 
 """
     sqrt1half(x)
@@ -41,7 +43,8 @@ randnt(a::Real) = randnt(Random.GLOBAL_RNG, a)
 Accurate computation of sqrt(1 + (x/2)^2) + |x|/2.
 """
 sqrt1half(x::Real) = _sqrt1half(float(abs(x)))
-function _sqrt1half(x)
+
+function _sqrt1half(x::Real)
     if x > 2/sqrt(eps(x))
         return x
     else
@@ -59,4 +62,5 @@ function randnt_half(rng::AbstractRNG, μ::Real, σ::Real)
     z = randnt(rng, -μ / σ)
     return μ + σ * z
 end
+
 randnt_half(μ::Real, σ::Real) = randnt_half(Random.GLOBAL_RNG, μ, σ)

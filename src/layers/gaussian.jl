@@ -41,11 +41,16 @@ end
 
 function cgf(layer::Gaussian, inputs::AbstractArray)
     @assert size(inputs) == (size(layer)..., size(inputs)[end])
-    Γ = @. (layer.θ + inputs)^2 / abs(2layer.γ) - log(abs(layer.γ)/π/2)/2
+    Γ = gauss_cgf.(layer.θ .+ inputs, layer.γ)
     return sum_(Γ; dims = layerdims(layer))
 end
 
 function cgf(layer::Gaussian, inputs::AbstractArray, β::Real)
     layer_ = Gaussian(layer.θ .* β, layer.γ .* β)
     return cgf(layer_, inputs .* β) / β
+end
+
+function gauss_cgf(θ::Real, γ::Real)
+    γa = abs(γ)
+    return θ^2 / 2γa - log(γa/π/2) / 2
 end
