@@ -12,8 +12,8 @@ nothing #hide
 Let's visualize some random digits.
 =#
 
-fig = Figure(resolution=(700, 300))
-for i in 1:3, j in 1:7
+fig = Figure(resolution=(800, 300))
+for i in 1:3, j in 1:8
     ax = Axis(fig[i,j], yreversed=true)
     hidedecorations!(ax)
     heatmap!(ax, MLDatasets.MNIST.traintensor(rand(1:60000)))
@@ -58,8 +58,8 @@ tests_y = Float.(tests_y)
 Plot some examples of the binarized data.
 =#
 
-fig = Figure(resolution=(700, 300))
-for i in 1:3, j in 1:7
+fig = Figure(resolution=(800, 300))
+for i in 1:3, j in 1:8
     ax = Axis(fig[i,j], yreversed=true)
     hidedecorations!(ax)
     heatmap!(ax, train_x[:,:, rand(1:60000)])
@@ -102,16 +102,16 @@ Now let's generate some random RBM samples.
 First, we select random data digits to be initial conditions for the Gibbs sampling:
 =#
 
-fantasy_x_init = train_x[:, :, rand(1:60000, 21)]
+fantasy_x_init = train_x[:, :, rand(1:60000, 3 * 8)]
 nothing #hide
 
 #=
 Let's plot the selected digits.
 =#
 
-fantasy_x_init_ = reshape(fantasy_x_init, 28, 28, 3, 7)
-fig = Figure(resolution=(700, 300))
-for i in 1:3, j in 1:7
+fantasy_x_init_ = reshape(fantasy_x_init, 28, 28, 3, 8)
+fig = Figure(resolution=(800, 300))
+for i in 1:3, j in 1:8
     ax = Axis(fig[i,j], yreversed=true)
     hidedecorations!(ax)
     heatmap!(ax, fantasy_x_init_[:,:,i,j])
@@ -128,9 +128,9 @@ Now we do the Gibbs sampling to generate the RBM digits.
 Plot the resulting samples.
 =#
 
-fantasy_x_ = reshape(fantasy_x, 28, 28, 3, 7)
-fig = Figure(resolution=(700, 300))
-for i in 1:3, j in 1:7
+fantasy_x_ = reshape(fantasy_x, 28, 28, 3, 8)
+fig = Figure(resolution=(800, 300))
+for i in 1:3, j in 1:8
     ax = Axis(fig[i,j], yreversed=true)
     hidedecorations!(ax)
     heatmap!(ax, fantasy_x_[:,:,i,j])
