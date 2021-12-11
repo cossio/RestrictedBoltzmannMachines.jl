@@ -160,7 +160,7 @@ fig
 Now we do the Gibbs sampling to generate the RBM digits.
 =#
 
-@elapsed fantasy_x = RBMs.sample_v_from_v(rbm, fantasy_x_init; steps=1000)
+@elapsed fantasy_x = RBMs.sample_v_from_v(rbm, fantasy_x_init; steps=10000)
 
 #=
 Plot the resulting samples.
