@@ -1,7 +1,6 @@
 using SafeTestsets, Random, Test
 
 @time @safetestset "util" begin include("util.jl") end
-@time @safetestset "DiffRules" begin include("diffrules.jl") end
 @time @safetestset "onehot" begin include("onehot.jl") end
 @time @safetestset "minibatches" begin include("minibatches.jl") end
 @time @safetestset "truncnorm" begin include("truncnorm/truncnorm.jl") end
