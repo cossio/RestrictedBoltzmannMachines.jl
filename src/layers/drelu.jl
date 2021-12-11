@@ -58,7 +58,7 @@ function drelu_rand(θp::Real, θn::Real, γp::Real, γn::Real)
     Γp = relu_cgf( θp, γp)
     Γn = relu_cgf(-θn, γn)
     Γ = LogExpFunctions.logaddexp(Γp, Γn)
-    if rand(typeof(Γ)) ≤ exp(Γp - Γ)
+    if randexp(typeof(Γ)) ≥ Γ - Γp
         return  relu_rand( θp, γp)
     else
         return -relu_rand(-θn, γn)
