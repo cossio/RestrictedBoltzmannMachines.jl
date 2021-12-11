@@ -4,7 +4,7 @@ We load MNIST via the MLDatasets.jl package.
 =#
 
 import RestrictedBoltzmannMachines as RBMs
-using CairoMakie
+using CairoMakie, Statistics
 import MLDatasets, Flux
 nothing #hide
 
@@ -81,6 +81,14 @@ rbm = RBMs.RBM(RBMs.Binary(Float,28,28), RBMs.Binary(Float,200), randn(Float,28,
 nothing #hide
 
 #=
+Initially, the RBM assigns a poor pseudolikelihood to the data.
+=#
+
+@time RBMs.log_pseudolikelihood(rbm, train_x) |> mean
+
+@time RBMs.log_pseudolikelihood(rbm, tests_x) |> mean
+
+#=
 Train the RBM on the data.
 This returns a [MVHistory](https://github.com/JuliaML/ValueHistories.jl) object
 containing things like the pseudo-likelihood of the data during training.
@@ -94,7 +102,16 @@ history = RBMs.train!(
 nothing #hide
 
 #=
+After training, the pseudolikelihood score of the data improves significantly.
+=#
+
+@time RBMs.log_pseudolikelihood(rbm, train_x) |> mean
+
+@time RBMs.log_pseudolikelihood(rbm, tests_x) |> mean
+
+#=
 Plot of log-pseudolikelihood during learning.
+Note that this shows the pseudolikelihood of the train data.
 =#
 lines(get(history, :lpl)...)
 
