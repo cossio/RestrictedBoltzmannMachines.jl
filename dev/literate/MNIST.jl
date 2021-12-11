@@ -70,7 +70,7 @@ fig
 #=
 Initialize an RBM with 100 hidden units.
 It is recommended to initialize the weights as random normals with zero mean and
-standard deviation `= 1/sqrt(number of hidden units)`.
+variance `= 1/(number of visible units)`.
 See [Glorot & Bengio 2010](http://proceedings.mlr.press/v9/glorot10a).
 
 Notice how we pass the `Float` type, to set the parameter type of the layers and weights
@@ -123,11 +123,11 @@ nothing #hide
 After training, the pseudolikelihood score of the data improves significantly.
 =#
 
-@time RBMs.log_pseudolikelihood(rbm, train_x) |> mean
+RBMs.log_pseudolikelihood(rbm, train_x) |> mean
 
 #
 
-@time RBMs.log_pseudolikelihood(rbm, tests_x) |> mean
+RBMs.log_pseudolikelihood(rbm, tests_x) |> mean
 
 #=
 Plot of log-pseudolikelihood during learning.
