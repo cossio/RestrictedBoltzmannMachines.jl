@@ -4,7 +4,7 @@ We load MNIST via the MLDatasets.jl package.
 =#
 
 import RestrictedBoltzmannMachines as RBMs
-using CairoMakie
+using CairoMakie, Statistics
 import MLDatasets, Flux
 nothing #hide
 
