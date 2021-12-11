@@ -84,12 +84,30 @@ nothing #hide
 Initially, the RBM assigns a poor pseudolikelihood to the data.
 =#
 
-@time RBMs.log_pseudolikelihood(rbm, train_x) |> mean
+RBMs.log_pseudolikelihood(rbm, train_x) |> mean
 
-@time RBMs.log_pseudolikelihood(rbm, tests_x) |> mean
+#
+
+RBMs.log_pseudolikelihood(rbm, tests_x) |> mean
+
+#
 
 #=
-Train the RBM on the data.
+Incidentally, let us see how long it takes to evaluate the pseudolikelihood on the full
+dataset.
+=#
+
+@elapsed RBMs.log_pseudolikelihood(rbm, train_x) # pre-compiled by the calls above
+
+#=
+This is the cost you pay when training by tracking the pseudolikelihood.
+The pseudolikelihood is computed on the full dataset every epoch.
+So if this time is too high compared to the computational time of training on an epoch,
+we should disable tracking the pseudolikelihood.
+=#
+
+#=
+Now we train the RBM on the data.
 This returns a [MVHistory](https://github.com/JuliaML/ValueHistories.jl) object
 containing things like the pseudo-likelihood of the data during training.
 We print here the time spent in the training as a rough benchmark.
@@ -106,6 +124,8 @@ After training, the pseudolikelihood score of the data improves significantly.
 =#
 
 @time RBMs.log_pseudolikelihood(rbm, train_x) |> mean
+
+#
 
 @time RBMs.log_pseudolikelihood(rbm, tests_x) |> mean
 
