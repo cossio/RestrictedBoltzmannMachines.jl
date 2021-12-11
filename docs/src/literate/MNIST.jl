@@ -14,7 +14,7 @@ Let's visualize some random digits.
 
 fig = Figure(resolution=(700, 300))
 for i in 1:3, j in 1:7
-    ax = Axis(fig[i,j])
+    ax = Axis(fig[i,j], yreversed=true)
     hidedecorations!(ax)
     heatmap!(ax, MLDatasets.MNIST.traintensor(rand(1:60000)))
 end
@@ -60,7 +60,7 @@ Plot some examples of the binarized data.
 
 fig = Figure(resolution=(700, 300))
 for i in 1:3, j in 1:7
-    ax = Axis(fig[i,j])
+    ax = Axis(fig[i,j], yreversed=true)
     hidedecorations!(ax)
     heatmap!(ax, train_x[:,:, rand(1:60000)])
 end
@@ -112,7 +112,7 @@ Let's plot the selected digits.
 fantasy_x_init_ = reshape(fantasy_x_init, 28, 28, 3, 7)
 fig = Figure(resolution=(700, 300))
 for i in 1:3, j in 1:7
-    ax = Axis(fig[i,j])
+    ax = Axis(fig[i,j], yreversed=true)
     hidedecorations!(ax)
     heatmap!(ax, fantasy_x_init_[:,:,i,j])
 end
@@ -131,7 +131,7 @@ Plot the resulting samples.
 fantasy_x_ = reshape(fantasy_x, 28, 28, 3, 7)
 fig = Figure(resolution=(700, 300))
 for i in 1:3, j in 1:7
-    ax = Axis(fig[i,j])
+    ax = Axis(fig[i,j], yreversed=true)
     hidedecorations!(ax)
     heatmap!(ax, fantasy_x_[:,:,i,j])
 end
