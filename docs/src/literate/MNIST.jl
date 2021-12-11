@@ -53,6 +53,7 @@ train_x = Float.(train_x)
 tests_x = Float.(tests_x)
 train_y = Float.(train_y)
 tests_y = Float.(tests_y)
+nothing #hide
 
 #=
 Plot some examples of the binarized data.
