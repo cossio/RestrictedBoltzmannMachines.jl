@@ -1,20 +1,20 @@
 struct pReLU{A<:AbstractArray}
     θ::A
-    γ::A
     Δ::A
+    γ::A
     η::A
-    function pReLU(θ::A, γ::A, Δ::A, η::A) where {A<:AbstractArray}
+    function pReLU(θ::A, Δ::A, γ::A, η::A) where {A<:AbstractArray}
         @assert size(θ) == size(γ) == size(Δ) == size(η)
-        return new{A}(θ, γ, Δ, η)
+        return new{A}(θ, Δ, γ, η)
     end
 end
 
 function pReLU(::Type{T}, n::Int...) where {T}
     θ = zeros(T, n...)
-    γ = ones(T, n...)
     Δ = zeros(T, n...)
+    γ = ones(T, n...)
     η = zeros(T, n...)
-    return pReLU(θ, γ, Δ, η)
+    return pReLU(θ, Δ, γ, η)
 end
 
 pReLU(n::Int...) = pReLU(Float64, n...)
