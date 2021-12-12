@@ -183,11 +183,10 @@ On the importance of initialization.
 rbm = RBMs.RBM(
     RBMs.Binary(Float,28,28),
     RBMs.Binary(Float,200),
-    randn(Float,28,28,200)/28,
-    initialize=true
+    randn(Float,28,28,200)/28
 )
 history = RBMs.train!(
-    rbm, train_x; epochs=100, batchsize=128,
+    rbm, train_x; epochs=100, batchsize=128, initialize=true,
     optimizer=Flux.ADAMW(0.001f0, (0.9f0, 0.999f0), 1f-4)
 )
 lines(get(history, :lpl)...)
