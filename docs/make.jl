@@ -48,7 +48,7 @@ makedocs(
         "Mathematical introduction" => "math.md",
         "Examples" => [
             "MNIST" => "literate/MNIST.md",
-            "Gaussian layer" => "literate/gauss.md"
+            "Gaussian layer" => "literate/gauss.md",
             "ReLU layer" => "literate/relu.md"
         ],
         "Reference" => "reference.md"
