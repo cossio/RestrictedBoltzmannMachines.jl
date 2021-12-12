@@ -192,7 +192,7 @@ end
         return log(Z)
     end
     # bound γ away from zero to avoid issues with QuadGK
-    layer = RBMs.Gaussian(randn(N...), 0.5 .+ rand(N...))
+    layer = RBMs.ReLU(randn(N...), 0.5 .+ rand(N...))
     Γ = @. my_cgf(β * (inputs + layer.θ), β * abs(layer.γ)) / β
     @test RBMs.cgf(layer, inputs, β) ≈ vec(sum(Γ; dims=(1,2,3)))
 end
