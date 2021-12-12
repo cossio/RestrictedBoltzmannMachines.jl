@@ -47,12 +47,12 @@ end
 
 function iterate_states(layer::Binary)
     itr = generate_sequences(length(layer), 0:1)
-    return map(x -> reshape(x, size(layer), 1), itr)
+    return map(x -> reshape(x, size(layer)..., 1), itr)
 end
 
 function iterate_states(layer::Spin)
     itr = generate_sequences(length(layer), (-1,1))
-    return map(x -> reshape(x, size(layer), 1), itr)
+    return map(x -> reshape(x, size(layer)..., 1), itr)
 end
 
 function iterate_states(layer::Potts)
