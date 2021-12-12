@@ -204,7 +204,7 @@ axislegend(ax)
 fig
 
 #=
-Notice how the pseudolikelihood curve grows faster than before.
+Notice how the pseudolikelihood curve grows a bit faster than before.
 =#
 
 RBMs.log_pseudolikelihood(rbm, train_x) |> mean
