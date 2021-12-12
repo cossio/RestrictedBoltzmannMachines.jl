@@ -37,9 +37,14 @@ function train!(rbm::RBM, data::AbstractArray;
     weights::AbstractVector = trues(_nobs(data)), # data point weights
     steps::Int = 1, # Monte Carlo steps to update fantasy particles
     white::Bool = false # input to hidden layer is whitened (similar to batch normalization)
+    initialize::Bool = false, # whether to initialize the RBM parameters
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert _nobs(data) == _nobs(weights)
+
+    if initialize
+        initialize!(rbm, data)
+    end
 
     # initialize fantasy chains
     _idx = rand(1:_nobs(data), batchsize)
