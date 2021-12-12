@@ -1,5 +1,4 @@
-
-"""
+@doc raw"""
     block_matrix_logdet(A, B, C, D)
 
 Log-determinant of a block matrix using the determinant lemma.
@@ -30,25 +29,25 @@ function block_matrix_logdet(
     end
 end
 
-"""
+@doc raw"""
     block_matrix_invert(A, B, C, D)
 
 Inversion of a block matrix, using the formula:
 
 ```math
-    \begin{bmatrix}
-        \mathbf{A} & \mathbf{B} \\
-        \mathbf{C} & \mathbf{D}
-    \end{bmatrix}^{-1}
-    =
-    \begin{bmatrix}
-        \left(\mathbf{A} - \mathbf{B} \mathbf{D}^{-1} \mathbf{C}\right)^{-1} & \mathbf{0} \\
-        \mathbf{0} & \left(\mathbf{D} - \mathbf{C} \mathbf{A}^{-1} \mathbf{B}\right)^{-1}
-    \end{bmatrix}
-    \begin{bmatrix}
-        \mathbf{I} & -\mathbf{B} \mathbf{D}^{-1} \\
-        -\mathbf{C} \mathbf{A}^{-1} & \mathbf{I}
-    \end{bmatrix}
+\begin{bmatrix}
+    \mathbf{A} & \mathbf{B} \\
+    \mathbf{C} & \mathbf{D}
+\end{bmatrix}^{-1}
+=
+\begin{bmatrix}
+    \left(\mathbf{A} - \mathbf{B} \mathbf{D}^{-1} \mathbf{C}\right)^{-1} & \mathbf{0} \\
+    \mathbf{0} & \left(\mathbf{D} - \mathbf{C} \mathbf{A}^{-1} \mathbf{B}\right)^{-1}
+\end{bmatrix}
+\begin{bmatrix}
+    \mathbf{I} & -\mathbf{B} \mathbf{D}^{-1} \\
+    -\mathbf{C} \mathbf{A}^{-1} & \mathbf{I}
+\end{bmatrix}
 ```
 
 Note that this assumes that `A` and `D` are both invertible.
