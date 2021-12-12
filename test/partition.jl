@@ -9,8 +9,8 @@ include("tests_init.jl")
 
     A = [diagm(abs.(rbm.visible.γ)) -rbm.weights;
          -rbm.weights' diagm(abs.(rbm.hidden.γ))]
-    v = randn(length(rbm.visible))
-    h = randn(length(rbm.hidden))
+    v = randn(size(rbm.visible)..., 1)
+    h = randn(size(rbm.hidden)...,  1)
 
     @test RBMs.energy(rbm, v, h) ≈ [v' h'] * A * [v; h] / 2 - rbm.visible.θ' * v - rbm.hidden.θ' * h
     @test RBMs.log_partition(rbm, 1) ≈ -logdet(1A)/2 + (length(rbm.visible) + length(rbm.hidden)) / 2 * log(2π)
