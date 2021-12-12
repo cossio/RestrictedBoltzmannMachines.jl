@@ -24,25 +24,77 @@ include("tests_init.jl")
     @test size(@inferred RBMs.reconstruction_error(rbm, v)) == (7,)
 end
 
-@testset "Gaussian-Gaussian RBM" begin
-    N, M = 2, 3
-    rbm = RBMs.RBM(RBMs.Gaussian(N), RBMs.Gaussian(M), reshape(1:(N*M), N, M) / (10*N*M))
-    rbm.visible.γ .= randperm(N)
-    rbm.hidden.γ .= randperm(M)
-    rbm.visible.θ .= randperm(N)
-    rbm.hidden.θ .= randperm(M)
+@testset "Gaussian-Gaussian RBM, 1-dimension" begin
+    rbm = RBMs.RBM(
+        RBMs.Gaussian(randn(1), rand(1) .+ 0.5),
+        RBMs.Gaussian(randn(1), rand(1) .+ 0.5),
+        randn(1, 1) / 1e2
+    )
+    β = 1.5
+    logZ, ϵ = QuadGK.quadgk(x -> exp(-β * only(RBMs.free_energy(rbm, [x;;], β))), -Inf, Inf)
+    @test RBMs.log_partition(rbm, β) ≈ logZ
+end
 
-    θ = [rbm.visible.θ; rbm.hidden.θ]
+@testset "Gaussian-Gaussian RBM, multi-dimensional" begin
+    N = (10, 3)
+    M = (7, 2)
+    rbm = RBMs.RBM(
+        RBMs.Gaussian(randn(N...), rand(N...) .+ 0.5),
+        RBMs.Gaussian(randn(M...), rand(M...) .+ 0.5),
+        randn(N..., M...) / (10 * prod(N) * prod(M)))
 
-    A = [diagm(rbm.visible.γ) rbm.weights;
-         rbm.weights'  diagm(rbm.hidden.γ)]
-    @test RBMs.log_partition(rbm) ≈ (N + M)/2 * log(2π) + θ' * inv(A) * θ / 2 - logdet(A)/2
+    θ = [
+        vec(rbm.visible.θ);
+        vec(rbm.hidden.θ)
+    ]
+    γv = vec(abs.(rbm.visible.γ))
+    γh = vec(abs.(rbm.hidden.γ))
+    w = reshape(rbm.weights, length(rbm.visible), length(rbm.hidden))
+    A = [diagm(γv) -w;
+         -w'  diagm(γh)]
 
-    v = reshape(1:N, :, 1)
+    v = randn(N..., 1)
+    h = randn(M..., 1)
+    x = [
+        reshape(v, length(rbm.visible), 1);
+        reshape(h, length(rbm.hidden),  1)
+    ]
+
+    @test RBMs.energy(rbm, v, h) ≈ x' * A * x / 2 - θ' * x
+    @test RBMs.log_partition(rbm) ≈ (
+        (prod(N) + prod(M))/2 * log(2π) + θ' * inv(A) * θ / 2 - logdet(A)/2
+    )
+    @test RBMs.log_partition(rbm, 1) ≈ RBMs.log_partition(rbm)
+
+    β = rand()
+    @test RBMs.log_partition(rbm, β) ≈ (
+        (prod(N) + prod(M))/2 * log(2π) + β^2 * θ' * inv(β*A) * θ / 2 - logdet(β*A)/2
+    )
+
+    @test RBMs.log_likelihood(rbm, v, 1) ≈ @test RBMs.log_likelihood(rbm, v)
+    @test RBMs.log_likelihood(rbm, v, β) ≈ (
+        -RBMs.free_energy(rbm, v, β) .- RBMs.log_partition(rbm, β)
+    )
+
     Ev = sum(@. rbm.visible.γ * v^2 / 2 - rbm.visible.θ * v)
     Γv = sum((rbm.hidden.θ .+ rbm.weights' * v).^2 ./ 2rbm.hidden.γ)
     @test RBMs.free_energy(rbm, v)[1] ≈ Ev - Γv - sum(log.(2π ./ rbm.hidden.γ)) / 2
 
-    v = reshape((1 - M):(N - M), :, 1)
-    @test RBMs.log_likelihood(rbm, v) ≈ -RBMs.free_energy(rbm, v) .- RBMs.log_partition(rbm)
+    c = inv(A) # covariances
+    μ = c * θ  # means
+
+    ps = Flux.params(rbm)
+    gs = Zygote.gradient(ps) do
+        RBMs.log_partition(rbm)
+    end
+    ∂θv = vec(gs[rbm.visible.θ])
+    ∂θh = vec(gs[rbm.hidden.θ])
+    ∂γv = vec(abs.(gs[rbm.visible.γ]))
+    ∂γh = vec(abs.(gs[rbm.hidden.γ]))
+    ∂w = reshape(gs[rbm.weights], length(rbm.visible), length(rbm.hidden))
+    @test μ ≈ [∂θv; ∂θh]
+    @test c + μ * μ' ≈ [
+        diagm(∂γv)  -∂w
+        -∂w'  diagm(∂γh)
+    ]
 end
