@@ -7,7 +7,8 @@ _layers = (
     RBMs.Gaussian,
     RBMs.ReLU,
     RBMs.dReLU,
-    RBMs.pReLU
+    RBMs.pReLU,
+    RBMs.xReLU
 )
 
 function random_layer(
@@ -22,8 +23,8 @@ function random_layer(
     return T(randn(N...), randn(N...))
 end
 
-function random_layer(::Type{RBMs.dReLU}, N::Int...)
-    return RBMs.dReLU(randn(N...), randn(N...), randn(N...), randn(N...))
+function random_layer(::Type{T}, N::Int...) where {T <: Union{RBMs.dReLU, RBMs.xReLU}}
+    return T(randn(N...), randn(N...), randn(N...), randn(N...))
 end
 
 function random_layer(::Type{RBMs.pReLU}, N::Int...)
@@ -197,28 +198,48 @@ end
     @test RBMs.cgf(layer, inputs, β) ≈ vec(sum(Γ; dims=(1,2,3)))
 end
 
-@testset "pReLU / dReLU convert" begin
+@testset "pReLU / xReLU / dReLU convert" begin
     N = (10, 7)
     B = 13
     x = randn(N..., B)
 
-    prelu = random_layer(RBMs.pReLU, N...)
-    drelu = RBMs.dReLU(prelu)
-    @test prelu.θ ≈ RBMs.pReLU(drelu).θ
-    @test prelu.Δ ≈ RBMs.pReLU(drelu).Δ
-    @test prelu.γ ≈ RBMs.pReLU(drelu).γ
-    @test prelu.η ≈ RBMs.pReLU(drelu).η
-    @test RBMs.energy(prelu, x) ≈ @inferred RBMs.energy(drelu, x)
-    @test RBMs.cgf(prelu, x) ≈ @inferred RBMs.cgf(drelu, x)
-
     drelu = random_layer(RBMs.dReLU, N...)
-    prelu = RBMs.pReLU(drelu)
-    @test drelu.θp ≈ RBMs.dReLU(prelu).θp
-    @test drelu.θn ≈ RBMs.dReLU(prelu).θn
+    prelu = @inferred RBMs.pReLU(drelu)
+    xrelu = @inferred RBMs.xReLU(drelu)
+    @test drelu.θp ≈ RBMs.dReLU(prelu).θp ≈ RBMs.dReLU(xrelu).θp
+    @test drelu.θn ≈ RBMs.dReLU(prelu).θn ≈ RBMs.dReLU(xrelu).θn
     @test drelu.γp ≈ RBMs.dReLU(prelu).γp
     @test drelu.γn ≈ RBMs.dReLU(prelu).γn
-    @test RBMs.energy(drelu, x) ≈ @inferred RBMs.energy(prelu, x)
-    @test RBMs.cgf(drelu, x) ≈ @inferred RBMs.cgf(prelu, x)
+    @test abs.(drelu.γp) ≈ RBMs.dReLU(xrelu).γp
+    @test abs.(drelu.γn) ≈ RBMs.dReLU(xrelu).γn
+    @test RBMs.energy(drelu, x) ≈ RBMs.energy(prelu, x) ≈ RBMs.energy(xrelu, x)
+    @test RBMs.cgf(drelu, x) ≈ RBMs.cgf(prelu, x) ≈ RBMs.cgf(xrelu, x)
+
+    prelu = random_layer(RBMs.pReLU, N...)
+    drelu = @inferred RBMs.dReLU(prelu)
+    xrelu = @inferred RBMs.xReLU(prelu)
+    @test prelu.θ ≈ RBMs.pReLU(drelu).θ ≈ RBMs.pReLU(xrelu).θ
+    @test prelu.Δ ≈ RBMs.pReLU(drelu).Δ ≈ RBMs.pReLU(xrelu).Δ
+    @test prelu.γ ≈ RBMs.pReLU(drelu).γ ≈ RBMs.pReLU(xrelu).γ
+    @test prelu.η ≈ RBMs.pReLU(drelu).η ≈ RBMs.pReLU(xrelu).η
+    @test RBMs.energy(drelu, x) ≈ RBMs.energy(prelu, x) ≈ RBMs.energy(xrelu, x)
+    @test RBMs.cgf(drelu, x) ≈ RBMs.cgf(prelu, x) ≈ RBMs.cgf(xrelu, x)
+
+    xrelu = random_layer(RBMs.xReLU, N...)
+    drelu = @inferred RBMs.dReLU(xrelu)
+    prelu = @inferred RBMs.pReLU(xrelu)
+    @test xrelu.θ ≈ RBMs.xReLU(drelu).θ ≈ RBMs.xReLU(prelu).θ
+    @test xrelu.Δ ≈ RBMs.xReLU(drelu).Δ ≈ RBMs.xReLU(prelu).Δ
+    @test xrelu.ξ ≈ RBMs.xReLU(drelu).ξ ≈ RBMs.xReLU(prelu).ξ
+    @test xrelu.γ ≈ RBMs.xReLU(prelu).γ
+    @test abs.(xrelu.γ) ≈ RBMs.xReLU(drelu).γ
+    @test RBMs.energy(drelu, x) ≈ RBMs.energy(prelu, x) ≈ RBMs.energy(xrelu, x)
+    @test RBMs.cgf(drelu, x) ≈ RBMs.cgf(prelu, x) ≈ RBMs.cgf(xrelu, x)
+
+    for layer in (drelu, prelu, xrelu)
+        @inferred RBMs.energy(layer, x)
+        @inferred RBMs.cgf(layer, x)
+    end
 end
 
 @testset "dReLU" begin

@@ -18,6 +18,7 @@ module RestrictedBoltzmannMachines
     include("layers/relu.jl")
     include("layers/drelu.jl")
     include("layers/prelu.jl")
+    include("layers/xrelu.jl")
     include("layers/common.jl")
 
     include("rbm.jl")
