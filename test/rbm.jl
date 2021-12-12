@@ -34,8 +34,8 @@ end
 
     θ = [rbm.visible.θ; rbm.hidden.θ]
 
-    A = [Diagonal(rbm.visible.γ) rbm.weights;
-         rbm.weights'  Diagonal(rbm.hidden.γ)]
+    A = [diagm(rbm.visible.γ) rbm.weights;
+         rbm.weights'  diagm(rbm.hidden.γ)]
     @test RBMs.log_partition(rbm) ≈ (N + M)/2 * log(2π) + θ' * inv(A) * θ / 2 - logdet(A)/2
 
     v = reshape(1:N, :, 1)
