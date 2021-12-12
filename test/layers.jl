@@ -163,6 +163,8 @@ end
         Z, ϵ = QuadGK.quadgk(h -> exp(θ * h - γ * h^2 / 2), -Inf, Inf)
         return log(Z)
     end
+    # bound γ away from zero to avoid issues with QuadGK
+    layer = RBMs.Gaussian(randn(N...), 0.5 .+ rand(N...))
     Γ = @. my_cgf(β * (inputs + layer.θ), β * abs(layer.γ)) / β
     @test RBMs.cgf(layer, inputs, β) ≈ vec(sum(Γ; dims=(1,2,3)))
 
@@ -189,6 +191,8 @@ end
         Z, ϵ = QuadGK.quadgk(h -> exp(-RBMs.relu_energy(θ, γ, h)), 0,  Inf)
         return log(Z)
     end
+    # bound γ away from zero to avoid issues with QuadGK
+    layer = RBMs.Gaussian(randn(N...), 0.5 .+ rand(N...))
     Γ = @. my_cgf(β * (inputs + layer.θ), β * abs(layer.γ)) / β
     @test RBMs.cgf(layer, inputs, β) ≈ vec(sum(Γ; dims=(1,2,3)))
 end
@@ -237,7 +241,8 @@ end
         Z, ϵ = QuadGK.quadgk(h -> exp(-RBMs.drelu_energy(θp, θn, γp, γn, h)), -Inf, Inf)
         return log(Z)
     end
-
+    # bound γ away from zero to avoid issues with QuadGK
+    layer = RBMs.dReLU(randn(N...), randn(N...), 0.5 .+ rand(N...), 0.5 .+ rand(N...))
     Γ = @. my_cgf(β * (inputs + l.θp), β * (inputs + l.θn), β * abs(l.γp), β * abs(l.γn)) / β
     @test RBMs.cgf(l, inputs, β) ≈ vec(sum(Γ; dims=(1,2)))
 end
