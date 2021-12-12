@@ -47,7 +47,8 @@ makedocs(
         "Home" => "index.md",
         "Mathematical introduction" => "math.md",
         "Examples" => [
-            "MNIST" => "literate/MNIST.md"
+            "MNIST" => "literate/MNIST.md",
+            "ReLU layer" => "literate/relu.md"
         ],
         "Reference" => "reference.md"
     ],
