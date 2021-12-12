@@ -16,10 +16,6 @@ function whiten(data::AbstractArray)
 
 end
 
-struct WhiteningTransform
-
-end
-
 """
     train!(rbm, data)
 
@@ -36,7 +32,8 @@ function train!(rbm::RBM, data::AbstractArray;
     verbose::Bool = true,
     weights::AbstractVector = trues(_nobs(data)), # data point weights
     steps::Int = 1, # Monte Carlo steps to update fantasy particles
-    white::Bool = false # input to hidden layer is whitened (similar to batch normalization)
+    weight_normalization::Bool = false, # normalize RBM weights
+    whiten_data::Bool = false, # train on whitened data
     initialize::Bool = false, # whether to initialize the RBM parameters
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
