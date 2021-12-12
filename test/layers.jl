@@ -234,15 +234,16 @@ end
     @test RBMs.energy(l, x) ≈ E
     @test iszero(RBMs.energy(l, zero(x)))
 
-    β = rand()
-    inputs = randn(N..., B)
-
     function my_cgf(θp::Real, θn::Real, γp::Real, γn::Real)
         Z, ϵ = QuadGK.quadgk(h -> exp(-RBMs.drelu_energy(θp, θn, γp, γn, h)), -Inf, Inf)
         return log(Z)
     end
+
     # bound γ away from zero to avoid issues with QuadGK
-    layer = RBMs.dReLU(randn(N...), randn(N...), 0.5 .+ rand(N...), 0.5 .+ rand(N...))
+    β = rand() + 0.5
+    l = RBMs.dReLU(randn(N...), randn(N...), rand(N...) .+ 0.5, rand(N...) .+ 0.5)
+    inputs = randn(N..., B)
+
     Γ = @. my_cgf(β * (inputs + l.θp), β * (inputs + l.θn), β * abs(l.γp), β * abs(l.γn)) / β
     @test RBMs.cgf(l, inputs, β) ≈ vec(sum(Γ; dims=(1,2)))
 end
