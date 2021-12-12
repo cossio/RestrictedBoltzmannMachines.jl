@@ -18,6 +18,7 @@ Now initialize our ReLU layer, with unit parameters spanning an interesting rang
 θs = [0; 10]
 γs = [5; 10]
 layer = RBMs.ReLU([θ for θ in θs, γ in γs], [γ for θ in θs, γ in γs])
+nothing #hide
 
 #=
 Now we sample our layer to collect some data.
