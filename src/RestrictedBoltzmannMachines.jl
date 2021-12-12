@@ -26,7 +26,6 @@ module RestrictedBoltzmannMachines
     include("train/cd.jl")
 
     #include("train/regularize.jl")
-
     #include("train/lr_schedules.jl")
     include("train/zerosum.jl")
 

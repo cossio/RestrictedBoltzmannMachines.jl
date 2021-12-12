@@ -2,21 +2,22 @@
     log_partition(rbm, β = 1)
 
 Log-partition of the `rbm` at inverse temperature `β`, computed by extensive
-enumeration of  states (except for particular cases such as Gaussian-Gaussian)
-RBM). This is exponentially slow for large machines.
+enumeration of visible states
+(except for particular cases such as Gaussian-Gaussian RBM).
+This is exponentially slow for large machines.
+
+If your RBM has a smaller hidden layer, consider using `flip_layers`.
 """
 function log_partition(rbm::RBM, β::Real = 1)
-    v = cat(iterate_states(rbm.visible)...; dims=ndims(rbm.visible) + 1)
-    @assert size(v) == (size(rbm.visible)..., size(v)[end])
-    F = free_energy(rbm, v, β)
-    return LogExpFunctions.logsumexp(-β * F)
+    vs = iterate_states(rbm.visible)
+    return LogExpFunctions.logsumexp(-β * free_energy(rbm, v, β) for v in vs)
 end
 
-# For a Gaussian-Gaussian RBM we have an analytical expression
+# For a Gaussian-Gaussian RBM we can use the analytical expression
 function log_partition(rbm::RBM{<:Gaussian, <:Gaussian}, β::Real = 1)
     N, M = length(rbm.visible), length(rbm.hidden)
-    Γv = Diagonal(vec(β * rbm.visible.γ))
-    Γh = Diagonal(vec(β * rbm.hidden.γ))
+    Γv = Diagonal(vec(β * abs.(rbm.visible.γ)))
+    Γh = Diagonal(vec(β * abs.(rbm.hidden.γ)))
     W = reshape(β * rbm.weights, N, M)
     ldet = logdet(Γv) + logdet(Γh - W' * inv(Γv) * W)
     return (N + M)/2 * log(2π) - ldet/2
@@ -31,19 +32,17 @@ extensive enumeration. For discrete layers, this is exponentially slow for large
 function log_likelihood(rbm::RBM, v::AbstractArray, β::Real = true)
     lZ = log_partition(rbm, β)
     F = free_energy(rbm, v, β)
-    ll = -β .* F .- lZ
-    return ll
+    return -β .* F .- lZ
 end
 
-
 function iterate_states(layer::Binary)
-    itr = generate_sequences(length(layer.θ), 0:1)
-    return map(x -> reshape(x, size(layer.θ)), itr)
+    itr = generate_sequences(length(layer), 0:1)
+    return map(x -> reshape(x, size(layer), 1), itr)
 end
 
 function iterate_states(layer::Spin)
-    itr = generate_sequences(length(layer.θ), (-1, 1))
-    return map(x -> reshape(x, size(layer.θ)), itr)
+    itr = generate_sequences(length(layer), (-1,1))
+    return map(x -> reshape(x, size(layer), 1), itr)
 end
 
 function iterate_states(layer::Potts)
