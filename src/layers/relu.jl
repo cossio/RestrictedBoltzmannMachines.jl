@@ -19,9 +19,8 @@ Flux.@functor ReLU
 
 function energy(layer::ReLU, x::AbstractArray)
     @assert size(x) == (size(layer)..., size(x)[end])
-    E = @. (abs(layer.γ) * x / 2 - layer.θ) * x
-    Ep = @. ifelse(x < 0, inf(E), E)
-    return sum_(Ep; dims = layerdims(layer))
+    E = relu_energy.(layer.θ, layer.γ, x)
+    return sum_(E; dims = layerdims(layer))
 end
 
 function cgf(layer::ReLU, inputs::AbstractArray)
@@ -47,9 +46,18 @@ function sample_from_inputs(layer::ReLU, inputs::AbstractArray, β::Real)
     return sample_from_inputs(layer_, inputs .* β)
 end
 
+function relu_energy(θ::Real, γ::Real, x::Real)
+    E = gauss_energy(θ, γ, x)
+    if x < 0
+        return inf(E)
+    else
+        return E
+    end
+end
+
 function relu_cgf(θ::Real, γ::Real)
     γa = abs(γ)
-    return SpecialFunctions.logerfcx(-θ / √(2γa)) - log(2γa/π)/2
+    return SpecialFunctions.logerfcx(-θ / √(2γa)) - log(2γa/π) / 2
 end
 
 function relu_rand(θ::Real, γ::Real)

@@ -22,7 +22,7 @@ Flux.@functor Gaussian
 
 function energy(layer::Gaussian, x::AbstractArray)
     @assert size(x) == (size(layer)..., size(x)[end])
-    E = @. (abs(layer.γ) * x / 2 - layer.θ) * x
+    E = gauss_energy.(layer.θ, layer.γ, x)
     return sum_(E; dims = layerdims(layer))
 end
 
@@ -49,6 +49,8 @@ function cgf(layer::Gaussian, inputs::AbstractArray, β::Real)
     layer_ = Gaussian(layer.θ .* β, layer.γ .* β)
     return cgf(layer_, inputs .* β) / β
 end
+
+gauss_energy(θ::Real, γ::Real, x::Real) = (abs(γ) * x / 2 - θ) * x
 
 function gauss_cgf(θ::Real, γ::Real)
     γa = abs(γ)

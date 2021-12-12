@@ -1,4 +1,3 @@
 using Test, Random, LinearAlgebra, Statistics, DelimitedFiles
-import Zygote, Distributions
-import SpecialFunctions, LogExpFunctions
+import Zygote, Distributions, SpecialFunctions, LogExpFunctions, QuadGK
 import RestrictedBoltzmannMachines as RBMs
