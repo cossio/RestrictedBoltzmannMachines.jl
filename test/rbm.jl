@@ -30,6 +30,12 @@ end
         RBMs.Gaussian(randn(1), rand(1) .+ 0.5),
         randn(1, 1) / 1e2
     )
+
+    @test RBMs.log_partition(rbm, 1) ≈ RBMs.log_partition(rbm)
+
+    logZ, ϵ = QuadGK.quadgk(x -> exp(-only(RBMs.free_energy(rbm, [x;;]))), -Inf, Inf)
+    @test RBMs.log_partition(rbm) ≈ logZ
+
     β = 1.5
     logZ, ϵ = QuadGK.quadgk(x -> exp(-β * only(RBMs.free_energy(rbm, [x;;], β))), -Inf, Inf)
     @test RBMs.log_partition(rbm, β) ≈ logZ

@@ -14,7 +14,7 @@ function log_partition(rbm::RBM, β::Real = 1)
 end
 
 # For a Gaussian-Gaussian RBM we can use the analytical expression
-function log_partition(rbm::RBM{<:Gaussian, <:Gaussian}, β::Real = 1)
+function log_partition(rbm::RBM{<:Gaussian, <:Gaussian}, β::Real = true)
     θv = β * vec(abs.(rbm.visible.θ))
     θh = β * vec(abs.(rbm.hidden.θ))
     γv = β * vec(abs.(rbm.visible.γ))
