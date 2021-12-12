@@ -38,7 +38,7 @@ end
         for h1 in (0,1), h2 in (0,1)
             v = [v1;v2;v3;;]
             h = [h1;h2;;]
-            Z += exp(-β * RBMs.energy(rbm, v, h))
+            Z += exp(-β * only(RBMs.energy(rbm, v, h)))
         end
     end
     @test log(Z) ≈ RBMs.log_partition(rbm, β)
@@ -64,7 +64,7 @@ end
         for h1 in (0,1), h2 in (0,1)
             v = [v1;v2;v3;;]
             h = [h1;h2;;]
-            Z += exp(-β * RBMs.energy(rbm, v, h))
+            Z += exp(-β * only(RBMs.energy(rbm, v, h)))
         end
     end
     @test log(Z) ≈ RBMs.log_partition(rbm, β)

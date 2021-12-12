@@ -1,5 +1,5 @@
 #=
-In this example we look at what the ReLU layer hidden units look like,
+In this example we look at what the Gaussian layer hidden units look like,
 for different parameter values.
 =#
 
@@ -12,12 +12,12 @@ using CairoMakie, Statistics
 nothing #hide
 
 #=
-Now initialize our ReLU layer, with unit parameters spanning an interesting range.
+Now initialize our Gaussian layer, with unit parameters spanning an interesting range.
 =#
 
-θs = [0; 10]
-γs = [5; 10]
-layer = RBMs.ReLU([θ for θ in θs, γ in γs], [γ for θ in θs, γ in γs])
+θs = [-5; 5]
+γs = [1; 10]
+layer = RBMs.Gaussian([θ for θ in θs, γ in γs], [γ for θ in θs, γ in γs])
 
 #=
 Now we sample our layer to collect some data.
@@ -36,7 +36,7 @@ ax = Axis(fig[1,1])
 xs = range(minimum(data), maximum(data), 100)
 for (iθ, θ) in enumerate(θs), (iγ, γ) in enumerate(γs)
     hist!(ax, data[iθ, iγ, :], normalization=:pdf)
-    ps = exp.(-RBMs.relu_energy.(θ, γ, xs) .- RBMs.relu_cgf(θ, γ))
+    ps = exp.(-RBMs.gauss_energy.(θ, γ, xs) .- RBMs.gauss_cgf(θ, γ))
     lines!(xs, ps, label="θ=$θ, γ=$γ", linewidth=2)
 end
 axislegend(ax)
