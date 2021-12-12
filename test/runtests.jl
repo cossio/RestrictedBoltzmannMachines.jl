@@ -1,6 +1,7 @@
 using SafeTestsets, Random, Test
 
 @time @safetestset "util" begin include("util.jl") end
+@time @safetestset "linalg" begin include("linalg.jl") end
 @time @safetestset "onehot" begin include("onehot.jl") end
 @time @safetestset "minibatches" begin include("minibatches.jl") end
 @time @safetestset "zerosum" begin include("zerosum.jl") end
@@ -13,6 +14,7 @@ using SafeTestsets, Random, Test
 
 @time @safetestset "truncnorm" begin include("truncnorm/truncnorm.jl") end
 @time @safetestset "truncnorm rejection" begin include("truncnorm/rejection.jl") end
+
 
 #@time @safetestset "regularize" begin include("regularize.jl") end
 # @time @safetestset "learning rate decay schedules" begin include("lr_schedules.jl") end

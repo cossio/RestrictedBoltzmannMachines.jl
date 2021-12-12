@@ -16,11 +16,20 @@ end
 # For a Gaussian-Gaussian RBM we can use the analytical expression
 function log_partition(rbm::RBM{<:Gaussian, <:Gaussian}, β::Real = 1)
     N, M = length(rbm.visible), length(rbm.hidden)
-    Γv = Diagonal(vec(β * abs.(rbm.visible.γ)))
-    Γh = Diagonal(vec(β * abs.(rbm.hidden.γ)))
-    W = reshape(β * rbm.weights, N, M)
-    ldet = logdet(Γv) + logdet(Γh - W' * inv(Γv) * W)
-    return (N + M)/2 * log(2π) - ldet/2
+    θv = Diagonal(vec(β * abs.(rbm.visible.θ)))
+    θh = Diagonal(vec(β * abs.(rbm.hidden.θ)))
+    γv = Diagonal(vec(β * abs.(rbm.visible.γ)))
+    γh = Diagonal(vec(β * abs.(rbm.hidden.γ)))
+    w = reshape(β * rbm.weights, N, M)
+    lA = block_matrix_logdet(
+        γv, w,
+        w', γh
+    )
+    iA = block_matrix_invert(
+        γv, w,
+        w', γh
+    )
+    return (N + M)/2 * log(2π) + [θv' θh'] * iA * [θv; θh] / 2 - lA/2
 end
 
 """

@@ -31,4 +31,6 @@ module RestrictedBoltzmannMachines
 
     include("pseudolikelihood.jl")
     include("partition.jl")
+
+    include("linalg.jl")
 end
