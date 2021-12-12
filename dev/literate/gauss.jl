@@ -16,7 +16,7 @@ Now initialize our Gaussian layer, with unit parameters spanning an interesting 
 =#
 
 θs = [-5; 5]
-γs = [1; 10]
+γs = [1; 2]
 layer = RBMs.Gaussian([θ for θ in θs, γ in γs], [γ for θ in θs, γ in γs])
 nothing #hide
 
