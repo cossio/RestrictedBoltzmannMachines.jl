@@ -47,39 +47,39 @@ end
 end
 
 @testset "Gaussian-Gaussian RBM, multi-dimensional" begin
-    N = (10, 3)
-    M = (7, 2)
+    n = (10, 3)
+    m = (7, 2)
     rbm = RBMs.RBM(
-        RBMs.Gaussian(randn(N...), rand(N...) .+ 0.5),
-        RBMs.Gaussian(randn(M...), rand(M...) .+ 0.5),
-        randn(N..., M...) / (10 * prod(N) * prod(M)))
+        RBMs.Gaussian(randn(n...), rand(n...) .+ 0.5),
+        RBMs.Gaussian(randn(m...), rand(m...) .+ 0.5),
+        randn(n..., m...) / (10 * prod(n) * prod(m)))
+
+    N = length(rbm.visible)
+    M = length(rbm.hidden)
 
     θ = [
         vec(rbm.visible.θ);
         vec(rbm.hidden.θ)
     ]
-    γv = vec(abs.(rbm.visible.γ))
-    γh = vec(abs.(rbm.hidden.γ))
+    γv = vec(rbm.visible.γ)
+    γh = vec(rbm.hidden.γ)
     w = reshape(rbm.weights, length(rbm.visible), length(rbm.hidden))
     A = [diagm(γv) -w;
          -w'  diagm(γh)]
 
-    v = randn(N..., 1)
-    h = randn(M..., 1)
-    x = [
-        reshape(v, length(rbm.visible), 1);
-        reshape(h, length(rbm.hidden),  1)
-    ]
+    v = randn(n..., 1)
+    h = randn(m..., 1)
+    x = [reshape(v, N, 1); reshape(h, M, 1)]
 
     @test RBMs.energy(rbm, v, h) ≈ x' * A * x / 2 - θ' * x
     @test RBMs.log_partition(rbm) ≈ (
-        (prod(N) + prod(M))/2 * log(2π) + θ' * inv(A) * θ / 2 - logdet(A)/2
+        (N + M)/2 * log(2π) + θ' * inv(A) * θ / 2 - logdet(A)/2
     )
     @test RBMs.log_partition(rbm, 1) ≈ RBMs.log_partition(rbm)
 
     β = rand()
     @test RBMs.log_partition(rbm, β) ≈ (
-        length(θ)/2 * log(2π) + β * θ' * inv(A) * θ / 2 - logdet(β*A)/2
+        (N + M)/2 * log(2π) + β * θ' * inv(A) * θ / 2 - logdet(β*A)/2
     ) rtol=1e-6
 
     @test RBMs.log_likelihood(rbm, v, 1) ≈ RBMs.log_likelihood(rbm, v)
@@ -91,21 +91,22 @@ end
     Γv = sum((rbm.hidden.θ .+ RBMs.inputs_v_to_h(rbm, v)).^2 ./ 2rbm.hidden.γ)
     @test only(RBMs.free_energy(rbm, v)) ≈ Ev - Γv - sum(log.(2π ./ rbm.hidden.γ)) / 2
 
-    c = inv(A) # covariances
-    μ = c * θ  # means
-
     ps = Flux.params(rbm)
     gs = Zygote.gradient(ps) do
         RBMs.log_partition(rbm)
     end
     ∂θv = vec(gs[rbm.visible.θ])
     ∂θh = vec(gs[rbm.hidden.θ])
-    ∂γv = vec(abs.(gs[rbm.visible.γ]))
-    ∂γh = vec(abs.(gs[rbm.hidden.γ]))
+    ∂γv = vec(gs[rbm.visible.γ])
+    ∂γh = vec(gs[rbm.hidden.γ])
     ∂w = reshape(gs[rbm.weights], length(rbm.visible), length(rbm.hidden))
-    @test μ ≈ [∂θv; ∂θh]
-    @test c + μ * μ' ≈ [
-        diagm(∂γv)  -∂w
-        -∂w'  diagm(∂γh)
-    ]
+
+    Σ = inv(A) # covariances
+    μ = Σ * θ  # means
+    C = Σ + μ * μ' # non-centered second moments
+
+    @test [∂θv; ∂θh] ≈ μ
+    @test -2∂γv ≈ diag(C[1:N, 1:N]) # <vi^2>
+    @test -2∂γh ≈ diag(C[(N + 1):end, (N + 1):end]) # <hμ^2>
+    @test ∂w ≈ C[1:N, (N + 1):end] # <vi*hμ>
 end
