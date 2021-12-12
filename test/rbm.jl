@@ -26,19 +26,24 @@ end
 
 @testset "Gaussian-Gaussian RBM, 1-dimension" begin
     rbm = RBMs.RBM(
-        RBMs.Gaussian(randn(1), rand(1) .+ 0.5),
-        RBMs.Gaussian(randn(1), rand(1) .+ 0.5),
+        RBMs.Gaussian(randn(1), rand(1) .+ 1),
+        RBMs.Gaussian(randn(1), rand(1) .+ 1),
         randn(1, 1) / 1e2
     )
 
+    @assert isposdef([
+        rbm.visible.γ -rbm.weights;
+        -rbm.weights'  rbm.hidden.γ
+    ])
+
     @test RBMs.log_partition(rbm, 1) ≈ RBMs.log_partition(rbm)
 
-    logZ, ϵ = QuadGK.quadgk(x -> exp(-only(RBMs.free_energy(rbm, [x;;]))), -Inf, Inf)
-    @test RBMs.log_partition(rbm) ≈ logZ
+    Z, ϵ = QuadGK.quadgk(x -> exp(-only(RBMs.free_energy(rbm, [x;;]))), -Inf, Inf)
+    @test RBMs.log_partition(rbm) ≈ log(Z)
 
     β = 1.5
-    logZ, ϵ = QuadGK.quadgk(x -> exp(-β * only(RBMs.free_energy(rbm, [x;;], β))), -Inf, Inf)
-    @test RBMs.log_partition(rbm, β) ≈ logZ
+    Z, ϵ = QuadGK.quadgk(x -> exp(-β * only(RBMs.free_energy(rbm, [x;;], β))), -Inf, Inf)
+    @test RBMs.log_partition(rbm, β) ≈ log(Z)
 end
 
 @testset "Gaussian-Gaussian RBM, multi-dimensional" begin
@@ -74,17 +79,17 @@ end
 
     β = rand()
     @test RBMs.log_partition(rbm, β) ≈ (
-        (prod(N) + prod(M))/2 * log(2π) + β^2 * θ' * inv(β*A) * θ / 2 - logdet(β*A)/2
-    )
+        length(θ)/2 * log(2π) + β * θ' * inv(A) * θ / 2 - logdet(β*A)/2
+    ) rtol=1e-6
 
-    @test RBMs.log_likelihood(rbm, v, 1) ≈ @test RBMs.log_likelihood(rbm, v)
+    @test RBMs.log_likelihood(rbm, v, 1) ≈ RBMs.log_likelihood(rbm, v)
     @test RBMs.log_likelihood(rbm, v, β) ≈ (
-        -RBMs.free_energy(rbm, v, β) .- RBMs.log_partition(rbm, β)
+        -β * RBMs.free_energy(rbm, v, β) .- RBMs.log_partition(rbm, β)
     )
 
     Ev = sum(@. rbm.visible.γ * v^2 / 2 - rbm.visible.θ * v)
-    Γv = sum((rbm.hidden.θ .+ rbm.weights' * v).^2 ./ 2rbm.hidden.γ)
-    @test RBMs.free_energy(rbm, v)[1] ≈ Ev - Γv - sum(log.(2π ./ rbm.hidden.γ)) / 2
+    Γv = sum((rbm.hidden.θ .+ RBMs.inputs_v_to_h(rbm, v)).^2 ./ 2rbm.hidden.γ)
+    @test only(RBMs.free_energy(rbm, v)) ≈ Ev - Γv - sum(log.(2π ./ rbm.hidden.γ)) / 2
 
     c = inv(A) # covariances
     μ = c * θ  # means
