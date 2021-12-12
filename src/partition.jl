@@ -10,7 +10,7 @@ If your RBM has a smaller hidden layer, consider using `flip_layers`.
 """
 function log_partition(rbm::RBM, β::Real = 1)
     vs = iterate_states(rbm.visible)
-    return LogExpFunctions.logsumexp(-β * free_energy(rbm, v, β) for v in vs)
+    return LogExpFunctions.logsumexp(-β * only(free_energy(rbm, v, β)) for v in vs)
 end
 
 # For a Gaussian-Gaussian RBM we can use the analytical expression
