@@ -174,3 +174,32 @@ for i in 1:3, j in 1:8
     heatmap!(ax, fantasy_x_[:,:,i,j])
 end
 fig
+
+
+#=
+On the importance of initialization.
+=#
+
+rbm = RBMs.RBM(
+    RBMs.Binary(Float,28,28),
+    RBMs.Binary(Float,200),
+    randn(Float,28,28,200)/28
+)
+history = RBMs.train!(
+    rbm, train_x; epochs=100, batchsize=128, initialize=true,
+    optimizer=Flux.ADAMW(0.001f0, (0.9f0, 0.999f0), 1f-4)
+)
+lines(get(history, :lpl)...)
+
+#
+
+fantasy_x_init = train_x[:, :, rand(1:60000, 3 * 8)]
+fantasy_x = RBMs.sample_v_from_v(rbm, fantasy_x_init; steps=10000)
+fantasy_x_ = reshape(fantasy_x, 28, 28, 3, 8)
+fig = Figure(resolution=(800, 300))
+for i in 1:3, j in 1:8
+    ax = Axis(fig[i,j], yreversed=true)
+    hidedecorations!(ax)
+    heatmap!(ax, fantasy_x_[:,:,i,j])
+end
+fig
