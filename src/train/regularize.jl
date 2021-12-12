@@ -1,34 +1,27 @@
-export jerome_regularization
-
 """
-    jerome_regularization(rbm; λv, λw)
+    L1L2(rbm)
 
-Based on 10.7554/eLife.39397.
+L1/L2 squared norm of `rbm.weights`.
+Visible unit dimensions are reduced with L1 norm, while
+hidden unit dimensions are reduced with L2 norm.
+Note that no square root is taken.
 """
-jerome_regularization(rbm::RBM; λv::Real = 1//10^4, λw::Real = 1//10) =
-    λv/2 * fields_l2(rbm.visible) + λw/2 * weights_l1l2(rbm)
-
-fields_l2(layer::Union{Potts,Binary,Spin}) = l2(layer.θ)
-weights_l1l2(rbm::RBM) = l1l2(rbm.weights, Val(ndims(rbm.visible)))
-l2(A::AbstractArray{<:Real}) = mean(A.^2)
-l1(A::AbstractArray{<:Real}) = mean(abs.(A))
-
-"""
-    l1l2(weights::AbstractArray, Val(dim))
-
-L1/L2 norm of `w`, which can be a tensor.
-Dimensions ≤ `dim` will be reduced with L1 norm and
-dimensions > `dim` with L2 norm (without taking square root).
-"""
-function l1l2(weights::AbstractArray{<:Any,N}, ::Val{dim}) where {N,dim}
-    dims = tuplen(Val(dim))
-    return mean(mean(abs.(weights); dims = dims).^2)
+function L1L2(rbm::RBM)
+    dims = ntuple(identity, ndims(rbm.visible))
+    L1 = mean(abs, rbm.weights; dims=dims)
+    L2 = mean(abs2, L1)
+    return L2
 end
 
-function default_regularization(rbm::RBM, datum::NamedTuple;
-                                λw::Real, λh::Real, λg::Real)
-    hl1 = hidden_l1(rbm, datum)
-    wl1l2 = weights_l1l2(rbm)
-    gl2 = fields_l2(rbm.visible)
-    return λh * hl1 + λg/2 * gl2 + λw/2 * wl1l2
+"""
+    pgm_reg(rbm; λv, λw)
+
+Regularization used on https://github.com/jertubiana/PGM.
+"""
+function pgm_reg(
+    rbm::RBM{V}; λv::Real = 1//10^4, λw::Real = 1//10
+) where {V<:Union{Binary,Spin,Potts}}
+    fields_l2 = mean(abs2, rbm.visible.θ)
+    weights_l1l2 = L1L2(rbm)
+    return λv/2 * fields_l2 + λw/2 * weights_l1l2
 end

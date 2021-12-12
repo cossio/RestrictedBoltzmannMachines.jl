@@ -11,10 +11,9 @@ using SafeTestsets, Random, Test
 @time @safetestset "pseudolikelihood" begin include("pseudolikelihood.jl") end
 @time @safetestset "pgm" begin include("compare_to_pgm/pgm.jl") end
 @time @safetestset "partition" begin include("partition.jl") end
+@time @safetestset "regularize" begin include("regularize.jl") end
 
 @time @safetestset "truncnorm" begin include("truncnorm/truncnorm.jl") end
 @time @safetestset "truncnorm rejection" begin include("truncnorm/rejection.jl") end
 
-
-#@time @safetestset "regularize" begin include("regularize.jl") end
 # @time @safetestset "learning rate decay schedules" begin include("lr_schedules.jl") end
