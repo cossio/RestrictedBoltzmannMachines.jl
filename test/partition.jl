@@ -1,21 +1,33 @@
 include("tests_init.jl")
 
 @testset "Gaussian-Gaussian RBM partition function (analytical)" begin
-    rbm = RBMs.RBM(RBMs.Gaussian(10), RBMs.Gaussian(7), randn(10,7) / 1e3)
+    N = (10, 3)
+    M = (7, 2)
+    rbm = RBMs.RBM(RBMs.Gaussian(N...), RBMs.Gaussian(M...), randn(N..., M...) / 1e3)
     randn!(rbm.visible.θ)
     randn!(rbm.hidden.θ)
     randn!(rbm.visible.γ)
     randn!(rbm.hidden.γ)
 
-    A = [diagm(abs.(rbm.visible.γ)) -rbm.weights;
-         -rbm.weights' diagm(abs.(rbm.hidden.γ))]
-    v = randn(size(rbm.visible)..., 1)
-    h = randn(size(rbm.hidden)...,  1)
+    γv = vec(abs.(rbm.visible.γ))
+    γh = vec(abs.(rbm.hidden.γ))
+    w = reshape(rbm.weights, length(rbm.visible), length(rbm.hidden))
 
-    @test RBMs.energy(rbm, v, h) ≈ [v' h'] * A * [v; h] / 2 - rbm.visible.θ' * v - rbm.hidden.θ' * h
-    @test RBMs.log_partition(rbm, 1) ≈ -logdet(1A)/2 + (length(rbm.visible) + length(rbm.hidden)) / 2 * log(2π)
-    @test RBMs.log_partition(rbm, 2) ≈ -logdet(2A)/2 + (length(rbm.visible) + length(rbm.hidden)) / 2 * log(2π)
-    @test RBMs.log_partition(rbm) ≈ RBMs.log_partition(rbm, 1)
+    A = [diagm(γv) -w;
+         -w' diagm(γh)]
+    θ = [vec(rbm.visible.θ); vec(rbm.hidden.θ)]
+
+    v = randn(N..., 1)
+    h = randn(M..., 1)
+    x = [
+        reshape(v, length(rbm.visible), 1);
+        reshape(h, length(rbm.hidden),  1)
+    ]
+
+    @test RBMs.energy(rbm, v, h) ≈ x' * A * x / 2 - θ' * x
+    β = rand()
+    @test RBMs.log_partition(rbm, β) ≈ -logdet(β * A)/2 + β^2 * θ' * inv(β * A) * θ / 2 + (length(rbm.visible) + length(rbm.hidden)) / 2 * log(2π)
+    @test RBMs.log_partition(rbm, 1) ≈ RBMs.log_partition(rbm)
 
     rbm.weights .= 0
     ps = Flux.params(rbm)

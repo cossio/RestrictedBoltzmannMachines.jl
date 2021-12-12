@@ -32,9 +32,11 @@ end
     rbm.visible.θ .= randperm(N)
     rbm.hidden.θ .= randperm(M)
 
-    J = [diagm(rbm.visible.γ) rbm.weights;
+    θ = [rbm.visible.θ; rbm.hidden.θ]
+
+    A = [diagm(rbm.visible.γ) rbm.weights;
          rbm.weights'  diagm(rbm.hidden.γ)]
-    @test RBMs.log_partition(rbm) ≈ (N + M)/2 * log(2π) - logdet(J)/2
+    @test RBMs.log_partition(rbm) ≈ (N + M)/2 * log(2π) + θ' * inv(A) * θ / 2 - logdet(A)/2
 
     v = reshape(1:N, :, 1)
     Ev = sum(@. rbm.visible.γ * v^2 / 2 - rbm.visible.θ * v)
