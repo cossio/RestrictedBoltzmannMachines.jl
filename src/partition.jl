@@ -9,8 +9,10 @@ This is exponentially slow for large machines.
 If your RBM has a smaller hidden layer, consider using `flip_layers`.
 """
 function log_partition(rbm::RBM, β::Real = 1)
-    vs = iterate_states(rbm.visible)
-    return LogExpFunctions.logsumexp(-β * only(free_energy(rbm, v, β)) for v in vs)
+    v = ChainRulesCore.ignore_derivatives() do
+        collect_states(rbm.visible)
+    end
+    return LogExpFunctions.logsumexp(-β * free_energy(rbm, v, β))
 end
 
 # For a Gaussian-Gaussian RBM we can use the analytical expression
@@ -57,4 +59,18 @@ end
 
 function iterate_states(layer::Potts)
     error("not implemented")
+end
+
+"""
+    collect_states(layer)
+
+Returns an array of all states of `layer`.
+Only defined for discrete layers.
+
+!!! warning
+Use only for small layers.
+For large layers, the exponential number of states will not fit in memory.
+"""
+function collect_states(layer::Union{Binary, Spin, Potts})
+    return cat(iterate_states(layer)...; dims=ndims(layer) + 1)
 end
