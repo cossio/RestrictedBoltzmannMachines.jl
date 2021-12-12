@@ -55,16 +55,14 @@ Inversion of a block matrix, using the formula:
 \end{bmatrix}
 ```
 
-Note that this assumes that `A` and `D` are both invertible.
+Assumes that `A` and `D` are square and invertible.
 """
 function block_matrix_invert(
     A::AbstractMatrix, B::AbstractMatrix,
     C::AbstractMatrix, D::AbstractMatrix
 )
-    @assert size(A, 1) == size(B, 1)
-    @assert size(C, 1) == size(D, 1)
-    @assert size(A, 2) == size(C, 2)
-    @assert size(B, 2) == size(D, 2)
+    @assert size(A, 1) == size(A, 2) == size(B, 1) == size(C, 2)
+    @assert size(D, 1) == size(D, 2) == size(B, 2) == size(C, 1)
 
     a = inv(A)
     d = inv(D)
@@ -75,8 +73,8 @@ function block_matrix_invert(
     ]
 
     N = [
-        I  -B * d
-        -C * a  I
+        I(size(B,1))  -B * d
+        -C * a  I(size(C,1))
     ]
 
     return M * N
