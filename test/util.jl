@@ -17,7 +17,19 @@ end
 @testset "mean_" begin
     A = randn(2,3,4)
     @inferred RBMs.mean_(A; dims=(1,3))
-    @test RBMs.mean_(A; dims=(1,3)) ≈ RBMs.sum_(A; dims=(1,3)) ./ (2 * 4)
+    @test RBMs.mean_(A; dims=(1,3)) == vec(mean(A; dims=(1,3)))
+end
+
+@testset "var_" begin
+    A = randn(2,3,4)
+    @inferred RBMs.var_(A; dims=(1,3))
+    @test RBMs.var_(A; dims=(1,3)) ≈ vec(var(A; dims=(1,3)))
+end
+
+@testset "std_" begin
+    A = randn(2,3,4)
+    @inferred RBMs.std_(A; dims=(1,3))
+    @test RBMs.std_(A; dims=(1,3)) ≈ vec(std(A; dims=(1,3)))
 end
 
 @testset "inf" begin
