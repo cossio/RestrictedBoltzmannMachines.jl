@@ -2,33 +2,27 @@
     initialize!(rbm, [data]; ϵ = 1e-6)
 
 Initializes the RBM parameters.
-If `data` is provided, matches average visible unit activities from `data`.
+If provided, matches average visible unit activities from `data`.
+
+    initialize!(layer, [data]; ϵ = 1e-6)
+
+Initializes a layer.
+If provided, matches average unit activities from `data`.
 """
 function initialize! end
 
-function initialize!(rbm::RBM, data::AbstractArray; ϵ = 1e-6)
-    @assert size(data) == (size(rbm.visible)..., size(data)[end])
-    initialize!(rbm.visible, data; ϵ = ϵ)
-    initialize!(rbm.hidden)
-    initialize_weights!(rbm)
-    return rbm
-end
-
-function initialize!(rbm::RBM)
-    initialize!(rbm.visible)
-    initialize!(rbm.hidden)
-    initialize_weights!(rbm)
-    return rbm
-end
-
-function initialize!(layer::Potts, data::AbstractArray; ϵ::Real = 1e-6)
-    @assert size(data) == (size(layer)..., size(data)[end])
+function initialize!(rbm::RBM, data::AbstractArray; ϵ::Real = 1e-6)
     @assert 0 < ϵ < 1/2
-    μ = mean_(data; dims=ndims(data))
-    μϵ = clamp.(μ, ϵ, 1 - ϵ)
-    layer.θ .= log.(μϵ)
-    layer.θ .-= mean(layer.θ; dims=1) # zerosum
-    return layer
+    if isnothing(data)
+        initialize!(rbm.visible)
+    else
+        @assert size(data) == (size(rbm.visible)..., size(data)[end])
+        initialize!(rbm.visible, data; ϵ = ϵ)
+    end
+    initialize!(rbm.hidden)
+    initialize_weights!(rbm)
+    zerosum!(rbm)
+    return rbm
 end
 
 function initialize!(layer::Binary, data::AbstractArray; ϵ::Real = 1e-6)
@@ -46,6 +40,25 @@ function initialize!(layer::Spin, data::AbstractArray; ϵ::Real = 1e-6)
     μ = mean_(data; dims = ndims(data))
     μϵ = clamp.(μ, ϵ - 1, 1 - ϵ)
     layer.θ .= atanh.(μϵ)
+    return layer
+end
+
+function initialize!(layer::Potts, data::AbstractArray; ϵ::Real = 1e-6)
+    @assert size(data) == (size(layer)..., size(data)[end])
+    @assert 0 < ϵ < 1/2
+    μ = mean_(data; dims=ndims(data))
+    μϵ = clamp.(μ, ϵ, 1 - ϵ)
+    layer.θ .= log.(μϵ)
+    return layer # does not do zerosum!
+end
+
+function initialize!(layer::Gaussian, data::AbstractArray; ϵ::Real = 1e-6)
+    @assert size(data) == (size(layer)..., size(data)[end])
+    @assert 0 < ϵ < 1/2
+    μ = mean_(data; dims=ndims(data))
+    σ = std_(data; dims=ndims(data))
+    μϵ = clamp.(σ, ϵ, 1 - ϵ)
+    layer.θ .= log.(μϵ)
     return layer
 end
 
@@ -72,25 +85,8 @@ function initialize!(layer::pReLU)
     return layer
 end
 
-"""
-    initialize_weights!(rbm)
-
-Random initialization of weights, as independent normals with variance 1/N.
-"""
 function initialize_weights!(rbm::RBM)
     randn!(rbm.weights)
-    if rbm.visible isa Potts # zerosum
-        zerosum!(rbm.weights; dims=1)
-    end
-    rbm.weights .*= w / √length(rbm.visible)
-    return rbm
-end
-
-function initialize_weights!(rbm::RBM)
-    randn!(rbm.weights)
-    if rbm.visible isa Potts # zerosum
-        rbm.weights .-= mean(rbm.weights; dims=1)
-    end
-    rbm.weights ./= 10√length(rbm.visible)
-    return rbm
+    rbm.weights .*= 0.1 / √length(rbm.visible)
+    return rbm # does not impose zerosum
 end
