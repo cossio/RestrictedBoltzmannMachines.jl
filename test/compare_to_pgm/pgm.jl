@@ -57,9 +57,9 @@ end
     I did this because I wanted to be consistent with the external field of Binary,
     Spin and Potts layer, for which the field appears with this sign. =#
     θp = -vec(readdlm("compare_to_pgm/RBM_bin_dReLU_thetap_h.txt"))
-    θm =  vec(readdlm("compare_to_pgm/RBM_bin_dReLU_thetam_h.txt"))
+    θn =  vec(readdlm("compare_to_pgm/RBM_bin_dReLU_thetam_h.txt"))
     γp = vec(readdlm("compare_to_pgm/RBM_bin_dReLU_gammap_h.txt"))
-    γm = vec(readdlm("compare_to_pgm/RBM_bin_dReLU_gammam_h.txt"))
+    γn = vec(readdlm("compare_to_pgm/RBM_bin_dReLU_gammam_h.txt"))
     g = vec(readdlm("compare_to_pgm/RBM_bin_dReLU_g_v.txt"))
     w = readdlm("compare_to_pgm/RBM_bin_dReLU_w.txt")'
 
@@ -70,7 +70,7 @@ end
     E = vec(readdlm("compare_to_pgm/RBM_bin_dReLU_E.txt"))
     F = vec(readdlm("compare_to_pgm/RBM_bin_dReLU_F.txt"))
 
-    rbm = RBMs.RBM(RBMs.Binary(g), RBMs.dReLU(θp, θm, γp, γm), w)
+    rbm = RBMs.RBM(RBMs.Binary(g), RBMs.dReLU(θp, θn, γp, γn), w)
     @test RBMs.energy(rbm.visible, v) ≈ Ev rtol=1e-5
     @test RBMs.energy(rbm.hidden,  h) ≈ Eh rtol=1e-5
     @test RBMs.energy(rbm, v, h) ≈ E rtol=1e-5
