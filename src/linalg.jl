@@ -22,6 +22,11 @@ function block_matrix_logdet(
     A::AbstractMatrix, B::AbstractMatrix,
     C::AbstractMatrix, D::AbstractMatrix
 )
+    @assert size(A, 1) == size(B, 1)
+    @assert size(C, 1) == size(D, 1)
+    @assert size(A, 2) == size(C, 2)
+    @assert size(B, 2) == size(D, 2)
+
     if length(A) ≥ length(D)
         return logdet(A) + logdet(D - C * inv(A) * B)
     else
@@ -56,12 +61,17 @@ function block_matrix_invert(
     A::AbstractMatrix, B::AbstractMatrix,
     C::AbstractMatrix, D::AbstractMatrix
 )
+    @assert size(A, 1) == size(B, 1)
+    @assert size(C, 1) == size(D, 1)
+    @assert size(A, 2) == size(C, 2)
+    @assert size(B, 2) == size(D, 2)
+
     a = inv(A)
     d = inv(D)
 
     M = [
-        inv(A - B * d * C)  0I
-        0I  inv(D - C * a * B)
+        inv(A - B * d * C)  zeros(size(A, 1), size(D, 2))
+        zeros(size(D, 1), size(A, 2))  inv(D - C * a * B)
     ]
 
     N = [
