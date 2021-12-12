@@ -13,8 +13,8 @@ include("tests_init.jl")
     γh = vec(abs.(rbm.hidden.γ))
     w = reshape(rbm.weights, length(rbm.visible), length(rbm.hidden))
 
-    A = [diagm(γv) -w;
-         -w' diagm(γh)]
+    A = [Diagonal(γv) -w;
+         -w' Diagonal(γh)]
     θ = [vec(rbm.visible.θ); vec(rbm.hidden.θ)]
 
     v = randn(N..., 1)
