@@ -1,8 +1,3 @@
-# Throw this from a callback to force an early stop of training
-# (or just call stop())
-struct EarlyStop <: Exception end
-stop() = throw(EarlyStop())
-
 """
     train!(rbm, data)
 
@@ -57,16 +52,6 @@ function train!(rbm::RBM, data::AbstractArray;
 
             push!(history, :epoch, epoch)
             push!(history, :batch, b)
-
-            try
-                callback()
-            catch ex
-                if ex isa EarlyStop
-                    break
-                else
-                    rethrow(ex)
-                end
-            end
         end
 
         lpl = weighted_mean(log_pseudolikelihood(rbm, data), weights)
