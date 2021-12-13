@@ -26,7 +26,7 @@ function train!(rbm::RBM, data::AbstractArray;
 
     if weight_normalization
         w_norm = sqrt.(sum(abs2, rbm.weights; dims=layerdims(rbm.visible)))
-        w_dirs = copy(rbm.weights)
+        w_dirs = rbm.weights ./ w_norm
         ps = Flux.params(ps..., w_norm, w_dirs)
     end
 
