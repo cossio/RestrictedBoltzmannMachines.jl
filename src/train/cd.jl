@@ -32,7 +32,7 @@ function train!(rbm::RBM, data::AbstractArray;
     end
 
     if whiten_data
-        x = reshape(data, length(rbm.visible), size(data([end])))
+        x = reshape(data, length(rbm.visible), size(data)[end])
         μ = mean(x; dims=2)
         C = cov(x; dims=2)
         L = cholesky(C + whiten_ϵ * I).L
@@ -101,7 +101,7 @@ function affine_rbm(rbm::RBM)
 end
 
 
-struct WhitenTransform{At<:AbstractMatrix, Bt::AbstractVector, iAt}
+struct WhitenTransform{At<:AbstractMatrix, Bt<:AbstractVector, iAt}
     whiten_A::At
     whiten_b::Bt
     invers_A::iAt
