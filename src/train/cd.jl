@@ -14,8 +14,8 @@ function train!(rbm::RBM, data::AbstractArray;
     weights::AbstractVector = trues(_nobs(data)), # data point weights
     steps::Int = 1, # Monte Carlo steps to update fantasy particles
     initialize::Bool = false, # whether to initialize the RBM parameters
-    weight_normalization::Bool = false, # https://arxiv.org/abs/1602.07868
-    whiten_data::Bool = false, # whites v space. Similar https://jmlr.org/papers/volume17/14-237/14-237.pdf
+    weight_normalization::Bool = false,
+    whiten_data::Bool = false,
     whiten_ϵ::Real = 1e-6 # avoids singular cov matrix
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
