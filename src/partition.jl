@@ -68,8 +68,8 @@ Returns an array of all states of `layer`.
 Only defined for discrete layers.
 
 !!! warning
-Use only for small layers.
-For large layers, the exponential number of states will not fit in memory.
+    Use only for small layers.
+    For large layers, the exponential number of states will not fit in memory.
 """
 function collect_states(layer::Union{Binary, Spin, Potts})
     return cat(iterate_states(layer)...; dims=ndims(layer) + 1)

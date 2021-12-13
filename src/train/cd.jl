@@ -9,7 +9,6 @@ function train!(rbm::RBM, data::AbstractArray;
     optimizer = Flux.ADAM(), # optimizer algorithm
     ps::Flux.Params = Flux.params(rbm), # subset of optimized parameters
     history::MVHistory = MVHistory(), # stores training log
-    callback = () -> (), # callback function called on each iteration
     lossadd = (_...) -> 0, # regularization
     verbose::Bool = true,
     weights::AbstractVector = trues(_nobs(data)), # data point weights
@@ -17,7 +16,7 @@ function train!(rbm::RBM, data::AbstractArray;
     initialize::Bool = false, # whether to initialize the RBM parameters
     weight_normalization::Bool = false, # https://arxiv.org/abs/1602.07868
     whiten_data::Bool = false, # whites v space. Similar https://jmlr.org/papers/volume17/14-237/14-237.pdf
-    whiten_ϵ::Real = 1e-6, # avoids singular cov matrix
+    whiten_ϵ::Real = 1e-6 # avoids singular cov matrix
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert _nobs(data) == _nobs(weights)
@@ -121,7 +120,7 @@ function whiten_transform(t::WhitenTransform, data::AbstractMatrix)
 end
 
 function unwhiten_transform(t::WhitenTransform, wdat::AbstractArray)
-    return
+    return nothing
 end
 
 """
