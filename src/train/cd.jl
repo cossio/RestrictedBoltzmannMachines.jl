@@ -38,11 +38,6 @@ function train!(rbm::RBM, data::AbstractArray;
     for epoch in 1:epochs
         batches = minibatches(data, weights; batchsize = batchsize)
         Δt = @elapsed for (b, (vd, wd)) in enumerate(batches)
-            if weight_normalization
-                wl2 = sqrt.(sum(abs2, w_dirs; dims=layerdims(rbm.visible)))
-                rbm.weights .= w_norm .* w_dirs ./ wl2
-            end
-
             # update fantasy chains
             vm = sample_v_from_v(rbm, vm; steps = steps)
 
@@ -68,6 +63,12 @@ function train!(rbm::RBM, data::AbstractArray;
 
             # update parameters using gradient
             Flux.update!(optimizer, ps, gs)
+
+            if weight_normalization
+                # update RBM weights
+                wl2 = sqrt.(sum(abs2, w_dirs; dims=layerdims(rbm.visible)))
+                rbm.weights .= w_norm .* w_dirs ./ wl2
+            end
 
             push!(history, :epoch, epoch)
             push!(history, :batch, b)
