@@ -14,6 +14,7 @@ function train!(rbm::RBM, data::AbstractArray;
     verbose::Bool = true,
     weights::AbstractVector = trues(_nobs(data)), # data point weights
     steps::Int = 1, # Monte Carlo steps to update fantasy particles
+    weight_normalization::Bool = false, # https://arxiv.org/abs/1602.07868
     initialize::Bool = false, # whether to initialize the RBM parameters
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
@@ -21,6 +22,12 @@ function train!(rbm::RBM, data::AbstractArray;
 
     if initialize
         initialize!(rbm, data)
+    end
+
+    if weight_normalization
+        w_norm = sqrt.(sum(abs2, rbm.weights; dims=layerdims(rbm.visible)))
+        w_dirs = copy(rbm.weights)
+        ps = Flux.params(ps..., w_norm, w_dirs)
     end
 
     # initialize fantasy chains
@@ -31,13 +38,25 @@ function train!(rbm::RBM, data::AbstractArray;
     for epoch in 1:epochs
         batches = minibatches(data, weights; batchsize = batchsize)
         Δt = @elapsed for (b, (vd, wd)) in enumerate(batches)
+            if weight_normalization
+                wl2 = sqrt.(sum(abs2, w_dirs; dims=layerdims(rbm.visible)))
+                rbm.weights .= w_norm .* w_dirs ./ wl2
+            end
+
             # update fantasy chains
             vm = sample_v_from_v(rbm, vm; steps = steps)
 
             # compute contrastive divergence gradient
             gs = Zygote.gradient(ps) do
-                Fd = free_energy(rbm, vd)
-                Fm = free_energy(rbm, vm)
+                if weight_normalization
+                    wl2 = sqrt.(sum(abs2, w_dirs; dims=layerdims(rbm.visible)))
+                    rbm_ = RBM(rbm.visible, rbm.hidden, w_norm .* w_dirs ./ wl2)
+                    Fd = free_energy(rbm_, vd)
+                    Fm = free_energy(rbm_, vm)
+                else
+                    Fd = free_energy(rbm, vd)
+                    Fm = free_energy(rbm, vm)
+                end
                 loss = weighted_mean(Fd, wd) - weighted_mean(Fm)
                 regu = lossadd(rbm, vd, vm, wd)
                 ChainRulesCore.ignore_derivatives() do

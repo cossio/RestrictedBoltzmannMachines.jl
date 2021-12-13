@@ -236,3 +236,64 @@ for i in 1:3, j in 1:8
     heatmap!(ax, fantasy_x_[:,:,i,j])
 end
 fig
+
+
+# # Weight normalization
+
+#=
+The authors of https://arxiv.org/abs/1602.07868 introduce weight normalization to boost
+learning.
+Let's try it here.
+=#
+
+rbm = RBMs.RBM(
+    RBMs.Binary(Float,28,28),
+    RBMs.Binary(Float,200),
+    randn(Float,28,28,200)/28
+)
+history_wnorm = RBMs.train!(
+    rbm, train_x; epochs=100, batchsize=128, initialize=true, weight_normalization=true,
+    optimizer=Flux.ADAMW(0.001f0, (0.9f0, 0.999f0), 1f-4)
+)
+nothing #hide
+
+#=
+Let's see what the learning curves look like.
+=#
+
+fig = Figure(resolution=(800, 300))
+ax = Axis(fig[1,1])
+lines!(ax, get(history, :lpl)..., label="no init.")
+lines!(ax, get(history_init, :lpl)..., label="init.")
+lines!(ax, get(history_wnorm, :lpl)..., label="w. norm.")
+axislegend(ax)
+fig
+
+
+
+#=
+If we initialize parameters, in particular matching the single-site statistics,
+the model trains better and faster.
+=#
+
+rbm = RBMs.RBM(
+    RBMs.Binary(Float,28,28),
+    RBMs.Binary(Float,200),
+    randn(Float,28,28,200)/28
+)
+history_init = RBMs.train!(
+    rbm, train_x; epochs=100, batchsize=128, initialize=true,
+    optimizer=Flux.ADAMW(0.001f0, (0.9f0, 0.999f0), 1f-4)
+)
+nothing #hide
+
+#=
+Compare the learning curves, with and without initialization.
+=#
+
+fig = Figure(resolution=(800, 300))
+ax = Axis(fig[1,1])
+lines!(ax, get(history, :lpl)..., label="no init.")
+lines!(ax, get(history_init, :lpl)..., label="init.")
+axislegend(ax)
+fig
