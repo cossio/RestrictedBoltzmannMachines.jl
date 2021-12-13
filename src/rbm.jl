@@ -161,16 +161,3 @@ function flip_layers(rbm::RBM)
     perm = ntuple(p, ndims(rbm.weights))
     return RBM(rbm.hidden, rbm.visible, permutedims(rbm.weights, perm))
 end
-
-"""
-    normalize_weights(rbm)
-
-Rescales weights so that norm(w[:,μ]) = 1 for all μ (making individual weights ~ 1/√N).
-The resulting RBM shares layer parameters with the original, but weights are a new array.
-"""
-function normalize_weights(rbm::RBM)::typeof(rbm)
-    ω = sqrt.(sum(rbm.weights.^2; dims = vdims(rbm)))
-    @assert all(x -> x > 0, ω)
-    weights = rbm.weights ./ ω
-    return RBM(rbm.visible, rbm.hidden, weights)
-end
