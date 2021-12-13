@@ -18,7 +18,7 @@ Flux.@functor RBM
 """
     energy(rbm, v, h)
 
-Energy of the rbm in the configuration (v,h).
+Energy of the rbm in the configuration `(v,h)`.
 """
 function energy(rbm::RBM, v::AbstractArray, h::AbstractArray)
     Ev = energy(rbm.visible, v)
