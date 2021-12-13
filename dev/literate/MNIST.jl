@@ -123,7 +123,7 @@ We print here the time spent in the training as a rough benchmark.
 =#
 
 history = RBMs.train!(
-    rbm, train_x; epochs=100, batchsize=128,
+    rbm, train_x; epochs=200, batchsize=128,
     optimizer=Flux.ADAM()
 )
 nothing #hide
@@ -198,7 +198,7 @@ rbm = RBMs.RBM(
     randn(Float,28,28,200)/28
 )
 history_init = RBMs.train!(
-    rbm, train_x; epochs=100, batchsize=128, initialize=true,
+    rbm, train_x; epochs=200, batchsize=128, initialize=true,
     optimizer=Flux.ADAM()
 )
 nothing #hide
@@ -254,7 +254,7 @@ rbm = RBMs.RBM(
     randn(Float,28,28,200)/28
 )
 history_wnorm = RBMs.train!(
-    rbm, train_x; epochs=100, batchsize=128, initialize=true, weight_normalization=true,
+    rbm, train_x; epochs=200, batchsize=128, initialize=true, weight_normalization=true,
     optimizer=Flux.ADAM()
 )
 nothing #hide
