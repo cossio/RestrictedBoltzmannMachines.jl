@@ -243,7 +243,7 @@ fig
 # # Weight normalization
 
 #=
-The authors of [https://arxiv.org/abs/1602.07868] introduce weight normalization to boost
+The authors of <https://arxiv.org/abs/1602.07868> introduce weight normalization to boost
 learning.
 Let's try it here.
 =#
@@ -274,7 +274,7 @@ fig
 # ## Whitening the data
 
 #=
-[https://jmlr.org/papers/volume17/14-237/14-237.pdf]
-[http://www.cs.toronto.edu/~tang/papers/RbmZM.pdf]
-[https://doi.org/10.1007/978-3-642-35289-8_3]
+<https://jmlr.org/papers/volume17/14-237/14-237.pdf>
+<http://www.cs.toronto.edu/~tang/papers/RbmZM.pdf>
+<https://doi.org/10.1007/978-3-642-35289-8_3>
 =#
