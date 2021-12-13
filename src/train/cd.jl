@@ -14,8 +14,10 @@ function train!(rbm::RBM, data::AbstractArray;
     verbose::Bool = true,
     weights::AbstractVector = trues(_nobs(data)), # data point weights
     steps::Int = 1, # Monte Carlo steps to update fantasy particles
-    weight_normalization::Bool = false, # https://arxiv.org/abs/1602.07868
     initialize::Bool = false, # whether to initialize the RBM parameters
+    weight_normalization::Bool = false, # https://arxiv.org/abs/1602.07868
+    whiten_data::Bool = false, # whites v space. Similar https://jmlr.org/papers/volume17/14-237/14-237.pdf
+    whiten_ϵ::Real = 1e-6, # avoids singular cov matrix
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert _nobs(data) == _nobs(weights)
@@ -28,6 +30,16 @@ function train!(rbm::RBM, data::AbstractArray;
         w_norm = sqrt.(sum(abs2, rbm.weights; dims=layerdims(rbm.visible)))
         w_dirs = rbm.weights ./ w_norm
         ps = Flux.params(ps..., w_norm, w_dirs)
+    end
+
+    if whiten_data
+        x = reshape(data, length(rbm.visible), size(data([end])))
+        μ = mean(x; dims=2)
+        C = cov(x; dims=2)
+        L = cholesky(C + whiten_ϵ * I).L
+        A = inv(cholesky(C + whiten_ϵ * I).L)
+        x_white = A * (x - μ)
+        data_white = reshape(x_white, size(data)...)
     end
 
     # initialize fantasy chains
@@ -83,4 +95,58 @@ function train!(rbm::RBM, data::AbstractArray;
         end
     end
     return history
+end
+
+function affine_rbm(rbm::RBM)
+
+end
+
+
+struct WhitenTransform{At<:AbstractMatrix, Bt::AbstractVector, iAt}
+    whiten_A::At
+    whiten_b::Bt
+    invers_A::iAt
+end
+
+function WhitenTransform(data::AbstractMatrix, ϵ::Real = 1e-6)
+    μ = mean(data; dims=2)
+    C = cov(data; dims=2)
+    L = cholesky(C + ϵ * I).L
+    A = inv(cholesky(C + ϵ * I).L)
+    return WhitenTransform(A, -A * μ, L)
+end
+
+function whiten_transform(t::WhitenTransform, data::AbstractMatrix)
+    return t.whiten_A * data + t.whiten_b
+end
+
+function unwhiten_transform(t::WhitenTransform, wdat::AbstractArray)
+    return
+end
+
+"""
+    whiten_transform(rbm, transform)
+
+Returns the whitened transform of `rbm`.
+"""
+function whiten_transform(
+    transform::WhitenTransform, rbm::RBM{<:Union{Binary, Spin, Potts}}
+)
+    @assert size(transform.inverse_A) == (length(rbm.visible), length(rbm.visible))
+    g = transform.inverse_A * reshape(rbm.visible.θ, length(rbm.visible))
+    w = transform.inverse_A * reshape(rbm.weights, length(rbm.visible), length(rbm.hidden))
+    Δθ = -w' * transform.whitening_b
+    return RBM(
+        typeof(rbm.visible)(reshape(g, size(data.visible)...)),
+        shift_field(rbm.hidden, reshape(Δθ, size(data.hidden)...)),
+        reshape(w, size(rbm.visible)..., size(rbm.hidden)...)
+    )
+end
+
+function unwhiten_transform(rbm::RBM, T::WhitenTransform)
+
+end
+
+function shift_field(layer::Union{Binary, Spin, Potts}, Δθ::AbstractArray)
+    return typeof(layer)(layer.θ .+ shift)
 end
