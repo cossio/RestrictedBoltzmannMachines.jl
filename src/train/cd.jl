@@ -4,19 +4,6 @@ struct EarlyStop <: Exception end
 stop() = throw(EarlyStop())
 
 """
-    unwhiten(rbm, data)
-
-Given an RBM trained on whitened data, returns an RBM that can look at original data.
-"""
-function unwhiten(rbm::RBM, data::AbstractArray)
-
-end
-
-function whiten(data::AbstractArray)
-
-end
-
-"""
     train!(rbm, data)
 
 Trains the RBM on data.
@@ -32,8 +19,6 @@ function train!(rbm::RBM, data::AbstractArray;
     verbose::Bool = true,
     weights::AbstractVector = trues(_nobs(data)), # data point weights
     steps::Int = 1, # Monte Carlo steps to update fantasy particles
-    weight_normalization::Bool = false, # normalize RBM weights
-    whiten_data::Bool = false, # train on whitened data
     initialize::Bool = false, # whether to initialize the RBM parameters
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
