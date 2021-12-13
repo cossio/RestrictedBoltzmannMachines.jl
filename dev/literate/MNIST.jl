@@ -255,7 +255,7 @@ rbm = RBMs.RBM(
 )
 history_wnorm = RBMs.train!(
     rbm, train_x; epochs=200, batchsize=128, initialize=true, weight_normalization=true,
-    optimizer=Flux.ADAM()
+    optimizer=Flux.ADAM(0.005)
 )
 nothing #hide
 
