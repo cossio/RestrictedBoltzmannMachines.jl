@@ -63,3 +63,4 @@ end
 Constructs the tuple `(1, 2, ..., N)`.
 """
 @generated tuplen(::Val{N}) where {N} = ntuple(identity, Val(N))
+tuplen(N) = ntuple(identity, N)
