@@ -211,7 +211,7 @@ fig = Figure(resolution=(800, 300))
 ax = Axis(fig[1,1])
 lines!(ax, get(history, :lpl)..., label="no init.")
 lines!(ax, get(history_init, :lpl)..., label="init.")
-axislegend(ax)
+axislegend(ax, position=:rb)
 fig
 
 #=
@@ -268,7 +268,7 @@ ax = Axis(fig[1,1])
 lines!(ax, get(history, :lpl)..., label="no init.")
 lines!(ax, get(history_init, :lpl)..., label="init.")
 lines!(ax, get(history_wnorm, :lpl)..., label="w. norm.")
-axislegend(ax)
+axislegend(ax, position=:rb)
 fig
 
 # ## Whitening the data
