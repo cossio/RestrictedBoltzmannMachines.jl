@@ -8,8 +8,8 @@ module RestrictedBoltzmannMachines
     include("minibatches.jl")
     include("onehot.jl")
 
-    include("truncnorm/truncnorm.jl")
-    include("truncnorm/rejection.jl")
+    include("trunc_norm/truncnorm.jl")
+    include("trunc_norm/rejection.jl")
 
     include("layers/binary.jl")
     include("layers/spin.jl")
@@ -23,12 +23,12 @@ module RestrictedBoltzmannMachines
 
     include("rbm.jl")
 
-    include("train/initialization.jl")
-    include("train/cd.jl")
+    include("initialization.jl")
+    include("cd.jl")
 
-    include("train/regularize.jl")
-    #include("train/lr_schedules.jl")
-    include("train/zerosum.jl")
+    include("regularize.jl")
+    #include("lr_schedules.jl")
+    include("zerosum.jl")
 
     include("pseudolikelihood.jl")
     include("partition.jl")

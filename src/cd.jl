@@ -32,13 +32,13 @@ function train!(rbm::RBM, data::AbstractArray;
     end
 
     if whiten_data
-        x = reshape(data, length(rbm.visible), size(data)[end])
-        μ = mean(x; dims=2)
-        C = cov(x; dims=2)
-        L = cholesky(C + whiten_ϵ * I).L
-        A = inv(cholesky(C + whiten_ϵ * I).L)
-        x_white = A * (x - μ)
-        data_white = reshape(x_white, size(data)...)
+        data_mat = reshape(data, length(rbm.visible), size(data)[end])
+        data_mat_μ = mean(data_mat; dims=2)
+        data_mat_Σ = cov(data_mat; dims=2)
+        whiten_L = cholesky(data_mat_Σ + whiten_ϵ * I).L
+        whiten_A = inv(cholesky(C + whiten_ϵ * I).L)
+        data_mat_white = whiten_A * (data_mat .- data_mat_μ)
+        data_white = reshape(data_mat_white, size(data)...)
     end
 
     # initialize fantasy chains

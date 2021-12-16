@@ -4,8 +4,7 @@ https://fluxml.ai/Flux.jl/stable/training/optimisers/#Composing-Optimisers-1
 https://github.com/FluxML/Flux.jl/blob/2b1ba184d1a58c37543f4561413cddb2de594289/src/optimise/optimisers.jl#L517-L538
 =#
 
-using Flux: Optimiser
-export Optimiser, SqrtDecay, GeometricDecay
+import Flux
 
 abstract type AbstractLrDecay end
 

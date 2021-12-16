@@ -56,9 +56,9 @@ function initialize!(layer::Gaussian, data::AbstractArray; ϵ::Real = 1e-6)
     @assert size(data) == (size(layer)..., size(data)[end])
     @assert 0 < ϵ < 1/2
     μ = mean_(data; dims=ndims(data))
-    σ = std_(data; dims=ndims(data))
-    μϵ = clamp.(σ, ϵ, 1 - ϵ)
-    layer.θ .= log.(μϵ)
+    ν = var_(data; dims=ndims(data))
+    layer.γ .= inv.(ν .+ ϵ)
+    layer.θ .= μ .* layer.γ
     return layer
 end
 
