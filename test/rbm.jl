@@ -22,6 +22,8 @@ include("tests_init.jl")
 
     @test size(@inferred RBMs.free_energy(rbm, v)) == (7,)
     @test size(@inferred RBMs.reconstruction_error(rbm, v)) == (7,)
+
+    @inferred RBMs.flip_layers(rbm)
 end
 
 @testset "Gaussian-Gaussian RBM, 1-dimension" begin

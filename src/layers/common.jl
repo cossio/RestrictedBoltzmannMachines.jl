@@ -69,11 +69,11 @@ Base.length(layer::_ThetaLayers) = length(layer.θ)
 
 layerdims(layer) = ntuple(identity, ndims(layer))
 
-function pReLU(layer::dReLU)
-    γ = @. 2γp * γn / (γp + γn)
-    η = @. (γn - γp) / (γp + γn)
-    θ = @. (layer.θp * γn + layer.θn * γp) / (γp + γn)
-    Δ = @. γ * (layer.θp - layer.θn) / (γp + γn)
+function pReLU(l::dReLU)
+    γ = @. 2l.γp * l.γn / (l.γp + l.γn)
+    η = @. (l.γn - l.γp) / (l.γp + l.γn)
+    θ = @. (l.θp * l.γn + l.θn * l.γp) / (l.γp + l.γn)
+    Δ = @. γ * (l.θp - l.θn) / (l.γp + l.γn)
     return pReLU(θ, Δ, γ, η)
 end
 
