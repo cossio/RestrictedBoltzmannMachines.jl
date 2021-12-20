@@ -1,14 +1,65 @@
 """
-    sample_from_inputs(layer, inputs, β = 1)
+    energy(layer, x)
+
+Layer energy, reduced over layer dimensions.
+"""
+function energy(layer, x::AbstractArray)
+    E = energies(layer, x)
+    return maybe_scalar(sum_(E; dims = layerdims(layer)))
+end
+
+function energy(layer::Union{Binary, Spin, Potts}, x::AbstractArray)
+    @assert size(x)[1:ndims(layer)] == size(layer)
+    if ndims(x) > ndims(layer)
+        return -reshape(x, length(layer), :)' * vec(layer.θ)
+    else
+        return -vec(x)' * vec(layer.θ)
+    end
+end
+
+"""
+    cgf(layer, inputs = 0, β = 1)
+
+Cumulant generating function of layer, reduced over layer dimensions.
+"""
+function cgf(layer, inputs, β::Real = 1)
+    Γ = cgfs(layer, inputs, β)
+    return maybe_scalar(sum_(Γ; dims = layerdims(layer)))
+end
+
+"""
+    sample(layer, inputs = 0, β = 1)
 
 Samples layer configurations conditioned on inputs.
 """
-function sample_from_inputs end
-
-function energy(layer::Union{Binary, Spin, Potts}, x::AbstractArray)
-    @assert size(x) == (size(layer)..., size(x)[end])
-    return -reshape(x, length(layer), size(x)[end])' * vec(layer.θ)
+function sample(layer, inputs, β::Real = 1)
+    layer_ = transform_layer(layer, inputs, β)
+    return sample(layer_)
 end
+
+"""
+    cgfs(layer, inputs = 0, β = 1)
+
+Cumulant generating function of units in layer (not reduced over layer dimensions).
+"""
+function cgfs(layer, inputs, β::Real = 1)
+    layer_ = transform_layer(layer, inputs, β)
+    return cgfs(layer_) / β
+end
+
+function mode(layer, inputs, β::Real = 1)
+    layer_ = transform_layer(layer, inputs, β)
+    return mode(layer_)
+end
+
+"""
+    energies(layer, x)
+
+Energies of units in layer (not reduced over layer dimensions).
+"""
+function energies end
+
+energies(layer::Union{Binary, Spin, Potts}, x) = -layer.θ .* x
 
 const _ThetaLayers = Union{Binary, Spin, Potts, Gaussian, ReLU, pReLU, xReLU}
 Base.ndims(layer::_ThetaLayers) = ndims(layer.θ)
@@ -18,11 +69,15 @@ Base.length(layer::_ThetaLayers) = length(layer.θ)
 
 layerdims(layer) = ntuple(identity, ndims(layer))
 
-function pReLU(l::dReLU)
-    γ = @. 2l.γp * l.γn / (l.γp + l.γn)
-    η = @. (l.γn - l.γp) / (l.γp + l.γn)
-    θ = @. (l.θp * l.γn + l.θn * l.γp) / (l.γp + l.γn)
-    Δ = @. γ * (l.θp - l.θn) / (l.γp + l.γn)
+function pReLU(layer::dReLU)
+    #= The conversion is bijective only if the γ's are positive =#
+    γp = abs.(layer.γp)
+    γn = abs.(layer.γn)
+
+    γ = @. 2γp * γn / (γp + γn)
+    η = @. (γn - γp) / (γp + γn)
+    θ = @. (layer.θp * γn + layer.θn * γp) / (γp + γn)
+    Δ = @. γ * (layer.θp - layer.θn) / (γp + γn)
     return pReLU(θ, Δ, γ, η)
 end
 
@@ -35,9 +90,10 @@ function dReLU(l::pReLU)
 end
 
 function xReLU(l::dReLU)
-    #= The xReLU <-> dReLU conversion is bijective only if the γ's are positive =#
+    #= The conversion is bijective only if the γ's are positive =#
     γp = abs.(l.γp)
     γn = abs.(l.γn)
+
     γ = @. 2γp * γn / (γp + γn)
     ξ = @. (γn - γp) / (γp + γn - abs(γn - γp))
     θ = @. (l.θp * γn + l.θn * γp) / (γp + γn)

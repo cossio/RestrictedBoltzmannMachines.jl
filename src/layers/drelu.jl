@@ -21,40 +21,39 @@ dReLU(n::Int...) = dReLU(Float64, n...)
 
 Flux.@functor dReLU
 
-function energy(layer::dReLU, x::AbstractArray)
-    E = drelu_energy.(layer.θp, layer.θn, layer.γp, layer.γn, x)
-    return sum_(E; dims = layerdims(layer))
+function energies(layer::dReLU, x::AbstractArray)
+    return drelu_energy.(layer.θp, layer.θn, layer.γp, layer.γn, x)
 end
 
-function cgf(layer::dReLU, inputs::AbstractArray)
-    Γ = drelu_cgf.(inputs .+ layer.θp, inputs .+ layer.θn, layer.γp, layer.γn)
-    return sum_(Γ; dims = layerdims(layer))
+cgfs(layer::dReLU) = drelu_cgf.(layer.θp, layer.θn, layer.γp, layer.γn)
+sample(layer::dReLU) = drelu_rand.(layer.θp, layer.θn, layer.γp, layer.γn)
+mode(layer::dReLU) = drelu_mode.(layer.θp, layer.θn, layer.γp, layer.γn)
+
+function transform_layer(layer::dReLU, inputs, β::Real = 1)
+    θp = β * (layer.θp .+ inputs)
+    θn = β * (layer.θn .+ inputs)
+    γp = β * broadlike(layer.γp, inputs)
+    γn = β * broadlike(layer.γn, inputs)
+    return dReLU(θp, θn, γp, γn)
 end
 
-function cgf(layer::dReLU, inputs::AbstractArray, β::Real)
-    layer_ = dReLU(layer.θp .* β, layer.θn .* β, layer.γp .* β, layer.γn .* β)
-    return cgf(layer_, inputs .* β) / β
-end
-
-function sample_from_inputs(layer::dReLU, inputs::AbstractArray)
-    return @. drelu_rand(layer.θp + inputs, layer.θn + inputs, layer.γp, layer.γn)
-end
-
-function sample_from_inputs(layer::dReLU, inputs::AbstractArray, β::Real)
-    layer_ = dReLU(β .* layer.θp, β .* layer.θn, β .* layer.γp, β .* layer.γn)
-    return sample_from_inputs(layer_, inputs .* β)
-end
+Base.size(layer::dReLU) = size(layer.θp)
+Base.size(layer::dReLU, d::Int) = size(layer.θp, d)
+Base.ndims(layer::dReLU) = ndims(layer.θp)
+Base.length(layer::dReLU) = length(layer.θp)
 
 function drelu_energy(θp::Real, θn::Real, γp::Real, γn::Real, x::Real)
-    xp = max(x, zero(x))
-    xn = min(x, zero(x))
-    Ep = (abs(γp) * xp / 2 - θp) * xp
-    En = (abs(γn) * xn / 2 - θn) * xn
-    return Ep + En
+    θp_, θn_ = promote(θp, θn)
+    γp_, γn_ = promote(γp, γn)
+    if x ≥ 0
+        return gauss_energy(θp_, γp_, x)
+    else
+        return gauss_energy(θn_, γn_, x)
+    end
 end
 
 function drelu_cgf(θp::Real, θn::Real, γp::Real, γn::Real)
-    Γp = relu_cgf( θp, γp)
+    Γp = relu_cgf(+θp, γp)
     Γn = relu_cgf(-θn, γn)
     return LogExpFunctions.logaddexp(Γp, Γn)
 end
@@ -70,7 +69,15 @@ function drelu_rand(θp::Real, θn::Real, γp::Real, γn::Real)
     end
 end
 
-Base.size(layer::dReLU) = size(layer.θp)
-Base.size(layer::dReLU, d::Int) = size(layer.θp, d)
-Base.ndims(layer::dReLU) = ndims(layer.θp)
-Base.length(layer::dReLU) = length(layer.θp)
+function drelu_mode(θp::Real, θn::Real, γp::Real, γn::Real)
+    T = promote_type(Bool, typeof(θp / abs(γp)), typeof(θn / abs(γn)))
+    if θp ≤ 0 ≤ θn
+        return zero(T)
+    elseif θn ≤ 0 ≤ θp && θp^2 / abs(γp) ≥ θn^2 / abs(γn) || θp ≥ 0 && θn ≥ 0
+        return convert(T, θp / abs(γp))
+    elseif θn ≤ 0 ≤ θp && θp^2 / abs(γp) ≤ θn^2 / abs(γn) || θp ≤ 0 && θn ≤ 0
+        return convert(T, θn / abs(γn))
+    else
+        return convert(T, NaN)
+    end
+end

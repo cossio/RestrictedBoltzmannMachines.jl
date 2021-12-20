@@ -21,9 +21,23 @@ pReLU(n::Int...) = pReLU(Float64, n...)
 
 Flux.@functor pReLU
 
-energy(layer::pReLU, x::AbstractArray) = energy(dReLU(layer), x)
-cgf(layer::pReLU, inputs::AbstractArray, β::Real = 1) = cgf(dReLU(layer), inputs, β)
+function energies(layer::pReLU, x::AbstractArray)
+    drelu = dReLU(layer)
+    return energies(drelu, x)
+end
 
-function sample_from_inputs(layer::pReLU, inputs::AbstractArray, β::Real = 1)
-    return sample_from_inputs(dReLU(layer), inputs, β)
+function cgfs(layer::pReLU)
+    return cgfs(dReLU(layer))
+end
+
+function sample(layer::pReLU)
+    return sample(dReLU(layer))
+end
+
+function transform_layer(layer::pReLU, inputs, β::Real = 1)
+    θ = β * (layer.θ .+ inputs)
+    Δ = β * broadlike(layer.Δ, inputs)
+    γ = β * broadlike(layer.γ, inputs)
+    η = broadlike(layer.η, inputs)
+    return pReLU(θ, Δ, γ, η)
 end

@@ -20,15 +20,19 @@ end
 function random_layer(
     ::Type{T}, N::Int...
 ) where {T <: Union{RBMs.Gaussian, RBMs.ReLU}}
-    return T(randn(N...), randn(N...))
+    return T(randn(N...), rand(N...))
 end
 
-function random_layer(::Type{T}, N::Int...) where {T <: Union{RBMs.dReLU, RBMs.xReLU}}
-    return T(randn(N...), randn(N...), randn(N...), randn(N...))
+function random_layer(::Type{RBMs.dReLU}, N::Int...)
+    return RBMs.dReLU(randn(N...), randn(N...), rand(N...), rand(N...))
+end
+
+function random_layer(::Type{RBMs.xReLU}, N::Int...)
+    return RBMs.xReLU(randn(N...), randn(N...), rand(N...), randn(N...))
 end
 
 function random_layer(::Type{RBMs.pReLU}, N::Int...)
-    return RBMs.pReLU(randn(N...), randn(N...), randn(N...), 2rand(N...) .- 1)
+    return RBMs.pReLU(randn(N...), randn(N...), rand(N...), 2rand(N...) .- 1)
 end
 
 @testset "testing $Layer" for Layer in _layers
@@ -43,11 +47,15 @@ end
 
     inputs = randn(size(layer)..., 7)
     @test size(RBMs.cgf(layer, inputs, 1)) == (7,)
-    @test size(RBMs.sample_from_inputs(layer, inputs, 1)) == size(inputs)
+    @test size(RBMs.sample(layer, inputs, 1)) == size(inputs)
+    @test size(RBMs.sample(layer, 0, 1)) == size(RBMs.sample(layer)) == size(layer)
     @test RBMs.cgf(layer, inputs, 1) ≈ RBMs.cgf(layer, inputs)
+    @test RBMs.cgfs(layer, 0, 1) ≈ RBMs.cgfs(layer)
+    @test RBMs.cgf(layer) isa Real
     @inferred RBMs.energy(layer, x)
+    @inferred RBMs.cgfs(layer, inputs, 1)
     @inferred RBMs.cgf(layer, inputs, 1)
-    @inferred RBMs.sample_from_inputs(layer, inputs, 1)
+    @inferred RBMs.sample(layer, inputs, 1)
 end
 
 @testset "discrete layers ($Layer)" for Layer in (RBMs.Binary, RBMs.Spin, RBMs.Potts)
@@ -60,33 +68,33 @@ end
     N = (3, 4, 5)
     B = 7
 
-    layer = random_layer(RBMs.Binary, N...)
-    v = rand(Bool, size(layer)..., B)
+    layer = RBMs.Binary(randn(N...))
+    x = rand(Bool, size(layer)..., B)
     inputs = randn(size(layer)..., B)
+
+    @test RBMs.energies(layer, x) ≈ -layer.θ .* x
+    @test RBMs.energy(layer, x) ≈ -vec(sum(layer.θ .* x; dims=(1,2,3)))
 
     β = rand()
 
-    @test RBMs.energy(layer, v) ≈ -vec(sum(layer.θ .* v; dims=(1,2,3)))
-    Γ = LogExpFunctions.log1pexp.(β .* (layer.θ .+ inputs)) / β
-    @test RBMs.cgf(layer, inputs, β) ≈ vec(sum(Γ; dims=(1,2,3)))
-
     Γ = log.(sum(exp.(β * (inputs .+ layer.θ) .* h) for h in (0, 1))) / β
+    @test RBMs.cgfs(layer, inputs, β) ≈ Γ
     @test RBMs.cgf(layer, inputs, β) ≈ vec(sum(Γ; dims=(1,2,3)))
 
-    @test all(RBMs.sample_from_inputs(layer, inputs) .∈ Ref(0:1))
+    @test all(RBMs.sample(layer, inputs, β) .∈ Ref(0:1))
 
     μ = LogExpFunctions.logistic.(β .* (layer.θ .+ inputs))
-    @test only(Zygote.gradient(x -> sum(RBMs.cgf(layer, x, β)), inputs)) ≈ μ
+    @test only(Zygote.gradient(x -> sum(RBMs.cgfs(layer, x, β)), inputs)) ≈ μ
 
     layer = RBMs.Binary([0.5])
-    @test mean(RBMs.sample_from_inputs(layer, zeros(1, 10^6))) ≈ LogExpFunctions.logistic(0.5) rtol=0.1
+    @test mean(RBMs.sample(layer, zeros(1, 10^6))) ≈ LogExpFunctions.logistic(0.5) rtol=0.1
 end
 
 @testset "Spin" begin
     N = (3, 4, 5)
     B = 7
 
-    layer = random_layer(RBMs.Spin, N...)
+    layer = RBMs.Spin(randn(N...))
     v = rand((-1, 1), size(layer)..., B)
     inputs = randn(size(layer)..., B)
 
@@ -95,19 +103,17 @@ end
     @test RBMs.energy(layer, v) ≈ -vec(sum(layer.θ .* v; dims=(1,2,3)))
     @test RBMs.energy(layer, v) ≈ RBMs.energy(RBMs.Binary(layer.θ), v)
 
-    Γ = LogExpFunctions.logaddexp.(β * (layer.θ .+ inputs), -β * (layer.θ .+ inputs)) / β
+    Γ = log.(sum(exp.(β * (inputs .+ layer.θ) .* h) for h in (-1, 1))) / β
+    @test RBMs.cgfs(layer, inputs, β) ≈ Γ
     @test RBMs.cgf(layer, inputs, β) ≈ vec(sum(Γ; dims=(1,2,3)))
 
-    Γ = log.(sum(exp.(β * (inputs .* h .+ layer.θ .* h)) for h in (-1, 1))) / β
-    @test RBMs.cgf(layer, inputs, β) ≈ vec(sum(Γ; dims=(1,2,3)))
-
-    @test all(RBMs.sample_from_inputs(layer, inputs, β) .∈ Ref((-1, 1)))
+    @test all(RBMs.sample(layer, inputs, β) .∈ Ref((-1, 1)))
 
     μ = tanh.(β * (layer.θ .+ inputs))
     @test only(Zygote.gradient(x -> sum(RBMs.cgf(layer, x, β)), inputs)) ≈ μ
 
     layer = RBMs.Spin([0.5])
-    @test mean(RBMs.sample_from_inputs(layer, zeros(1, 10^6))) ≈ tanh(0.5) rtol=0.1
+    @test mean(RBMs.sample(layer, zeros(1, 10^6))) ≈ tanh(0.5) rtol=0.1
 end
 
 @testset "Potts" begin
@@ -120,8 +126,8 @@ end
     inputs = randn(q, N..., B)
 
     # samples are proper one-hot
-    @test sort(unique(RBMs.sample_from_inputs(layer, inputs))) == [0, 1]
-    @test all(sum(RBMs.sample_from_inputs(layer, inputs); dims=1) .== 1)
+    @test sort(unique(RBMs.sample(layer, inputs))) == [0, 1]
+    @test all(sum(RBMs.sample(layer, inputs); dims=1) .== 1)
     @test RBMs.energy(layer, v) ≈ -vec(sum(layer.θ .* v; dims=(1,2,3)))
     @test RBMs.energy(layer, v) ≈ RBMs.energy(RBMs.Binary(layer.θ), v)
 
@@ -131,6 +137,7 @@ end
     @test RBMs.cgf(layer, inputs, β) ≈ vec(sum(Γ; dims=(1,2,3)))
 
     Γ = log.(sum(exp.(β * (inputs .+ layer.θ)[h:h,:,:,:]) for h in 1:q)) / β
+    @test RBMs.cgfs(layer, inputs, β) ≈ Γ
     @test RBMs.cgf(layer, inputs, β) ≈ vec(sum(Γ; dims=(1,2,3)))
 
     μ = LogExpFunctions.softmax(β .* (layer.θ .+ inputs); dims=1)
@@ -138,7 +145,7 @@ end
 
     layer = RBMs.Potts([0.5; 0.2])
     μ = LogExpFunctions.softmax(layer.θ; dims=1)
-    @test vec(mean(RBMs.sample_from_inputs(layer, zeros(2, 10^6)); dims=2)) ≈ μ rtol=0.1
+    @test vec(mean(RBMs.sample(layer, zeros(2, 10^6)); dims=2)) ≈ μ rtol=0.1
 end
 
 @testset "Gaussian" begin
@@ -171,9 +178,17 @@ end
     @test RBMs.cgf(layer, inputs, β) ≈ vec(sum(Γ; dims=(1,2,3)))
 
     layer = RBMs.Gaussian([0.4], [0.2])
-    samples = RBMs.sample_from_inputs(layer, zeros(1, 10^6))
+    samples = RBMs.sample(layer, zeros(1, 10^6))
     @test mean(samples) ≈ 2 rtol=0.1
     @test std(samples) ≈ √5 rtol=0.1
+
+    N = (16, 8)
+    B = 64
+    l = random_layer(RBMs.Gaussian, N...)
+    inputs = randn(N..., B)
+    x = randn(N..., B)
+    m = RBMs.mode(l, inputs)
+    @test all(inputs .* m .- RBMs.energies(l, m) .≥ inputs .* x .- RBMs.energies(l, x))
 end
 
 @testset "ReLU" begin
@@ -267,4 +282,12 @@ end
 
     Γ = @. my_cgf(β * (inputs + l.θp), β * (inputs + l.θn), β * abs(l.γp), β * abs(l.γn)) / β
     @test RBMs.cgf(l, inputs, β) ≈ vec(sum(Γ; dims=(1,2)))
+
+    N = (16, 8)
+    B = 64
+    l = RBMs.dReLU(randn(N...), randn(N...), rand(N...) .+ 0.5, rand(N...) .+ 0.5)
+    inputs = randn(N..., B)
+    x = randn(N..., B)
+    m = RBMs.mode(l, inputs)
+    @test all(inputs .* m .- RBMs.energies(l, m) .≥ inputs .* x .- RBMs.energies(l, x))
 end

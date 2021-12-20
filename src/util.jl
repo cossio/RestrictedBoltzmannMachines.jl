@@ -3,11 +3,22 @@ inf(::Union{Type{T}, T}) where {T} = convert(T, Inf)
 two(::Union{Type{T}, T}) where {T} = convert(T, 2)
 
 """
+    maybe_scalar(x)
+
+Converts zero-dimensional arrays to scalars, otherwise returns its argument.
+"""
+maybe_scalar(x::AbstractArray{<:Number,0}) = only(x)
+maybe_scalar(x::AbstractArray{<:Number}) = x
+maybe_scalar(x::Number) = x
+
+"""
     sum_(A; dims)
 
 Sums `A` over dimensions `dims` and drops them.
 """
-sum_(A::AbstractArray; dims) = dropdims(sum(A; dims=dims); dims=dims)
+function sum_(A::AbstractArray; dims)
+    return dropdims(sum(A; dims=dims); dims=dims)
+end
 
 """
     mean_(A; dims)
@@ -66,3 +77,9 @@ Constructs the tuple `(1, 2, ..., N)`.
 tuplen(N) = ntuple(identity, N)
 
 promote_to(x, ys...) = first(promote(x, ys...))
+
+"""
+    broadlike(A, B...)
+Reshapes (broadcasts) `A` into the size of `A .+ B .+ ...`, without doing the sum.
+"""
+broadlike(A, B...) = broadcast(first ∘ tuple, A, B...)

@@ -14,9 +14,11 @@ struct Potts{A<:AbstractArray}
 end
 Potts(::Type{T}, q::Int, n::Int...) where {T} = Potts(zeros(T, q, n...))
 Potts(q::Int, n::Int...) = Potts(Float64, q, n...)
+
 Flux.@functor Potts
 
 Base.propertynames(::Potts) = (:q, fieldnames(Potts)...)
+
 function Base.getproperty(layer::Potts, name::Symbol)
     if name == :q
         return size(layer, 1)
@@ -25,24 +27,15 @@ function Base.getproperty(layer::Potts, name::Symbol)
     end
 end
 
-function cgf(layer::Potts, inputs::AbstractArray)
-    @assert size(inputs) == (size(layer)..., size(inputs)[end])
-    Γ = LogExpFunctions.logsumexp(layer.θ .+ inputs; dims = 1)
-    return sum_(Γ; dims = layerdims(layer))
+function cgfs(layer::Potts)
+    return LogExpFunctions.logsumexp(layer.θ; dims = 1)
 end
 
-function cgf(layer::Potts, inputs::AbstractArray, β::Real)
-    layer_ = Potts(layer.θ .* β)
-    return cgf(layer_, inputs .* β) / β
+function sample(layer::Potts)
+    c = categorical_sample_from_logits(layer.θ)
+    return oftype(layer.θ, onehot_encode(c, 1:layer.q))
 end
 
-function sample_from_inputs(layer::Potts, inputs::AbstractArray, β::Real)
-    layer_ = Potts(layer.θ .* β)
-    return sample_from_inputs(layer_, inputs .* β)
-end
-
-function sample_from_inputs(layer::Potts, inputs::AbstractArray)
-    x = layer.θ .+ inputs
-    c = categorical_sample_from_logits(x)
-    return oftype(x, onehot_encode(c, 1:layer.q))
+function transform_layer(layer::Potts, inputs, β::Real = 1)
+    return Potts(β * (layer.θ .+ inputs))
 end

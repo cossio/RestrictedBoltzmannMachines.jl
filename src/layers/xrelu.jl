@@ -21,9 +21,17 @@ xReLU(n::Int...) = xReLU(Float64, n...)
 
 Flux.@functor xReLU
 
-energy(layer::xReLU, x::AbstractArray) = energy(dReLU(layer), x)
-cgf(layer::xReLU, inputs::AbstractArray, β::Real = 1) = cgf(dReLU(layer), inputs, β)
+energies(layer::xReLU, x::AbstractArray) = energies(dReLU(layer), x)
+cgfs(layer::xReLU) = cgfs(dReLU(layer))
 
-function sample_from_inputs(layer::xReLU, inputs::AbstractArray, β::Real = 1)
-    return sample_from_inputs(dReLU(layer), inputs, β)
+function sample(layer::xReLU)
+    return sample(dReLU(layer))
+end
+
+function transform_layer(layer::xReLU, inputs, β::Real = 1)
+    θ = β * (layer.θ .+ inputs)
+    Δ = β * broadlike(layer.Δ, inputs)
+    γ = β * broadlike(layer.γ, inputs)
+    ξ = broadlike(layer.ξ, inputs)
+    return xReLU(θ, Δ, γ, ξ)
 end

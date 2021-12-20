@@ -52,3 +52,12 @@ end
            3, 3
         )
 end
+
+@testset "broadlike" begin
+    A = randn(1,3)
+    B = randn(2,1)
+    @test RBMs.broadlike(A, B) ≈ A .+ B .- B
+    @inferred RBMs.broadlike(A, B)
+    @test RBMs.broadlike(A) == A
+    @test RBMs.broadlike(A, 1) == A
+end

@@ -20,39 +20,30 @@ Gaussian(n::Int...) = Gaussian(Float64, n...)
 
 Flux.@functor Gaussian
 
-function energy(layer::Gaussian, x::AbstractArray)
-    @assert size(x) == (size(layer)..., size(x)[end])
-    E = gauss_energy.(layer.θ, layer.γ, x)
-    return sum_(E; dims = layerdims(layer))
-end
+energies(layer::Gaussian, x::AbstractArray) = gauss_energy.(layer.θ, layer.γ, x)
+cgfs(layer::Gaussian) = gauss_cgf.(layer.θ, layer.γ)
 
-function sample_from_inputs(layer::Gaussian, inputs::AbstractArray)
-    @assert size(inputs) == (size(layer)..., size(inputs)[end])
-    μ = @. (layer.θ + inputs) / abs.(layer.γ)
+function sample(layer::Gaussian)
+    μ = @. layer.θ / abs(layer.γ)
     σ = @. inv(sqrt(abs(layer.γ)))
     z = randn(eltype(μ), size(μ))
     return μ .+ σ .* z
 end
 
-function sample_from_inputs(layer::Gaussian, inputs::AbstractArray, β::Real)
-    layer_ = Gaussian(layer.θ .* β, layer.γ .* β)
-    return sample_from_inputs(layer_, inputs .* β)
+mode(layer::Gaussian) = gauss_mode.(layer.θ, layer.γ)
+
+function transform_layer(layer::Gaussian, inputs, β::Real = 1)
+    θ = β * (layer.θ .+ inputs)
+    γ = β * broadlike(layer.γ, inputs)
+    return Gaussian(θ, γ)
 end
 
-function cgf(layer::Gaussian, inputs::AbstractArray)
-    @assert size(inputs) == (size(layer)..., size(inputs)[end])
-    Γ = gauss_cgf.(layer.θ .+ inputs, layer.γ)
-    return sum_(Γ; dims = layerdims(layer))
+function gauss_energy(θ::Real, γ::Real, x::Real)
+    return (abs(γ) * x / 2 - θ) * x
 end
-
-function cgf(layer::Gaussian, inputs::AbstractArray, β::Real)
-    layer_ = Gaussian(layer.θ .* β, layer.γ .* β)
-    return cgf(layer_, inputs .* β) / β
-end
-
-gauss_energy(θ::Real, γ::Real, x::Real) = (abs(γ) * x / 2 - θ) * x
 
 function gauss_cgf(θ::Real, γ::Real)
-    γa = abs(γ)
-    return θ^2 / 2γa - log(γa/π/2) / 2
+    return θ^2 / abs(2γ) - log(abs(γ)/π/2) / 2
 end
+
+gauss_mode(θ::Real, γ::Real) = θ / abs(γ)

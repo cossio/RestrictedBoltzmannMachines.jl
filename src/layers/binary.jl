@@ -8,34 +8,17 @@ struct Binary{A<:AbstractArray}
 end
 Binary(::Type{T}, n::Int...) where {T} = Binary(zeros(T, n...))
 Binary(n::Int...) = Binary(Float64, n...)
-Base.size(layer::Binary) = size(layer.θ)
-Base.ndims(layer::Binary) = ndims(layer.θ)
-Base.length(layer::Binary) = length(layer.θ)
 
 Flux.@functor Binary
 
-function sample_from_inputs(layer::Binary, inputs::AbstractArray)
-    @assert size(inputs) == (size(layer.θ)..., size(inputs)[end])
-    x = layer.θ .+ inputs
-    pinv = @. one(x) + exp(-x)
+cgfs(layer::Binary) = LogExpFunctions.log1pexp.(layer.θ)
+
+function sample(layer::Binary)
+    pinv = @. one(layer.θ) + exp(-layer.θ)
     u = rand(eltype(pinv), size(pinv))
-    return oftype(x, u .* pinv .≤ 1)
+    return oftype(layer.θ, u .* pinv .≤ 1)
 end
 
-function sample_from_inputs(layer::Binary, inputs::AbstractArray, β::Real)
-    @assert size(inputs) == (size(layer.θ)..., size(inputs)[end])
-    layer_ = Binary(layer.θ .* β)
-    return sample_from_inputs(layer_, inputs .* β)
-end
-
-function cgf(layer::Binary, inputs::AbstractArray)
-    @assert size(inputs) == (size(layer.θ)..., size(inputs)[end])
-    Γ = LogExpFunctions.log1pexp.(layer.θ .+ inputs)
-    return sum_(Γ; dims = layerdims(layer))
-end
-
-function cgf(layer::Binary, inputs::AbstractArray, β::Real)
-    @assert size(inputs) == (size(layer.θ)..., size(inputs)[end])
-    layer_ = Binary(layer.θ .* β)
-    return cgf(layer_, inputs .* β) / β
+function transform_layer(layer::Binary, inputs, β::Real = 1)
+    return Binary(β * (layer.θ .+ inputs))
 end

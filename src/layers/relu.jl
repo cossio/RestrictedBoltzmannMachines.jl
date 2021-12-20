@@ -17,33 +17,14 @@ ReLU(n::Int...) = ReLU(Float64, n...)
 
 Flux.@functor ReLU
 
-function energy(layer::ReLU, x::AbstractArray)
-    @assert size(x) == (size(layer)..., size(x)[end])
-    E = relu_energy.(layer.θ, layer.γ, x)
-    return sum_(E; dims = layerdims(layer))
-end
+energies(layer::ReLU, x) = relu_energy.(layer.θ, layer.γ, x)
+cgfs(layer::ReLU) = relu_cgf.(layer.θ, layer.γ)
+sample(layer::ReLU) = relu_rand.(layer.θ, layer.γ)
 
-function cgf(layer::ReLU, inputs::AbstractArray)
-    @assert size(inputs) == (size(layer)..., size(inputs)[end])
-    Γ = relu_cgf.(layer.θ .+ inputs, layer.γ)
-    return sum_(Γ; dims = layerdims(layer))
-end
-
-function cgf(layer::ReLU, inputs::AbstractArray, β::Real)
-    @assert size(inputs) == (size(layer)..., size(inputs)[end])
-    layer_ = ReLU(layer.θ .* β, layer.γ .* β)
-    return cgf(layer_, inputs .* β) / β
-end
-
-function sample_from_inputs(layer::ReLU, inputs::AbstractArray)
-    @assert size(inputs) == (size(layer)..., size(inputs)[end])
-    return relu_rand.(layer.θ .+ inputs, layer.γ)
-end
-
-function sample_from_inputs(layer::ReLU, inputs::AbstractArray, β::Real)
-    @assert size(inputs) == (size(layer)..., size(inputs)[end])
-    layer_ = ReLU(layer.θ .* β, layer.γ .* β)
-    return sample_from_inputs(layer_, inputs .* β)
+function transform_layer(layer::ReLU, inputs, β::Real = 1)
+    θ = β * (layer.θ .+ inputs)
+    γ = β * broadlike(layer.γ, inputs)
+    return ReLU(θ, γ)
 end
 
 function relu_energy(θ::Real, γ::Real, x::Real)
@@ -56,13 +37,13 @@ function relu_energy(θ::Real, γ::Real, x::Real)
 end
 
 function relu_cgf(θ::Real, γ::Real)
-    γa = abs(γ)
-    return SpecialFunctions.logerfcx(-θ / √(2γa)) - log(2γa/π) / 2
+    abs_γ = abs(γ)
+    return SpecialFunctions.logerfcx(-θ / √(2abs_γ)) - log(2abs_γ/π) / 2
 end
 
 function relu_rand(θ::Real, γ::Real)
-    γa = abs(γ)
-    μ = θ / γa
-    σ = √inv(γa)
+    abs_γ = abs(γ)
+    μ = θ / abs_γ
+    σ = √inv(abs_γ)
     return randnt_half(μ, σ)
 end

@@ -15,27 +15,22 @@ struct Spin{T}
 end
 Spin(::Type{T}, n::Int...) where {T} = Spin(zeros(T, n...))
 Spin(n::Int...) = Spin(Float64, n...)
+
 Flux.@functor Spin
 
-function sample_from_inputs(layer::Spin, inputs::AbstractArray)
-    x = layer.θ .+ inputs
-    pinv = @. one(x) + exp(-2x)
+cgfs(layer::Spin) = @. spin_cgf.(layer.θ)
+
+function sample(layer::Spin)
+    pinv = @. one(layer.θ) + exp(-2layer.θ)
     u = rand(eltype(pinv), size(pinv))
-    return @. ifelse(u * pinv ≤ 1, one(x), -one(x))
+    return @. ifelse(u * pinv ≤ 1, one(layer.θ), -one(layer.θ))
 end
 
-function sample_from_inputs(layer::Spin, inputs::AbstractArray, β::Real)
-    layer_ = Spin(layer.θ .* β)
-    return sample_from_inputs(layer_, inputs .* β)
+function transform_layer(layer::Spin, inputs, β::Real = 1)
+    return Spin(β * (layer.θ .+ inputs))
 end
 
-function cgf(layer::Spin, inputs::AbstractArray)
-    x = layer.θ .+ inputs
-    Γ = LogExpFunctions.logaddexp.(x, -x)
-    return sum_(Γ; dims = layerdims(layer))
-end
-
-function cgf(layer::Spin, inputs::AbstractArray, β::Real)
-    layer_ = Spin(layer.θ .* β)
-    return cgf(layer_, inputs .* β) / β
+function spin_cgf(θ::Real)
+    abs_θ = abs(θ)
+    return abs_θ + LogExpFunctions.log1pexp(-2abs_θ)
 end
