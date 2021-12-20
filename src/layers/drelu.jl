@@ -34,7 +34,7 @@ function transform_layer(layer::dReLU, inputs, β::Real = 1)
     θn = β * (layer.θn .+ inputs)
     γp = β * broadlike(layer.γp, inputs)
     γn = β * broadlike(layer.γn, inputs)
-    return dReLU(θp, θn, γp, γn)
+    return dReLU(promote(θp, θn, γp, γn)...)
 end
 
 Base.size(layer::dReLU) = size(layer.θp)

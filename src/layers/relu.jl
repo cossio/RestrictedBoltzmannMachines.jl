@@ -24,7 +24,7 @@ sample(layer::ReLU) = relu_rand.(layer.θ, layer.γ)
 function transform_layer(layer::ReLU, inputs, β::Real = 1)
     θ = β * (layer.θ .+ inputs)
     γ = β * broadlike(layer.γ, inputs)
-    return ReLU(θ, γ)
+    return ReLU(promote(θ, γ)...)
 end
 
 function relu_energy(θ::Real, γ::Real, x::Real)

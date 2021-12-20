@@ -36,5 +36,5 @@ function transform_layer(layer::xReLU, inputs, β::Real = 1)
     Δ = β * broadlike(layer.Δ, inputs)
     γ = β * broadlike(layer.γ, inputs)
     ξ = broadlike(layer.ξ, inputs)
-    return xReLU(θ, Δ, γ, ξ)
+    return xReLU(promote(θ, Δ, γ, ξ)...)
 end
