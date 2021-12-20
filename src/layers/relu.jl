@@ -21,7 +21,7 @@ energies(layer::ReLU, x) = relu_energy.(layer.θ, layer.γ, x)
 cgfs(layer::ReLU) = relu_cgf.(layer.θ, layer.γ)
 sample(layer::ReLU) = relu_rand.(layer.θ, layer.γ)
 
-function transform_layer(layer::ReLU, inputs, β::Real = 1)
+function effective(layer::ReLU, inputs, β::Real = 1)
     θ = β * (layer.θ .+ inputs)
     γ = β * broadlike(layer.γ, inputs)
     return ReLU(promote(θ, γ)...)

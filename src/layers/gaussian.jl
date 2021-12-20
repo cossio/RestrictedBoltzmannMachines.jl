@@ -32,7 +32,7 @@ end
 
 mode(layer::Gaussian) = gauss_mode.(layer.θ, layer.γ)
 
-function transform_layer(layer::Gaussian, inputs, β::Real = 1)
+function effective(layer::Gaussian, inputs, β::Real = 1)
     θ = β * (layer.θ .+ inputs)
     γ = β * broadlike(layer.γ, inputs)
     return Gaussian(promote(θ, γ)...)

@@ -29,7 +29,7 @@ cgfs(layer::dReLU) = drelu_cgf.(layer.θp, layer.θn, layer.γp, layer.γn)
 sample(layer::dReLU) = drelu_rand.(layer.θp, layer.θn, layer.γp, layer.γn)
 mode(layer::dReLU) = drelu_mode.(layer.θp, layer.θn, layer.γp, layer.γn)
 
-function transform_layer(layer::dReLU, inputs, β::Real = 1)
+function effective(layer::dReLU, inputs, β::Real = 1)
     θp = β * (layer.θp .+ inputs)
     θn = β * (layer.θn .+ inputs)
     γp = β * broadlike(layer.γp, inputs)

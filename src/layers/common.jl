@@ -33,7 +33,7 @@ end
 Samples layer configurations conditioned on inputs.
 """
 function sample(layer, inputs , β::Real = 1)
-    layer_ = transform_layer(layer, inputs, β)
+    layer_ = effective(layer, inputs, β)
     return sample(layer_)
 end
 
@@ -43,12 +43,12 @@ end
 Cumulant generating function of units in layer (not reduced over layer dimensions).
 """
 function cgfs(layer, inputs, β::Real = 1)
-    layer_ = transform_layer(layer, inputs, β)
+    layer_ = effective(layer, inputs, β)
     return cgfs(layer_) / β
 end
 
 function mode(layer, inputs, β::Real = 1)
-    layer_ = transform_layer(layer, inputs, β)
+    layer_ = effective(layer, inputs, β)
     return mode(layer_)
 end
 

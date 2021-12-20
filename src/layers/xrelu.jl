@@ -31,7 +31,7 @@ function sample(layer::xReLU)
     return sample(dReLU(layer))
 end
 
-function transform_layer(layer::xReLU, inputs, β::Real = 1)
+function effective(layer::xReLU, inputs, β::Real = 1)
     θ = β * (layer.θ .+ inputs)
     Δ = β * broadlike(layer.Δ, inputs)
     γ = β * broadlike(layer.γ, inputs)

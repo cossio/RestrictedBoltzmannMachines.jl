@@ -36,6 +36,6 @@ function sample(layer::Potts)
     return oftype(layer.θ, onehot_encode(c, 1:layer.q))
 end
 
-function transform_layer(layer::Potts, inputs, β::Real = 1)
+function effective(layer::Potts, inputs, β::Real = 1)
     return Potts(β * (layer.θ .+ inputs))
 end

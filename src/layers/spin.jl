@@ -26,7 +26,7 @@ function sample(layer::Spin)
     return @. ifelse(u * pinv ≤ 1, one(layer.θ), -one(layer.θ))
 end
 
-function transform_layer(layer::Spin, inputs, β::Real = 1)
+function effective(layer::Spin, inputs, β::Real = 1)
     return Spin(β * (layer.θ .+ inputs))
 end
 

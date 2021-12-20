@@ -19,6 +19,6 @@ function sample(layer::Binary)
     return oftype(layer.θ, u .* pinv .≤ 1)
 end
 
-function transform_layer(layer::Binary, inputs, β::Real = 1)
+function effective(layer::Binary, inputs, β::Real = 1)
     return Binary(β * (layer.θ .+ inputs))
 end

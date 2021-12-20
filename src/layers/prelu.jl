@@ -34,10 +34,10 @@ function sample(layer::pReLU)
     return sample(dReLU(layer))
 end
 
-function transform_layer(layer::pReLU, inputs, β::Real = 1)
+function effective(layer::pReLU, inputs, β::Real = 1)
     θ = β * (layer.θ .+ inputs)
     Δ = β * broadlike(layer.Δ, inputs)
     γ = β * broadlike(layer.γ, inputs)
     η = broadlike(layer.η, inputs)
-    return pReLU(θ, Δ, γ, η)
+    return pReLU(promote(θ, Δ, γ, η)...)
 end
