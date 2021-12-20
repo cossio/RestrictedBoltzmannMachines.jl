@@ -22,7 +22,7 @@ end
 
 Cumulant generating function of layer, reduced over layer dimensions.
 """
-function cgf(layer, inputs, β::Real = 1)
+function cgf(layer, inputs = 0, β::Real = 1)
     Γ = cgfs(layer, inputs, β)
     return maybe_scalar(sum_(Γ; dims = layerdims(layer)))
 end
@@ -32,7 +32,7 @@ end
 
 Samples layer configurations conditioned on inputs.
 """
-function sample(layer, inputs, β::Real = 1)
+function sample(layer, inputs , β::Real = 1)
     layer_ = transform_layer(layer, inputs, β)
     return sample(layer_)
 end
@@ -70,10 +70,6 @@ Base.length(layer::_ThetaLayers) = length(layer.θ)
 layerdims(layer) = ntuple(identity, ndims(layer))
 
 function pReLU(layer::dReLU)
-    #= The conversion is bijective only if the γ's are positive =#
-    γp = abs.(layer.γp)
-    γn = abs.(layer.γn)
-
     γ = @. 2γp * γn / (γp + γn)
     η = @. (γn - γp) / (γp + γn)
     θ = @. (layer.θp * γn + layer.θn * γp) / (γp + γn)
@@ -90,10 +86,6 @@ function dReLU(l::pReLU)
 end
 
 function xReLU(l::dReLU)
-    #= The conversion is bijective only if the γ's are positive =#
-    γp = abs.(l.γp)
-    γn = abs.(l.γn)
-
     γ = @. 2γp * γn / (γp + γn)
     ξ = @. (γn - γp) / (γp + γn - abs(γn - γp))
     θ = @. (l.θp * γn + l.θn * γp) / (γp + γn)
