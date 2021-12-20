@@ -86,10 +86,10 @@ function dReLU(l::pReLU)
 end
 
 function xReLU(l::dReLU)
-    γ = @. 2γp * γn / (γp + γn)
-    ξ = @. (γn - γp) / (γp + γn - abs(γn - γp))
-    θ = @. (l.θp * γn + l.θn * γp) / (γp + γn)
-    Δ = @. γ * (l.θp - l.θn) / (γp + γn)
+    γ = @. 2l.γp * l.γn / (l.γp + l.γn)
+    ξ = @. (l.γn - l.γp) / (l.γp + l.γn - abs(l.γn - l.γp))
+    θ = @. (l.θp * l.γn + l.θn * l.γp) / (l.γp + l.γn)
+    Δ = @. γ * (l.θp - l.θn) / (l.γp + l.γn)
     return xReLU(θ, Δ, γ, ξ)
 end
 

@@ -21,7 +21,10 @@ xReLU(n::Int...) = xReLU(Float64, n...)
 
 Flux.@functor xReLU
 
-energies(layer::xReLU, x::AbstractArray) = energies(dReLU(layer), x)
+function energies(layer::xReLU, x::AbstractArray)
+    energies(dReLU(layer), x)
+end
+
 cgfs(layer::xReLU) = cgfs(dReLU(layer))
 
 function sample(layer::xReLU)
