@@ -28,13 +28,13 @@ function cgf(layer, inputs = 0, β::Real = 1)
 end
 
 """
-    sample(layer, inputs = 0, β = 1)
+    transfer_sample(layer, inputs = 0, β = 1)
 
 Samples layer configurations conditioned on inputs.
 """
-function sample(layer, inputs , β::Real = 1)
+function transfer_sample(layer, inputs , β::Real = 1)
     layer_ = effective(layer, inputs, β)
-    return sample(layer_)
+    return transfer_sample(layer_)
 end
 
 """
@@ -47,9 +47,14 @@ function cgfs(layer, inputs, β::Real = 1)
     return cgfs(layer_) / β
 end
 
-function mode(layer, inputs, β::Real = 1)
+function transfer_mode(layer, inputs, β::Real = 1)
     layer_ = effective(layer, inputs, β)
-    return mode(layer_)
+    return transfer_mode(layer_)
+end
+
+function transfer_mean(layer, inputs, β::Real = 1)
+    layer_ = effective(layer, inputs, β)
+    return transfer_mean(layer_)
 end
 
 """

@@ -90,7 +90,7 @@ Samples a hidden configuration conditional on the visible configuration `v`.
 """
 function sample_h_from_v(rbm::RBM, v::AbstractArray, β::Real = true)
     inputs = inputs_v_to_h(rbm, v)
-    return sample(rbm.hidden, inputs, β)
+    return transfer_sample(rbm.hidden, inputs, β)
 end
 
 """
@@ -100,7 +100,7 @@ Samples a visible configuration conditional on the hidden configuration `h`.
 """
 function sample_v_from_h(rbm::RBM, h::AbstractArray, β::Real = true)
     inputs = inputs_h_to_v(rbm, h)
-    return sample(rbm.visible, inputs, β)
+    return transfer_sample(rbm.visible, inputs, β)
 end
 
 """

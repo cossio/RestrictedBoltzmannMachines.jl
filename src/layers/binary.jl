@@ -13,11 +13,13 @@ Flux.@functor Binary
 
 cgfs(layer::Binary) = LogExpFunctions.log1pexp.(layer.θ)
 
-function sample(layer::Binary)
+function transfer_sample(layer::Binary)
     pinv = @. one(layer.θ) + exp(-layer.θ)
     u = rand(eltype(pinv), size(pinv))
     return oftype(layer.θ, u .* pinv .≤ 1)
 end
+
+transfer_mean(layer::Binary) = LogExpFunctions.logistic.(layer.θ)
 
 function effective(layer::Binary, inputs, β::Real = 1)
     return Binary(β * (layer.θ .+ inputs))

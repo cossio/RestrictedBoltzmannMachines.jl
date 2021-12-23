@@ -31,7 +31,7 @@ function cgfs(layer::Potts)
     return LogExpFunctions.logsumexp(layer.θ; dims = 1)
 end
 
-function sample(layer::Potts)
+function transfer_sample(layer::Potts)
     c = categorical_sample_from_logits(layer.θ)
     return oftype(layer.θ, onehot_encode(c, 1:layer.q))
 end

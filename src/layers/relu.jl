@@ -19,7 +19,7 @@ Flux.@functor ReLU
 
 energies(layer::ReLU, x) = relu_energy.(layer.θ, layer.γ, x)
 cgfs(layer::ReLU) = relu_cgf.(layer.θ, layer.γ)
-sample(layer::ReLU) = relu_rand.(layer.θ, layer.γ)
+transfer_sample(layer::ReLU) = relu_rand.(layer.θ, layer.γ)
 
 function effective(layer::ReLU, inputs, β::Real = 1)
     θ = β * (layer.θ .+ inputs)

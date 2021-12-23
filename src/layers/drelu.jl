@@ -26,8 +26,8 @@ function energies(layer::dReLU, x::AbstractArray)
 end
 
 cgfs(layer::dReLU) = drelu_cgf.(layer.θp, layer.θn, layer.γp, layer.γn)
-sample(layer::dReLU) = drelu_rand.(layer.θp, layer.θn, layer.γp, layer.γn)
-mode(layer::dReLU) = drelu_mode.(layer.θp, layer.θn, layer.γp, layer.γn)
+transfer_sample(layer::dReLU) = drelu_rand.(layer.θp, layer.θn, layer.γp, layer.γn)
+transfer_mode(layer::dReLU) = drelu_mode.(layer.θp, layer.θn, layer.γp, layer.γn)
 
 function effective(layer::dReLU, inputs, β::Real = 1)
     θp = β * (layer.θp .+ inputs)

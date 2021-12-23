@@ -30,8 +30,8 @@ function cgfs(layer::pReLU)
     return cgfs(dReLU(layer))
 end
 
-function sample(layer::pReLU)
-    return sample(dReLU(layer))
+function transfer_sample(layer::pReLU)
+    return transfer_sample(dReLU(layer))
 end
 
 function effective(layer::pReLU, inputs, β::Real = 1)

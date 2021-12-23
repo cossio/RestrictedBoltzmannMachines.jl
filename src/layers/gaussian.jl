@@ -23,14 +23,14 @@ Flux.@functor Gaussian
 energies(layer::Gaussian, x::AbstractArray) = gauss_energy.(layer.θ, layer.γ, x)
 cgfs(layer::Gaussian) = gauss_cgf.(layer.θ, layer.γ)
 
-function sample(layer::Gaussian)
+function transfer_sample(layer::Gaussian)
     μ = @. layer.θ / abs(layer.γ)
     σ = @. inv(sqrt(abs(layer.γ)))
     z = randn(eltype(μ), size(μ))
     return μ .+ σ .* z
 end
 
-mode(layer::Gaussian) = gauss_mode.(layer.θ, layer.γ)
+transfer_mode(layer::Gaussian) = gauss_mode.(layer.θ, layer.γ)
 
 function effective(layer::Gaussian, inputs, β::Real = 1)
     θ = β * (layer.θ .+ inputs)

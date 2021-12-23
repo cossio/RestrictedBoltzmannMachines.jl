@@ -27,8 +27,8 @@ end
 
 cgfs(layer::xReLU) = cgfs(dReLU(layer))
 
-function sample(layer::xReLU)
-    return sample(dReLU(layer))
+function transfer_sample(layer::xReLU)
+    return transfer_sample(dReLU(layer))
 end
 
 function effective(layer::xReLU, inputs, β::Real = 1)
