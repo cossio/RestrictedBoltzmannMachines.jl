@@ -1,6 +1,8 @@
 using Documenter, Literate
 import RestrictedBoltzmannMachines as RBMs
 
+ENV["JULIA_DEBUG"] = "Documenter,Literate,RestrictedBoltzmannMachines"
+
 #=
 We place Literate.jl source .jl files and the generated .md files inside docs/src/literate.
 =#
