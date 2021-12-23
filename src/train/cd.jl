@@ -13,14 +13,9 @@ function train!(rbm::RBM, data::AbstractArray;
     ps = Flux.params(rbm),
     weights::AbstractVector = trues(_nobs(data)), # data point weights
     steps::Int = 1, # Monte Carlo steps to update fantasy particles
-    initialize::Bool = false, # whether to initialize the RBM parameters
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert _nobs(data) == _nobs(weights)
-
-    if initialize
-        initialize!(rbm, data)
-    end
 
     # initialize fantasy chains
     _idx = rand(1:_nobs(data), batchsize)
@@ -43,8 +38,6 @@ function train!(rbm::RBM, data::AbstractArray;
                 end
                 return loss + regu
             end
-
-            @show gs[rbm.weights]
 
             # update parameters using gradient
             Flux.update!(optimizer, ps, gs)

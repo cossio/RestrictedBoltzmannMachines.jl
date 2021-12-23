@@ -197,10 +197,8 @@ rbm = RBMs.RBM(
     RBMs.Binary(Float,200),
     randn(Float,28,28,200)/28
 )
-history_init = RBMs.train!(
-    rbm, train_x; epochs=200, batchsize=256, initialize=true,
-    optimizer=Flux.ADAM()
-)
+RBMs.initialize!(rbm, train_x)
+history_init = RBMs.train!(rbm, train_x; epochs=200, batchsize=256, optimizer=Flux.ADAM())
 nothing #hide
 
 #=
