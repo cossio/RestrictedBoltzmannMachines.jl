@@ -24,7 +24,9 @@ module RestrictedBoltzmannMachines
     include("rbm.jl")
 
     include("initialization.jl")
-    include("cd.jl")
+    include("train/cd.jl")
+    include("train/cd_white.jl")
+    include("train/cd_norm.jl")
 
     include("regularize.jl")
     #include("lr_schedules.jl")
