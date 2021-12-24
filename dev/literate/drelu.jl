@@ -31,7 +31,7 @@ nothing #hide
 Now we sample our layer to collect some data.
 =#
 
-data = RBMs.sample(layer, zeros(size(layer)..., 10^6))
+data = RBMs.transfer_sample(layer, zeros(size(layer)..., 10^6))
 nothing #hide
 
 #=
