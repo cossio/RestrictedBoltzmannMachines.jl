@@ -2,7 +2,7 @@
 It is important to decay the learning rate during training to achieve convergence.
 =#
 
-using CairoMakie, Statistics, Random
+using CairoMakie, Statistics, Random, LinearAlgebra
 import Flux, MLDatasets, ValueHistories
 import RestrictedBoltzmannMachines as RBMs
 
@@ -104,6 +104,32 @@ hidedecorations!(ax)
 fig
 
 #=
+Moment matching conditions
+=#
+
+h_data = RBMs.mean_h_from_v(rbm, train_x);
+h_model = RBMs.mean_h_from_v(rbm, samples_v);
+
+fig = Figure(resolution=(900, 300))
+
+ax = Axis(fig[1,1], xlabel=L"\langle v_i \rangle_\mathrm{data}", ylabel=L"\langle v_i \rangle_\mathrm{model}", limits=(0,1,0,1))
+scatter!(ax, vec(mean(train_x; dims=3)), vec(mean(samples_v; dims=3)))
+abline!(ax, 0, 1; color=:red)
+
+ax = Axis(fig[1,2], xlabel=L"\langle h_\mu \rangle_\mathrm{data}", ylabel=L"\langle h_\mu \rangle_\mathrm{model}", limits=(0,1,0,1))
+scatter!(ax, vec(mean(h_data; dims=2)), vec(mean(h_model; dims=2)))
+abline!(ax, 0, 1; color=:red)
+
+ax = Axis(fig[1,3], xlabel=L"\langle v_i h_\mu \rangle_\mathrm{data}", ylabel=L"\langle v_i h_\mu \rangle_\mathrm{model}", limits=(0,1,0,1))
+scatter!(ax,
+    vec([dot(train_x[i,j,:], h_data[μ,:]) / size(train_x,3) for i=1:28, j=1:28, μ=1:100]),
+    vec([dot(samples_v[i,j,:], h_model[μ,:]) / size(samples_v,3) for i=1:28, j=1:28, μ=1:100])
+)
+abline!(ax, 0, 1; color=:red)
+
+fig
+
+#=
 For the RBM with decaying learning-rate.
 =#
 
@@ -120,12 +146,27 @@ hidedecorations!(ax)
 fig
 
 #=
-Plot the RBM moments against the data moments
+Moment matching conditions
 =#
 
-fig = Figure(resolution=(300,300))
-ax = Axis(fig[1,1])
-scatter!(ax, vec(mean(train_x; dims=3)), vec(mean(samples_v; dims=3)), label="normal")
-scatter!(ax, vec(mean(train_x; dims=3)), vec(mean(samples_v_decay; dims=3)), label="decay")
-axislegend(ax, position=:rb)
+h_data = RBMs.mean_h_from_v(rbm, train_x);
+h_model = RBMs.mean_h_from_v(rbm, samples_v_decay);
+
+fig = Figure(resolution=(900, 300))
+
+ax = Axis(fig[1,1], xlabel=L"\langle v_i \rangle_\mathrm{data}", ylabel=L"\langle v_i \rangle_\mathrm{model}", limits=(0,1,0,1))
+scatter!(ax, vec(mean(train_x; dims=3)), vec(mean(samples_v_decay; dims=3)))
+abline!(ax, 0, 1; color=:red)
+
+ax = Axis(fig[1,2], xlabel=L"\langle h_\mu \rangle_\mathrm{data}", ylabel=L"\langle h_\mu \rangle_\mathrm{model}", limits=(0,1,0,1))
+scatter!(ax, vec(mean(h_data; dims=2)), vec(mean(h_model; dims=2)))
+abline!(ax, 0, 1; color=:red)
+
+ax = Axis(fig[1,3], xlabel=L"\langle v_i h_\mu \rangle_\mathrm{data}", ylabel=L"\langle v_i h_\mu \rangle_\mathrm{model}", limits=(0,1,0,1))
+scatter!(ax,
+    vec([dot(train_x[i,j,:], h_data[μ,:]) / size(train_x,3) for i=1:28, j=1:28, μ=1:100]),
+    vec([dot(samples_v_decay[i,j,:], h_model[μ,:]) / size(samples_v_decay,3) for i=1:28, j=1:28, μ=1:100])
+)
+abline!(ax, 0, 1; color=:red)
+
 fig
