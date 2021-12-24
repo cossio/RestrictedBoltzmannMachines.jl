@@ -1,5 +1,5 @@
 #=
-It is important to decay the learning rate during training to achieve convergence.
+Effect of decaying the learning rate during training to achieve convergence.
 =#
 
 using CairoMakie, Statistics, Random, LinearAlgebra
@@ -26,7 +26,7 @@ nothing #hide
 
 #=
 Consider first an RBM that we train without decaying the learning rate.
-We will train this machine for 200 epochs.
+We will train this machine for 300 epochs.
 =#
 
 rbm = RBMs.RBM(RBMs.Binary(Float,28,28), RBMs.Binary(Float,100), zeros(Float,28,28,100));
@@ -34,13 +34,13 @@ RBMs.initialize!(rbm, train_x);
 opt = Flux.ADAM(0.001f0, (0.9f0, 0.999f0))
 history = ValueHistories.MVHistory()
 RBMs.train!(rbm, train_x; history=history,
-    epochs=200, batchsize=128, verbose=true, steps=1,
+    epochs=300, batchsize=128, verbose=true, steps=1,
     optimizer=opt
 )
 nothing #hide
 
 #=
-Now train an RBM with 100 normal epochs, followed by 100 epochs where the
+Now train an RBM with 200 normal epochs, followed by 100 epochs where the
 learning-rate is cut in half every 10 epochs.
 =#
 
@@ -49,7 +49,7 @@ RBMs.initialize!(rbm_decay, train_x);
 opt = Flux.ADAM(0.001f0, (0.9f0, 0.999f0))
 history_decay = ValueHistories.MVHistory()
 RBMs.train!(rbm_decay, train_x; history=history_decay,
-    epochs=100, batchsize=128, verbose=true, steps=1,
+    epochs=200, batchsize=128, verbose=true, steps=1,
     optimizer=opt
 )
 for meta_epoch = 1:10
