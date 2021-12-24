@@ -65,7 +65,7 @@ nothing #hide
 Compare the results
 =#
 
-fig = Figure(resolution=(300,300))
+fig = Figure(resolution=(600,400))
 ax = Axis(fig[1,1])
 lines!(ax, get(history, :lpl)..., label="normal")
 lines!(ax, get(history_decay, :lpl)..., label="decay")
@@ -125,7 +125,7 @@ Plot the RBM moments against the data moments
 
 fig = Figure(resolution=(300,300))
 ax = Axis(fig[1,1])
-plot!(ax, vec(mean(train_x; dims=3)), vec(mean(samples_v; dims=3)), label="normal")
-plot!(ax, vec(mean(train_x; dims=3)), vec(mean(samples_v_decay; dims=3)), label="decay")
+scatter!(ax, vec(mean(train_x; dims=3)), vec(mean(samples_v; dims=3)), label="normal")
+scatter!(ax, vec(mean(train_x; dims=3)), vec(mean(samples_v_decay; dims=3)), label="decay")
 axislegend(ax, position=:rb)
 fig
