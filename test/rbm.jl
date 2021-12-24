@@ -24,6 +24,9 @@ include("tests_init.jl")
     @test size(@inferred RBMs.reconstruction_error(rbm, v)) == (7,)
 
     @inferred RBMs.flip_layers(rbm)
+
+    @inferred RBMs.mean_h_from_v(rbm, v)
+    @inferred RBMs.mean_v_from_h(rbm, h)
 end
 
 @testset "Gaussian-Gaussian RBM, 1-dimension" begin

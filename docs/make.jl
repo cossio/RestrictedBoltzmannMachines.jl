@@ -49,12 +49,13 @@ makedocs(
         "Home" => "index.md",
         "Mathematical introduction" => "math.md",
         "Examples" => [
-            "MNIST" => "literate/MNIST.md",
             "Gaussian layer" => "literate/gauss.md",
             "ReLU layer" => "literate/relu.md",
-            "dReLU layer" => "literate/drelu.md"
+            "dReLU layer" => "literate/drelu.md",
+            "MNIST" => "literate/MNIST.md",
+            "lr-decay" => "literate/lr_decay.md",
         ],
-        "Reference" => "reference.md"
+        "Reference" => "reference.md",
     ],
     strict = true
 )

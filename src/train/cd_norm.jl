@@ -80,5 +80,5 @@ function train_norm!(rbm::RBM, data::AbstractArray;
             println("epoch $epoch/$epochs ($(Δt_)s), log(pseudolikelihood)=$lpl_")
         end
     end
-    return rbm, history
+    return history
 end

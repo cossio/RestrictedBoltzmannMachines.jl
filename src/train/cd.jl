@@ -57,7 +57,12 @@ function train!(rbm::RBM, data::AbstractArray;
     return history
 end
 
-function contrastive_divergence(rbm, vd, vm, wd)
+"""
+    contrastive_divergence(rbm, vd, vm, wd = 1)
+
+Contrastive divergence loss. `vd` is a data sample, and `vm` are samples from the model.
+"""
+function contrastive_divergence(rbm::RBM, vd, vm, wd = true)
     Fd = free_energy(rbm, vd)
     Fm = free_energy(rbm, vm)
     return weighted_mean(Fd, wd) - weighted_mean(Fm)
