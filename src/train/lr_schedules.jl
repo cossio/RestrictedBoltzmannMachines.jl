@@ -27,18 +27,26 @@ end
 SqrtDecay(; lr0=1, lrmin=0, decay=0) = SqrtDecay(lr0, lrmin, decay, IdDict())
 update_lr(o::SqrtDecay, t::Real) = max(o.lr0 / sqrt(1 + (t - 1) * o.decay), o.lrmin)
 
-"""
-    GeometricDecay
 
-Geometric (a.k.a. exponential) decay of learning rate.
-Similar to Flux.Optimisers.ExpDecay, but with a slightly
-different implementation.
-"""
-mutable struct GeometricDecay <: AbstractLrDecay
-    lr0::Float64
-    lrmin::Float64
+mutable struct WaitExpDecay <: Flux.Optimise.AbstractOptimiser
+    eta::Float64
     decay::Float64
-    t::IdDict
+    step::Int64
+    clip::Float64
+    from::Int64
+    current::IdDict
 end
-GeometricDecay(; lr0=1, lrmin=0, decay=1) = GeometricDecay(lr0, lrmin, decay, IdDict())
-update_lr(o::GeometricDecay, t::Real) = max(o.lr0 * o.decay^t, o.lrmin)
+
+function WaitExpDecay(eta = 0.001, decay = 0.1, decay_step = 1000, clip = 1e-4, from = decay_step)
+    return WaitExpDecay(eta, decay, decay_step, clip, from, IdDict())
+end
+
+function apply!(o::WaitExpDecay, x, Δ)
+    η, s, decay, f = o.eta, o.step, o.decay, o.from
+    n = o.current[x] = get(o.current, x, 0) + 1
+    if n ≥ f && (n - f) % s == 0 && count(x -> (x - f) % s == 0, values(o.current)) == 1
+        η = max(η * decay, o.clip)
+        o.eta = η
+    end
+    @. Δ *= η
+end

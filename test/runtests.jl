@@ -1,5 +1,6 @@
 using SafeTestsets, Random, Test
 
+@time @safetestset "expdecay" begin include("expdecay.jl") end
 @time @safetestset "util" begin include("util.jl") end
 @time @safetestset "linalg" begin include("linalg.jl") end
 @time @safetestset "onehot" begin include("onehot.jl") end

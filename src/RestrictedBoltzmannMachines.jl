@@ -27,6 +27,7 @@ module RestrictedBoltzmannMachines
     include("train/cd.jl")
     include("train/cd_white.jl")
     include("train/cd_norm.jl")
+    include("train/expdecay.jl")
 
     include("regularize.jl")
     #include("lr_schedules.jl")
