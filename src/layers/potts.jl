@@ -27,15 +27,23 @@ function Base.getproperty(layer::Potts, name::Symbol)
     end
 end
 
-function cgfs(layer::Potts)
-    return LogExpFunctions.logsumexp(layer.θ; dims = 1)
-end
+cgfs(layer::Potts) = LogExpFunctions.logsumexp(layer.θ; dims = 1)
 
 function transfer_sample(layer::Potts)
     c = categorical_sample_from_logits(layer.θ)
-    return oftype(layer.θ, onehot_encode(c, 1:layer.q))
+    return onehot_encode(c, 1:layer.q)
 end
 
-function effective(layer::Potts, inputs, β::Real = 1)
-    return Potts(β * (layer.θ .+ inputs))
+transfer_mean(layer::Potts) = LogExpFunctions.softmax(layer.θ; dims=1)
+conjugates(layer::Potts) = (; θ = transfer_mean(layer))
+transfer_mean_abs(layer::Potts) = transfer_mean(layer)
+effective(layer::Potts, inputs, β::Real = 1) = Potts(β * (layer.θ .+ inputs))
+
+function transfer_var(layer::Potts)
+    p = transfer_mean(layer)
+    return p .* (1 .- p)
+end
+
+function transfer_mode(layer::Potts)
+    return layer.θ .== maximum(layer.θ; dims=1)
 end

@@ -28,191 +28,143 @@ function random_layer(::Type{RBMs.dReLU}, N::Int...)
 end
 
 function random_layer(::Type{RBMs.xReLU}, N::Int...)
-    return RBMs.xReLU(randn(N...), randn(N...), rand(N...), randn(N...))
+    return RBMs.xReLU(randn(N...), rand(N...), randn(N...), randn(N...))
 end
 
 function random_layer(::Type{RBMs.pReLU}, N::Int...)
-    return RBMs.pReLU(randn(N...), randn(N...), rand(N...), 2rand(N...) .- 1)
+    return RBMs.pReLU(randn(N...), rand(N...), randn(N...), 2rand(N...) .- 1)
 end
 
 @testset "testing $Layer" for Layer in _layers
-    layer = random_layer(Layer, 3, 4, 5)
+    N = (3, 2)
+    B = 23
+    layer = random_layer(Layer, N...)
 
-    @test (@inferred size(layer)) == (3,4,5)
-    @test (@inferred length(layer)) == 3 * 4 * 5
-    @test (@inferred ndims(layer)) == 3
+    @test (@inferred size(layer)) == N
+    @test (@inferred length(layer)) == prod(N)
+    @test (@inferred ndims(layer)) == length(N)
 
-    x = rand(Bool, size(layer)..., 7)
-    @test size(RBMs.energy(layer, x)) == (7,)
+    x = bitrand(N..., B)
+    inputs = randn(N..., B)
+    β = rand()
 
-    inputs = randn(size(layer)..., 7)
-    @test size(RBMs.cgf(layer, inputs, 1)) == (7,)
+    @test size(RBMs.energy(layer, x)) == (B,)
+    @test size(RBMs.cgf(layer, inputs, 1)) == (B,)
     @test size(RBMs.transfer_sample(layer, inputs, 1)) == size(inputs)
     @test size(RBMs.transfer_sample(layer, 0, 1)) == size(RBMs.transfer_sample(layer)) == size(layer)
     @test RBMs.cgf(layer, inputs, 1) ≈ RBMs.cgf(layer, inputs)
     @test RBMs.cgfs(layer, 0, 1) ≈ RBMs.cgfs(layer)
     @test RBMs.cgf(layer) isa Real
+    @inferred RBMs.energies(layer, x)
     @inferred RBMs.energy(layer, x)
-    @inferred RBMs.cgfs(layer, inputs, 1)
-    @inferred RBMs.cgf(layer, inputs, 1)
-    @inferred RBMs.transfer_sample(layer, inputs, 1)
+    @inferred RBMs.cgfs(layer)
+    @inferred RBMs.cgf(layer)
+    @inferred RBMs.transfer_sample(layer)
+    @inferred RBMs.transfer_mean(layer)
+    @inferred RBMs.transfer_var(layer)
+
+    @test RBMs.energy(layer, x) ≈ vec(sum(RBMs.energies(layer, x); dims=1:ndims(layer)))
+    @test RBMs.cgf(layer, inputs, β) ≈ vec(sum(RBMs.cgfs(layer, inputs, β); dims=1:ndims(layer)))
+
+    μ = RBMs.transfer_mean(layer, inputs)
+    @test only(Zygote.gradient(j -> sum(RBMs.cgfs(layer, j)), inputs)) ≈ μ
+
+    samples = RBMs.transfer_sample(layer, zeros(size(layer)..., 10^6))
+    @test RBMs.transfer_mean(layer) ≈ RBMs.mean_(samples; dims=ndims(samples)) rtol=0.1
+    @test RBMs.transfer_var(layer) ≈ RBMs.var_(samples;  dims=ndims(samples)) rtol=0.1
+    @test RBMs.transfer_mean_abs(layer) ≈ RBMs.mean_(abs.(samples); dims=ndims(samples)) rtol=0.1
+    @test all(RBMs.energy(layer, RBMs.transfer_mode(layer)) .≤ RBMs.energy(layer, samples))
 end
 
 @testset "discrete layers ($Layer)" for Layer in (RBMs.Binary, RBMs.Spin, RBMs.Potts)
-    layer = random_layer(Layer, 3, 4, 5)
-    x = bitrand(size(layer)..., 7)
-    @test RBMs.energy(layer, x) ≈ -vec(sum(layer.θ .* x; dims=(1,2,3)))
+    N = (3, 4, 5)
+    B = 13
+    layer = Layer(randn(N...))
+    x = bitrand(N..., B)
+    @test RBMs.energies(layer, x) ≈ -layer.θ .* x
+
+    ps = Flux.params(layer)
+    gs = Zygote.gradient(ps) do
+        sum(RBMs.cgfs(layer))
+    end
+    @test RBMs.conjugates(layer).θ ≈ gs[layer.θ] ≈ RBMs.transfer_mean(layer)
 end
 
 @testset "Binary" begin
-    N = (3, 4, 5)
-    B = 7
-
-    layer = RBMs.Binary(randn(N...))
-    x = rand(Bool, size(layer)..., B)
-    inputs = randn(size(layer)..., B)
-
-    @test RBMs.energies(layer, x) ≈ -layer.θ .* x
-    @test RBMs.energy(layer, x) ≈ -vec(sum(layer.θ .* x; dims=(1,2,3)))
-
-    β = rand()
-
-    Γ = log.(sum(exp.(β * (inputs .+ layer.θ) .* h) for h in (0, 1))) / β
-    @test RBMs.cgfs(layer, inputs, β) ≈ Γ
-    @test RBMs.cgf(layer, inputs, β) ≈ vec(sum(Γ; dims=(1,2,3)))
-
-    @test all(RBMs.transfer_sample(layer, inputs, β) .∈ Ref(0:1))
-
-    μ = LogExpFunctions.logistic.(β .* (layer.θ .+ inputs))
-    @test only(Zygote.gradient(x -> sum(RBMs.cgfs(layer, x, β)), inputs)) ≈ μ
-
-    layer = RBMs.Binary([0.5])
-    @test mean(RBMs.transfer_sample(layer, zeros(1, 10^6))) ≈ LogExpFunctions.logistic(0.5) rtol=0.1
-    @test mean(RBMs.transfer_sample(layer, zeros(1, 10^6))) ≈ only(RBMs.transfer_mean(layer)) rtol=0.1
+    layer = RBMs.Binary(randn(7, 4, 5))
+    @test RBMs.cgfs(layer) ≈ log.(sum(exp.(layer.θ .* h) for h in 0:1))
+    @test sort(unique(RBMs.transfer_sample(layer))) == [0, 1]
 end
 
 @testset "Spin" begin
-    N = (3, 4, 5)
-    B = 7
-
-    layer = RBMs.Spin(randn(N...))
-    v = rand((-1, 1), size(layer)..., B)
-    inputs = randn(size(layer)..., B)
-
-    β = rand()
-
-    @test RBMs.energy(layer, v) ≈ -vec(sum(layer.θ .* v; dims=(1,2,3)))
-    @test RBMs.energy(layer, v) ≈ RBMs.energy(RBMs.Binary(layer.θ), v)
-
-    Γ = log.(sum(exp.(β * (inputs .+ layer.θ) .* h) for h in (-1, 1))) / β
-    @test RBMs.cgfs(layer, inputs, β) ≈ Γ
-    @test RBMs.cgf(layer, inputs, β) ≈ vec(sum(Γ; dims=(1,2,3)))
-
-    @test all(RBMs.transfer_sample(layer, inputs, β) .∈ Ref((-1, 1)))
-
-    μ = tanh.(β * (layer.θ .+ inputs))
-    @test only(Zygote.gradient(x -> sum(RBMs.cgf(layer, x, β)), inputs)) ≈ μ
-
-    layer = RBMs.Spin([0.5])
-    @test mean(RBMs.transfer_sample(layer, zeros(1, 10^6))) ≈ tanh(0.5) rtol=0.1
-    @test mean(RBMs.transfer_sample(layer, zeros(1, 10^6))) ≈ only(RBMs.transfer_mean(layer)) rtol=0.1
+    layer = RBMs.Spin(randn(7, 4, 5))
+    @test RBMs.cgfs(layer) ≈ log.(sum(exp.(layer.θ .* h) for h in (-1, 1)))
+    @test sort(unique(RBMs.transfer_sample(layer))) == [-1, 1]
 end
 
 @testset "Potts" begin
     q = 3
     N = (4, 5)
-    B = 7
-
-    layer = random_layer(RBMs.Potts, q, N...)
-    v = rand(Bool, q, N..., B)
-    inputs = randn(q, N..., B)
-
+    layer = RBMs.Potts(randn(q, N...))
+    @test RBMs.cgfs(layer) ≈ log.(sum(exp.(layer.θ[h:h,:,:,:]) for h in 1:q))
     # samples are proper one-hot
-    @test sort(unique(RBMs.transfer_sample(layer, inputs))) == [0, 1]
-    @test all(sum(RBMs.transfer_sample(layer, inputs); dims=1) .== 1)
-    @test RBMs.energy(layer, v) ≈ -vec(sum(layer.θ .* v; dims=(1,2,3)))
-    @test RBMs.energy(layer, v) ≈ RBMs.energy(RBMs.Binary(layer.θ), v)
-
-    β = rand()
-
-    Γ = LogExpFunctions.logsumexp(β .* (layer.θ .+ inputs); dims=1) / β
-    @test RBMs.cgf(layer, inputs, β) ≈ vec(sum(Γ; dims=(1,2,3)))
-
-    Γ = log.(sum(exp.(β * (inputs .+ layer.θ)[h:h,:,:,:]) for h in 1:q)) / β
-    @test RBMs.cgfs(layer, inputs, β) ≈ Γ
-    @test RBMs.cgf(layer, inputs, β) ≈ vec(sum(Γ; dims=(1,2,3)))
-
-    μ = LogExpFunctions.softmax(β .* (layer.θ .+ inputs); dims=1)
-    @test only(Zygote.gradient(x -> sum(RBMs.cgf(layer, x, β)), inputs)) ≈ μ
-
-    layer = RBMs.Potts([0.5; 0.2])
-    μ = LogExpFunctions.softmax(layer.θ; dims=1)
-    @test vec(mean(RBMs.transfer_sample(layer, zeros(2, 10^6)); dims=2)) ≈ μ rtol=0.1
+    @test sort(unique(RBMs.transfer_sample(layer))) == [0, 1]
+    @test all(sum(RBMs.transfer_sample(layer); dims=1) .== 1)
 end
 
 @testset "Gaussian" begin
     N = (3, 4, 5)
     B = 7
 
-    layer = random_layer(RBMs.Gaussian, N...)
-    v = randn(size(layer)..., B)
-    inputs = randn(size(layer)..., B)
+    # bound γ away from zero to avoid numerical issues with QuadGK
+    layer = RBMs.Gaussian(randn(N...), rand(N...) .+ 0.5)
 
-    β = rand()
+    x = randn(size(layer)..., B)
+    @test RBMs.energies(layer, x) ≈ @. abs(layer.γ) * x^2 / 2 - layer.θ * x
 
-    E = @. abs(layer.γ) * v^2 / 2 - layer.θ * v
-    Γ = @. (layer.θ + inputs)^2 / abs(2layer.γ) + log(2π / abs(β * layer.γ)) / 2β
-
-    @test RBMs.energy(layer, v) ≈ vec(sum(E; dims=(1,2,3)))
-    @test RBMs.cgf(layer, inputs, β) ≈ vec(sum(Γ; dims=(1,2,3)))
-
-    μ = @. (layer.θ + inputs) / abs(layer.γ)
-    @test only(Zygote.gradient(x -> sum(RBMs.cgf(layer, x, β)), inputs)) ≈ μ
-
-    function my_cgf(θ::Real, γ::Real)
-        Z, ϵ = QuadGK.quadgk(h -> exp(θ * h - γ * h^2 / 2), -Inf, Inf)
+    function quad_cgf(θ::Real, γ::Real)
+        Z, ϵ = QuadGK.quadgk(h -> exp(-RBMs.gauss_energy(θ, γ, h)), -Inf,  Inf)
         return log(Z)
     end
-    # bound γ away from zero to avoid issues with QuadGK
-    layer = RBMs.Gaussian(randn(N...), 0.5 .+ rand(N...))
-    β = 1.5
-    Γ = @. my_cgf(β * (inputs + layer.θ), β * abs(layer.γ)) / β
-    @test RBMs.cgf(layer, inputs, β) ≈ vec(sum(Γ; dims=(1,2,3)))
 
-    layer = RBMs.Gaussian([0.4], [0.2])
-    samples = RBMs.transfer_sample(layer, zeros(1, 10^6))
-    @test mean(samples) ≈ 2 rtol=0.1
-    @test std(samples) ≈ √5 rtol=0.1
+    @test RBMs.cgfs(layer) ≈ quad_cgf.(layer.θ, layer.γ)
 
-    N = (16, 8)
-    B = 64
-    l = random_layer(RBMs.Gaussian, N...)
-    inputs = randn(N..., B)
-    x = randn(N..., B)
-    m = RBMs.transfer_mode(l, inputs)
-    @test all(inputs .* m .- RBMs.energies(l, m) .≥ inputs .* x .- RBMs.energies(l, x))
+    gs = Zygote.gradient(Flux.params(layer)) do
+        sum(RBMs.cgfs(layer))
+    end
+    μ = RBMs.transfer_mean(layer)
+    ν = RBMs.transfer_var(layer)
+    μ2 = @. ν + μ^2
+    m = RBMs.conjugates(layer)
+    @test m.θ ≈ gs[layer.θ] ≈ μ
+    @test m.γ ≈ gs[layer.γ] ≈ -μ2/2
 end
 
 @testset "ReLU" begin
     N = (3, 4, 5)
     B = 7
 
-    layer = random_layer(RBMs.ReLU, N...)
-    x = randn(size(layer)..., B)
-    inputs = randn(size(layer)..., B)
-    xp = max.(x, 0)
+    # bound γ away from zero to avoid numerical issues with QuadGK
+    layer = RBMs.ReLU(randn(N...), rand(N...) .+ 0.5)
 
-    @test RBMs.energy(layer, xp) ≈ RBMs.energy(RBMs.Gaussian(layer.θ, layer.γ), xp)
+    x = abs.(randn(size(layer)..., B))
+    @test RBMs.energies(layer, x) ≈ RBMs.energies(RBMs.Gaussian(layer.θ, layer.γ), x)
 
-    function my_cgf(θ::Real, γ::Real)
+    function quad_cgf(θ::Real, γ::Real)
         Z, ϵ = QuadGK.quadgk(h -> exp(-RBMs.relu_energy(θ, γ, h)), 0,  Inf)
         return log(Z)
     end
-    # bound γ away from zero to avoid issues with QuadGK
-    layer = RBMs.ReLU(randn(N...), rand(N...) .+ 1)
-    β = 1.5
-    Γ = @. my_cgf(β * (inputs + layer.θ), β * abs(layer.γ)) / β
-    @test RBMs.cgf(layer, inputs, β) ≈ vec(sum(Γ; dims=(1,2,3)))
+    @test RBMs.cgfs(layer) ≈ @. quad_cgf(layer.θ, layer.γ)
+
+    gs = Zygote.gradient(Flux.params(layer)) do
+        sum(RBMs.cgfs(layer))
+    end
+    μ = RBMs.transfer_mean(layer)
+    ν = RBMs.transfer_var(layer)
+    μ2 = @. ν + μ^2
+    m = RBMs.conjugates(layer)
+    @test m.θ ≈ gs[layer.θ] ≈ μ
+    @test m.γ ≈ gs[layer.γ] ≈ -μ2/2
 end
 
 @testset "pReLU / xReLU / dReLU convert" begin
@@ -229,18 +181,26 @@ end
     @test drelu.γn ≈ RBMs.dReLU(prelu).γn
     @test abs.(drelu.γp) ≈ RBMs.dReLU(xrelu).γp
     @test abs.(drelu.γn) ≈ RBMs.dReLU(xrelu).γn
-    @test RBMs.energy(drelu, x) ≈ RBMs.energy(prelu, x) ≈ RBMs.energy(xrelu, x)
-    @test RBMs.cgf(drelu, x) ≈ RBMs.cgf(prelu, x) ≈ RBMs.cgf(xrelu, x)
+    @test RBMs.energies(drelu, x) ≈ RBMs.energies(prelu, x) ≈ RBMs.energies(xrelu, x)
+    @test RBMs.cgfs(drelu) ≈ RBMs.cgfs(prelu) ≈ RBMs.cgfs(xrelu)
+    @test RBMs.transfer_mode(drelu) ≈ RBMs.transfer_mode(prelu) ≈ RBMs.transfer_mode(xrelu)
+    @test RBMs.transfer_mean(drelu) ≈ RBMs.transfer_mean(prelu) ≈ RBMs.transfer_mean(xrelu)
+    @test RBMs.transfer_mean_abs(drelu) ≈ RBMs.transfer_mean_abs(prelu) ≈ RBMs.transfer_mean_abs(xrelu)
+    @test RBMs.transfer_var(drelu) ≈ RBMs.transfer_var(prelu) ≈ RBMs.transfer_var(xrelu)
 
     prelu = random_layer(RBMs.pReLU, N...)
     drelu = @inferred RBMs.dReLU(prelu)
     xrelu = @inferred RBMs.xReLU(prelu)
     @test prelu.θ ≈ RBMs.pReLU(drelu).θ ≈ RBMs.pReLU(xrelu).θ
-    @test prelu.Δ ≈ RBMs.pReLU(drelu).Δ ≈ RBMs.pReLU(xrelu).Δ
     @test prelu.γ ≈ RBMs.pReLU(drelu).γ ≈ RBMs.pReLU(xrelu).γ
+    @test prelu.Δ ≈ RBMs.pReLU(drelu).Δ ≈ RBMs.pReLU(xrelu).Δ
     @test prelu.η ≈ RBMs.pReLU(drelu).η ≈ RBMs.pReLU(xrelu).η
-    @test RBMs.energy(drelu, x) ≈ RBMs.energy(prelu, x) ≈ RBMs.energy(xrelu, x)
-    @test RBMs.cgf(drelu, x) ≈ RBMs.cgf(prelu, x) ≈ RBMs.cgf(xrelu, x)
+    @test RBMs.energies(drelu, x) ≈ RBMs.energies(prelu, x) ≈ RBMs.energies(xrelu, x)
+    @test RBMs.cgfs(drelu) ≈ RBMs.cgfs(prelu) ≈ RBMs.cgfs(xrelu)
+    @test RBMs.transfer_mode(drelu) ≈ RBMs.transfer_mode(prelu) ≈ RBMs.transfer_mode(xrelu)
+    @test RBMs.transfer_mean(drelu) ≈ RBMs.transfer_mean(prelu) ≈ RBMs.transfer_mean(xrelu)
+    @test RBMs.transfer_mean_abs(drelu) ≈ RBMs.transfer_mean_abs(prelu) ≈ RBMs.transfer_mean_abs(xrelu)
+    @test RBMs.transfer_var(drelu) ≈ RBMs.transfer_var(prelu) ≈ RBMs.transfer_var(xrelu)
 
     xrelu = random_layer(RBMs.xReLU, N...)
     drelu = @inferred RBMs.dReLU(xrelu)
@@ -250,46 +210,66 @@ end
     @test xrelu.ξ ≈ RBMs.xReLU(drelu).ξ ≈ RBMs.xReLU(prelu).ξ
     @test xrelu.γ ≈ RBMs.xReLU(prelu).γ
     @test abs.(xrelu.γ) ≈ RBMs.xReLU(drelu).γ
-    @test RBMs.energy(drelu, x) ≈ RBMs.energy(prelu, x) ≈ RBMs.energy(xrelu, x)
-    @test RBMs.cgf(drelu, x) ≈ RBMs.cgf(prelu, x) ≈ RBMs.cgf(xrelu, x)
-
-    for layer in (drelu, prelu, xrelu)
-        @inferred RBMs.energy(layer, x)
-        @inferred RBMs.cgf(layer, x)
-    end
+    @test RBMs.energies(drelu, x) ≈ RBMs.energies(prelu, x) ≈ RBMs.energies(xrelu, x)
+    @test RBMs.cgfs(drelu) ≈ RBMs.cgfs(prelu) ≈ RBMs.cgfs(xrelu)
+    @test RBMs.transfer_mode(drelu) ≈ RBMs.transfer_mode(prelu) ≈ RBMs.transfer_mode(xrelu)
+    @test RBMs.transfer_mean(drelu) ≈ RBMs.transfer_mean(prelu) ≈ RBMs.transfer_mean(xrelu)
+    @test RBMs.transfer_mean_abs(drelu) ≈ RBMs.transfer_mean_abs(prelu) ≈ RBMs.transfer_mean_abs(xrelu)
+    @test RBMs.transfer_var(drelu) ≈ RBMs.transfer_var(prelu) ≈ RBMs.transfer_var(xrelu)
 end
 
 @testset "dReLU" begin
-    N = (10, 2)
+    N = (3, 5)
     B = 13
     x = randn(N..., B)
-    xp = max.(x, 0)
-    xn = min.(x, 0)
 
-    l = random_layer(RBMs.dReLU, N...)
+    # bound γ away from zero to avoid issues with QuadGK
+    layer = RBMs.dReLU(randn(N...), randn(N...), rand(N...) .+ 0.5, rand(N...) .+ 0.5)
 
-    E = RBMs.energy(RBMs.ReLU(l.θp, l.γp), xp) + RBMs.energy(RBMs.ReLU(-l.θn, l.γn), -xn)
-    @test RBMs.energy(l, x) ≈ E
-    @test iszero(RBMs.energy(l, zero(x)))
+    Ep = RBMs.energy(RBMs.ReLU( layer.θp, layer.γp), max.( x, 0))
+    En = RBMs.energy(RBMs.ReLU(-layer.θn, layer.γn), max.(-x, 0))
+    @test RBMs.energy(layer, x) ≈ Ep + En
+    @test iszero(RBMs.energy(layer, zero(x)))
 
-    function my_cgf(θp::Real, θn::Real, γp::Real, γn::Real)
+    function quad_cgf(θp::Real, θn::Real, γp::Real, γn::Real)
         Z, ϵ = QuadGK.quadgk(h -> exp(-RBMs.drelu_energy(θp, θn, γp, γn, h)), -Inf, Inf)
         return log(Z)
     end
 
-    # bound γ away from zero to avoid issues with QuadGK
-    β = rand() + 0.5
-    l = RBMs.dReLU(randn(N...), randn(N...), rand(N...) .+ 0.5, rand(N...) .+ 0.5)
-    inputs = randn(N..., B)
+    @test RBMs.cgfs(layer) ≈ quad_cgf.(layer.θp, layer.θn, abs.(layer.γp), abs.(layer.γn))
 
-    Γ = @. my_cgf(β * (inputs + l.θp), β * (inputs + l.θn), β * abs(l.γp), β * abs(l.γn)) / β
-    @test RBMs.cgf(l, inputs, β) ≈ vec(sum(Γ; dims=(1,2)))
+    gs = Zygote.gradient(Flux.params(layer)) do
+        sum(RBMs.cgfs(layer))
+    end
+    m = RBMs.conjugates(layer)
+    @test m.θp ≈ gs[layer.θp]
+    @test m.θn ≈ gs[layer.θn]
+    @test m.γp ≈ gs[layer.γp]
+    @test m.γn ≈ gs[layer.γn]
+end
 
-    N = (16, 8)
-    B = 64
-    l = RBMs.dReLU(randn(N...), randn(N...), rand(N...) .+ 0.5, rand(N...) .+ 0.5)
-    inputs = randn(N..., B)
-    x = randn(N..., B)
-    m = RBMs.transfer_mode(l, inputs)
-    @test all(inputs .* m .- RBMs.energies(l, m) .≥ inputs .* x .- RBMs.energies(l, x))
+@testset "pReLU" begin
+    N = (3, 5)
+    layer = RBMs.pReLU(randn(N...), rand(N...), randn(N...), 2rand(N...) .- 1)
+    gs = Zygote.gradient(Flux.params(layer)) do
+        sum(RBMs.cgfs(layer))
+    end
+    m = RBMs.conjugates(layer)
+    @test m.θ ≈ gs[layer.θ]
+    @test m.γ ≈ gs[layer.γ]
+    @test m.Δ ≈ gs[layer.Δ]
+    @test m.η ≈ gs[layer.η]
+end
+
+@testset "xReLU" begin
+    N = (3, 5)
+    layer = RBMs.xReLU(randn(N...), rand(N...), randn(N...), randn(N...))
+    gs = Zygote.gradient(Flux.params(layer)) do
+        sum(RBMs.cgfs(layer))
+    end
+    m = RBMs.conjugates(layer)
+    @test m.θ ≈ gs[layer.θ]
+    @test m.γ ≈ gs[layer.γ]
+    @test m.Δ ≈ gs[layer.Δ]
+    @test m.ξ ≈ gs[layer.ξ]
 end

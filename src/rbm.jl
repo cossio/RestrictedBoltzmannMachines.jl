@@ -55,7 +55,8 @@ function inputs_v_to_h(rbm::RBM, v::AbstractArray)
     @assert size(v) == (size(rbm.visible)..., size(v)[end])
     wmat = reshape(rbm.weights, length(rbm.visible), length(rbm.hidden))
     vmat = reshape(v, length(rbm.visible), :)
-    return reshape(wmat' * vmat, size(rbm.hidden)..., :)
+    # convert to common eltype to make sure we hit BLAS
+    return reshape(wmat' * oftype(wmat, vmat), size(rbm.hidden)..., :)
 end
 
 """
@@ -67,7 +68,8 @@ function inputs_h_to_v(rbm::RBM, h::AbstractArray)
     @assert size(h) == (size(rbm.hidden)..., size(h)[end])
     wmat = reshape(rbm.weights, length(rbm.visible), length(rbm.hidden))
     hmat = reshape(h, length(rbm.hidden), :)
-    return reshape(wmat * hmat, size(rbm.visible)..., :)
+    # convert to common eltype to make sure we hit BLAS
+    return reshape(wmat * oftype(wmat, hmat), size(rbm.visible)..., :)
 end
 
 """
@@ -111,12 +113,11 @@ Samples a visible configuration conditional on another visible configuration `v`
 function sample_v_from_v(rbm::RBM, v::AbstractArray, β::Real = true; steps::Int = 1)
     @assert size(v) == (size(rbm.visible)..., size(v)[end])
     @assert steps ≥ 1
-    h = sample_h_from_v(rbm, v, β)
+    v_ = sample_v_from_v_once(rbm, v, β)
     for _ in 1:(steps - 1)
-        v_ = sample_v_from_h(rbm, h, β)
-        h = sample_h_from_v(rbm, v_, β)
+        v_ = sample_v_from_v_once(rbm, v_, β)
     end
-    return sample_v_from_h(rbm, h, β)
+    return v_
 end
 
 """
@@ -127,12 +128,23 @@ Samples a hidden configuration conditional on another hidden configuration `h`.
 function sample_h_from_h(rbm::RBM, h::AbstractArray, β::Real = true; steps::Int = 1)
     @assert size(h) == (size(rbm.hidden)..., size(h)[end])
     @assert steps ≥ 1
-    v = sample_v_from_h(rbm, h, β)
+    h_ = sample_h_from_h_once(rbm, h, β)
     for _ in 1:(steps - 1)
-        h_ = sample_h_from_v(rbm, v, β)
-        v = sample_v_from_h(rbm, h_, β)
+        h_ = sample_h_from_h_once(rbm, h_, β)
     end
-    return sample_h_from_v(rbm, v, β)
+    return h_
+end
+
+function sample_v_from_v_once(rbm::RBM, v::AbstractArray, β::Real = true)
+    h = sample_h_from_v(rbm, v, β)
+    v = sample_v_from_h(rbm, h, β)
+    return v
+end
+
+function sample_h_from_h_once(rbm::RBM, h::AbstractArray, β::Real = true)
+    v = sample_v_from_h(rbm, h, β)
+    h = sample_h_from_v(rbm, v, β)
+    return h
 end
 
 """
@@ -146,13 +158,23 @@ function mean_h_from_v(rbm::RBM, v::AbstractArray, β::Real = true)
 end
 
 """
-    mean_v_from_h(rbm, v, β = 1)
+    conjugates_v_from_h(rbm, v, β = 1)
 
 Mean unit activation values, conditioned on the other layer, <v | h>.
 """
 function mean_v_from_h(rbm::RBM, h::AbstractArray, β::Real = true)
     inputs = inputs_h_to_v(rbm, h)
     return transfer_mean(rbm.visible, inputs, β)
+end
+
+function conjugates_h_from_v(rbm::RBM, v::AbstractArray, β::Real = true)
+    inputs = inputs_v_to_h(rbm, v)
+    return conjugates(rbm.hidden, inputs, β)
+end
+
+function conjugates_v_from_h(rbm::RBM, h::AbstractArray, β::Real = true)
+    inputs = inputs_h_to_v(rbm, h)
+    return conjugates(rbm.visible, inputs, β)
 end
 
 """
@@ -180,4 +202,21 @@ function flip_layers(rbm::RBM)
     end
     perm = ntuple(p, ndims(rbm.weights))
     return RBM(rbm.hidden, rbm.visible, permutedims(rbm.weights, perm))
+end
+
+function convergence_score(rbm::RBM, data::AbstractArray; steps::Int)
+    v = sample_v_from_v(rbm, data; steps=steps)
+    h = sample_h_from_v(rbm, v)
+    data_h = sample_h_from_v(rbm, data)
+
+    conjugates_v_from_h(rbm, h)
+    conjugates_v_from_h(rbm, data_h)
+
+    conjugates_h_from_v(rbm, v)
+    conjugates_h_from_v(rbm, data)
+
+    ∂w_model = reshape(v, length(rbm.visible), :) * reshape(h, length(rbm.hidden), :)' / size(data)[end]
+    ∂w_data = reshape(data, length(rbm.visible), :) * reshape(data_h, length(rbm.hidden), :)' / size(data)[end]
+
+
 end

@@ -14,13 +14,17 @@ Flux.@functor Binary
 cgfs(layer::Binary) = LogExpFunctions.log1pexp.(layer.θ)
 
 function transfer_sample(layer::Binary)
-    pinv = @. one(layer.θ) + exp(-layer.θ)
-    u = rand(eltype(pinv), size(pinv))
-    return oftype(layer.θ, u .* pinv .≤ 1)
+    u = rand(eltype(layer.θ), size(layer))
+    return u .* (1 .+ exp.(-layer.θ)) .< 1
 end
 
+transfer_mode(layer::Binary) = layer.θ .> 0
 transfer_mean(layer::Binary) = LogExpFunctions.logistic.(layer.θ)
+transfer_mean_abs(layer::Binary) = transfer_mean(layer)
 
-function effective(layer::Binary, inputs, β::Real = 1)
-    return Binary(β * (layer.θ .+ inputs))
+function transfer_var(layer::Binary)
+    return LogExpFunctions.logistic.(layer.θ) .* LogExpFunctions.logistic.(-layer.θ)
 end
+
+conjugates(layer::Binary) = (; θ = transfer_mean(layer))
+effective(layer::Binary, inputs, β::Real = 1) = Binary(β * (layer.θ .+ inputs))

@@ -1,4 +1,4 @@
-# RestrictedBoltzmannMachines.jl Reference
+# Reference
 
 ```@autodocs
 Modules = [RBMs]

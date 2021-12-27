@@ -6,7 +6,7 @@ Trains the RBM on data.
 function train!(rbm::RBM, data::AbstractArray;
     batchsize = 1,
     epochs = 1,
-    optimizer = Flux.ADAM(), # optimizer algorithm
+    optimizer = default_optimizer(_nobs(data), batchsize, epochs), # optimizer algorithm
     history::MVHistory = MVHistory(), # stores training log
     lossadd = (_...) -> 0, # regularization
     verbose::Bool = true,
@@ -66,4 +66,22 @@ function contrastive_divergence(rbm::RBM, vd, vm, wd = true)
     Fd = free_energy(rbm, vd)
     Fm = free_energy(rbm, vm)
     return weighted_mean(Fd, wd) - weighted_mean(Fm)
+end
+
+"""
+    default_optimizer(nsamples, batchsize, epochs; opt = ADAM(), decay_after = 0.5)
+
+The default optimizer decays the learning rate exponentially every epoch, starting after
+`decay_after` of training time, with a pre-defined schedule.
+"""
+function default_optimizer(
+    nsamples::Int, batchsize::Int, epochs::Int;
+    opt = Flux.ADAM(), clip = 1e-2, decay_after = 0.5
+)
+    steps_per_epoch = minibatch_count(nsamples; batchsize = batchsize)
+    nsteps = steps_per_epoch * epochs
+    start = round(Int, nsteps * decay_after)
+
+    decay = clip^inv(nsteps - start)
+    return Flux.Optimise.Optimiser(opt, ExpDecay(1, decay, steps_per_epoch, clip, start))
 end

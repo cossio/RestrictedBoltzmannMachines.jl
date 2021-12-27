@@ -55,7 +55,7 @@ makedocs(
             "MNIST" => "literate/MNIST.md",
             "lr-decay" => "literate/lr_decay.md",
         ],
-        "Reference" => "reference.md",
+        "Reference" => "reference.md"
     ],
     strict = true
 )

@@ -20,6 +20,32 @@ Flux.@functor ReLU
 energies(layer::ReLU, x) = relu_energy.(layer.θ, layer.γ, x)
 cgfs(layer::ReLU) = relu_cgf.(layer.θ, layer.γ)
 transfer_sample(layer::ReLU) = relu_rand.(layer.θ, layer.γ)
+transfer_mode(layer::ReLU) = max.(layer.θ ./ abs.(layer.γ), 0)
+
+function transfer_mean(layer::ReLU)
+    g = Gaussian(layer.θ, layer.γ)
+    μ = transfer_mean(g)
+    σ = sqrt.(transfer_var(g))
+    return @. μ + σ * tnmean(-μ / σ)
+end
+
+transfer_mean_abs(layer::ReLU) = transfer_mean(layer)
+
+function transfer_var(layer::ReLU)
+    g = Gaussian(layer.θ, layer.γ)
+    μ = transfer_mean(g)
+    ν = transfer_var(g)
+    return @. ν * tnvar(-μ / √ν)
+end
+
+function conjugates(layer::ReLU)
+    μ = transfer_mean(layer)
+    ν = transfer_var(layer)
+    return (
+        θ = μ,
+        γ = @. -(ν + μ^2) / 2
+    )
+end
 
 function effective(layer::ReLU, inputs, β::Real = 1)
     θ = β * (layer.θ .+ inputs)

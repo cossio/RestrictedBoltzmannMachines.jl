@@ -25,8 +25,8 @@ include("tests_init.jl")
 
     @inferred RBMs.flip_layers(rbm)
 
-    @inferred RBMs.mean_h_from_v(rbm, v)
-    @inferred RBMs.mean_v_from_h(rbm, h)
+    @inferred RBMs.conjugates_h_from_v(rbm, v)
+    @inferred RBMs.conjugates_v_from_h(rbm, h)
 end
 
 @testset "Gaussian-Gaussian RBM, 1-dimension" begin
