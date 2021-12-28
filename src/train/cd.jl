@@ -76,12 +76,12 @@ The default optimizer decays the learning rate exponentially every epoch, starti
 """
 function default_optimizer(
     nsamples::Int, batchsize::Int, epochs::Int;
-    opt = Flux.ADAM(), clip = 1e-2, decay_after = 0.5
+    opt = Flux.ADAM(), decay_final = 1e-2, decay_after = 0.5
 )
     steps_per_epoch = minibatch_count(nsamples; batchsize = batchsize)
     nsteps = steps_per_epoch * epochs
     start = round(Int, nsteps * decay_after)
 
-    decay = clip^inv(nsteps - start)
-    return Flux.Optimise.Optimiser(opt, ExpDecay(1, decay, steps_per_epoch, clip, start))
+    decay = decay_final^inv(count((steps_per_epoch:steps_per_epoch:nsteps) .> start))
+    return Flux.Optimise.Optimiser(opt, ExpDecay(1, decay, steps_per_epoch, decay_final, start))
 end

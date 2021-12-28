@@ -35,16 +35,15 @@ mutable struct ExpDecay <: Flux.Optimise.AbstractOptimiser
     current::IdDict
 end
 
-function ExpDecay(opt = 0.001, decay = 0.1, decay_step = 1000, clip = 1e-4, start = 1)
-    return ExpDecay(opt, decay, decay_step, clip, start, IdDict())
+function ExpDecay(eta = 0.001, decay = 0.1, decay_step = 1000, clip = 1e-4, start = 0)
+    return ExpDecay(eta, decay, decay_step, clip, start, IdDict())
 end
 
 function Flux.Optimise.apply!(o::ExpDecay, x, Δ)
-    η, s, decay, n0 = o.eta, o.step, o.decay, o.start
+    s, n0 = o.step, o.start
     n = o.current[x] = get(o.current, x, 0) + 1
-    if n ≥ n0 && (n - n0 + 1) % s == 0 && count(x -> (x - n0 + 1) % s == 0, values(o.current)) == 1
-        η = max(η * decay, o.clip)
-        o.eta = η
+    if n > n0 && n % s == 0 && count(x -> (x > n0) && (x % s == 0), values(o.current)) == 1
+        o.eta = max(o.eta * o.decay, o.clip)
     end
-    @. Δ *= η
+    return @. Δ *= o.eta
 end
