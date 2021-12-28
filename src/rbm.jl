@@ -55,8 +55,8 @@ function inputs_v_to_h(rbm::RBM, v::AbstractArray)
     @assert size(v) == (size(rbm.visible)..., size(v)[end])
     wmat = reshape(rbm.weights, length(rbm.visible), length(rbm.hidden))
     vmat = reshape(v, length(rbm.visible), :)
-    # convert to common eltype to make sure we hit BLAS
-    return reshape(wmat' * oftype(wmat, vmat), size(rbm.hidden)..., :)
+    vmat_ = oftype(wmat, vmat) # convert to common eltype to make sure we hit BLAS
+    return reshape(wmat' * vmat_, size(rbm.hidden)..., :)
 end
 
 """
@@ -68,8 +68,8 @@ function inputs_h_to_v(rbm::RBM, h::AbstractArray)
     @assert size(h) == (size(rbm.hidden)..., size(h)[end])
     wmat = reshape(rbm.weights, length(rbm.visible), length(rbm.hidden))
     hmat = reshape(h, length(rbm.hidden), :)
-    # convert to common eltype to make sure we hit BLAS
-    return reshape(wmat * oftype(wmat, hmat), size(rbm.visible)..., :)
+    hmat_ = oftype(wmat, hmat) # convert to common eltype to make sure we hit BLAS
+    return reshape(wmat * hmat_, size(rbm.visible)..., :)
 end
 
 """
