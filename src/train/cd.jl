@@ -67,21 +67,3 @@ function contrastive_divergence(rbm::RBM, vd, vm, wd = true)
     Fm = free_energy(rbm, vm)
     return weighted_mean(Fd, wd) - weighted_mean(Fm)
 end
-
-"""
-    default_optimizer(nsamples, batchsize, epochs; opt = ADAM(), decay_after = 0.5)
-
-The default optimizer decays the learning rate exponentially every epoch, starting after
-`decay_after` of training time, with a pre-defined schedule.
-"""
-function default_optimizer(
-    nsamples::Int, batchsize::Int, epochs::Int;
-    opt = Flux.ADAM(), decay_final = 1e-2, decay_after = 0.5
-)
-    steps_per_epoch = minibatch_count(nsamples; batchsize = batchsize)
-    nsteps = steps_per_epoch * epochs
-    start = round(Int, nsteps * decay_after)
-
-    decay = decay_final^inv(count((steps_per_epoch:steps_per_epoch:nsteps) .> start))
-    return Flux.Optimise.Optimiser(opt, ExpDecay(1, decay, steps_per_epoch, decay_final, start))
-end
