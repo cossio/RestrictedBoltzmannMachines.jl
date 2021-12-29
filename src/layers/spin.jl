@@ -29,7 +29,7 @@ transfer_mode(layer::Spin) = ifelse.(layer.θ .> 0, 1, -1)
 transfer_mean(layer::Spin) = tanh.(layer.θ)
 transfer_mean_abs(layer::Spin) = trues(size(layer))
 conjugates(layer::Spin) = (; θ = transfer_mean(layer))
-effective(layer::Spin, inputs, β::Real = 1) = Spin(β * (layer.θ .+ inputs))
+effective(layer::Spin, inputs, β::Real = true) = Spin(β * (layer.θ .+ inputs))
 
 function transfer_var(layer::Spin)
     μ = transfer_mean(layer)

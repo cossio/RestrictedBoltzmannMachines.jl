@@ -22,7 +22,7 @@ end
 
 Cumulant generating function of layer, reduced over layer dimensions.
 """
-function cgf(layer, inputs = 0, β::Real = 1)
+function cgf(layer, inputs = 0, β::Real = true)
     Γ = cgfs(layer, inputs, β)
     return maybe_scalar(sum_(Γ; dims = layerdims(layer)))
 end
@@ -32,18 +32,18 @@ end
 
 Samples layer configurations conditioned on inputs.
 """
-function transfer_sample(layer, inputs , β::Real = 1)
+function transfer_sample(layer, inputs , β::Real = true)
     layer_ = effective(layer, inputs, β)
     return transfer_sample(layer_)
 end
 
 """
-    transfer_mode(layer, inputs = 0, β = 1)
+    transfer_mode(layer, inputs = 0)
 
 Mode of unit activations.
 """
-function transfer_mode(layer, inputs, β::Real = 1)
-    layer_ = effective(layer, inputs, β)
+function transfer_mode(layer, inputs)
+    layer_ = effective(layer, inputs)
     return transfer_mode(layer_)
 end
 
@@ -52,7 +52,7 @@ end
 
 Mean of unit activations.
 """
-function transfer_mean(layer, inputs, β::Real = 1)
+function transfer_mean(layer, inputs, β::Real = true)
     layer_ = effective(layer, inputs, β)
     return transfer_mean(layer_)
 end
@@ -62,7 +62,7 @@ end
 
 Variance of unit activations.
 """
-function transfer_var(layer, inputs, β::Real = 1)
+function transfer_var(layer, inputs, β::Real = true)
     layer_ = effective(layer, inputs, β)
     return transfer_var(layer_)
 end
@@ -72,7 +72,7 @@ end
 
 Mean of absolute value of unit activations.
 """
-function transfer_mean_abs(layer, inputs, β::Real = 1)
+function transfer_mean_abs(layer, inputs, β::Real = true)
     layer_ = effective(layer, inputs, β)
     return transfer_mean_abs(layer_)
 end
@@ -82,7 +82,7 @@ end
 Unit activation moments, conjugate to layer parameters.
 These are obtained by differentiating the `cgf` with respect to the layer parameters.
 """
-function conjugates(layer, inputs, β::Real = 1)
+function conjugates(layer, inputs, β::Real = true)
     layer_ = effective(layer, inputs, β)
     return conjugates(layer_)
 end
@@ -92,7 +92,7 @@ end
 
 Cumulant generating function of units in layer (not reduced over layer dimensions).
 """
-function cgfs(layer, inputs, β::Real = 1)
+function cgfs(layer, inputs, β::Real = true)
     layer_ = effective(layer, inputs, β)
     return cgfs(layer_) / β
 end

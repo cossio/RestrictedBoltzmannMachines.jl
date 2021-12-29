@@ -8,7 +8,7 @@ This is exponentially slow for large machines.
 
 If your RBM has a smaller hidden layer, consider using `flip_layers`.
 """
-function log_partition(rbm::RBM, β::Real = 1)
+function log_partition(rbm::RBM, β::Real = true)
     v = ChainRulesCore.ignore_derivatives() do
         collect_states(rbm.visible)
     end

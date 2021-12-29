@@ -56,7 +56,7 @@ function conjugates_empirical(layer::Gaussian, samples::AbstractArray)
     return (θ = μ, γ = -μ2/2)
 end
 
-function effective(layer::Gaussian, inputs, β::Real = 1)
+function effective(layer::Gaussian, inputs, β::Real = true)
     θ = β * (layer.θ .+ inputs)
     γ = β * broadlike(layer.γ, inputs)
     return Gaussian(promote(θ, γ)...)

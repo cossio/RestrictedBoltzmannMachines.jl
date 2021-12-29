@@ -121,13 +121,7 @@ end
     end
 end
 
-
 @testset "SqrtDecay" begin
-    Random.seed!(84)
-    w = randn(10, 10)
-    w_ = randn(10, 10)
-    loss(x) = Flux.Losses.mse(w*x, w_*x)
-
     Random.seed!(84)
     w = randn(10, 10)
     w_ = randn(10, 10)

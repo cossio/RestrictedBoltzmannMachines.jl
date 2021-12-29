@@ -54,4 +54,4 @@ function conjugates_empirical(layer::Potts, samples::AbstractArray)
     return (; θ = μ)
 end
 
-effective(layer::Potts, inputs, β::Real = 1) = Potts(β * (layer.θ .+ inputs))
+effective(layer::Potts, inputs, β::Real = true) = Potts(β * (layer.θ .+ inputs))

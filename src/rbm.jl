@@ -158,7 +158,7 @@ function mean_h_from_v(rbm::RBM, v::AbstractArray, β::Real = true)
 end
 
 """
-    conjugates_v_from_h(rbm, v, β = 1)
+    mean_v_from_h(rbm, v, β = 1)
 
 Mean unit activation values, conditioned on the other layer, <v | h>.
 """
@@ -167,14 +167,44 @@ function mean_v_from_h(rbm::RBM, h::AbstractArray, β::Real = true)
     return transfer_mean(rbm.visible, inputs, β)
 end
 
-function conjugates_h_from_v(rbm::RBM, v::AbstractArray, β::Real = true)
-    inputs = inputs_v_to_h(rbm, v)
-    return conjugates(rbm.hidden, inputs, β)
+"""
+    mode_v_from_h(rbm, h)
+
+Mode unit activations, conditioned on the other layer.
+"""
+function mode_v_from_h(rbm::RBM, h::AbstractArray)
+    inputs = inputs_h_to_v(rbm, h)
+    return transfer_mode(rbm.visible, inputs)
 end
 
-function conjugates_v_from_h(rbm::RBM, h::AbstractArray, β::Real = true)
-    inputs = inputs_h_to_v(rbm, h)
-    return conjugates(rbm.visible, inputs, β)
+"""
+    mode_h_from_v(rbm, v)
+
+Mode unit activations, conditioned on the other layer.
+"""
+function mode_h_from_v(rbm::RBM, v::AbstractArray)
+    inputs = inputs_v_to_h(rbm, v)
+    return transfer_mode(rbm.hidden, inputs)
+end
+
+function conjugates_weights_empirical(rbm::RBM, v::AbstractArray, h::AbstractArray)
+    @assert size(v) == (size(rbm.visible)..., size(v)[end])
+    @assert size(h) == (size(rbm.hidden)...,  size(h)[end])
+    @assert size(v)[end] == size(h)[end]
+    vmat = reshape(v, length(rbm.visible), :)
+    hmat = reshape(h, length(rbm.hidden), :)
+    ∂w = reshape(vmat * hmat' / size(v)[end], size(rbm.weights))
+    return ∂w
+end
+
+function conjugates_empirical(rbm::RBM, v::AbstractArray)
+    @assert size(v) == (size(rbm.visible)..., size(v)[end])
+    inputs = inputs_v_to_h(rbm, v)
+    h = transfer_mean(rbm.hidden, inputs)
+    ∂v = conjugates_empirical(rbm.visible, v)
+    ∂h = map(θ -> mean_(θ; dims=ndims(inputs)), conjugates(rbm.hidden, inputs))
+    ∂w = conjugates_weights_empirical(rbm, v, h)
+    return (visible = ∂v, hidden = ∂h, weights = ∂w)
 end
 
 """
@@ -202,21 +232,4 @@ function flip_layers(rbm::RBM)
     end
     perm = ntuple(p, ndims(rbm.weights))
     return RBM(rbm.hidden, rbm.visible, permutedims(rbm.weights, perm))
-end
-
-function convergence_score(rbm::RBM, data::AbstractArray; steps::Int)
-    v = sample_v_from_v(rbm, data; steps=steps)
-    h = sample_h_from_v(rbm, v)
-    data_h = sample_h_from_v(rbm, data)
-
-    conjugates_v_from_h(rbm, h)
-    conjugates_v_from_h(rbm, data_h)
-
-    conjugates_h_from_v(rbm, v)
-    conjugates_h_from_v(rbm, data)
-
-    ∂w_model = reshape(v, length(rbm.visible), :) * reshape(h, length(rbm.hidden), :)' / size(data)[end]
-    ∂w_data = reshape(data, length(rbm.visible), :) * reshape(data_h, length(rbm.hidden), :)' / size(data)[end]
-
-
 end

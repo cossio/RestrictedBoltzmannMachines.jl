@@ -55,7 +55,7 @@ function conjugates_empirical(layer::ReLU, samples::AbstractArray)
     return (θ = μ, γ = -μ2/2)
 end
 
-function effective(layer::ReLU, inputs, β::Real = 1)
+function effective(layer::ReLU, inputs, β::Real = true)
     θ = β * (layer.θ .+ inputs)
     γ = β * broadlike(layer.γ, inputs)
     return ReLU(promote(θ, γ)...)

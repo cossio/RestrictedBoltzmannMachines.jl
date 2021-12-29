@@ -90,7 +90,7 @@ function conjugates_empirical(layer::xReLU, samples::AbstractArray)
     return (θ = ∂θ, γ = ∂γ, Δ = ∂Δ, ξ = ∂ξ)
 end
 
-function effective(layer::xReLU, inputs, β::Real = 1)
+function effective(layer::xReLU, inputs, β::Real = true)
     θ = β * (layer.θ .+ inputs)
     γ = β * broadlike(layer.γ, inputs)
     Δ = β * broadlike(layer.Δ, inputs)
