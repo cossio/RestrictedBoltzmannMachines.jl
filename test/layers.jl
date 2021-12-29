@@ -74,6 +74,14 @@ end
     @test RBMs.transfer_var(layer) ≈ RBMs.var_(samples;  dims=ndims(samples)) rtol=0.1
     @test RBMs.transfer_mean_abs(layer) ≈ RBMs.mean_(abs.(samples); dims=ndims(samples)) rtol=0.1
     @test all(RBMs.energy(layer, RBMs.transfer_mode(layer)) .≤ RBMs.energy(layer, samples))
+
+    m_ex = RBMs.conjugates(layer)
+    m_mc = RBMs.conjugates_empirical(layer, samples)
+    @test length(m_ex) == length(m_mc)
+    @test typeof(m_ex) == typeof(m_mc)
+    for (∂θ_ex, ∂θ_mc) in zip(m_ex, m_mc)
+        @test ∂θ_ex ≈ ∂θ_mc rtol=0.1
+    end
 end
 
 @testset "discrete layers ($Layer)" for Layer in (RBMs.Binary, RBMs.Spin, RBMs.Potts)

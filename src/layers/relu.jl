@@ -47,6 +47,14 @@ function conjugates(layer::ReLU)
     )
 end
 
+function conjugates_empirical(layer::ReLU, samples::AbstractArray)
+    @assert size(samples) == (size(layer)..., size(samples)[end])
+    xp = max.(samples, 0)
+    μ = mean_(xp; dims=ndims(samples))
+    μ2 = mean_(xp.^2; dims=ndims(samples))
+    return (θ = μ, γ = -μ2/2)
+end
+
 function effective(layer::ReLU, inputs, β::Real = 1)
     θ = β * (layer.θ .+ inputs)
     γ = β * broadlike(layer.γ, inputs)

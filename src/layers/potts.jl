@@ -35,9 +35,7 @@ function transfer_sample(layer::Potts)
 end
 
 transfer_mean(layer::Potts) = LogExpFunctions.softmax(layer.θ; dims=1)
-conjugates(layer::Potts) = (; θ = transfer_mean(layer))
 transfer_mean_abs(layer::Potts) = transfer_mean(layer)
-effective(layer::Potts, inputs, β::Real = 1) = Potts(β * (layer.θ .+ inputs))
 
 function transfer_var(layer::Potts)
     p = transfer_mean(layer)
@@ -47,3 +45,13 @@ end
 function transfer_mode(layer::Potts)
     return layer.θ .== maximum(layer.θ; dims=1)
 end
+
+conjugates(layer::Potts) = (; θ = transfer_mean(layer))
+
+function conjugates_empirical(layer::Potts, samples::AbstractArray)
+    @assert size(samples) == (size(layer)..., size(samples)[end])
+    μ = mean_(samples; dims=ndims(samples))
+    return (; θ = μ)
+end
+
+effective(layer::Potts, inputs, β::Real = 1) = Potts(β * (layer.θ .+ inputs))

@@ -75,6 +75,29 @@ function conjugates(layer::pReLU)
     return (θ = ∂θ, γ = ∂γ, Δ = ∂Δ, η = ∂η)
 end
 
+function conjugates_empirical(layer::pReLU, samples::AbstractArray)
+    @assert size(samples) == (size(layer)..., size(samples)[end])
+
+    xp = max.(samples, 0)
+    xn = min.(samples, 0)
+
+    μp = mean_(xp; dims=ndims(samples))
+    μn = mean_(xn; dims=ndims(samples))
+
+    μ2p = mean_(xp.^2; dims=ndims(samples))
+    μ2n = mean_(xn.^2; dims=ndims(samples))
+
+    ∂θ = @. μp + μn
+    ∂γ = @. -(μ2p / (1 + layer.η) + μ2n / (1 - layer.η)) / 2
+    ∂Δ = @. μp / (1 + layer.η) - μn / (1 - layer.η)
+    ∂η = @. (
+        ( layer.γ * μ2p / 2 - layer.Δ * μp) / (1 + layer.η)^2 +
+        (-layer.γ * μ2n / 2 - layer.Δ * μn) / (1 - layer.η)^2
+    )
+
+    return (θ = ∂θ, γ = ∂γ, Δ = ∂Δ, η = ∂η)
+end
+
 function effective(layer::pReLU, inputs, β::Real = 1)
     θ = β * (layer.θ .+ inputs)
     γ = β * broadlike(layer.γ, inputs)

@@ -40,3 +40,9 @@ function spin_cgf(θ::Real)
     abs_θ = abs(θ)
     return abs_θ + LogExpFunctions.log1pexp(-2abs_θ)
 end
+
+function conjugates_empirical(layer::Spin, samples::AbstractArray)
+    @assert size(samples) == (size(layer)..., size(samples)[end])
+    μ = mean_(samples; dims=ndims(samples))
+    return (; θ = μ)
+end

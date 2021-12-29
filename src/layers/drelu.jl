@@ -90,6 +90,20 @@ function conjugates(layer::dReLU)
     )
 end
 
+function conjugates_empirical(layer::dReLU, samples::AbstractArray)
+    @assert size(samples) == (size(layer)..., size(samples)[end])
+    xp = max.(samples, 0)
+    xn = min.(samples, 0)
+
+    μp = mean_(xp; dims=ndims(samples))
+    μn = mean_(xn; dims=ndims(samples))
+
+    μ2p = mean_(xp.^2; dims=ndims(samples))
+    μ2n = mean_(xn.^2; dims=ndims(samples))
+
+    return (θp = μp, θn = μn, γp = -μ2p/2, γn = -μ2n/2)
+end
+
 function effective(layer::dReLU, inputs, β::Real = 1)
     θp = β * (layer.θp .+ inputs)
     θn = β * (layer.θn .+ inputs)

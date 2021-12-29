@@ -49,6 +49,13 @@ function conjugates(layer::Gaussian)
     )
 end
 
+function conjugates_empirical(layer::Gaussian, samples::AbstractArray)
+    @assert size(samples) == (size(layer)..., size(samples)[end])
+    μ = mean_(samples; dims=ndims(samples))
+    μ2 = mean_(samples.^2; dims=ndims(samples))
+    return (θ = μ, γ = -μ2/2)
+end
+
 function effective(layer::Gaussian, inputs, β::Real = 1)
     θ = β * (layer.θ .+ inputs)
     γ = β * broadlike(layer.γ, inputs)

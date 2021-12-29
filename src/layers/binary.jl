@@ -26,5 +26,11 @@ function transfer_var(layer::Binary)
     return LogExpFunctions.logistic.(layer.θ) .* LogExpFunctions.logistic.(-layer.θ)
 end
 
-conjugates(layer::Binary) = (; θ = transfer_mean(layer))
 effective(layer::Binary, inputs, β::Real = 1) = Binary(β * (layer.θ .+ inputs))
+conjugates(layer::Binary) = (; θ = transfer_mean(layer))
+
+function conjugates_empirical(layer::Binary, samples::AbstractArray)
+    @assert size(samples) == (size(layer)..., size(samples)[end])
+    μ = mean_(samples; dims=ndims(samples))
+    return (; θ = μ)
+end
