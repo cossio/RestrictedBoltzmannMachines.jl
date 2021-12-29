@@ -76,3 +76,17 @@ end
     @test RBMs.energy(rbm, v, h) ≈ E rtol=1e-5
     @test RBMs.free_energy(rbm, v) ≈ F rtol=1e-3
 end
+
+@testset "Binary pseudolikelihood" begin
+    weights = Matrix(readdlm("compare_to_pgm/PL/RBM_Bernoulli_weights.txt")')
+    visible_g = vec(readdlm("compare_to_pgm/PL/RBM_Bernoulli_visible_fields.txt"))
+    hidden_g = vec(readdlm("compare_to_pgm/PL/RBM_Bernoulli_hidden_fields.txt"))
+    v = BitMatrix(readdlm("compare_to_pgm/PL/RBM_Bernoulli_data.txt", Bool)')
+    pl = vec(readdlm("compare_to_pgm/PL/RBM_Bernoulli_PL.txt"))
+
+    rbm = RBMs.RBM(RBMs.Binary(visible_g), RBMs.Binary(hidden_g), weights)
+    pl_rbm = RBMs.log_pseudolikelihood(rbm, v)
+
+    @test mean(pl_rbm) ≈ mean(pl) rtol=0.05
+    @test std(pl_rbm)  ≈ std(pl)  rtol=0.1
+end

@@ -53,10 +53,11 @@ Interaction inputs from visible to hidden layer.
 """
 function inputs_v_to_h(rbm::RBM, v::AbstractArray)
     @assert size(v) == (size(rbm.visible)..., size(v)[end])
+    # convert to common eltype to make sure we hit BLAS
+    v_ = activations_convert_maybe(rbm.weights, v)
     wmat = reshape(rbm.weights, length(rbm.visible), length(rbm.hidden))
-    vmat = reshape(v, length(rbm.visible), :)
-    vmat_ = oftype(wmat, vmat) # convert to common eltype to make sure we hit BLAS
-    return reshape(wmat' * vmat_, size(rbm.hidden)..., :)
+    vmat = reshape(v_, length(rbm.visible), :)
+    return reshape(wmat' * vmat, size(rbm.hidden)..., :)
 end
 
 """
@@ -66,11 +67,15 @@ Interaction inputs from hidden to visible layer.
 """
 function inputs_h_to_v(rbm::RBM, h::AbstractArray)
     @assert size(h) == (size(rbm.hidden)..., size(h)[end])
+    # convert to common eltype to make sure we hit BLAS
+    h_ = activations_convert_maybe(rbm.weights, h)
     wmat = reshape(rbm.weights, length(rbm.visible), length(rbm.hidden))
-    hmat = reshape(h, length(rbm.hidden), :)
-    hmat_ = oftype(wmat, hmat) # convert to common eltype to make sure we hit BLAS
-    return reshape(wmat * hmat_, size(rbm.visible)..., :)
+    hmat = reshape(h_, length(rbm.hidden), :)
+    return reshape(wmat * hmat, size(rbm.visible)..., :)
 end
+
+activations_convert_maybe(_::AbstractArray{T}, x::AbstractArray{T}) where {T} = x
+activations_convert_maybe(_::AbstractArray{T}, x::AbstractArray{X}) where {X,T} = T.(x)
 
 """
     free_energy(rbm, v, β=1)
