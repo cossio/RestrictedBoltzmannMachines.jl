@@ -90,3 +90,18 @@ end
     @test mean(pl_rbm) ≈ mean(pl) rtol=0.05
     @test std(pl_rbm)  ≈ std(pl)  rtol=0.1
 end
+
+@testset "Potts pseudolikelihood" begin
+    # https://numpy.org/doc/stable/reference/generated/numpy.savez_compressed.html
+    d = NPZ.npzread("compare_to_pgm/PL/RBM_Potts_PL.npz")
+    rbm = RBMs.RBM(
+        RBMs.Potts(Matrix(d["g"]')),
+        RBMs.dReLU(-d["theta_plus"], d["theta_minus"], d["gamma_plus"], d["gamma_minus"]),
+        permutedims(d["weights"], (3,2,1))
+    )
+    data = RBMs.onehot_encode(d["data"]')
+    pl = RBMs.log_pseudolikelihood(rbm, data)
+
+    @test mean(pl) ≈ mean(d["PL"]) rtol=0.05
+    @test std(pl) ≈ std(d["PL"]) rtol=0.1
+end
