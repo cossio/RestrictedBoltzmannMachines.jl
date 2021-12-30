@@ -1,5 +1,6 @@
 # RestrictedBoltzmannMachines Julia package
 
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/cossio/RestrictedBoltzmannMachines.jl/blob/master/LICENSE.md)
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://cossio.github.io/RestrictedBoltzmannMachines.jl/stable)
 [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://cossio.github.io/RestrictedBoltzmannMachines.jl/dev)
 ![](https://github.com/cossio/RestrictedBoltzmannMachines.jl/workflows/CI/badge.svg)
