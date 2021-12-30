@@ -155,3 +155,25 @@ function pReLU(layer::xReLU)
     η = @. layer.ξ / (1 + abs(layer.ξ))
     return pReLU(layer.θ, layer.γ, layer.Δ, η)
 end
+
+dReLU(layer::Gaussian) = dReLU(layer.θ, layer.θ, layer.γ, layer.γ)
+pReLU(layer::Gaussian) = pReLU(dReLU(layer))
+xReLU(layer::Gaussian) = xReLU(dReLU(layer))
+
+dReLU(layer::ReLU) = dReLU(layer.θ, zero(layer.θ), layer.γ, inf.(layer.γ))
+
+function pReLU(layer::ReLU)
+    γ = 2layer.γ
+    η = one.(layer.γ)
+    θ = layer.θ
+    Δ = zero.(layer.θ)
+    return pReLU(θ, γ, Δ, η)
+end
+
+function xReLU(layer::ReLU)
+    γ = 2layer.γ
+    ξ = inf.(layer.γ)
+    θ = layer.θ
+    Δ = zero.(layer.θ)
+    return xReLU(θ, γ, Δ, ξ)
+end

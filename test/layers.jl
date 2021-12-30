@@ -17,9 +17,7 @@ function random_layer(
     return T(randn(N...))
 end
 
-function random_layer(
-    ::Type{T}, N::Int...
-) where {T <: Union{RBMs.Gaussian, RBMs.ReLU}}
+function random_layer(::Type{T}, N::Int...) where {T <: Union{RBMs.Gaussian, RBMs.ReLU}}
     return T(randn(N...), rand(N...))
 end
 
@@ -180,7 +178,7 @@ end
     B = 13
     x = randn(N..., B)
 
-    drelu = random_layer(RBMs.dReLU, N...)
+    drelu = RBMs.dReLU(randn(N...), randn(N...), rand(N...), rand(N...))
     prelu = @inferred RBMs.pReLU(drelu)
     xrelu = @inferred RBMs.xReLU(drelu)
     @test drelu.θp ≈ RBMs.dReLU(prelu).θp ≈ RBMs.dReLU(xrelu).θp
@@ -196,7 +194,7 @@ end
     @test RBMs.transfer_mean_abs(drelu) ≈ RBMs.transfer_mean_abs(prelu) ≈ RBMs.transfer_mean_abs(xrelu)
     @test RBMs.transfer_var(drelu) ≈ RBMs.transfer_var(prelu) ≈ RBMs.transfer_var(xrelu)
 
-    prelu = random_layer(RBMs.pReLU, N...)
+    prelu = RBMs.pReLU(randn(N...), rand(N...), randn(N...), 2rand(N...) .- 1)
     drelu = @inferred RBMs.dReLU(prelu)
     xrelu = @inferred RBMs.xReLU(prelu)
     @test prelu.θ ≈ RBMs.pReLU(drelu).θ ≈ RBMs.pReLU(xrelu).θ
@@ -210,7 +208,7 @@ end
     @test RBMs.transfer_mean_abs(drelu) ≈ RBMs.transfer_mean_abs(prelu) ≈ RBMs.transfer_mean_abs(xrelu)
     @test RBMs.transfer_var(drelu) ≈ RBMs.transfer_var(prelu) ≈ RBMs.transfer_var(xrelu)
 
-    xrelu = random_layer(RBMs.xReLU, N...)
+    xrelu = RBMs.xReLU(randn(N...), rand(N...), randn(N...), randn(N...))
     drelu = @inferred RBMs.dReLU(xrelu)
     prelu = @inferred RBMs.pReLU(xrelu)
     @test xrelu.θ ≈ RBMs.xReLU(drelu).θ ≈ RBMs.xReLU(prelu).θ
@@ -224,6 +222,64 @@ end
     @test RBMs.transfer_mean(drelu) ≈ RBMs.transfer_mean(prelu) ≈ RBMs.transfer_mean(xrelu)
     @test RBMs.transfer_mean_abs(drelu) ≈ RBMs.transfer_mean_abs(prelu) ≈ RBMs.transfer_mean_abs(xrelu)
     @test RBMs.transfer_var(drelu) ≈ RBMs.transfer_var(prelu) ≈ RBMs.transfer_var(xrelu)
+
+    gauss = RBMs.Gaussian(randn(N...), rand(N...))
+    drelu = @inferred RBMs.dReLU(gauss)
+    prelu = @inferred RBMs.pReLU(gauss)
+    xrelu = @inferred RBMs.xReLU(gauss)
+    @test (
+        RBMs.energies(gauss, x) ≈ RBMs.energies(drelu, x) ≈
+        RBMs.energies(prelu, x) ≈ RBMs.energies(xrelu, x)
+    )
+    @test (
+        RBMs.cgfs(gauss) ≈ RBMs.cgfs(drelu) ≈
+        RBMs.cgfs(prelu) ≈ RBMs.cgfs(xrelu)
+    )
+    @test (
+        RBMs.transfer_mode(gauss) ≈ RBMs.transfer_mode(drelu) ≈
+        RBMs.transfer_mode(prelu) ≈ RBMs.transfer_mode(xrelu)
+    )
+    @test (
+        RBMs.transfer_mean(gauss) ≈ RBMs.transfer_mean(drelu) ≈
+        RBMs.transfer_mean(prelu) ≈ RBMs.transfer_mean(xrelu)
+    )
+    @test (
+        RBMs.transfer_mean_abs(gauss) ≈ RBMs.transfer_mean_abs(drelu) ≈
+        RBMs.transfer_mean_abs(prelu) ≈ RBMs.transfer_mean_abs(xrelu)
+    )
+    @test (
+        RBMs.transfer_var(gauss) ≈ RBMs.transfer_var(drelu) ≈
+        RBMs.transfer_var(prelu) ≈ RBMs.transfer_var(xrelu)
+    )
+
+    relu  = RBMs.ReLU(randn(N...), rand(N...))
+    drelu = @inferred RBMs.dReLU(relu)
+    prelu = @inferred RBMs.pReLU(relu)
+    xrelu = @inferred RBMs.xReLU(relu)
+    @test (
+        RBMs.energies(relu, x)  ≈ RBMs.energies(drelu, x) ≈
+        RBMs.energies(prelu, x) ≈ RBMs.energies(xrelu, x)
+    )
+    @test (
+        RBMs.cgfs(relu)  ≈ RBMs.cgfs(drelu) ≈
+        RBMs.cgfs(prelu) ≈ RBMs.cgfs(xrelu)
+    )
+    @test (
+        RBMs.transfer_mode(relu)  ≈ RBMs.transfer_mode(drelu) ≈
+        RBMs.transfer_mode(prelu) ≈ RBMs.transfer_mode(xrelu)
+    )
+    @test (
+        RBMs.transfer_mean(relu)  ≈ RBMs.transfer_mean(drelu) ≈
+        RBMs.transfer_mean(prelu) ≈ RBMs.transfer_mean(xrelu)
+    )
+    @test (
+        RBMs.transfer_mean_abs(relu)  ≈ RBMs.transfer_mean_abs(drelu) ≈
+        RBMs.transfer_mean_abs(prelu) ≈ RBMs.transfer_mean_abs(xrelu)
+    )
+    @test (
+        RBMs.transfer_var(relu)  ≈ RBMs.transfer_var(drelu) ≈
+        RBMs.transfer_var(prelu) ≈ RBMs.transfer_var(xrelu)
+    )
 end
 
 @testset "dReLU" begin
