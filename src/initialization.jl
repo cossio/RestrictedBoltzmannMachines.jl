@@ -20,7 +20,7 @@ function initialize!(rbm::RBM, data::AbstractArray; ϵ::Real = 1e-6)
         initialize!(rbm.visible, data; ϵ = ϵ)
     end
     initialize!(rbm.hidden)
-    initialize_weights!(rbm)
+    initialize_weights!(rbm, data)
     zerosum!(rbm)
     return rbm
 end
@@ -85,8 +85,10 @@ function initialize!(layer::pReLU)
     return layer
 end
 
-function initialize_weights!(rbm::RBM)
+function initialize_weights!(rbm::RBM, data::AbstractArray; λ = 0.1)
+    @assert size(data) == (size(rbm.visible)..., size(data)[end])
+    d = dot(data, data) / size(data)[end]
     randn!(rbm.weights)
-    rbm.weights .*= 0.1 / √length(rbm.visible)
+    rbm.weights .*= λ / √d
     return rbm # does not impose zerosum
 end
