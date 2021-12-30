@@ -13,10 +13,6 @@ a minimum of `clip`.
 - `clip`: Minimum value of learning rate.
 - 'start': Step at which the decay starts.
 
-
-See also the [Scheduling Optimisers](@ref) section of the docs
-for more general scheduling techniques.
-
 # Examples
 
 `ExpDecay` is typically composed  with other optimizers
