@@ -137,8 +137,8 @@ function xReLU(layer::dReLU)
 end
 
 function dReLU(layer::xReLU)
-    ξp = @. (1 + abs(layer.ξ)) / (1 + max( 2layer.ξ, 0))
-    ξn = @. (1 + abs(layer.ξ)) / (1 + max(-2layer.ξ, 0))
+    ξp = @. (1 + abs(layer.ξ)) / (1 + max(2layer.ξ, 0))
+    ξn = @. (1 + abs(layer.ξ)) / (1 - min(2layer.ξ, 0))
     γp = @. layer.γ * ξp
     γn = @. layer.γ * ξn
     θp = @. layer.θ + layer.Δ * ξp
@@ -160,20 +160,20 @@ dReLU(layer::Gaussian) = dReLU(layer.θ, layer.θ, layer.γ, layer.γ)
 pReLU(layer::Gaussian) = pReLU(dReLU(layer))
 xReLU(layer::Gaussian) = xReLU(dReLU(layer))
 
-dReLU(layer::ReLU) = dReLU(layer.θ, zero(layer.θ), layer.γ, inf.(layer.γ))
+#dReLU(layer::ReLU) = dReLU(layer.θ, zero(layer.θ), layer.γ, inf.(layer.γ))
 
-function pReLU(layer::ReLU)
-    γ = 2layer.γ
-    η = one.(layer.γ)
-    θ = layer.θ
-    Δ = zero.(layer.θ)
-    return pReLU(θ, γ, Δ, η)
-end
+# function pReLU(layer::ReLU)
+#     θ = layer.θ
+#     γ = 2layer.γ
+#     η = one.(layer.γ)
+#     Δ = zero.(layer.θ)
+#     return pReLU(θ, γ, Δ, η)
+# end
 
-function xReLU(layer::ReLU)
-    γ = 2layer.γ
-    ξ = inf.(layer.γ)
-    θ = layer.θ
-    Δ = zero.(layer.θ)
-    return xReLU(θ, γ, Δ, ξ)
-end
+# function xReLU(layer::ReLU)
+#     θ = layer.θ
+#     γ = 2layer.γ
+#     ξ = inf.(layer.γ)
+#     Δ = zero.(layer.θ)
+#     return xReLU(θ, γ, Δ, ξ)
+# end

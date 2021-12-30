@@ -252,34 +252,14 @@ end
         RBMs.transfer_var(prelu) ≈ RBMs.transfer_var(xrelu)
     )
 
-    relu  = RBMs.ReLU(randn(N...), rand(N...))
-    drelu = @inferred RBMs.dReLU(relu)
-    prelu = @inferred RBMs.pReLU(relu)
-    xrelu = @inferred RBMs.xReLU(relu)
-    @test (
-        RBMs.energies(relu, x)  ≈ RBMs.energies(drelu, x) ≈
-        RBMs.energies(prelu, x) ≈ RBMs.energies(xrelu, x)
-    )
-    @test (
-        RBMs.cgfs(relu)  ≈ RBMs.cgfs(drelu) ≈
-        RBMs.cgfs(prelu) ≈ RBMs.cgfs(xrelu)
-    )
-    @test (
-        RBMs.transfer_mode(relu)  ≈ RBMs.transfer_mode(drelu) ≈
-        RBMs.transfer_mode(prelu) ≈ RBMs.transfer_mode(xrelu)
-    )
-    @test (
-        RBMs.transfer_mean(relu)  ≈ RBMs.transfer_mean(drelu) ≈
-        RBMs.transfer_mean(prelu) ≈ RBMs.transfer_mean(xrelu)
-    )
-    @test (
-        RBMs.transfer_mean_abs(relu)  ≈ RBMs.transfer_mean_abs(drelu) ≈
-        RBMs.transfer_mean_abs(prelu) ≈ RBMs.transfer_mean_abs(xrelu)
-    )
-    @test (
-        RBMs.transfer_var(relu)  ≈ RBMs.transfer_var(drelu) ≈
-        RBMs.transfer_var(prelu) ≈ RBMs.transfer_var(xrelu)
-    )
+    # relu  = RBMs.ReLU(randn(N...), rand(N...))
+    # drelu = @inferred RBMs.dReLU(relu)
+    # @test RBMs.energies(relu, x) ≈ RBMs.energies(drelu, x)
+    # @test RBMs.cgfs(relu) ≈ RBMs.cgfs(drelu)
+    # @test RBMs.transfer_mode(relu) ≈ RBMs.transfer_mode(drelu)
+    # @test RBMs.transfer_mean(relu) ≈ RBMs.transfer_mean(drelu)
+    # @test RBMs.transfer_mean_abs(relu)  ≈ RBMs.transfer_mean_abs(drelu)
+    # @test RBMs.transfer_var(relu) ≈ RBMs.transfer_var(drelu)
 end
 
 @testset "dReLU" begin

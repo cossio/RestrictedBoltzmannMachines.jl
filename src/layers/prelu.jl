@@ -22,8 +22,7 @@ pReLU(n::Int...) = pReLU(Float64, n...)
 Flux.@functor pReLU
 
 function energies(layer::pReLU, x::AbstractArray)
-    drelu = dReLU(layer)
-    return energies(drelu, x)
+    return energies(dReLU(layer), x)
 end
 
 function cgfs(layer::pReLU)
