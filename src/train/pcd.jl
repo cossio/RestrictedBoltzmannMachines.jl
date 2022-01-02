@@ -1,9 +1,9 @@
 """
-    cd!(rbm, data)
+    pcd!(rbm, data)
 
-Trains the RBM on data using contrastive divergence.
+Trains the RBM on data using Persistent Contrastive divergence.
 """
-function cd!(rbm::RBM, data::AbstractArray;
+function pcd!(rbm::RBM, data::AbstractArray;
     batchsize = 1,
     epochs = 1,
     optimizer = default_optimizer(_nobs(data), batchsize, epochs), # optimizer algorithm
@@ -17,13 +17,16 @@ function cd!(rbm::RBM, data::AbstractArray;
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert _nobs(data) == _nobs(data_weights)
 
+    # initialize fantasy chains
+    _idx = rand(1:_nobs(data), batchsize)
+    _vm = selectdim(data, ndims(data), _idx)
+    vm = sample_v_from_v(rbm, _vm; steps = steps)
+
     for epoch in 1:epochs
         batches = minibatches(data, data_weights; batchsize = batchsize)
         Δt = @elapsed for (b, (vd, wd)) in enumerate(batches)
-            # fantasy chains
-            _idx = rand(1:_nobs(data), batchsize)
-            _vm = selectdim(data, ndims(data), _idx)
-            vm = sample_v_from_v(rbm, _vm; steps = steps)
+            # update fantasy chains
+            vm = sample_v_from_v(rbm, vm; steps = steps)
 
             # compute contrastive divergence gradient
             gs = Zygote.gradient(ps) do

@@ -1,9 +1,19 @@
+struct CenteredRBM{RBM_t<:RBM, V<:AbstractArray, H<:AbstractArray}
+    rbm::RBM_t
+    avg_v::V
+    var_v::V
+    avg_h::H
+    var_h::H
+end
+
+
+
 """
-    train_white!(rbm, data)
+    train_centered!(rbm, data)
 
 Trains the RBM on data.
 """
-function train_white!(rbm::RBM{<:Binary, <:Binary}, data::AbstractArray;
+function train_centered!(rbm::RBM, data::AbstractArray;
     batchsize = 1,
     epochs = 1,
     optimizer = Flux.ADAM(), # optimizer algorithm
@@ -20,6 +30,8 @@ function train_white!(rbm::RBM{<:Binary, <:Binary}, data::AbstractArray;
     if initialize
         initialize!(rbm, data)
     end
+
+
 
     # standardizes the data
     data_mat = reshape(data, length(rbm.visible), size(data)[end])

@@ -42,7 +42,7 @@ function train_norm!(rbm::RBM, data::AbstractArray;
                 loss = contrastive_divergence(rbm_, vd, vm, wd)
                 regu = lossadd(rbm_, vd, vm, wd)
                 ChainRulesCore.ignore_derivatives() do
-                    push!(history, :pcd_loss, loss)
+                    push!(history, :cd_loss, loss)
                     push!(history, :reg_loss, regu)
                 end
                 return loss + regu

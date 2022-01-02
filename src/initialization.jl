@@ -85,7 +85,12 @@ function initialize!(layer::pReLU)
     return layer
 end
 
-function initialize_weights!(rbm::RBM, data::AbstractArray; λ = 0.1)
+"""
+    initialize_weights!(rbm, data; λ = 0.1)
+
+Initializes RBM weights such that typical inputs to hidden units are λ.
+"""
+function initialize_weights!(rbm::RBM, data::AbstractArray; λ::Real = 0.1)
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     d = dot(data, data) / size(data)[end]
     randn!(rbm.weights)

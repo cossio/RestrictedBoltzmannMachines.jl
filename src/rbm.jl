@@ -54,10 +54,10 @@ Interaction inputs from visible to hidden layer.
 function inputs_v_to_h(rbm::RBM, v::AbstractArray)
     @assert size(v) == (size(rbm.visible)..., size(v)[end])
     # convert to common eltype to make sure we hit BLAS
-    v_ = activations_convert_maybe(rbm.weights, v)
     wmat = reshape(rbm.weights, length(rbm.visible), length(rbm.hidden))
-    vmat = reshape(v_, length(rbm.visible), :)
-    return reshape(wmat' * vmat, size(rbm.hidden)..., :)
+    vmat = reshape(v, length(rbm.visible), :)
+    w_, v_ = matmul_convert_maybe(wmat, vmat)
+    return reshape(w_' * v_, size(rbm.hidden)..., :)
 end
 
 """
@@ -68,14 +68,17 @@ Interaction inputs from hidden to visible layer.
 function inputs_h_to_v(rbm::RBM, h::AbstractArray)
     @assert size(h) == (size(rbm.hidden)..., size(h)[end])
     # convert to common eltype to make sure we hit BLAS
-    h_ = activations_convert_maybe(rbm.weights, h)
     wmat = reshape(rbm.weights, length(rbm.visible), length(rbm.hidden))
-    hmat = reshape(h_, length(rbm.hidden), :)
-    return reshape(wmat * hmat, size(rbm.visible)..., :)
+    hmat = reshape(h, length(rbm.hidden), :)
+    w_, h_ = matmul_convert_maybe(wmat, hmat)
+    return reshape(w_ * h_, size(rbm.visible)..., :)
 end
 
-activations_convert_maybe(_::AbstractArray{T}, x::AbstractArray{T}) where {T} = x
-activations_convert_maybe(_::AbstractArray{T}, x::AbstractArray{X}) where {X,T} = T.(x)
+function matmul_convert_maybe(x::AbstractArray{X}, y::AbstractArray{Y}) where {X,Y}
+    T = promote_type(X, Y)
+    return T.(x), T.(y)
+end
+matmul_convert_maybe(x::AbstractArray{T}, y::AbstractArray{T}) where {T} = x, y
 
 """
     free_energy(rbm, v, β=1)

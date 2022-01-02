@@ -25,6 +25,7 @@ module RestrictedBoltzmannMachines
 
     include("initialization.jl")
     include("train/cd.jl")
+    include("train/pcd.jl")
     include("train/cd_white.jl")
     include("train/cd_norm.jl")
     include("train/optim.jl")
