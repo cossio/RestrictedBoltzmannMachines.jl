@@ -122,7 +122,7 @@ containing things like the pseudo-likelihood of the data during training.
 We print here the time spent in the training as a rough benchmark.
 =#
 
-history = RBMs.train!(
+history = RBMs.pcd!(
     rbm, train_x; epochs=200, batchsize=256,
     optimizer=Flux.ADAM()
 )
@@ -198,7 +198,7 @@ rbm = RBMs.RBM(
     randn(Float,28,28,200)/28
 )
 RBMs.initialize!(rbm, train_x)
-history_init = RBMs.train!(rbm, train_x; epochs=200, batchsize=256, optimizer=Flux.ADAM())
+history_init = RBMs.pcd!(rbm, train_x; epochs=200, batchsize=256, optimizer=Flux.ADAM())
 nothing #hide
 
 #=

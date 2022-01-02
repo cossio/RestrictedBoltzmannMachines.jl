@@ -33,7 +33,7 @@ rbm = RBMs.RBM(RBMs.Binary(Float,28,28), RBMs.Binary(Float,100), zeros(Float,28,
 RBMs.initialize!(rbm, train_x);
 opt = Flux.ADAM(0.001f0, (0.9f0, 0.999f0))
 history = ValueHistories.MVHistory()
-RBMs.train!(rbm, train_x; history=history,
+RBMs.pcd!(rbm, train_x; history=history,
     epochs=300, batchsize=128, verbose=true, steps=1,
     optimizer=opt
 )
@@ -48,13 +48,13 @@ rbm_decay = RBMs.RBM(RBMs.Binary(Float,28,28), RBMs.Binary(Float,100), zeros(Flo
 RBMs.initialize!(rbm_decay, train_x);
 opt = Flux.ADAM(0.001f0, (0.9f0, 0.999f0))
 history_decay = ValueHistories.MVHistory()
-RBMs.train!(rbm_decay, train_x; history=history_decay,
+RBMs.pcd!(rbm_decay, train_x; history=history_decay,
     epochs=200, batchsize=128, verbose=true, steps=1,
     optimizer=opt
 )
 for meta_epoch = 1:10
     opt.eta /= 2
-    RBMs.train!(rbm_decay, train_x; history=history_decay,
+    RBMs.pcd!(rbm_decay, train_x; history=history_decay,
         epochs=10, batchsize=128, verbose=true, steps=1,
         optimizer=opt
     )
