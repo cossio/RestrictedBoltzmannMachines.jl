@@ -23,6 +23,7 @@ transfer_mode(layer::Binary) = map(binary_mode, layer.θ)
 transfer_mean(layer::Binary) = LogExpFunctions.logistic.(layer.θ)
 transfer_mean_abs(layer::Binary) = transfer_mean(layer)
 transfer_var(layer::Binary) = binary_var.(layer.θ)
+
 ∂free_energy(layer::Binary) = (; θ = -transfer_mean(layer))
 ∂energies(::Binary, x::AbstractArray) = (; θ = -x)
 

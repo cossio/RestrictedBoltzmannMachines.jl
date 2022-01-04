@@ -96,14 +96,17 @@ end
     @test RBMs.∂free_energy(layer).θ ≈ gs[layer.θ] ≈ -RBMs.transfer_mean(layer)
 end
 
-@testset "binary_rand" begin
-end
-
 @testset "Binary" begin
     @testset "binary_rand" begin
+        binary_rand(θ, u) = u * (1 + exp(-θ)) < 1
+
+        for θ in -5:5, u in 0.0:0.1:1.0
+            @test binary_rand(θ, u) == @inferred RBMs.binary_rand(θ, u)
+        end
+
         θ = randn(1000)
         u = rand(1000)
-        @test RBMs.binary_rand.(θ, u) == (@. u * (1 + exp(-θ)) < 1)
+        @test RBMs.binary_rand.(θ, u) == binary_rand.(θ, u)
     end
 
     @testset "binary_var" begin

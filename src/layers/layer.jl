@@ -53,7 +53,7 @@ end
 
 Mean of unit activations.
 """
-function transfer_mean(layer, inputs; β::Real = true)
+function transfer_mean(layer, inputs; β::Real = 1)
     layer_ = effective(layer, inputs; β)
     return transfer_mean(layer_)
 end
@@ -63,7 +63,7 @@ end
 
 Variance of unit activations.
 """
-function transfer_var(layer, inputs; β::Real = true)
+function transfer_var(layer, inputs; β::Real = 1)
     layer_ = effective(layer, inputs; β)
     return transfer_var(layer_)
 end
@@ -73,7 +73,7 @@ end
 
 Mean of absolute value of unit activations.
 """
-function transfer_mean_abs(layer, inputs; β::Real = true)
+function transfer_mean_abs(layer, inputs; β::Real = 1)
     layer_ = effective(layer, inputs; β)
     return transfer_mean_abs(layer_)
 end
@@ -83,7 +83,7 @@ end
 
 Cumulant generating function of units in layer (not reduced over layer dimensions).
 """
-function free_energies(layer, inputs; β::Real = true)
+function free_energies(layer, inputs; β::Real = 1)
     layer_ = effective(layer, inputs; β)
     return free_energies(layer_) / β
 end
