@@ -11,7 +11,7 @@ function pcd!(rbm::RBM, data::AbstractArray;
     lossadd = (_...) -> 0, # regularization
     verbose::Bool = true,
     ps = Flux.params(rbm),
-    data_weights::AbstractVector = trues(_nobs(data)), # data point weights
+    data_weights::AbstractVector = FillArrays.Trues(_nobs(data)), # data point weights
     steps::Int = 1, # Monte Carlo steps to update fantasy particles
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
@@ -55,15 +55,4 @@ function pcd!(rbm::RBM, data::AbstractArray;
         end
     end
     return history
-end
-
-"""
-    contrastive_divergence(rbm, vd, vm, wd = 1)
-
-Contrastive divergence loss. `vd` is a data sample, and `vm` are samples from the model.
-"""
-function contrastive_divergence(rbm::RBM, vd, vm, wd = true)
-    Fd = free_energy(rbm, vd)
-    Fm = free_energy(rbm, vm)
-    return weighted_mean(Fd, wd) - weighted_mean(Fm)
 end

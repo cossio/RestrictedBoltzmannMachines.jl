@@ -1,5 +1,5 @@
 """
-    log_pseudolikelihood(rbm, v, β=1; exact=false)
+    log_pseudolikelihood(rbm, v; β = 1, exact = false)
 
 Log-pseudolikelihood of `v`. If `exact` is `true`, the exact pseudolikelihood is returned.
 But this is slow if `v` consists of many samples. Therefore by default `exact` is `false`,
@@ -8,34 +8,34 @@ for each sample, and its conditional probability is calculated. In average the r
 with `exact = false` coincide with the deterministic result, and the estimate is more
 precise as the number of samples increases.
 """
-function log_pseudolikelihood(rbm::RBM, v::AbstractArray, β::Real=true; exact::Bool=false)
+function log_pseudolikelihood(rbm::RBM, v::AbstractArray; β::Real=true, exact::Bool=false)
     @assert size(v) == (size(rbm.visible)..., size(v)[end])
     if exact
-        return log_pseudolikelihood_exact(rbm, v, β)
+        return log_pseudolikelihood_exact(rbm, v; β = β)
     else
-        return log_pseudolikelihood_stoch(rbm, v, β)
+        return log_pseudolikelihood_stoch(rbm, v; β = β)
     end
 end
 
 """
-    log_pseudolikelihood_stoch(rbm, v, β=1)
+    log_pseudolikelihood_stoch(rbm, v; β=1)
 
 Log-pseudolikelihood of `v`. This function computes an stochastic approximation, by doing
 a trace over random sites for each sample. For large number of samples, this is in average
 close to the exact value of the pseudolikelihood.
 """
-function log_pseudolikelihood_stoch(rbm::RBM, v::AbstractArray, β::Real = true)
+function log_pseudolikelihood_stoch(rbm::RBM, v::AbstractArray; β::Real = true)
     @assert size(v) == (size(rbm.visible)..., size(v)[end])
     all_sites = site_grid(rbm.visible)
     sites = [rand(all_sites) for _ in 1:size(v)[end]]
-    return log_pseudolikelihood_sites(rbm, v, sites, β)
+    return log_pseudolikelihood_sites(rbm, v, sites; β = β)
 end
 
 site_grid(layer::Potts) = CartesianIndices(size(layer)[2:end])
 site_grid(layer) = CartesianIndices(size(layer))
 
 """
-    log_pseudolikelihood_sites(rbm, v, sites, β=1)
+    log_pseudolikelihood_sites(rbm, v, sites; β=1)
 
 Log-pseudolikelihood of a site conditioned on the other sites, where `sites`
 is an array of site indices (CartesianIndex), one for each sample.
@@ -44,11 +44,11 @@ Returns an array of log-pseudolikelihood values, for each sample.
 function log_pseudolikelihood_sites(
     rbm::RBM,
     v::AbstractArray,
-    sites::AbstractVector{<:CartesianIndex},
+    sites::AbstractVector{<:CartesianIndex};
     β::Real = true
 )
     @assert size(v) == (size(rbm.visible)..., length(sites))
-    ΔE = substitution_matrix_sites(rbm, v, sites, β)
+    ΔE = substitution_matrix_sites(rbm, v, sites; β = β)
     @assert size(ΔE) == (size(ΔE, 1), length(sites))
     lPL = -LogExpFunctions.logsumexp(-β * ΔE; dims=1)
     @assert size(lPL) == (1, length(sites))
@@ -56,14 +56,14 @@ function log_pseudolikelihood_sites(
 end
 
 """
-    log_pseudolikelihood_exact(rbm, v, β = 1)
+    log_pseudolikelihood_exact(rbm, v; β = 1)
 
 Log-pseudolikelihood of `v`. This function computes the exact pseudolikelihood, doing
 traces over all sites. Note that this can be slow for large number of samples.
 """
-function log_pseudolikelihood_exact(rbm::RBM, v::AbstractArray, β::Real = true)
+function log_pseudolikelihood_exact(rbm::RBM, v::AbstractArray; β::Real = true)
     @assert size(v) == (size(rbm.visible)..., size(v)[end])
-    ΔE = substitution_matrix_exhaustive(rbm, v, β)
+    ΔE = substitution_matrix_exhaustive(rbm, v; β = β)
     @assert size(ΔE)[end] == size(v)[end]
     lPLsites = -LogExpFunctions.logsumexp(-β * ΔE; dims=1)
     lPL = mean(lPLsites; dims=ntuple(identity, ndims(lPLsites) - 1))
@@ -71,7 +71,7 @@ function log_pseudolikelihood_exact(rbm::RBM, v::AbstractArray, β::Real = true)
 end
 
 """
-    substitution_matrix_sites(rbm, v, sites, β = 1)
+    substitution_matrix_sites(rbm, v, sites; β = 1)
 
 Returns an q x B matrix of free energies `F`, where `q` is the number of possible values
 of each site, and `B` the number of data points. The entry `F[x,b]` equals the free energy
@@ -87,7 +87,7 @@ function substitution_matrix_sites end
 function substitution_matrix_sites(
     rbm::RBM{<:Binary},
     v::AbstractArray,
-    sites::AbstractVector{<:CartesianIndex},
+    sites::AbstractVector{<:CartesianIndex};
     β::Real = true
 )
     B = length(sites)
@@ -98,7 +98,7 @@ function substitution_matrix_sites(
         for (b, i) in enumerate(sites)
             v_[i, b] = x
         end
-        E_[k,:] .= free_energy(rbm, v_, β)
+        E_[k,:] .= free_energy(rbm, v_; β = β)
     end
     E = [E_[(v[i, b] > 0) + 1, b] for (b, i) in enumerate(sites)]
     return E_ .- reshape(E, 1, B)
@@ -107,7 +107,7 @@ end
 function substitution_matrix_sites(
     rbm::RBM{<:Spin},
     v::AbstractArray,
-    sites::AbstractVector{<:CartesianIndex},
+    sites::AbstractVector{<:CartesianIndex};
     β::Real = true
 )
     B = length(sites)
@@ -118,7 +118,7 @@ function substitution_matrix_sites(
         for (b, i) in enumerate(sites)
             v_[i, b] = x
         end
-        E_[k,:] .= free_energy(rbm, v_, β)
+        E_[k,:] .= free_energy(rbm, v_; β = β)
     end
     E = [E_[(v[i, b] > 0) + 1, b] for (b, i) in enumerate(sites)]
     return E_ .- reshape(E, 1, B)
@@ -127,7 +127,7 @@ end
 function substitution_matrix_sites(
     rbm::RBM{<:Potts},
     v::AbstractArray,
-    sites::AbstractVector{<:CartesianIndex},
+    sites::AbstractVector{<:CartesianIndex};
     β::Real = true
 )
     B = length(sites)
@@ -139,7 +139,7 @@ function substitution_matrix_sites(
             v_[:, i, b] .= false
             v_[x, i, b] = true
         end
-        E_[x, :] .= free_energy(rbm, v_, β)
+        E_[x, :] .= free_energy(rbm, v_; β = β)
     end
     c = onehot_decode(v)
     E = [E_[c[i, b], b] for (b, i) in enumerate(sites)]
@@ -147,7 +147,7 @@ function substitution_matrix_sites(
 end
 
 """
-    substitution_matrix_exhaustive(rbm, v, β = 1)
+    substitution_matrix_exhaustive(rbm, v; β = 1)
 
 Returns an q x N x B tensor of free energies `F`, where `q` is the number of possible
 values of each site, `B` the number of data points, and `N` the sequence length:
@@ -160,7 +160,7 @@ Thus `F` and `v` have the same size.
 The entry `F[x,i,b]` gives the free energy cost of flipping site `i` to `x`
 of `v[b]` from its original value to `x`, that is:
 
-    F[x,i,b] = free_energy(rbm, v_, β) - free_energy(rbm, v[b], β)
+    F[x,i,b] = free_energy(rbm, v_) - free_energy(rbm, v[b])
 
 where `v_` is the same as `v[b]` in all sites but `i`, where `v_` has the value `x`.
 
@@ -169,7 +169,7 @@ Note that `i` can be a set of indices.
 function substitution_matrix_exhaustive end
 
 function substitution_matrix_exhaustive(
-    rbm::RBM{<:Binary}, v::AbstractArray, β::Real = true
+    rbm::RBM{<:Binary}, v::AbstractArray; β::Real = true
 )
     B = size(v)[end]
     @assert size(v) == (size(rbm.visible)..., B)
@@ -178,7 +178,7 @@ function substitution_matrix_exhaustive(
         v_ = copy(v)
         for (k, x) in enumerate((false, true))
             v_[i, :] .= x
-            E_[k, i, :] .= free_energy(rbm, v_, β)
+            E_[k, i, :] .= free_energy(rbm, v_; β = β)
         end
     end
     E = [E_[(v[i,b] > 0) + 1, i, b] for i in site_grid(rbm.visible), b in 1:B]
@@ -186,7 +186,7 @@ function substitution_matrix_exhaustive(
 end
 
 function substitution_matrix_exhaustive(
-    rbm::RBM{<:Spin}, v::AbstractArray, β::Real = true
+    rbm::RBM{<:Spin}, v::AbstractArray; β::Real = true
 )
     B = size(v)[end]
     @assert size(v) == (size(rbm.visible)..., B)
@@ -195,7 +195,7 @@ function substitution_matrix_exhaustive(
         v_ = copy(v)
         for (k, x) in enumerate((-1, 1))
             v_[i, :] .= x
-            E_[k, i, :] .= free_energy(rbm, v_, β)
+            E_[k, i, :] .= free_energy(rbm, v_; β = β)
         end
     end
     E = [E_[(v[i,b] > 0) + 1, i, b] for i in site_grid(rbm.visible), b in 1:B]
@@ -204,7 +204,7 @@ end
 
 function substitution_matrix_exhaustive(
     rbm::RBM{<:Potts},
-    v::AbstractArray,
+    v::AbstractArray;
     β::Real = true
 )
     B = size(v)[end]
@@ -215,7 +215,7 @@ function substitution_matrix_exhaustive(
         for x in 1:rbm.visible.q
             v_[:, i, :] .= false
             v_[x, i, :] .= true
-            E_[x, i, :] .= free_energy(rbm, v_, β)
+            E_[x, i, :] .= free_energy(rbm, v_; β = β)
         end
     end
     c = onehot_decode(v)
@@ -230,7 +230,7 @@ For Binary and Spin layers, a specialized log_pseudolikelihood_sites is a bit fa
 function log_pseudolikelihood_sites(
     rbm::RBM{<:Binary},
     v::AbstractArray,
-    sites::AbstractVector{<:CartesianIndex},
+    sites::AbstractVector{<:CartesianIndex};
     β::Real = true
 )
     @assert size(v) == (size(rbm.visible)..., length(sites))
@@ -238,15 +238,15 @@ function log_pseudolikelihood_sites(
     for (b, i) in enumerate(sites)
         v_[i, b] = 1 - v_[i, b]
     end
-    F = free_energy(rbm, v, β)
-    F_ = free_energy(rbm, v_, β)
+    F = free_energy(rbm, v; β = β)
+    F_ = free_energy(rbm, v_; β = β)
     return -LogExpFunctions.log1pexp.(β * (F - F_))
 end
 
 function log_pseudolikelihood_sites(
     rbm::RBM{<:Spin},
     v::AbstractArray,
-    sites::AbstractVector{<:CartesianIndex},
+    sites::AbstractVector{<:CartesianIndex};
     β::Real = true
 )
     @assert size(v) == (size(rbm.visible)..., length(sites))
@@ -254,7 +254,7 @@ function log_pseudolikelihood_sites(
     for (b, i) in enumerate(sites)
         v_[i, b] = -v_[i, b]
     end
-    F = free_energy(rbm, v, β)
-    F_ = free_energy(rbm, v_, β)
+    F = free_energy(rbm, v; β = β)
+    F_ = free_energy(rbm, v_; β = β)
     return -LogExpFunctions.log1pexp.(β * (F - F_))
 end

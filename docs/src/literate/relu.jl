@@ -37,7 +37,7 @@ ax = Axis(fig[1,1])
 xs = range(minimum(data), maximum(data), 100)
 for (iθ, θ) in enumerate(θs), (iγ, γ) in enumerate(γs)
     hist!(ax, data[iθ, iγ, :], normalization=:pdf)
-    ps = exp.(-RBMs.relu_energy.(θ, γ, xs) .- RBMs.relu_cgf(θ, γ))
+    ps = exp.(-RBMs.relu_energy.(θ, γ, xs) .- RBMs.relu_free(θ, γ))
     lines!(xs, ps, label="θ=$θ, γ=$γ", linewidth=2)
 end
 axislegend(ax)

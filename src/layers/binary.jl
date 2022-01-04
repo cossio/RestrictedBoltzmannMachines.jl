@@ -11,7 +11,7 @@ Binary(n::Int...) = Binary(Float64, n...)
 
 Flux.@functor Binary
 
-cgfs(layer::Binary) = LogExpFunctions.log1pexp.(layer.θ)
+free_energies(layer::Binary) = -LogExpFunctions.log1pexp.(layer.θ)
 
 function transfer_sample(layer::Binary)
     u = rand(eltype(layer.θ), size(layer))
@@ -23,14 +23,10 @@ transfer_mean(layer::Binary) = LogExpFunctions.logistic.(layer.θ)
 transfer_mean_abs(layer::Binary) = transfer_mean(layer)
 
 function transfer_var(layer::Binary)
-    return LogExpFunctions.logistic.(layer.θ) .* LogExpFunctions.logistic.(-layer.θ)
+    t = @. exp(-abs(layer.θ))
+    return @. t / (1 + t)^2
 end
 
-effective(layer::Binary, inputs, β::Real = true) = Binary(β * (layer.θ .+ inputs))
-conjugates(layer::Binary) = (; θ = transfer_mean(layer))
-
-function conjugates_empirical(layer::Binary, samples::AbstractArray)
-    @assert size(samples) == (size(layer)..., size(samples)[end])
-    μ = mean_(samples; dims=ndims(samples))
-    return (; θ = μ)
-end
+effective(layer::Binary, inputs; β::Real = true) = Binary(β * (layer.θ .+ inputs))
+∂free_energy(layer::Binary) = (; θ = -transfer_mean(layer))
+∂energies(::Binary, x::AbstractArray) = (; θ = -x)

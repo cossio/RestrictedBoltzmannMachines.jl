@@ -18,7 +18,7 @@ ReLU(n::Int...) = ReLU(Float64, n...)
 Flux.@functor ReLU
 
 energies(layer::ReLU, x) = relu_energy.(layer.θ, layer.γ, x)
-cgfs(layer::ReLU) = relu_cgf.(layer.θ, layer.γ)
+free_energies(layer::ReLU) = relu_free.(layer.θ, layer.γ)
 transfer_sample(layer::ReLU) = relu_rand.(layer.θ, layer.γ)
 transfer_mode(layer::ReLU) = max.(layer.θ ./ abs.(layer.γ), 0)
 
@@ -38,27 +38,24 @@ function transfer_var(layer::ReLU)
     return @. ν * tnvar(-μ / √ν)
 end
 
-function conjugates(layer::ReLU)
-    μ = transfer_mean(layer)
-    ν = transfer_var(layer)
-    return (
-        θ = μ,
-        γ = @. -(ν + μ^2) / 2
-    )
-end
-
-function conjugates_empirical(layer::ReLU, samples::AbstractArray)
-    @assert size(samples) == (size(layer)..., size(samples)[end])
-    xp = max.(samples, 0)
-    μ = mean_(xp; dims=ndims(samples))
-    μ2 = mean_(xp.^2; dims=ndims(samples))
-    return (θ = μ, γ = -μ2/2)
-end
-
-function effective(layer::ReLU, inputs, β::Real = true)
+function effective(layer::ReLU, inputs; β::Real = true)
     θ = β * (layer.θ .+ inputs)
     γ = β * broadlike(layer.γ, inputs)
     return ReLU(promote(θ, γ)...)
+end
+
+function ∂free_energy(layer::ReLU)
+    μ = transfer_mean(layer)
+    ν = transfer_var(layer)
+    return (
+        θ = -μ,
+        γ = @. (ν + μ^2) / 2
+    )
+end
+
+function ∂energies(::ReLU, x::AbstractArray)
+    xp = max.(x, 0)
+    return (θ = -xp, γ = @. xp^2 / 2)
 end
 
 function relu_energy(θ::Real, γ::Real, x::Real)
@@ -70,9 +67,9 @@ function relu_energy(θ::Real, γ::Real, x::Real)
     end
 end
 
-function relu_cgf(θ::Real, γ::Real)
+function relu_free(θ::Real, γ::Real)
     abs_γ = abs(γ)
-    return SpecialFunctions.logerfcx(-θ / √(2abs_γ)) - log(2abs_γ/π) / 2
+    return -SpecialFunctions.logerfcx(-θ / √(2abs_γ)) + log(2abs_γ/π) / 2
 end
 
 function relu_rand(θ::Real, γ::Real)

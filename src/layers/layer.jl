@@ -9,31 +9,32 @@ function energy(layer, x::AbstractArray)
 end
 
 function energy(layer::Union{Binary, Spin, Potts}, x::AbstractArray)
-    @assert size(x)[1:ndims(layer)] == size(layer)
-    if ndims(x) > ndims(layer)
-        return -reshape(x, length(layer), :)' * vec(layer.θ)
-    else
+    if ndims(x) == ndims(layer)
+        @assert size(x) == size(layer)
         return -vec(x)' * vec(layer.θ)
+    else
+        @assert size(x) == (size(layer)..., size(x)[end])
+        return -reshape(x, length(layer), :)' * vec(layer.θ)
     end
 end
 
 """
-    cgf(layer, inputs = 0, β = 1)
+    free_energy(layer, inputs = 0; β = 1)
 
 Cumulant generating function of layer, reduced over layer dimensions.
 """
-function cgf(layer, inputs = 0, β::Real = true)
-    Γ = cgfs(layer, inputs, β)
-    return maybe_scalar(sum_(Γ; dims = layerdims(layer)))
+function free_energy(layer, inputs = 0; β::Real = true)
+    F = free_energies(layer, inputs; β)
+    return maybe_scalar(sum_(F; dims = layerdims(layer)))
 end
 
 """
-    transfer_sample(layer, inputs = 0, β = 1)
+    transfer_sample(layer, inputs = 0; β = 1)
 
 Samples layer configurations conditioned on inputs.
 """
-function transfer_sample(layer, inputs , β::Real = true)
-    layer_ = effective(layer, inputs, β)
+function transfer_sample(layer, inputs; β::Real = true)
+    layer_ = effective(layer, inputs; β)
     return transfer_sample(layer_)
 end
 
@@ -48,53 +49,43 @@ function transfer_mode(layer, inputs)
 end
 
 """
-    transfer_mean(layer, inputs = 0, β = 1)
+    transfer_mean(layer, inputs = 0; β = 1)
 
 Mean of unit activations.
 """
-function transfer_mean(layer, inputs, β::Real = true)
-    layer_ = effective(layer, inputs, β)
+function transfer_mean(layer, inputs; β::Real = true)
+    layer_ = effective(layer, inputs; β)
     return transfer_mean(layer_)
 end
 
 """
-    transfer_var(layer, inputs = 0, β = 1)
+    transfer_var(layer, inputs = 0; β = 1)
 
 Variance of unit activations.
 """
-function transfer_var(layer, inputs, β::Real = true)
-    layer_ = effective(layer, inputs, β)
+function transfer_var(layer, inputs; β::Real = true)
+    layer_ = effective(layer, inputs; β)
     return transfer_var(layer_)
 end
 
 """
-    transfer_mean_abs(layer, inputs = 0, β = 1)
+    transfer_mean_abs(layer, inputs = 0; β = 1)
 
 Mean of absolute value of unit activations.
 """
-function transfer_mean_abs(layer, inputs, β::Real = true)
-    layer_ = effective(layer, inputs, β)
+function transfer_mean_abs(layer, inputs; β::Real = true)
+    layer_ = effective(layer, inputs; β)
     return transfer_mean_abs(layer_)
 end
-"""
-    conjugates(layer, inputs = 0, β = 1)
-
-Unit activation moments, conjugate to layer parameters.
-These are obtained by differentiating the `cgf` with respect to the layer parameters.
-"""
-function conjugates(layer, inputs, β::Real = true)
-    layer_ = effective(layer, inputs, β)
-    return conjugates(layer_)
-end
 
 """
-    cgfs(layer, inputs = 0, β = 1)
+    free_energies(layer, inputs = 0; β = 1)
 
 Cumulant generating function of units in layer (not reduced over layer dimensions).
 """
-function cgfs(layer, inputs, β::Real = true)
-    layer_ = effective(layer, inputs, β)
-    return cgfs(layer_) / β
+function free_energies(layer, inputs; β::Real = true)
+    layer_ = effective(layer, inputs; β)
+    return free_energies(layer_) / β
 end
 
 """
@@ -177,3 +168,36 @@ xReLU(layer::Gaussian) = xReLU(dReLU(layer))
 #     Δ = zero.(layer.θ)
 #     return xReLU(θ, γ, Δ, ξ)
 # end
+
+function ∂energy(layer, x::AbstractArray)
+    @assert size(x) == size(layer) || size(x) == (size(layer)..., size(x)[end])
+    ds = ∂energies(layer, x)
+    d = map(ds) do dx
+        μ = mean(dx; dims = ndims(layer) + 1)
+        return reshape(μ, size(layer))
+    end
+    return d
+end
+
+"""
+    ∂free_energy(layer, inputs = 0; β = 1)
+
+Unit activation moments, conjugate to layer parameters.
+These are obtained by differentiating `free_energy` with respect to the layer parameters.
+"""
+function ∂free_energy(layer, inputs; β::Real = 1)
+    ds = ∂free_energies(layer, inputs; β)
+    d = mean(ds; dims = ndims(layer) + 1)
+    return reshape(d, size(layer))
+end
+
+function ∂free_energies(layer, inputs = 0; β::Real = 1)
+    @assert ndims(inputs) ≤ ndims(layer) + 1
+    layer_ = effective(layer, inputs; β)
+    return ∂free_energy(layer_)
+end
+
+function ∂free_energies(layer, inputs::Real; β::Real = 1)
+    layer_ = effective(layer, inputs; β)
+    return ∂free_energy(layer_)
+end

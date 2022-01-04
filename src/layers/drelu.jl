@@ -25,7 +25,7 @@ function energies(layer::dReLU, x::AbstractArray)
     return drelu_energy.(layer.θp, layer.θn, layer.γp, layer.γn, x)
 end
 
-cgfs(layer::dReLU) = drelu_cgf.(layer.θp, layer.θn, layer.γp, layer.γn)
+free_energies(layer::dReLU) = drelu_free.(layer.θp, layer.θn, layer.γp, layer.γn)
 transfer_sample(layer::dReLU) = drelu_rand.(layer.θp, layer.θn, layer.γp, layer.γn)
 transfer_mode(layer::dReLU) = drelu_mode.(layer.θp, layer.θn, layer.γp, layer.γn)
 
@@ -33,9 +33,9 @@ function transfer_mean(layer::dReLU)
     lp = ReLU( layer.θp, layer.γp)
     ln = ReLU(-layer.θn, layer.γn)
 
-    Γp, Γn = cgfs(lp), cgfs(ln)
-    Γ = LogExpFunctions.logaddexp.(Γp, Γn)
-    pp, pn = exp.(Γp - Γ), exp.(Γn - Γ)
+    Fp, Fn = free_energies(lp), free_energies(ln)
+    F = -LogExpFunctions.logaddexp.(-Fp, -Fn)
+    pp, pn = exp.(F - Fp), exp.(F - Fn)
 
     μp, μn = transfer_mean(lp), -transfer_mean(ln)
     return pp .* μp + pn .* μn
@@ -45,9 +45,9 @@ function transfer_var(layer::dReLU)
     lp = ReLU( layer.θp, layer.γp)
     ln = ReLU(-layer.θn, layer.γn)
 
-    Γp, Γn = cgfs(lp), cgfs(ln)
-    Γ = LogExpFunctions.logaddexp.(Γp, Γn)
-    pp, pn = exp.(Γp - Γ), exp.(Γn - Γ)
+    Fp, Fn = free_energies(lp), free_energies(ln)
+    F = -LogExpFunctions.logaddexp.(-Fp, -Fn)
+    pp, pn = exp.(F - Fp), exp.(F - Fn)
 
     μp, μn = transfer_mean(lp), -transfer_mean(ln)
     νp, νn = transfer_var(lp), transfer_var(ln)
@@ -60,21 +60,21 @@ function transfer_mean_abs(layer::dReLU)
     lp = ReLU( layer.θp, layer.γp)
     ln = ReLU(-layer.θn, layer.γn)
 
-    Γp, Γn = cgfs(lp), cgfs(ln)
-    Γ = LogExpFunctions.logaddexp.(Γp, Γn)
-    pp, pn = exp.(Γp - Γ), exp.(Γn - Γ)
+    Fp, Fn = free_energies(lp), free_energies(ln)
+    F = -LogExpFunctions.logaddexp.(-Fp, -Fn)
+    pp, pn = exp.(F - Fp), exp.(F - Fn)
 
     μp, μn = transfer_mean(lp), -transfer_mean(ln)
     return pp .* μp - pn .* μn
 end
 
-function conjugates(layer::dReLU)
+function ∂free_energy(layer::dReLU)
     lp = ReLU( layer.θp, layer.γp)
     ln = ReLU(-layer.θn, layer.γn)
 
-    Γp, Γn = cgfs(lp), cgfs(ln)
-    Γ = LogExpFunctions.logaddexp.(Γp, Γn)
-    pp, pn = exp.(Γp - Γ), exp.(Γn - Γ)
+    Fp, Fn = free_energies(lp), free_energies(ln)
+    F = -LogExpFunctions.logaddexp.(-Fp, -Fn)
+    pp, pn = exp.(F - Fp), exp.(F - Fn)
 
     μp, μn = transfer_mean(lp), -transfer_mean(ln)
     νp, νn = transfer_var(lp), transfer_var(ln)
@@ -83,28 +83,20 @@ function conjugates(layer::dReLU)
     μ2n = @. νn + μn^2
 
     return (
-        θp = pp .* μp,
-        θn = pn .* μn,
-        γp = -pp .* μ2p/2,
-        γn = -pn .* μ2n/2
+        θp = -pp .* μp,
+        θn = -pn .* μn,
+        γp = pp .* μ2p/2,
+        γn = pn .* μ2n/2
     )
 end
 
-function conjugates_empirical(layer::dReLU, samples::AbstractArray)
-    @assert size(samples) == (size(layer)..., size(samples)[end])
-    xp = max.(samples, 0)
-    xn = min.(samples, 0)
-
-    μp = mean_(xp; dims=ndims(samples))
-    μn = mean_(xn; dims=ndims(samples))
-
-    μ2p = mean_(xp.^2; dims=ndims(samples))
-    μ2n = mean_(xn.^2; dims=ndims(samples))
-
-    return (θp = μp, θn = μn, γp = -μ2p/2, γn = -μ2n/2)
+function ∂energies(::dReLU, x::AbstractArray)
+    xp = max.(x, 0)
+    xn = min.(x, 0)
+    return (θp = -xp, θn = -xn, γp = xp.^2 / 2, γn = xn.^2 / 2)
 end
 
-function effective(layer::dReLU, inputs, β::Real = true)
+function effective(layer::dReLU, inputs; β::Real = true)
     θp = β * (layer.θp .+ inputs)
     θn = β * (layer.θn .+ inputs)
     γp = β * broadlike(layer.γp, inputs)
@@ -129,10 +121,10 @@ function drelu_energy(θp::T, θn::T, γp::S, γn::S, x::Real) where {T<:Real, S
     end
 end
 
-function drelu_cgf(θp::Real, θn::Real, γp::Real, γn::Real)
-    Γp = relu_cgf( θp, γp)
-    Γn = relu_cgf(-θn, γn)
-    return LogExpFunctions.logaddexp(Γp, Γn)
+function drelu_free(θp::Real, θn::Real, γp::Real, γn::Real)
+    Fp = relu_free( θp, γp)
+    Fn = relu_free(-θn, γn)
+    return -LogExpFunctions.logaddexp(-Fp, -Fn)
 end
 
 function drelu_rand(θp::Real, θn::Real, γp::Real, γn::Real)
@@ -140,10 +132,9 @@ function drelu_rand(θp::Real, θn::Real, γp::Real, γn::Real)
 end
 
 function drelu_rand(θp::T, θn::T, γp::S, γn::S) where {T<:Real, S<:Real}
-    Γp = relu_cgf( θp, γp)
-    Γn = relu_cgf(-θn, γn)
-    Γ = LogExpFunctions.logaddexp(Γp, Γn)
-    if randexp(typeof(Γ)) ≥ Γ - Γp
+    Fp, Fn = relu_free(θp, γp), relu_free(-θn, γn)
+    F = -LogExpFunctions.logaddexp(-Fp, -Fn)
+    if randexp(typeof(F)) ≥ Fp - F
         return  relu_rand( θp, γp)
     else
         return -relu_rand(-θn, γn)

@@ -12,7 +12,7 @@ function train_norm!(rbm::RBM, data::AbstractArray;
     history::MVHistory = MVHistory(), # stores training log
     lossadd = (_...) -> 0, # regularization
     verbose::Bool = true,
-    weights::AbstractVector = trues(_nobs(data)), # data point weights
+    weights::AbstractVector = FillArrays.Trues(_nobs(data)), # data point weights
     steps::Int = 1, # Monte Carlo steps to update fantasy particles
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])

@@ -1,6 +1,6 @@
 module RestrictedBoltzmannMachines
     using Random, Statistics, LinearAlgebra
-    import SpecialFunctions, LogExpFunctions
+    import SpecialFunctions, LogExpFunctions, FillArrays
     import Flux, Zygote, ChainRulesCore
     using ValueHistories: MVHistory
 
@@ -26,6 +26,7 @@ module RestrictedBoltzmannMachines
     include("initialization.jl")
     include("train/cd.jl")
     include("train/pcd.jl")
+    include("train/pcd_center.jl")
     include("train/cd_white.jl")
     include("train/cd_norm.jl")
     include("train/optim.jl")

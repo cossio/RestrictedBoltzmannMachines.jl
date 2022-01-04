@@ -45,7 +45,7 @@ for (iθp, θp) in enumerate(θps), (iθn, θn) in enumerate(θns)
     for (iγp, γp) in enumerate(γps), (iγn, γn) in enumerate(γns)
         hist!(ax, data[iθp, iθn, iγp, iγn, :], normalization=:pdf, bins=30)
         xs = range(extrema(data[iθp, iθn, iγp, iγn, :])..., 100)
-        ps = exp.(-RBMs.drelu_energy.(θp, θn, γp, γn, xs) .- RBMs.drelu_cgf(θp, θn, γp, γn))
+        ps = exp.(-RBMs.drelu_energy.(θp, θn, γp, γn, xs) .- RBMs.drelu_free(θp, θn, γp, γn))
         lines!(ax, xs, ps, label="γp=$γp, γn=$γn", linewidth=2)
     end
     if iθp == iθn == 1

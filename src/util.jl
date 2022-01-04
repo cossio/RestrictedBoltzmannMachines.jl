@@ -16,9 +16,7 @@ maybe_scalar(x::Number) = x
 
 Sums `A` over dimensions `dims` and drops them.
 """
-function sum_(A::AbstractArray; dims)
-    return dropdims(sum(A; dims=dims); dims=dims)
-end
+sum_(A::AbstractArray; dims) = dropdims(sum(A; dims=dims); dims=dims)
 
 """
     mean_(A; dims)

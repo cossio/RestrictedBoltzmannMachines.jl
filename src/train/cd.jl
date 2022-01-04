@@ -11,7 +11,7 @@ function cd!(rbm::RBM, data::AbstractArray;
     lossadd = (_...) -> 0, # regularization
     verbose::Bool = true,
     ps = Flux.params(rbm),
-    data_weights::AbstractVector = trues(_nobs(data)), # data point weights
+    data_weights::AbstractVector = FillArrays.Trues(_nobs(data)), # data point weights
     steps::Int = 1, # Monte Carlo steps to update fantasy particles
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])

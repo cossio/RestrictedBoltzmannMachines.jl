@@ -76,7 +76,7 @@ Based on defaults from https://github.com/jertubiana/PGM.
 """
 function default_optimizer(
     nsamples::Int, batchsize::Int, epochs::Int;
-    decay_final = 1e-2, decay_after = 0.5,
+    decay_final::Real = 1e-2, decay_after::Real = 0.5, clip = Inf,
     opt = ADAM(5e-3, (0.99, 0.99), 1e-3)
 )
     steps_per_epoch = minibatch_count(nsamples; batchsize = batchsize)

@@ -15,7 +15,7 @@ include("tests_init.jl")
             Z += exp(-β * only(RBMs.energy(rbm, v, h)))
         end
     end
-    @test log(Z) ≈ RBMs.log_partition(rbm, β)
+    @test log(Z) ≈ RBMs.log_partition(rbm; β)
 
     rbm.weights .= 0
     ps = Flux.params(rbm)
@@ -41,7 +41,7 @@ end
             Z += exp(-β * only(RBMs.energy(rbm, v, h)))
         end
     end
-    @test log(Z) ≈ RBMs.log_partition(rbm, β)
+    @test log(Z) ≈ RBMs.log_partition(rbm; β)
 
     rbm.weights .= 0
     ps = Flux.params(rbm)

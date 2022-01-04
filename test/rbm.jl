@@ -38,14 +38,14 @@ end
         -rbm.weights'  rbm.hidden.γ
     ])
 
-    @test RBMs.log_partition(rbm, 1) ≈ RBMs.log_partition(rbm)
+    @test RBMs.log_partition(rbm; β = 1) ≈ RBMs.log_partition(rbm)
 
     Z, ϵ = QuadGK.quadgk(x -> exp(-only(RBMs.free_energy(rbm, [x;;]))), -Inf, Inf)
     @test RBMs.log_partition(rbm) ≈ log(Z)
 
     β = 1.5
-    Z, ϵ = QuadGK.quadgk(x -> exp(-β * only(RBMs.free_energy(rbm, [x;;], β))), -Inf, Inf)
-    @test RBMs.log_partition(rbm, β) ≈ log(Z)
+    Z, ϵ = QuadGK.quadgk(x -> exp(-β * only(RBMs.free_energy(rbm, [x;;]; β))), -Inf, Inf)
+    @test RBMs.log_partition(rbm; β) ≈ log(Z)
 end
 
 @testset "Gaussian-Gaussian RBM, multi-dimensional" begin
@@ -77,21 +77,21 @@ end
     @test RBMs.log_partition(rbm) ≈ (
         (N + M)/2 * log(2π) + θ' * inv(A) * θ / 2 - logdet(A)/2
     )
-    @test RBMs.log_partition(rbm, 1) ≈ RBMs.log_partition(rbm)
+    @test RBMs.log_partition(rbm; β = 1) ≈ RBMs.log_partition(rbm)
 
     β = rand()
-    @test RBMs.log_partition(rbm, β) ≈ (
+    @test RBMs.log_partition(rbm; β) ≈ (
         (N + M)/2 * log(2π) + β * θ' * inv(A) * θ / 2 - logdet(β*A)/2
     ) rtol=1e-6
 
-    @test RBMs.log_likelihood(rbm, v, 1) ≈ RBMs.log_likelihood(rbm, v)
-    @test RBMs.log_likelihood(rbm, v, β) ≈ (
-        -β * RBMs.free_energy(rbm, v, β) .- RBMs.log_partition(rbm, β)
+    @test RBMs.log_likelihood(rbm, v; β = 1) ≈ RBMs.log_likelihood(rbm, v)
+    @test RBMs.log_likelihood(rbm, v; β) ≈ (
+        -β * RBMs.free_energy(rbm, v; β) .- RBMs.log_partition(rbm; β)
     )
 
     Ev = sum(@. rbm.visible.γ * v^2 / 2 - rbm.visible.θ * v)
-    Γv = sum((rbm.hidden.θ .+ RBMs.inputs_v_to_h(rbm, v)).^2 ./ 2rbm.hidden.γ)
-    @test only(RBMs.free_energy(rbm, v)) ≈ Ev - Γv - sum(log.(2π ./ rbm.hidden.γ)) / 2
+    Fv = sum(-(rbm.hidden.θ .+ RBMs.inputs_v_to_h(rbm, v)).^2 ./ 2rbm.hidden.γ)
+    @test only(RBMs.free_energy(rbm, v)) ≈ Ev + Fv - sum(log.(2π ./ rbm.hidden.γ)) / 2
 
     ps = Flux.params(rbm)
     gs = Zygote.gradient(ps) do

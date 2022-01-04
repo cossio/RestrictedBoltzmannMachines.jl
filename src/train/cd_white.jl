@@ -9,7 +9,7 @@ function train_white!(rbm::RBM{<:Binary, <:Binary}, data::AbstractArray;
     optimizer = Flux.ADAM(), # optimizer algorithm
     history::MVHistory = MVHistory(), # stores training log
     verbose::Bool = true,
-    weights::AbstractVector = trues(_nobs(data)), # data point weights
+    weights::AbstractVector = tFillArrays.Trues(_nobs(data)), # data point weights
     steps::Int = 1, # Monte Carlo steps to update fantasy particles
     initialize::Bool = false, # whether to initialize the RBM parameters
     whiten_ϵ::Real = 1e-6 # avoids singular cov matrix

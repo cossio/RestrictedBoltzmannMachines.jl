@@ -27,7 +27,7 @@ function Base.getproperty(layer::Potts, name::Symbol)
     end
 end
 
-cgfs(layer::Potts) = LogExpFunctions.logsumexp(layer.θ; dims = 1)
+free_energies(layer::Potts) = -LogExpFunctions.logsumexp(layer.θ; dims = 1)
 
 function transfer_sample(layer::Potts)
     c = categorical_sample_from_logits(layer.θ)
@@ -46,12 +46,6 @@ function transfer_mode(layer::Potts)
     return layer.θ .== maximum(layer.θ; dims=1)
 end
 
-conjugates(layer::Potts) = (; θ = transfer_mean(layer))
-
-function conjugates_empirical(layer::Potts, samples::AbstractArray)
-    @assert size(samples) == (size(layer)..., size(samples)[end])
-    μ = mean_(samples; dims=ndims(samples))
-    return (; θ = μ)
-end
-
-effective(layer::Potts, inputs, β::Real = true) = Potts(β * (layer.θ .+ inputs))
+∂free_energy(layer::Potts) = (; θ = -transfer_mean(layer))
+∂energies(::Potts, x::AbstractArray) = (; θ = -x)
+effective(layer::Potts, inputs; β::Real = 1) = Potts(β * (layer.θ .+ inputs))
