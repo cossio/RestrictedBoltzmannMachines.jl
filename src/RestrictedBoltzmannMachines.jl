@@ -23,16 +23,15 @@ module RestrictedBoltzmannMachines
 
     include("rbm.jl")
 
-    include("initialization.jl")
+    include("train/initialization.jl")
     include("train/cd.jl")
     include("train/pcd.jl")
     include("train/pcd_center.jl")
     include("train/cd_white.jl")
     include("train/cd_norm.jl")
     include("train/optim.jl")
+    include("train/regularize.jl")
 
-    include("regularize.jl")
-    #include("lr_schedules.jl")
     include("zerosum.jl")
 
     include("pseudolikelihood.jl")

@@ -64,7 +64,8 @@ function pcd_center!(rbm::RBM, data::AbstractArray;
         Δt = @elapsed for (b, (vd, wd)) in enumerate(batches)
             # update fantasy chains
             vm = sample_v_from_v(rbm_, vm; steps = steps)
-            hd = mean_h_from_v(rbm_, vd)
+            inputs = inputs_v_to_h(rbm_, vd)
+            hd = transfer_mean(rbm_.hidden, inputs)
             λh = (1 - α) * λh + α * mean_(hd; dims=ndims(hd))
 
             # compute contrastive divergence gradient

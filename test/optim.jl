@@ -55,7 +55,10 @@ end
     batchsize = 128
     epochs = 100
 
-    o = RBMs.default_optimizer(nsamples, batchsize, epochs; opt=Flux.Descent(1), decay_final=0.01, decay_after=0.5)
+    o = RBMs.default_optimizer(
+        nsamples, batchsize, epochs;
+        opt=Flux.Descent(1), decay_final=0.01, decay_after=0.5, clip=Inf,
+    )
     p = [0.0]
     lrs = [only(Flux.Optimise.apply!(o, p, [1.0])) for b in RBMs.minibatches(nsamples; batchsize=batchsize) for epoch in 1:epochs]
 

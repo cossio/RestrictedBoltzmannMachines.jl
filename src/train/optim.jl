@@ -76,15 +76,16 @@ Based on defaults from https://github.com/jertubiana/PGM.
 """
 function default_optimizer(
     nsamples::Int, batchsize::Int, epochs::Int;
-    decay_final::Real = 1e-2, decay_after::Real = 0.5, clip = Inf,
+    decay_final::Real = 1e-2, decay_after::Real = 0.5, clip = 1,
     opt = ADAM(5e-3, (0.99, 0.99), 1e-3)
 )
     steps_per_epoch = minibatch_count(nsamples; batchsize = batchsize)
     nsteps = steps_per_epoch * epochs
     start = round(Int, nsteps * decay_after)
-
     decay = decay_final^inv(count((steps_per_epoch:steps_per_epoch:nsteps) .> start))
-    return Flux.Optimise.Optimiser(opt, ExpDecay(1, decay, steps_per_epoch, decay_final, start))
+    return Flux.Optimise.Optimiser(
+        Flux.ClipValue(clip), opt, ExpDecay(1, decay, steps_per_epoch, decay_final, start)
+    )
 end
 
 

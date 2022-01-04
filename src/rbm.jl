@@ -49,7 +49,7 @@ end
 
 function flat_interaction_energy(w::AbstractMatrix, v::AbstractVector, h::AbstractVector)
     @assert size(w) == (length(v), length(h))
-    return dot(v, w, h)
+    return -dot(v, w, h)
 end
 
 function flat_interaction_energy(w::AbstractMatrix, v::AbstractMatrix, h::AbstractMatrix)
@@ -89,13 +89,14 @@ function inputs_h_to_v(rbm::RBM, h::AbstractArray)
 end
 
 function flatten(layer, x::AbstractArray)
-    case_example = size(x) == size(layer)
-    case_batches = size(x) == (size(layer)..., size(x)[end])
-    @assert case_example || case_batches
-    if case_example
+    if size(x) == size(layer) # single instance
         return reshape(x, length(layer))
-    else
+    elseif size(x) == (size(layer)..., size(x)[end]) # multiple batches
         return reshape(x, length(layer), size(x)[end])
+    else
+        throw(DimensionMismatch(
+            "size(x)=$(size(x)) inconsistent with size(layer)=$(size(layer))"
+        ))
     end
 end
 
@@ -105,7 +106,7 @@ unflatten(layer, x::AbstractMatrix) = reshape(x, size(layer)..., size(x, 2))
 # convert to common eltype before matrix multiply, to make sure we hit BLAS
 function matmul_convert_maybe(x::AbstractArray{X}, y::AbstractArray{Y}) where {X,Y}
     T = promote_type(X, Y)
-    return T.(x), T.(y)
+    return map(T, x), map(T, y)
 end
 matmul_convert_maybe(x::AbstractArray{T}, y::AbstractArray{T}) where {T} = x, y
 
@@ -230,17 +231,23 @@ function ∂weights(rbm::RBM, v::AbstractArray, h::AbstractArray = mean_h_from_v
     @assert size(v, ndims(rbm.visible) + 1) == size(h, ndims(rbm.hidden) + 1)
     v_flat = flatten(rbm.visible, v)
     h_flat = flatten(rbm.hidden, h)
-    ∂w = v_flat * h_flat' / size(v_flat, 2)
-    return reshape(∂w, size(rbm.weights))
+    ∂w_flat = ∂weights_flat(v_flat, h_flat)
+    return reshape(∂w_flat, size(rbm.weights))
+end
+
+∂weights_flat(v::AbstractVector, h::AbstractVector) = v * h'
+function ∂weights_flat(v::AbstractMatrix, h::AbstractMatrix)
+    @assert size(v, 2) == size(h, 2)
+    return v * h' / size(v, 2)
 end
 
 function ∂free_energy(
     rbm::RBM, v::AbstractArray, inputs::AbstractArray = inputs_v_to_h(rbm, v)
 )
     h = transfer_mean(rbm.hidden, inputs)
-    ∂w = ∂weights(rbm, v, h)
     ∂v = ∂energy(rbm.visible, v)
     ∂h = ∂free_energy(rbm.hidden, inputs)
+    ∂w = ∂weights(rbm, v, h)
     return (visible = ∂v, hidden = ∂h, weights = ∂w)
 end
 

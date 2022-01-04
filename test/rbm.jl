@@ -1,5 +1,28 @@
 include("tests_init.jl")
 
+@testset "flat_interaction_energy" begin
+    N, M, B = 21, 13, 5
+
+    w = randn(N, M)
+    v = randn(N)
+    h = randn(M)
+    @test RBMs.flat_interaction_energy(w, v, h) ≈ -v' * w * h
+    @test RBMs.flat_interaction_energy(w, v, h) ≈ RBMs.flat_interaction_energy(w', h, v)
+
+    w = randn(N, M)
+    v = randn(N, 1)
+    h = randn(M, 1)
+    @test RBMs.flat_interaction_energy(w, vec(v), vec(h)) ≈ -vec(v)' * w * vec(h)
+    @test RBMs.flat_interaction_energy(w, v, h) ≈ -[vec(v)' * w * vec(h)]
+    @test RBMs.flat_interaction_energy(w, v, h) ≈ RBMs.flat_interaction_energy(w', h, v)
+
+    w = randn(N, M)
+    v = randn(N, B)
+    h = randn(M, B)
+    @test RBMs.flat_interaction_energy(w, v, h) ≈ -diag(v' * w * h)
+    @test RBMs.flat_interaction_energy(w, v, h) ≈ RBMs.flat_interaction_energy(w', h, v)
+end
+
 @testset "RBM" begin
     rbm = RBMs.RBM(RBMs.Binary(5, 2), RBMs.Binary(4, 3), randn(5, 2, 4, 3))
     randn!(rbm.weights)

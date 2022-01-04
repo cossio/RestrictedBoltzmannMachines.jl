@@ -96,10 +96,23 @@ end
     @test RBMs.∂free_energy(layer).θ ≈ gs[layer.θ] ≈ -RBMs.transfer_mean(layer)
 end
 
+@testset "binary_rand" begin
+end
+
 @testset "Binary" begin
+    @testset "binary_rand" begin
+        θ = randn(1000)
+        u = rand(1000)
+        @test RBMs.binary_rand.(θ, u) == (@. u * (1 + exp(-θ)) < 1)
+    end
+
+    @testset "binary_var" begin
+        θ = randn(1000)
+        @test RBMs.binary_var.(θ) ≈ @. LogExpFunctions.logistic(θ) * LogExpFunctions.logistic(-θ)
+    end
+
     layer = RBMs.Binary(randn(7, 4, 5))
     @test RBMs.free_energies(layer) ≈ -log.(sum(exp.(layer.θ .* h) for h in 0:1))
-    @test RBMs.transfer_var(layer) ≈ @. LogExpFunctions.logistic(layer.θ) * LogExpFunctions.logistic(-layer.θ)
     @test sort(unique(RBMs.transfer_sample(layer))) == [0, 1]
 end
 
@@ -134,7 +147,7 @@ end
         return -log(Z)
     end
 
-    @test RBMs.free_energies(layer) ≈ quad_free.(layer.θ, layer.γ)
+    @test RBMs.free_energies(layer) ≈ quad_free.(layer.θ, layer.γ) rtol=1e-6
 
     gs = Zygote.gradient(Flux.params(layer)) do
         sum(RBMs.free_energies(layer))
