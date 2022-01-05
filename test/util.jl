@@ -40,6 +40,43 @@ end
 
 @testset "batch_mean" begin
     @test RBMs.batch_mean([1,2,3,4], [1,1,2,2]) ≈ (1 + 2 + 2 * (3 + 4))/(1 + 1 + 2 + 2)
+
+    w = rand(2)
+
+    A = randn(2)
+    @test RBMs.batch_mean(A) == RBMs.batch_mean(A, nothing) ≈ mean(A)
+    @test RBMs.batch_mean(A) isa Number
+    @inferred RBMs.batch_mean(A)
+
+    @test RBMs.batch_mean(A, w) ≈ dot(A, w) / sum(w)
+    @test RBMs.batch_mean(A, w) isa Number
+    @inferred RBMs.batch_mean(A, w)
+
+    A = randn(3,2)
+    @test RBMs.batch_mean(A) == RBMs.batch_mean(A, nothing) ≈ vec(mean(A; dims=2))
+    @test RBMs.batch_mean(A) isa Vector
+    @test length(RBMs.batch_mean(A)) == 3
+    @inferred RBMs.batch_mean(A)
+
+    @test RBMs.batch_mean(A, w) ≈ A * w / sum(w)
+    @test RBMs.batch_mean(A, w) isa Vector
+    @test length(RBMs.batch_mean(A, w)) == 3
+    @inferred RBMs.batch_mean(A, w)
+
+    A = randn(4,3,2)
+    @test RBMs.batch_mean(A) == RBMs.batch_mean(A, nothing) ≈ dropdims(mean(A; dims=3); dims=3)
+    @test RBMs.batch_mean(A) isa Matrix
+    @test size(RBMs.batch_mean(A)) == (4,3)
+    @inferred RBMs.batch_mean(A)
+
+    @test RBMs.batch_mean(A, w) ≈ dropdims(sum(A .* reshape(w,1,1,2); dims=3); dims=3) / sum(w)
+    @test RBMs.batch_mean(A, w) isa Matrix
+    @test size(RBMs.batch_mean(A, w)) == (4,3)
+    @inferred RBMs.batch_mean(A, w)
+
+    @test_throws ArgumentError RBMs.batch_mean(fill(randn()))
+    @test_throws ArgumentError RBMs.batch_mean(fill(randn()), nothing)
+    @test_throws ArgumentError RBMs.batch_mean(fill(randn()), [randn()])
 end
 
 @testset "generate_sequences" begin

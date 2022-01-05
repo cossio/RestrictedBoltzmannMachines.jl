@@ -52,24 +52,36 @@ Mean of `x` (over its last dimension), with (optional) weights `wts`,
 dropping the reduced dimension.
 """
 function batch_mean(x::AbstractTensor, wts::AbstractVector)
-    @assert ndims(x) ≥ 3
-    @assert size(x) == (Base.front(x)..., length(wts))
-    xmat = reshape(x, :, length(wts))::AbstractMatrix
-    xw = batch_mean(xmat, wts)
-    return reshape(xw, Base.front(size(x)))
+    if ndims(x) == 0
+        return batch_mean_zerodims_error()
+    elseif ndims(x) == 1
+        return dot(x, wts / sum(wts))::Number
+    else
+        @assert ndims(x) ≥ 2
+        @assert size(x) == (Base.front(size(x))..., length(wts))
+        xmat = reshape(x, :, length(wts))
+        xw = xmat * wts / sum(wts)
+        result = reshape(xw, Base.front(size(x)))
+        @assert ndims(result) == ndims(x) - 1 ≥ 1
+        return result::AbstractArray
+    end
 end
-function batch_mean(x::AbstractMatrix, wts::AbstractVector)
-    @assert size(x, 2) == length(wts)
-    return x * wts / sum(wts)
+
+function batch_mean(x::AbstractTensor, ::Nothing = nothing)
+    if ndims(x) == 0
+        return batch_mean_zerodims_error()
+    elseif ndims(x) == 1
+        return mean(x)::Number
+    else
+        @assert ndims(x) ≥ 2
+        xm = dropdims(mean(x; dims=ndims(x)), dims=ndims(x))
+        @assert ndims(xm) ≥ 1
+        return xm
+    end
 end
-batch_mean(x::AbstractVector, wts::AbstractVector) = dot(x, wts / sum(wts))::Number
-batch_mean(x::AbstractVector, ::Nothing) = mean(x)::Number
-function batch_mean(x::AbstractTensor, ::Nothing = nothing) where {N}
-    @assert ndims(x) ≥ 2
-    xm = mean(x; dims=ndims(x))
-    result = reshape(xm, Base.front(size(x)))
-    @assert size(x) == (size(result)..., size(x, ndims(x)))
-    return result
+
+function batch_mean_zerodims_error()
+    throw(ArgumentError("Zero-dimensional arrays not supported"))
 end
 
 """
