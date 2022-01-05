@@ -38,15 +38,35 @@ end
     @test RBMs.interaction_energy(rbm, v, h) ≈ Ew
     @test RBMs.energy(rbm, v, h) ≈ RBMs.energy(rbm.visible, v) + RBMs.energy(rbm.hidden, h) + Ew
 
+    @test (@inferred RBMs.energy(rbm, v[:,:,1], h[:,:,1])) isa Real
+    @test (@inferred RBMs.energy(rbm, v[:,:,1], h)) isa AbstractVector{<:Real}
+    @test (@inferred RBMs.energy(rbm, v, h[:,:,1])) isa AbstractVector{<:Real}
+
+    for b = 1:7
+        @test RBMs.energy(rbm, v[:,:,b], h[:,:,b]) ≈ RBMs.energy(rbm, v, h)[b]
+        @test RBMs.energy(rbm, v[:,:,b], h) ≈ [RBMs.energy(rbm, v[:,:,b], h[:,:,k]) for k=1:7]
+        @test RBMs.energy(rbm, v, h[:,:,b]) ≈ [RBMs.energy(rbm, v[:,:,k], h[:,:,b]) for k=1:7]
+    end
+
     @test size(@inferred RBMs.sample_h_from_v(rbm, v)) == size(h)
     @test size(@inferred RBMs.sample_v_from_h(rbm, h)) == size(v)
     @test size(@inferred RBMs.sample_v_from_v(rbm, v)) == size(v)
     @test size(@inferred RBMs.sample_h_from_h(rbm, h)) == size(h)
 
+    @test size(@inferred RBMs.sample_h_from_v(rbm, v[:,:,1])) == size(rbm.hidden)
+    @test size(@inferred RBMs.sample_v_from_h(rbm, h[:,:,1])) == size(rbm.visible)
+    @test size(@inferred RBMs.sample_v_from_v(rbm, v[:,:,1])) == size(rbm.visible)
+    @test size(@inferred RBMs.sample_h_from_h(rbm, h[:,:,1])) == size(rbm.hidden)
+
     @test size(@inferred RBMs.free_energy(rbm, v)) == (7,)
     @test size(@inferred RBMs.reconstruction_error(rbm, v)) == (7,)
+    @test (@inferred RBMs.free_energy(rbm, v[:,:,1])) isa Real
+    @test (@inferred RBMs.reconstruction_error(rbm, v[:,:,1])) isa Real
 
-    @inferred RBMs.flip_layers(rbm)
+    @inferred RBMs.mirror(rbm)
+    @test RBMs.mirror(rbm).visible == rbm.hidden
+    @test RBMs.mirror(rbm).hidden == rbm.visible
+    @test RBMs.energy(RBMs.mirror(rbm), h, v) ≈ RBMs.energy(rbm, v, h)
 
     ps = Flux.params(rbm)
     gs = Zygote.gradient(ps) do

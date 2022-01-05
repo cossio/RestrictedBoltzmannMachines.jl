@@ -46,7 +46,7 @@ end
 function initialize!(layer::Potts, data::AbstractTensor{N}; ϵ::Real = 1e-6) where {N}
     @assert size(data) == (size(layer)..., size(data, N))
     @assert 0 < ϵ < 1/2
-    μ = mean_(data; dims=ndims(data))
+    μ = batch_mean(data)
     μϵ = clamp.(μ, ϵ, 1 - ϵ)
     layer.θ .= log.(μϵ)
     return layer # does not do zerosum!
@@ -55,7 +55,7 @@ end
 function initialize!(layer::Gaussian, data::AbstractArray; ϵ::Real = 1e-6) where {N}
     @assert size(data) == (size(layer)..., size(data, N))
     @assert 0 < ϵ < 1/2
-    μ = mean_(data; dims=ndims(data))
+    μ = batch_mean(data)
     ν = var_(data; dims=ndims(data))
     layer.γ .= inv.(ν .+ ϵ)
     layer.θ .= μ .* layer.γ

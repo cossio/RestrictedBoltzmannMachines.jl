@@ -8,19 +8,21 @@ end
 
 Layer energy, reduced over layer dimensions.
 """
-function energy(layer::AbstractLayer{N}, x::AbstractTensor{N}) where {N}
+function energy(layer::AbstractLayer{N}, x::AbstractTensor{N})::Number where {N}
     check_size(layer, x)
     return sum(energies(layer, x))
 end
 
-function energy(layer::AbstractLayer, x::AbstractTensor{N}) where {N}
+function energy(layer::AbstractLayer, x::AbstractTensor{N})::AbstractVector where {N}
     check_size(layer, x)
     E = sum(energies(layer, x); dims = 1:ndims(layer))
-    return reshape(E, size(x, N))
+    return reshape(E, size(x, N))::AbstractVector
 end
 
 function energy(layer::Union{Binary,Spin,Potts}, x::AbstractTensor)
-    return -flatten(layer, x)' * vec(layer.θ)
+    check_size(layer, x)
+    xconv = activations_convert_maybe(layer.θ, x)
+    return -flatten(layer, xconv)' * vec(layer.θ)
 end
 
 function energy(layer::AbstractLayer, x::Real)

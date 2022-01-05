@@ -3,13 +3,13 @@
 
 Represents a restricted Boltzmann Machine.
 """
-struct RBM{V, H, W<:AbstractArray}
+struct RBM{V<:AbstractLayer, H<:AbstractLayer, W<:AbstractArray}
     visible::V
     hidden::H
     w::W
-    function RBM(visible::V, hidden::H, w::W) where {V, H, W<:AbstractArray}
+    function RBM(visible::AbstractLayer, hidden::AbstractLayer, w::AbstractArray)
         @assert size(w) == (size(visible)..., size(hidden)...)
-        return new{V,H,W}(visible, hidden, w)
+        return new{typeof(visible), typeof(hidden), typeof(w)}(visible, hidden, w)
     end
 end
 
@@ -20,19 +20,12 @@ Flux.@functor RBM
 
 Energy of the rbm in the configuration `(v,h)`.
 """
-function energy(rbm::RBM, v::AbstractArray, h::AbstractArray)
-    scalar_case = (
-        size(v) == size(rbm.visible) && size(h) == size(rbm.hidden)
-    )
-    batches_case = (
-        size(v) == (size(rbm.visible)..., size(v)[end]) &&
-        size(h) == (size(rbm.hidden)..., size(h)[end])
-    )
-    @assert scalar_case || batches_case
-    Ev = energy(rbm.visible, v)
-    Eh = energy(rbm.hidden, h)
-    Ew = interaction_energy(rbm, v, h)
-    return Ev + Eh + Ew
+function energy(rbm::RBM, v::AbstractTensor, h::AbstractTensor)
+    check_size(rbm, v, h)
+    Ev::Union{Number, AbstractVector} = energy(rbm.visible, v)
+    Eh::Union{Number, AbstractVector} = energy(rbm.hidden, h)
+    Ew::Union{Number, AbstractVector} = interaction_energy(rbm, v, h)
+    return (Ev .+ Eh .+ Ew)::Union{Number, AbstractVector}
 end
 
 """
@@ -49,7 +42,19 @@ end
 
 function flat_interaction_energy(w::AbstractMatrix, v::AbstractVector, h::AbstractVector)
     @assert size(w) == (length(v), length(h))
-    return -dot(v, w, h)
+    return -dot(v, w, h)::Number
+end
+
+function flat_interaction_energy(w::AbstractMatrix, v::AbstractMatrix, h::AbstractVector)
+    @assert size(w) == (size(v, 1), size(h, 1))
+    E::AbstractVector = -v' * (w * h)
+    return E
+end
+
+function flat_interaction_energy(w::AbstractMatrix, v::AbstractVector, h::AbstractMatrix)
+    @assert size(w) == (size(v, 1), size(h, 1))
+    E::AbstractVector = -h' * (w' * v)
+    return E
 end
 
 function flat_interaction_energy(w::AbstractMatrix, v::AbstractMatrix, h::AbstractMatrix)
@@ -60,8 +65,8 @@ function flat_interaction_energy(w::AbstractMatrix, v::AbstractMatrix, h::Abstra
     else
         E = -sum_(v .* (w * h); dims=1)
     end
-    @assert length(E::AbstractVector) == size(v, 2) == size(h, 2)
-    return E
+    @assert length(E) == size(v, 2) == size(h, 2)
+    return E::AbstractVector
 end
 
 """
@@ -72,8 +77,8 @@ Interaction inputs from visible to hidden layer.
 function inputs_v_to_h(rbm::RBM, v::AbstractArray)
     vflat = flatten(rbm.visible, v)
     wflat = reshape(rbm.w, length(rbm.visible), length(rbm.hidden))
-    w_, v_ = activations_convert_maybe(wflat, vflat)
-    return unflatten(rbm.hidden, w_' * v_)
+    vconv = activations_convert_maybe(wflat, vflat)
+    return unflatten(rbm.hidden, wflat' * vconv)
 end
 
 """
@@ -84,15 +89,13 @@ Interaction inputs from hidden to visible layer.
 function inputs_h_to_v(rbm::RBM, h::AbstractArray)
     hflat = flatten(rbm.hidden, h)
     wflat = reshape(rbm.w, length(rbm.visible), length(rbm.hidden))
-    w_, h_ = activations_convert_maybe(wflat, hflat)
-    return unflatten(rbm.visible, w_ * h_)
+    hconv = activations_convert_maybe(wflat, hflat)
+    return unflatten(rbm.visible, wflat * hconv)
 end
 
 # convert to common eltype before matrix multiply, to make sure we hit BLAS
-function activations_convert_maybe(w::AbstractArray{W}, x::AbstractArray{X}) where {W,X}
-    return w, map(W, x)
-end
-activations_convert_maybe(w::AbstractArray{W}, x::AbstractArray{W}) where {W} = w, x
+activations_convert_maybe(w::AbstractArray{W}, x::AbstractArray{X}) where {W,X} = map(W, x)
+activations_convert_maybe(w::AbstractArray{T}, x::AbstractArray{T}) where {T} = x
 
 """
     free_energy(rbm, v; β = 1)
@@ -209,10 +212,12 @@ function mode_h_from_v(rbm::RBM, v::AbstractArray)
 end
 
 ∂w_flat(v::AbstractVector, h::AbstractVector, wts::Nothing = nothing) = -v * h'
+
 function ∂w_flat(v::AbstractMatrix, h::AbstractMatrix, wts::Nothing = nothing)
     @assert size(v, 2) == size(h, 2)
     return -v * h' / size(v, 2)
 end
+
 function ∂w_flat(v::AbstractMatrix, h::AbstractMatrix, wts::AbstractVector)
     @assert size(v, 2) == size(h, 2) == length(wts)
     return -v * Diagonal(wts) * h' / size(v, 2)
@@ -253,11 +258,11 @@ function reconstruction_error(rbm::RBM, v::AbstractTensor; β::Real = true, step
 end
 
 """
-    flip_layers(rbm)
+    mirror(rbm)
 
 Returns a new RBM with viible and hidden layers flipped.
 """
-function flip_layers(rbm::RBM)
+function mirror(rbm::RBM)
     function p(i)
         if i ≤ ndims(rbm.visible)
             return i + ndims(rbm.hidden)
@@ -270,23 +275,43 @@ function flip_layers(rbm::RBM)
     return RBM(rbm.hidden, rbm.visible, w)
 end
 
+function check_size(
+    rbm::RBM{<:AbstractLayer{N}, <:AbstractLayer{M}},
+    v::AbstractTensor{N}, h::AbstractTensor{M}
+) where {N, M}
+    check_size(rbm.visible, v)
+    check_size(rbm.hidden, h)
+end
+
+function check_size(
+    rbm::RBM{<:AbstractLayer{N}, <:AbstractLayer{M}},
+    v::AbstractTensor{N}, h::AbstractTensor
+) where {N, M}
+    check_size(rbm.visible, v)
+    check_size(rbm.hidden, h)
+end
+
+function check_size(
+    rbm::RBM{<:AbstractLayer{N}, <:AbstractLayer{M}},
+    v::AbstractTensor, h::AbstractTensor{M}
+) where {N, M}
+    check_size(rbm.visible, v)
+    check_size(rbm.hidden, h)
+end
+
 function check_size(rbm::RBM, v::AbstractTensor, h::AbstractTensor)
     check_size(rbm.visible, v)
     check_size(rbm.hidden, h)
-    if ndims(v) - ndims(rbm.visible) ≠ ndims(h) - ndims(rbm.hidden)
+    @assert size(v) == (size(rbm.visible)..., size(v)[end])
+    @assert size(h) == (size(rbm.hidden)..., size(h)[end])
+    if size(v)[end] ≠ size(h)[end]
         throw(DimensionMismatch(
             """
-            inconsistent batch dimensions; \
-            `v` has $(ndims(v) - ndims(rbm.visible)) batch dimensions, while
-            `h` has $(ndims(h) - ndims(rbm.hidden)) batch dimensions
+            inconsistent batch dimensions; got size(v) = $(size(v)), size(h) = $(size(h))
+            but size(visible) = $(size(rbm.visible)), size(hidden) = $(size(rbm.hidden))
             """
         ))
-    elseif size(v, ndims(rbm.visible) + 1) ≠ size(h, ndims(rbm.hidden) + 1)
-        throw(DimensionMismatch(
-            """
-            inconsistent batch dimensions; got \
-            size(v) = $(size(v)), size(h) = $(size(h))
-            """
-        ))
+    else
+        return true
     end
 end

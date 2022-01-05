@@ -14,13 +14,13 @@ end
 _zerosum_visible!(rbm::RBM) = rbm
 _zerosum_hidden!(rbm::RBM)  = rbm
 
-function _zerosum_visible!(rbm::RBM{<:Potts, <:Any})
+function _zerosum_visible!(rbm::RBM{<:Potts, <:AbstractLayer})
     zerosum!(rbm.visible)
     zerosum!(rbm.w; dims = 1)
     return nothing
 end
 
-function _zerosum_hidden!(rbm::RBM{<:Any, <:Potts})
+function _zerosum_hidden!(rbm::RBM{<:AbstractLayer, <:Potts})
     zerosum!(rbm.hidden)
     zerosum!(rbm.w; dims = 1 + ndims(rbm.visible))
     return nothing

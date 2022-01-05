@@ -6,7 +6,8 @@ enumeration of visible states
 (except for particular cases such as Gaussian-Gaussian RBM).
 This is exponentially slow for large machines.
 
-If your RBM has a smaller hidden layer, consider using `flip_layers`.
+If your RBM has a smaller hidden layer, mirroring the layers of the `rbm` first
+(see [`mirror`](@ref)).
 """
 function log_partition(rbm::RBM; β::Real = true)
     v = ChainRulesCore.ignore_derivatives() do
