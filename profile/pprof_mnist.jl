@@ -12,10 +12,8 @@ tests_x, tests_y = MLDatasets.MNIST.testdata();
 Float = Float64
 
 # since we train a binary RBM, we binarize the data first
-train_x = Float.(train_x .≥ 0.5);
-tests_x = Float.(tests_x .≥ 0.5);
-train_y = Float.(train_y);
-tests_y = Float.(tests_y);
+train_x = Array{Float}(train_x .≥ 0.5);
+tests_x = Array{Float}(tests_x .≥ 0.5);
 
 # initialize RBM with 100 hidden units
 rbm = RBMs.RBM(

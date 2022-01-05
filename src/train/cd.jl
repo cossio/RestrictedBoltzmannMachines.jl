@@ -21,7 +21,7 @@ function cd!(rbm::RBM, data::AbstractArray;
         Δt = @elapsed for (b, (vd, wd)) in enumerate(batches)
             # fantasy chains
             _idx = rand(1:_nobs(data), batchsize)
-            _vm = selectdim(data, ndims(data), _idx)
+            _vm = copy(selectdim(data, ndims(data), _idx))
             vm = sample_v_from_v(rbm, _vm; steps = steps)
 
             # compute contrastive divergence gradient
