@@ -1,10 +1,13 @@
-function _nobs(ds::AbstractArray...)
-    sz = map(d -> size(d)[end], ds)
+function _nobs(ds::Union{AbstractArray, Nothing}...)
+    sz = filter(!isnothing, map(_nobs, ds))
     @assert all(sz .== first(sz))
     return first(sz)
 end
-
-_getobs(i, ds::AbstractArray...) = map(d -> collect(selectdim(d, ndims(d), i)), ds)
+_nobs(d::AbstractArray) = size(d, ndims(d))
+_nobs(::Nothing) = nothing
+_selobs(i, d::AbstractArray) = collect(selectdim(d, ndims(d), i))
+_selobs(i, ::Nothing) = nothing
+_getobs(i, ds::Union{AbstractArray, Nothing}...) = map(d -> _selobs(i, d), ds)
 
 """
     minibatches(datas...; batchsize)
@@ -14,7 +17,9 @@ each entry is a minibatch from the corresponding `data` within `datas`.
 All minibatches are of the same size `batchsize` (if necessary repeating
 some samples at the last minibatches).
 """
-function minibatches(ds::AbstractArray...; batchsize::Int, shuffle::Bool = true)
+function minibatches(
+    ds::Union{AbstractArray, Nothing}...; batchsize::Int, shuffle::Bool = true
+)
     nobs = _nobs(ds...)
     slices = minibatches(nobs; batchsize = batchsize, shuffle = shuffle)
     batches = [_getobs(idx, ds...) for idx in slices]
@@ -26,7 +31,7 @@ end
 
 Number of minibatches.
 """
-function minibatch_count(ds::AbstractArray...; batchsize::Int)
+function minibatch_count(ds::Union{AbstractArray, Nothing}...; batchsize::Int)
     return minibatch_count(_nobs(ds...); batchsize = batchsize)
 end
 

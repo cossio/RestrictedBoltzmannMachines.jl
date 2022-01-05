@@ -70,13 +70,13 @@ end
 
 function mean_free_energy(
     rbm::RBM{<:AbstractLayer{N}}, v::AbstractTensor{N}; wts::Nothing = nothing
-) where {N}
+)::Real where {N}
     return free_energy(rbm, v)
 end
 
 function mean_free_energy(
     rbm::RBM, v::AbstractTensor{N}; wts::Wts = nothing
-) where {N}
+)::AbstractVector where {N}
     return batch_mean(free_energy(rbm, v))
 end
 

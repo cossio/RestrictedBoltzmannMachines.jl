@@ -5,6 +5,11 @@ include("tests_init.jl")
     @test (@inferred RBMs._nobs(X, Y)) == 4
     @test_throws AssertionError RBMs._nobs(X, randn(5, 3))
     @test (@inferred RBMs._getobs([2, 3], X, Y)) == (X[:, [2, 3]], Y[:, [2, 3]])
+
+    X, Y, Z = randn(10, 4), nothing, randn(5, 4)
+    @test (@inferred RBMs._nobs(X, Y, Z)) == 4
+    @test_throws AssertionError RBMs._nobs(X, randn(5, 3), nothing)
+    @test (@inferred RBMs._getobs([2, 3], X, Y, Z)) == (X[:, [2, 3]], nothing, Z[:, [2, 3]])
 end
 
 @testset "minibatches" begin
