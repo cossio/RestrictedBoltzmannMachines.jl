@@ -17,4 +17,11 @@ end
     @test RBMs.minibatches(7; batchsize=3, shuffle=false) == [[1,2,3], [4,5,6], [7,1,2]]
     @test RBMs.minibatches(7; batchsize=5, shuffle=false) == [[1,2,3,4,5], [6,7,1,2,3]]
     @test length(RBMs.minibatches(7; batchsize=3)) == RBMs.minibatch_count(7; batchsize=3)
+
+    X, Y, Z = randn(10, 4), nothing, randn(5, 4)
+    batches = RBMs.minibatches(X, Y, Z; batchsize=2, shuffle=false)
+    @test length(batches) == RBMs.minibatch_count(4; batchsize=2) == 2
+    @test length(batches) == RBMs.minibatch_count(X, Y, Z; batchsize=2)
+    @test batches[1] == (X[:,1:2], nothing, Z[:,1:2])
+    @test batches[2] == (X[:,3:4], nothing, Z[:,3:4])
 end
