@@ -109,6 +109,6 @@ end
 
 function update!(optimizer, layer::AbstractLayer, ∂::NamedTuple)
     for (k, g) in pairs(∂)
-        Flux.update!(getproperty(layer, k), g, optimizer)
+        Flux.update!(optimizer, getproperty(layer, k), g)
     end
 end
