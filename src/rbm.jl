@@ -34,9 +34,10 @@ end
 Weight mediated interaction energy.
 """
 function interaction_energy(rbm::RBM, v::AbstractArray, h::AbstractArray)
+    check_size(rbm, v, h)
     wmat = reshape(rbm.w, length(rbm.visible), length(rbm.hidden))
-    vflat = flatten(rbm.visible, v)
-    hflat = flatten(rbm.hidden, h)
+    vflat = flatten(rbm.visible, activations_convert_maybe(rbm.w, v))
+    hflat = flatten(rbm.hidden,  activations_convert_maybe(rbm.w, h))
     return flat_interaction_energy(wmat, vflat, hflat)
 end
 
@@ -47,14 +48,14 @@ end
 
 function flat_interaction_energy(w::AbstractMatrix, v::AbstractMatrix, h::AbstractVector)
     @assert size(w) == (size(v, 1), size(h, 1))
-    E::AbstractVector = -v' * (w * h)
-    return E
+    E = -v' * (w * h)
+    return E::AbstractVector
 end
 
 function flat_interaction_energy(w::AbstractMatrix, v::AbstractVector, h::AbstractMatrix)
     @assert size(w) == (size(v, 1), size(h, 1))
-    E::AbstractVector = -h' * (w' * v)
-    return E
+    E = -h' * (w' * v)
+    return E::AbstractVector
 end
 
 function flat_interaction_energy(w::AbstractMatrix, v::AbstractMatrix, h::AbstractMatrix)
@@ -308,7 +309,6 @@ function check_size(rbm::RBM, v::AbstractTensor, h::AbstractTensor)
         throw(DimensionMismatch(
             """
             inconsistent batch dimensions; got size(v) = $(size(v)), size(h) = $(size(h))
-            but size(visible) = $(size(rbm.visible)), size(hidden) = $(size(rbm.hidden))
             """
         ))
     else

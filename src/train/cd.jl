@@ -94,11 +94,10 @@ function ∂contrastive_divergence(
 )
     ∂d = ∂free_energy(rbm, vd; wts = wd, inputs = inputs_d)
     ∂m = ∂free_energy(rbm, vm; wts = wm, inputs = inputs_m)
-    @assert typeof(∂d) == typeof(∂m)
     return subtract_gradients(∂d, ∂m)
 end
 
-subtract_gradients(∂1::N, ∂2::N) where {N<:NamedTuple} = map(subtract_gradients, ∂1, ∂2)
+subtract_gradients(∂1::NamedTuple, ∂2::NamedTuple) = map(subtract_gradients, ∂1, ∂2)
 subtract_gradients(∂1::A, ∂2::A) where {A<:AbstractTensor} = ∂1 - ∂2
 
 # update! mimics Flux.update!

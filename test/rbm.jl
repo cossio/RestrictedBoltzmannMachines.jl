@@ -50,13 +50,24 @@ end
 
     @test size(@inferred RBMs.sample_h_from_v(rbm, v)) == size(h)
     @test size(@inferred RBMs.sample_v_from_h(rbm, h)) == size(v)
-    @test size(@inferred RBMs.sample_v_from_v(rbm, v)) == size(v)
-    @test size(@inferred RBMs.sample_h_from_h(rbm, h)) == size(h)
-
     @test size(@inferred RBMs.sample_h_from_v(rbm, v[:,:,1])) == size(rbm.hidden)
     @test size(@inferred RBMs.sample_v_from_h(rbm, h[:,:,1])) == size(rbm.visible)
-    @test size(@inferred RBMs.sample_v_from_v(rbm, v[:,:,1])) == size(rbm.visible)
-    @test size(@inferred RBMs.sample_h_from_h(rbm, h[:,:,1])) == size(rbm.hidden)
+    for k = 1:3
+        @test size(@inferred RBMs.sample_v_from_v(rbm, v; steps=k)) == size(v)
+        @test size(@inferred RBMs.sample_h_from_h(rbm, h; steps=k)) == size(h)
+        @test size(@inferred RBMs.sample_v_from_v(rbm, v[:,:,1]; steps=k)) == size(rbm.visible)
+        @test size(@inferred RBMs.sample_h_from_h(rbm, h[:,:,1]; steps=k)) == size(rbm.hidden)
+    end
+
+    @test size(@inferred RBMs.mean_h_from_v(rbm, v)) == size(h)
+    @test size(@inferred RBMs.mean_v_from_h(rbm, h)) == size(v)
+    @test size(@inferred RBMs.mean_h_from_v(rbm, v[:,:,1])) == size(rbm.hidden)
+    @test size(@inferred RBMs.mean_v_from_h(rbm, h[:,:,1])) == size(rbm.visible)
+
+    @test size(@inferred RBMs.mode_h_from_v(rbm, v)) == size(h)
+    @test size(@inferred RBMs.mode_v_from_h(rbm, h)) == size(v)
+    @test size(@inferred RBMs.mode_h_from_v(rbm, v[:,:,1])) == size(rbm.hidden)
+    @test size(@inferred RBMs.mode_v_from_h(rbm, h[:,:,1])) == size(rbm.visible)
 
     @test size(@inferred RBMs.free_energy(rbm, v)) == (7,)
     @test size(@inferred RBMs.reconstruction_error(rbm, v)) == (7,)
