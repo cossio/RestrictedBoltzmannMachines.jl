@@ -8,12 +8,12 @@ end
 
 Layer energy, reduced over layer dimensions.
 """
-function energy(layer::AbstractLayer{N}, x::AbstractTensor{N})::Number where {N}
+function energy(layer::AbstractLayer{N}, x::AbstractTensor{N}) where {N}
     check_size(layer, x)
-    return sum(energies(layer, x))
+    return sum(energies(layer, x))::Number
 end
 
-function energy(layer::AbstractLayer, x::AbstractTensor{N})::AbstractVector where {N}
+function energy(layer::AbstractLayer, x::AbstractTensor{N}) where {N}
     check_size(layer, x)
     E = sum(energies(layer, x); dims = 1:ndims(layer))
     return reshape(E, size(x, N))::AbstractVector
@@ -22,12 +22,13 @@ end
 function energy(layer::Union{Binary,Spin,Potts}, x::AbstractTensor)
     check_size(layer, x)
     xconv = activations_convert_maybe(layer.θ, x)
-    return -flatten(layer, xconv)' * vec(layer.θ)
+    E = -flatten(layer, xconv)' * vec(layer.θ)
+    return E::Union{Number, AbstractVector}
 end
 
-function energy(layer::AbstractLayer, x::Real)
+function energy(layer::AbstractLayer, x::Real)::Number
     xs = FillArrays.Fill(x, size(layer))
-    return energy(layer, xs)
+    return energy(layer, xs)::Number
 end
 
 """
@@ -40,21 +41,19 @@ function free_energy(
 ) where {N}
     check_size(layer, inputs)
     F = free_energies(layer, inputs; β)
-    return sum(F)
+    return sum(F)::Number
 end
 
-function free_energy(
-    layer::AbstractLayer, inputs::AbstractTensor{N}; β::Real = true
-) where {N}
+function free_energy(layer::AbstractLayer, inputs::AbstractTensor; β::Real = true)
     check_size(layer, inputs)
     F = free_energies(layer, inputs; β)
-    f = sum(F; dims = layerdims(layer))
-    return reshape(f, size(inputs, N))
+    f = sum(F; dims = 1:ndims(layer))
+    return reshape(f, size(inputs, ndims(inputs)))::AbstractVector
 end
 
 function free_energy(layer::AbstractLayer, input::Real = false; β::Real = true)
     inputs = FillArrays.Fill(input, size(layer))
-    return free_energy(layer, inputs; β)
+    return free_energy(layer, inputs; β)::Number
 end
 
 """
@@ -163,8 +162,6 @@ Base.ndims(layer::_ThetaLayers) = ndims(layer.θ)
 Base.size(layer::_ThetaLayers) = size(layer.θ)
 Base.size(layer::_ThetaLayers, d::Int) = size(layer.θ, d)
 Base.length(layer::_ThetaLayers) = length(layer.θ)
-
-layerdims(layer) = ntuple(identity, ndims(layer))
 
 """
     flatten(layer, x)

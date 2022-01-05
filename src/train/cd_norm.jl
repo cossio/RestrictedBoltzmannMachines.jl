@@ -20,7 +20,7 @@ function train_norm!(rbm::RBM, data::AbstractArray;
 
     ps = Flux.params(rbm)
     # v, g notation from Salimans & Kingma 2016
-    w_g = sqrt.(sum(abs2, rbm.w; dims=layerdims(rbm.visible)))
+    w_g = sqrt.(sum(abs2, rbm.w; dims=1:ndims(rbm.visible)))
     w_v = rbm.w ./ w_g
     ps = Flux.params(ps..., w_g, w_v)
 
@@ -37,7 +37,7 @@ function train_norm!(rbm::RBM, data::AbstractArray;
 
             # compute contrastive divergence gradient
             gs = Zygote.gradient(ps) do
-                norm_v = sqrt.(sum(abs2, w_v; dims=layerdims(rbm.visible)))
+                norm_v = sqrt.(sum(abs2, w_v; dims=1:ndims(rbm.visible)))
                 rbm_ = RBM(rbm.visible, rbm.hidden, w_g .* w_v ./ norm_v)
                 loss = contrastive_divergence(rbm_, vd, vm; wd)
                 regu = lossadd(rbm_, vd, vm, wd)
@@ -52,7 +52,7 @@ function train_norm!(rbm::RBM, data::AbstractArray;
                 contrastive_divergence(rbm, vd, vm; wd)
             end
 
-            norm_v = reshape(sqrt.(sum(abs2, weights_v; dims=layerdims(rbm.visible))), 1, length(rbm.hidden))
+            norm_v = reshape(sqrt.(sum(abs2, weights_v; dims=1:ndims(rbm.visible))), 1, length(rbm.hidden))
             ∂g = reshape(gs[weights_g], 1, length(rbm.hidden))
             ∂v = reshape(gs[weights_v], length(rbm.visible), length(rbm.hidden))
             ∂w = reshape(gs_0[rbm.w], length(rbm.visible), length(rbm.hidden))
@@ -65,7 +65,7 @@ function train_norm!(rbm::RBM, data::AbstractArray;
             Flux.update!(optimizer, ps, gs)
 
             # update RBM weights
-            norm_v = sqrt.(sum(abs2, weights_v; dims=layerdims(rbm.visible)))
+            norm_v = sqrt.(sum(abs2, weights_v; dims=1:ndims(rbm.visible)))
             rbm.w .= weights_g .* w_v ./ norm_v
 
             push!(history, :epoch, epoch)

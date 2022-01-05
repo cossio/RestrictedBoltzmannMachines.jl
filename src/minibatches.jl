@@ -1,10 +1,9 @@
-function _nobs(ds::Union{AbstractArray, Nothing}...)
-    sz = filter(!isnothing, map(_nobs, ds))
-    @assert all(sz .== first(sz))
-    return first(sz)
+function _nobs(d::AbstractArray, ds::Union{AbstractArray, Nothing}...)
+    @assert all(map(_nobs, ds) .== _nobs(d) .|| isnothing.(ds))
+    return _nobs(d)
 end
 _nobs(d::AbstractArray) = size(d, ndims(d))
-_nobs(::Nothing) = nothing
+_nobs(::Nothing...) = nothing
 _selobs(i, d::AbstractArray) = collect(selectdim(d, ndims(d), i))
 _selobs(i, ::Nothing) = nothing
 _getobs(i, ds::Union{AbstractArray, Nothing}...) = map(d -> _selobs(i, d), ds)

@@ -102,10 +102,10 @@ activations_convert_maybe(w::AbstractArray{T}, x::AbstractArray{T}) where {T} = 
 
 Free energy of visible configuration (after marginalizing hidden configurations).
 """
-function free_energy(rbm::RBM, v::AbstractArray; β::Real = true)
-    E = energy(rbm.visible, v)
-    inputs = inputs_v_to_h(rbm, v)
-    F = free_energy(rbm.hidden, inputs; β)
+function free_energy(rbm::RBM, v::AbstractTensor; β::Real = true)
+    E = energy(rbm.visible, v)::Union{Number, AbstractVector}
+    inputs = inputs_v_to_h(rbm, v)::AbstractArray
+    F = free_energy(rbm.hidden, inputs; β)::Union{Number, AbstractVector}
     return E + F
 end
 

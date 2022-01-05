@@ -51,9 +51,10 @@ const Wts = Union{AbstractVector, Nothing}
 Mean of `x` (over its last dimension), with (optional) weights `wts`,
 dropping the reduced dimension.
 """
-function batch_mean(x::AbstractTensor{N}, wts::AbstractVector) where {N}
-    @assert size(x, N) == length(wts)
-    xmat = reshape(x, :, length(wts))
+function batch_mean(x::AbstractTensor, wts::AbstractVector)
+    @assert ndims(x) ≥ 3
+    @assert size(x) == (Base.front(x)..., length(wts))
+    xmat = reshape(x, :, length(wts))::AbstractMatrix
     xw = batch_mean(xmat, wts)
     return reshape(xw, Base.front(size(x)))
 end
@@ -61,10 +62,14 @@ function batch_mean(x::AbstractMatrix, wts::AbstractVector)
     @assert size(x, 2) == length(wts)
     return x * wts / sum(wts)
 end
-batch_mean(x::AbstractVector, wts::AbstractVector) = dot(x, wts / sum(wts))
-function batch_mean(x::AbstractTensor{N}, ::Nothing = nothing) where {N}
-    xm = mean(x; dims=N)
-    return reshape(xm, Base.front(size(x)))
+batch_mean(x::AbstractVector, wts::AbstractVector) = dot(x, wts / sum(wts))::Number
+batch_mean(x::AbstractVector, ::Nothing) = mean(x)::Number
+function batch_mean(x::AbstractTensor, ::Nothing = nothing) where {N}
+    @assert ndims(x) ≥ 2
+    xm = mean(x; dims=ndims(x))
+    result = reshape(xm, Base.front(size(x)))
+    @assert size(x) == (size(result)..., size(x, ndims(x)))
+    return result
 end
 
 """
@@ -75,16 +80,6 @@ Retruns an iterator over all sequences of length `n` out of the alphabet `A`.
 function generate_sequences(n::Int, A = 0:1)
     return (collect(seq) for seq in Iterators.product(ntuple(Returns(A), n)...))
 end
-
-"""
-    tuplen(Val(N))
-
-Constructs the tuple `(1, 2, ..., N)`.
-"""
-@generated tuplen(::Val{N}) where {N} = ntuple(identity, Val(N))
-tuplen(N) = ntuple(identity, N)
-
-promote_to(x, ys...) = first(promote(x, ys...))
 
 """
     broadlike(A, B...)

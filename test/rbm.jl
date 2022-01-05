@@ -82,7 +82,6 @@ end
     ps = Flux.params(rbm)
     gs = Zygote.gradient(ps) do
         RBMs.contrastive_divergence(rbm, v1, v2)
-        mean(RBMs.free_energy(rbm, v1) - RBMs.free_energy(rbm, v2))
     end
     ∂F = RBMs.∂contrastive_divergence(rbm, v1, v2)
     @test ∂F.visible.θ ≈ gs[rbm.visible.θ]

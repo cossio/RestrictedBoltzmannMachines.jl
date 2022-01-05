@@ -49,12 +49,12 @@ function log_likelihood(rbm::RBM, v::AbstractArray; β::Real = true)
 end
 
 function iterate_states(layer::Binary)
-    itr = generate_sequences(length(layer), 0:1)
+    itr = generate_sequences(length(layer), false:true)
     return map(x -> reshape(x, size(layer)..., 1), itr)
 end
 
 function iterate_states(layer::Spin)
-    itr = generate_sequences(length(layer), (-1,1))
+    itr = generate_sequences(length(layer), (-Int8(1), Int8(1)))
     return map(x -> reshape(x, size(layer)..., 1), itr)
 end
 

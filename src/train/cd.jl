@@ -26,18 +26,18 @@ function cd!(rbm::RBM, data::AbstractArray;
             vm = sample_v_from_v(rbm, _vm; steps = steps)
 
             # compute contrastive divergence gradient
-            gs = Zygote.gradient(ps) do
-                loss = contrastive_divergence(rbm, vd, vm; wd)
-                regu = lossadd(rbm, vd, vm, wd)
-                ChainRulesCore.ignore_derivatives() do
-                    push!(history, :cd_loss, loss)
-                    push!(history, :reg_loss, regu)
-                end
-                return loss + regu
-            end
+            # gs = Zygote.gradient(ps) do
+            #     loss = contrastive_divergence(rbm, vd, vm; wd, wd)
+            #     regu = lossadd(rbm, vd, vm, wd)
+            #     ChainRulesCore.ignore_derivatives() do
+            #         push!(history, :cd_loss, loss)
+            #         push!(history, :reg_loss, regu)
+            #     end
+            #     return loss + regu
+            # end
 
             # update parameters using gradient
-            Flux.update!(optimizer, ps, gs)
+            #Flux.update!(optimizer, ps, gs)
 
             push!(history, :epoch, epoch)
             push!(history, :batch, b)
@@ -63,28 +63,34 @@ Contrastive divergence loss.
 function contrastive_divergence(
     rbm::RBM, vd::AbstractTensor, vm::AbstractTensor; wd::Wts = nothing, wm::Wts = nothing
 )
-    Fd = mean_free_energy(rbm, vd; wts=wd)
-    Fm = mean_free_energy(rbm, vm; wts=wm)
+    Fd = mean_free_energy(rbm, vd; wts=wd)::Number
+    Fm = mean_free_energy(rbm, vm; wts=wm)::Number
     return Fd - Fm
 end
 
 function mean_free_energy(
     rbm::RBM{<:AbstractLayer{N}}, v::AbstractTensor{N}; wts::Nothing = nothing
-)::Real where {N}
-    return free_energy(rbm, v)
+) where {N}
+    check_size(rbm.visible, v)
+    return free_energy(rbm, v)::Number
 end
 
-function mean_free_energy(
-    rbm::RBM, v::AbstractTensor{N}; wts::Wts = nothing
-)::AbstractVector where {N}
-    return batch_mean(free_energy(rbm, v))
+function mean_free_energy(rbm::RBM, v::AbstractTensor; wts::Wts = nothing)
+    check_size(rbm.visible, v)
+    @assert size(v) == (size(rbm.visible)..., size(v)[end])
+    F = free_energy(rbm, v)::AbstractVector
+    @assert isnothing(wts) || length(F) == length(wts)
+    return batch_mean(free_energy(rbm, v), wts)::Number
 end
 
 function ∂contrastive_divergence(
-    rbm::RBM, vd::AbstractTensor, vm::AbstractTensor; wd::Wts = nothing, wm::Wts = nothing
+    rbm::RBM, vd::AbstractTensor, vm::AbstractTensor;
+    wd::Wts = nothing, wm::Wts = nothing,
+    inputs_d = inputs_v_to_h(rbm, vd),
+    inputs_m = inputs_v_to_h(rbm, vm)
 )
-    ∂d = ∂free_energy(rbm, vd; wts = wd)
-    ∂m = ∂free_energy(rbm, vm; wts = wm)
+    ∂d = ∂free_energy(rbm, vd; wts = wd, inputs = inputs_d)
+    ∂m = ∂free_energy(rbm, vm; wts = wm, inputs = inputs_m)
     @assert typeof(∂d) == typeof(∂m)
     return subtract_gradients(∂d, ∂m)
 end
