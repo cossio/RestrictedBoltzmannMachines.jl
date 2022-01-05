@@ -1,5 +1,7 @@
 include("tests_init.jl")
 
+Random.seed!(1)
+
 _layers = (
     RBMs.Binary,
     RBMs.Spin,

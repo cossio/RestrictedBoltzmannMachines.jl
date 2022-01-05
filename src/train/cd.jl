@@ -10,7 +10,6 @@ function cd!(rbm::RBM, data::AbstractArray;
     history::MVHistory = MVHistory(), # stores training log
     lossadd = (_...) -> 0, # regularization
     verbose::Bool = true,
-    ps = Flux.params(rbm),
     wts::Wts = nothing, # data point weights
     steps::Int = 1, # Monte Carlo steps to update fantasy particles
 )
@@ -18,7 +17,7 @@ function cd!(rbm::RBM, data::AbstractArray;
     @assert isnothing(wts) || _nobs(data) == _nobs(wts)
 
     for epoch in 1:epochs
-        batches = minibatches(data, weights; batchsize = batchsize)
+        batches = minibatches(data, wts; batchsize = batchsize)
         Δt = @elapsed for (b, (vd, wd)) in enumerate(batches)
             # fantasy chains
             _idx = rand(1:_nobs(data), batchsize)
@@ -26,8 +25,9 @@ function cd!(rbm::RBM, data::AbstractArray;
             vm = sample_v_from_v(rbm, _vm; steps = steps)
 
             # compute contrastive divergence gradient
+            # ps = Flux.params(rbm)
             # gs = Zygote.gradient(ps) do
-            #     loss = contrastive_divergence(rbm, vd, vm; wd, wd)
+            #     loss = contrastive_divergence(rbm, vd, vm; wd = wd, wm = wd)
             #     regu = lossadd(rbm, vd, vm, wd)
             #     ChainRulesCore.ignore_derivatives() do
             #         push!(history, :cd_loss, loss)
@@ -39,11 +39,14 @@ function cd!(rbm::RBM, data::AbstractArray;
             # update parameters using gradient
             #Flux.update!(optimizer, ps, gs)
 
+            ∂ = ∂contrastive_divergence(rbm, vd, vm; wd = wd, wm = wd)
+            update!(optimizer, rbm, ∂)
+
             push!(history, :epoch, epoch)
             push!(history, :batch, b)
         end
 
-        lpl = batch_mean(log_pseudolikelihood(rbm, data), weights)
+        lpl = batch_mean(log_pseudolikelihood(rbm, data), wts)
         push!(history, :lpl, lpl)
         if verbose
             Δt_ = round(Δt, digits=2)
@@ -98,13 +101,14 @@ end
 subtract_gradients(∂1::N, ∂2::N) where {N<:NamedTuple} = map(subtract_gradients, ∂1, ∂2)
 subtract_gradients(∂1::A, ∂2::A) where {A<:AbstractTensor} = ∂1 - ∂2
 
-function update!(rbm::RBM, ∂, optimizer)
+# update! mimics Flux.update!
+function update!(optimizer, rbm::RBM, ∂::NamedTuple)
     Flux.update!(optimizer, rbm.w, ∂.w)
-    update!(rbm.visible, ∂.visible, optimizer)
-    update!(rbm.hidden, ∂.hidden, optimizer)
+    update!(optimizer, rbm.visible, ∂.visible)
+    update!(optimizer, rbm.hidden, ∂.hidden)
 end
 
-function update!(layer::AbstractLayer, ∂, optimizer)
+function update!(optimizer, layer::AbstractLayer, ∂::NamedTuple)
     for (k, g) in pairs(∂)
         Flux.update!(getproperty(layer, k), g, optimizer)
     end
