@@ -52,12 +52,12 @@ function train_norm!(rbm::RBM, data::AbstractArray;
                 contrastive_divergence(rbm, vd, vm; wd)
             end
 
-            norm_v = reshape(sqrt.(sum(abs2, weights_v; dims=1:ndims(rbm.visible))), 1, length(rbm.hidden))
-            ∂g = reshape(gs[weights_g], 1, length(rbm.hidden))
-            ∂v = reshape(gs[weights_v], length(rbm.visible), length(rbm.hidden))
+            norm_v = reshape(sqrt.(sum(abs2, w_v; dims=1:ndims(rbm.visible))), 1, length(rbm.hidden))
+            ∂g = reshape(gs[w_g], 1, length(rbm.hidden))
+            ∂v = reshape(gs[w_v], length(rbm.visible), length(rbm.hidden))
             ∂w = reshape(gs_0[rbm.w], length(rbm.visible), length(rbm.hidden))
-            v_mat = reshape(weights_v, length(rbm.visible), length(rbm.hidden))
-            g_vec = reshape(weights_g, 1, length(rbm.hidden))
+            v_mat = reshape(w_v, length(rbm.visible), length(rbm.hidden))
+            g_vec = reshape(w_g, 1, length(rbm.hidden))
             @assert ∂g ≈ sum(v_mat .* ∂w ./ norm_v; dims=1)
             @assert ∂v ≈ g_vec .* ∂w ./ norm_v - g_vec .* ∂g .* v_mat ./ norm_v.^2
 
@@ -65,8 +65,8 @@ function train_norm!(rbm::RBM, data::AbstractArray;
             Flux.update!(optimizer, ps, gs)
 
             # update RBM weights
-            norm_v = sqrt.(sum(abs2, weights_v; dims=1:ndims(rbm.visible)))
-            rbm.w .= weights_g .* w_v ./ norm_v
+            norm_v = sqrt.(sum(abs2, w_v; dims=1:ndims(rbm.visible)))
+            rbm.w .= w_g .* w_v ./ norm_v
 
             push!(history, :epoch, epoch)
             push!(history, :batch, b)
