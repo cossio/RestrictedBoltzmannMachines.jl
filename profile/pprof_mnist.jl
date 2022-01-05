@@ -9,7 +9,7 @@ train_x, train_y = MLDatasets.MNIST.traindata();
 tests_x, tests_y = MLDatasets.MNIST.testdata();
 
 # floating type we will use
-Float = Float64
+Float = Float32
 
 # since we train a binary RBM, we binarize the data first
 train_x = Array{Float}(train_x .≥ 0.5);
