@@ -60,3 +60,33 @@ function ∂free_energy(layer::AbstractLayer, inputs::AbstractTensor; wts::Wts =
         ∂ω
     end
 end
+
+∂w_flat(v::AbstractVector, h::AbstractVector, wts::Nothing = nothing) = -v * h'
+
+function ∂w_flat(v::AbstractMatrix, h::AbstractMatrix, wts::Nothing = nothing)
+    @assert size(v, 2) == size(h, 2)
+    return -v * h' / size(v, 2)
+end
+
+function ∂w_flat(v::AbstractMatrix, h::AbstractMatrix, wts::AbstractVector)
+    @assert size(v, 2) == size(h, 2) == length(wts)
+    return -v * Diagonal(wts) * h' / size(v, 2)
+end
+
+function ∂free_energy(
+    rbm::RBM, v::AbstractTensor;
+    inputs::AbstractArray = inputs_v_to_h(rbm, v), wts::Wts = nothing
+)
+    check_size(rbm, v, inputs)
+    h = transfer_mean(rbm.hidden, inputs)
+    ∂v = ∂energy(rbm.visible, v; wts)
+    ∂h = ∂free_energy(rbm.hidden, inputs; wts)
+
+    check_size(rbm, v, h)
+    v_ = flatten(rbm.visible, v)
+    h_ = flatten(rbm.hidden, h)
+    ∂w = ∂w_flat(v_, h_, wts)
+    @assert size(∂w) == (length(rbm.visible), length(rbm.hidden))
+
+    return (visible = ∂v, hidden = ∂h, w = reshape(∂w, size(rbm.w)))
+end

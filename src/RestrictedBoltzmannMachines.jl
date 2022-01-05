@@ -7,6 +7,7 @@ module RestrictedBoltzmannMachines
     include("util.jl")
     include("minibatches.jl")
     include("onehot.jl")
+    include("linalg.jl")
 
     include("trunc_norm/truncnorm.jl")
     include("trunc_norm/rejection.jl")
@@ -21,9 +22,14 @@ module RestrictedBoltzmannMachines
     include("layers/prelu.jl")
     include("layers/xrelu.jl")
     include("layers/common.jl")
-    include("layers/gradient.jl")
 
     include("rbm.jl")
+
+    include("zerosum.jl")
+    include("gradient.jl")
+    include("pseudolikelihood.jl")
+    include("partition.jl")
+    include("ais.jl")
 
     include("train/initialization.jl")
     include("train/cd.jl")
@@ -33,11 +39,4 @@ module RestrictedBoltzmannMachines
     include("train/cd_norm.jl")
     include("train/optim.jl")
     include("train/regularize.jl")
-
-    include("zerosum.jl")
-
-    include("pseudolikelihood.jl")
-    include("partition.jl")
-
-    include("linalg.jl")
 end
