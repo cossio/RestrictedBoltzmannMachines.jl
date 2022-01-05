@@ -98,10 +98,3 @@ end
     @test RBMs.broadlike(A) == A
     @test RBMs.broadlike(A, 1) == A
 end
-
-@testset "maybe_scalar" begin
-    RBMs.maybe_scalar(1) == 1
-    RBMs.maybe_scalar(fill(1)) == 1
-    RBMs.maybe_scalar(I(2)) == I(2)
-    RBMs.maybe_scalar([1; 2]) == [1; 2]
-end

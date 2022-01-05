@@ -62,9 +62,9 @@ function flat_interaction_energy(w::AbstractMatrix, v::AbstractMatrix, h::Abstra
     @assert size(w) == (size(v, 1), size(h, 1))
     @assert size(v, 2) == size(h, 2) # batch size
     if size(v, 1) ≥ size(h, 1)
-        E = -sum_((w' * v) .* h; dims=1)
+        E = -dropdims(sum((w' * v) .* h; dims=1); dims=1)
     else
-        E = -sum_(v .* (w * h); dims=1)
+        E = -dropdims(sum(v .* (w * h); dims=1); dims=1)
     end
     @assert length(E) == size(v, 2) == size(h, 2)
     return E::AbstractVector

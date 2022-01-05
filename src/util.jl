@@ -1,15 +1,9 @@
+# allows me to write AbstractTensor{N} instead of AbstractArray{<:Any,N}
+const AbstractTensor{N,T} = AbstractArray{T,N}
+
 # convenience functions to get generic Inf and NaN
 inf(::Union{Type{T}, T}) where {T} = convert(T, Inf)
 two(::Union{Type{T}, T}) where {T} = convert(T, 2)
-
-"""
-    maybe_scalar(x)
-
-Converts zero-dimensional arrays to scalars, otherwise returns its argument.
-"""
-maybe_scalar(x::AbstractArray{<:Number,0}) = only(x)
-maybe_scalar(x::AbstractArray{<:Number}) = x
-maybe_scalar(x::Number) = x
 
 """
     sum_(A; dims)
