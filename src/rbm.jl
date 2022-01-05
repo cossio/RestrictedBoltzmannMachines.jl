@@ -242,8 +242,14 @@ end
 Stochastic reconstruction error of `v`.
 """
 function reconstruction_error(rbm::RBM, v::AbstractTensor; β::Real = true, steps::Int = 1)
+    check_size(rbm.visible, v)
     v_ = sample_v_from_v(rbm, v; β, steps)
-    return mean_(abs.(v .- v_); dims = layerdims(rbm.visible))
+    ϵ = mean(abs.(v .- v_); dims = 1:ndims(rbm.visible))
+    if ndims(v) == ndims(rbm.visible)
+        return only(ϵ)
+    else
+        return reshape(ϵ, size(v)[end])
+    end
 end
 
 """
