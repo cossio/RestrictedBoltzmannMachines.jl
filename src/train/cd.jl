@@ -58,7 +58,7 @@ function cd!(rbm::RBM, data::AbstractArray;
 end
 
 """
-    contrastive_divergence(rbm, vd, vm, wd = 1)
+    contrastive_divergence(rbm, vd, vm; wd = 1, wm = 1)
 
 Contrastive divergence loss.
 `vd` is a data sample, and `vm` are samples from the model.
@@ -98,7 +98,7 @@ function ∂contrastive_divergence(
 end
 
 subtract_gradients(∂1::NamedTuple, ∂2::NamedTuple) = map(subtract_gradients, ∂1, ∂2)
-subtract_gradients(∂1::A, ∂2::A) where {A<:AbstractTensor} = ∂1 - ∂2
+subtract_gradients(∂1::AbstractTensor{N}, ∂2::AbstractTensor{N}) where {N} = ∂1 - ∂2
 
 # update! mimics Flux.update!
 function update!(optimizer, rbm::RBM, ∂::NamedTuple)
