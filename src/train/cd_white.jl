@@ -6,7 +6,7 @@ Trains the RBM on data.
 function train_white!(rbm::RBM{<:Binary, <:Binary}, data::AbstractArray;
     batchsize = 1,
     epochs = 1,
-    optimizer = Flux.ADAM(), # optimizer algorithm
+    optimizer = ADAM(), # optimizer algorithm
     history::MVHistory = MVHistory(), # stores training log
     verbose::Bool = true,
     wts::Wts = nothing, # data point weights

@@ -17,17 +17,16 @@ function effective(layer::Binary, inputs::AbstractTensor; β::Real = true)
 end
 
 free_energies(layer::Binary) = -LogExpFunctions.log1pexp.(layer.θ)
-
-function transfer_sample(layer::Binary)
-    u = rand(eltype(layer.θ), size(layer))
-    return map(binary_rand, layer.θ, u)
-end
-
 transfer_mode(layer::Binary) = map(binary_mode, layer.θ)
 transfer_mean(layer::Binary) = LogExpFunctions.logistic.(layer.θ)
 transfer_mean_abs(layer::Binary) = transfer_mean(layer)
 transfer_var(layer::Binary) = binary_var.(layer.θ)
 transfer_std(layer::Binary) = binary_std.(layer.θ)
+
+function transfer_sample(layer::Binary)
+    u = rand(eltype(layer.θ), size(layer))
+    return map(binary_rand, layer.θ, u)
+end
 
 ∂free_energy(layer::Binary) = (; θ = -transfer_mean(layer))
 
@@ -53,11 +52,10 @@ end
 
 function binary_rand(θ::Real, u::Real)
     @assert !isnan(θ) && !isnan(u)
+    t = exp(-abs(θ))
     if θ ≥ 0
-        t = exp(-θ)
         return u * (1 + t) < 1
     else
-        t = exp(θ)
         return u * (1 + t) < t
     end
 end

@@ -8,7 +8,7 @@ https://proceedings.neurips.cc/paper/2016/hash/ed265bc903a5a097f61d3ec064d96d2e-
 function train_norm!(rbm::RBM, data::AbstractArray;
     batchsize = 1,
     epochs = 1,
-    optimizer = Flux.ADAM(), # optimizer algorithm
+    optimizer = ADAM(), # optimizer algorithm
     history::MVHistory = MVHistory(), # stores training log
     lossadd = (_...) -> 0, # regularization
     verbose::Bool = true,
