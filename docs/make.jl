@@ -53,9 +53,9 @@ makedocs(
             "lr-decay" => "literate/lr_decay.md",
             "MKL" => "literate/mkl.md",
             "Layers" => [
-                "Gaussian layer" => "literate/gauss.md",
-                "ReLU layer" => "literate/relu.md",
-                "dReLU layer" => "literate/drelu.md",
+                "Gaussian layer" => "literate/layers/gauss.md",
+                "ReLU layer" => "literate/layers/relu.md",
+                "dReLU layer" => "literate/layers/drelu.md",
             ]
         ],
         "Reference" => "reference.md"
