@@ -9,7 +9,7 @@ with `exact = false` coincide with the deterministic result, and the estimate is
 precise as the number of samples increases.
 """
 function log_pseudolikelihood(rbm::RBM, v::AbstractArray; β::Real=true, exact::Bool=false)
-    @assert size(v) == (size(rbm.visible)..., size(v)[end])
+    check_size(rbm.visible, v)
     if exact
         return log_pseudolikelihood_exact(rbm, v; β = β)
     else
@@ -18,14 +18,14 @@ function log_pseudolikelihood(rbm::RBM, v::AbstractArray; β::Real=true, exact::
 end
 
 """
-    log_pseudolikelihood_stoch(rbm, v; β=1)
+    log_pseudolikelihood_stoch(rbm, v; β = 1)
 
 Log-pseudolikelihood of `v`. This function computes an stochastic approximation, by doing
 a trace over random sites for each sample. For large number of samples, this is in average
 close to the exact value of the pseudolikelihood.
 """
-function log_pseudolikelihood_stoch(rbm::RBM, v::AbstractArray; β::Real = true)
-    @assert size(v) == (size(rbm.visible)..., size(v)[end])
+function log_pseudolikelihood_stoch(rbm::RBM, v::AbstractArray; β::Real=true)
+    check_size(rbm.visible, v)
     all_sites = site_grid(rbm.visible)
     sites = [rand(all_sites) for _ in 1:size(v)[end]]
     return log_pseudolikelihood_sites(rbm, v, sites; β = β)
@@ -35,7 +35,7 @@ site_grid(layer::Potts) = CartesianIndices(size(layer)[2:end])
 site_grid(layer) = CartesianIndices(size(layer))
 
 """
-    log_pseudolikelihood_sites(rbm, v, sites; β=1)
+    log_pseudolikelihood_sites(rbm, v, sites; β = 1)
 
 Log-pseudolikelihood of a site conditioned on the other sites, where `sites`
 is an array of site indices (CartesianIndex), one for each sample.
@@ -45,7 +45,7 @@ function log_pseudolikelihood_sites(
     rbm::RBM,
     v::AbstractArray,
     sites::AbstractVector{<:CartesianIndex};
-    β::Real = true
+    β::Real=true
 )
     @assert size(v) == (size(rbm.visible)..., length(sites))
     ΔE = substitution_matrix_sites(rbm, v, sites; β = β)
@@ -62,7 +62,7 @@ Log-pseudolikelihood of `v`. This function computes the exact pseudolikelihood, 
 traces over all sites. Note that this can be slow for large number of samples.
 """
 function log_pseudolikelihood_exact(rbm::RBM, v::AbstractArray; β::Real = true)
-    @assert size(v) == (size(rbm.visible)..., size(v)[end])
+    check_size(rbm.visible, v)
     ΔE = substitution_matrix_exhaustive(rbm, v; β = β)
     @assert size(ΔE)[end] == size(v)[end]
     lPLsites = -LogExpFunctions.logsumexp(-β * ΔE; dims=1)
@@ -86,7 +86,7 @@ function substitution_matrix_sites end
 
 function substitution_matrix_sites(
     rbm::RBM{<:Binary},
-    v::AbstractArray,
+    v::AbstractTensor,
     sites::AbstractVector{<:CartesianIndex};
     β::Real = true
 )

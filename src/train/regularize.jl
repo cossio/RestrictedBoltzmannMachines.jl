@@ -1,14 +1,14 @@
 """
     L1L2(rbm)
 
-L1/L2 squared norm of `rbm.weights`.
+L1/L2 squared norm of `rbm.w`.
 Visible unit dimensions are reduced with L1 norm, while
 hidden unit dimensions are reduced with L2 norm.
 Note that no square root is taken.
 """
 function L1L2(rbm::RBM)
     dims = ntuple(identity, ndims(rbm.visible))
-    L1 = mean(abs, rbm.weights; dims=dims)
+    L1 = mean(abs, rbm.w; dims=dims)
     L2 = mean(abs2, L1)
     return L2
 end

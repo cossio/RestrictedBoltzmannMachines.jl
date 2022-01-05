@@ -10,33 +10,41 @@ E = -\sum_i \theta_i s_i
 
 where each spin ``s_i`` takes values ``\pm 1``.
 """
-struct Spin{T}
-    θ::T
+struct Spin{N, T, A <: AbstractArray{T,N}} <: AbstractLayer{N}
+    θ::A
 end
 Spin(::Type{T}, n::Int...) where {T} = Spin(zeros(T, n...))
 Spin(n::Int...) = Spin(Float64, n...)
 
 Flux.@functor Spin
 
-free_energies(layer::Spin) = @. spin_free.(layer.θ)
-
-function transfer_sample(layer::Spin)
-    u = rand(eltype(layer.θ), size(layer.θ))
-    return ifelse.(u .* (1 .+ exp.(-2layer.θ)) .< 1, Int8(1), Int8(-1))
+function effective(layer::Spin, inputs::AbstractTensor; β::Real = true)
+    check_size(layer, inputs)
+    return Spin(β * (layer.θ .+ inputs))
 end
 
+free_energies(layer::Spin) = spin_free.(layer.θ)
 transfer_mode(layer::Spin) = ifelse.(layer.θ .> 0, Int8(1), Int8(-1))
 transfer_mean(layer::Spin) = tanh.(layer.θ)
 transfer_mean_abs(layer::Spin) = FillArrays.Ones{Int8}(size(layer))
-effective(layer::Spin, inputs; β::Real = 1) = Spin(β * (layer.θ .+ inputs))
+transfer_std(layer::Spin) = sqrt.(transfer_var(layer))
 
 function transfer_var(layer::Spin)
     μ = transfer_mean(layer)
     return @. (1 - μ) * (1 + μ)
 end
 
+function transfer_sample(layer::Spin)
+    u = rand(eltype(layer.θ), size(layer.θ))
+    return ifelse.(u .* (1 .+ exp.(-2layer.θ)) .< 1, Int8(1), Int8(-1))
+end
+
 ∂free_energy(layer::Spin) = (; θ = -transfer_mean(layer))
-∂energies(::Spin, x::AbstractArray) = (; θ = -x)
+
+function ∂energies(layer::Spin, x::AbstractTensor)
+    check_size(layer, x)
+    return (; θ = -x)
+end
 
 function spin_free(θ::Real)
     abs_θ = abs(θ)

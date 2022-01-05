@@ -38,8 +38,8 @@ end
     @test Inf32 === @inferred RBMs.inf(1f0)
 end
 
-@testset "weighted_mean" begin
-    @test RBMs.weighted_mean([1,2,3,4], [1,1,2,2]) ≈ (1 + 2 + 2 * (3 + 4))/(1 + 1 + 2 + 2)
+@testset "batch_mean" begin
+    @test RBMs.batch_mean([1,2,3,4], [1,1,2,2]) ≈ (1 + 2 + 2 * (3 + 4))/(1 + 1 + 2 + 2)
 end
 
 @testset "generate_sequences" begin

@@ -25,26 +25,26 @@ function initialize!(rbm::RBM, data::AbstractArray; ϵ::Real = 1e-6)
     return rbm
 end
 
-function initialize!(layer::Binary, data::AbstractArray; ϵ::Real = 1e-6)
-    @assert size(data) == (size(layer)..., size(data)[end])
+function initialize!(layer::Binary, data::AbstractTensor{N}; ϵ::Real = 1e-6) where {N}
+    @assert size(data) == (size(layer)..., size(data, N))
     @assert 0 < ϵ < 1/2
-    μ = mean_(data; dims = ndims(data))
+    μ = batch_mean(data)
     μϵ = clamp.(μ, ϵ, 1 - ϵ)
     @. layer.θ = -log(1/μϵ - 1)
     return layer
 end
 
-function initialize!(layer::Spin, data::AbstractArray; ϵ::Real = 1e-6)
-    @assert size(data) == (size(layer)..., size(data)[end])
+function initialize!(layer::Spin, data::AbstractTensor{N}; ϵ::Real = 1e-6) where {N}
+    @assert size(data) == (size(layer)..., size(data, N))
     @assert 0 < ϵ < 1/2
-    μ = mean_(data; dims = ndims(data))
+    μ = batch_mean(data)
     μϵ = clamp.(μ, ϵ - 1, 1 - ϵ)
     layer.θ .= atanh.(μϵ)
     return layer
 end
 
-function initialize!(layer::Potts, data::AbstractArray; ϵ::Real = 1e-6)
-    @assert size(data) == (size(layer)..., size(data)[end])
+function initialize!(layer::Potts, data::AbstractTensor{N}; ϵ::Real = 1e-6) where {N}
+    @assert size(data) == (size(layer)..., size(data, N))
     @assert 0 < ϵ < 1/2
     μ = mean_(data; dims=ndims(data))
     μϵ = clamp.(μ, ϵ, 1 - ϵ)
@@ -52,8 +52,8 @@ function initialize!(layer::Potts, data::AbstractArray; ϵ::Real = 1e-6)
     return layer # does not do zerosum!
 end
 
-function initialize!(layer::Gaussian, data::AbstractArray; ϵ::Real = 1e-6)
-    @assert size(data) == (size(layer)..., size(data)[end])
+function initialize!(layer::Gaussian, data::AbstractArray; ϵ::Real = 1e-6) where {N}
+    @assert size(data) == (size(layer)..., size(data, N))
     @assert 0 < ϵ < 1/2
     μ = mean_(data; dims=ndims(data))
     ν = var_(data; dims=ndims(data))
@@ -85,15 +85,31 @@ function initialize!(layer::pReLU)
     return layer
 end
 
+function initialize!(layer::xReLU)
+    layer.θ .= layer.Δ .= layer.ξ .= 0
+    layer.γ .= 1
+    return layer
+end
+
 """
     initialize_weights!(rbm, data; λ = 0.1)
 
 Initializes RBM weights such that typical inputs to hidden units are λ.
 """
-function initialize_weights!(rbm::RBM, data::AbstractArray; λ::Real = 0.1)
-    @assert size(data) == (size(rbm.visible)..., size(data)[end])
-    d = dot(data, data) / size(data)[end]
-    randn!(rbm.weights)
-    rbm.weights .*= λ / √d
+function initialize_weights!(
+    rbm::RBM, data::AbstractTensor{N};
+    λ::Real = 0.1, ϵ::Real = 1e-6
+) where {N}
+    @assert size(data) == (size(rbm.visible)..., size(data, N))
+    d = dot(data, data) / size(data, ndims(rbm.visible) + 1)
+    randn!(rbm.w)
+    rbm.w .*= λ / √(d + ϵ)
     return rbm # does not impose zerosum
+end
+
+function initialize_weights!(rbm::RBM; λ::Real = 0.1, ϵ::Real = 1e-6)
+    d = sum(transfer_var(rbm.visible) .+ transfer_mean(rbm.visible).^2)
+    randn!(rbm.w)
+    rbm.w .*= λ / √(d + ϵ)
+    return rbm
 end

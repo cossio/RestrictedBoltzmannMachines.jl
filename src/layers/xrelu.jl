@@ -1,11 +1,11 @@
-struct xReLU{A<:AbstractArray}
+struct xReLU{N, T, A <: AbstractArray{T,N}} <: AbstractLayer{N}
     θ::A
     γ::A
     Δ::A
     ξ::A
     function xReLU(θ::A, γ::A, Δ::A, ξ::A) where {A<:AbstractArray}
         @assert size(θ) == size(γ) == size(Δ) == size(ξ)
-        return new{A}(θ, γ, Δ, ξ)
+        return new{ndims(A), eltype(A), A}(θ, γ, Δ, ξ)
     end
 end
 
@@ -21,19 +21,22 @@ xReLU(n::Int...) = xReLU(Float64, n...)
 
 Flux.@functor xReLU
 
-function energies(layer::xReLU, x::AbstractArray)
-    energies(dReLU(layer), x)
+function effective(layer::xReLU, inputs::AbstractTensor; β::Real = true)
+    check_size(layer, inputs)
+    θ = β * (layer.θ .+ inputs)
+    γ = β * broadlike(layer.γ, inputs)
+    Δ = β * broadlike(layer.Δ, inputs)
+    ξ = broadlike(layer.ξ, inputs)
+    return xReLU(promote(θ, γ, Δ, ξ)...)
 end
 
+energies(layer::xReLU, x::AbstractArray) = energies(dReLU(layer), x)
 free_energies(layer::xReLU) = free_energies(dReLU(layer))
-
-function transfer_sample(layer::xReLU)
-    return transfer_sample(dReLU(layer))
-end
-
+transfer_sample(layer::xReLU) = transfer_sample(dReLU(layer))
 transfer_mode(layer::xReLU) = transfer_mode(dReLU(layer))
 transfer_mean(layer::xReLU) = transfer_mean(dReLU(layer))
 transfer_var(layer::xReLU) = transfer_var(dReLU(layer))
+transfer_std(layer::xReLU) = sqrt.(transfer_var(layer))
 transfer_mean_abs(layer::xReLU) = transfer_mean_abs(dReLU(layer))
 
 function ∂free_energy(layer::xReLU)
@@ -64,8 +67,8 @@ function ∂free_energy(layer::xReLU)
     return (θ = ∂θ, γ = ∂γ, Δ = ∂Δ, ξ = ∂ξ)
 end
 
-function ∂energies(layer::xReLU, x::AbstractArray)
-    @assert size(x) == (size(layer)..., size(x)[end])
+function ∂energies(layer::xReLU, x::AbstractTensor)
+    check_size(layer, x)
 
     xp = max.(x, 0)
     xn = min.(x, 0)
@@ -80,12 +83,4 @@ function ∂energies(layer::xReLU, x::AbstractArray)
         ( layer.γ/2 * xn^2 + layer.Δ * xn) / (1 - layer.ξ + abs(layer.ξ))^2
     )
     return (θ = ∂θ, γ = ∂γ, Δ = ∂Δ, ξ = ∂ξ)
-end
-
-function effective(layer::xReLU, inputs; β::Real = true)
-    θ = β * (layer.θ .+ inputs)
-    γ = β * broadlike(layer.γ, inputs)
-    Δ = β * broadlike(layer.Δ, inputs)
-    ξ = broadlike(layer.ξ, inputs)
-    return xReLU(promote(θ, γ, Δ, ξ)...)
 end

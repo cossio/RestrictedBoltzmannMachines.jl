@@ -23,9 +23,9 @@ include("tests_init.jl")
     @test RBMs.flat_interaction_energy(w, v, h) ≈ RBMs.flat_interaction_energy(w', h, v)
 end
 
-@testset "RBM" begin
+@testset "Binary-Binary RBM" begin
     rbm = RBMs.RBM(RBMs.Binary(5, 2), RBMs.Binary(4, 3), randn(5, 2, 4, 3))
-    randn!(rbm.weights)
+    randn!(rbm.w)
     randn!(rbm.visible.θ)
     randn!(rbm.hidden.θ)
 
@@ -34,7 +34,7 @@ end
     @test size(@inferred RBMs.interaction_energy(rbm, v, h)) == (7,)
     @test size(@inferred RBMs.energy(rbm, v, h)) == (7,)
 
-    Ew = -[sum(v[i,j,b] * rbm.weights[i,j,μ,ν] * h[μ,ν,b] for i=1:5, j=1:2, μ=1:4, ν=1:3) for b=1:7]
+    Ew = -[sum(v[i,j,b] * rbm.w[i,j,μ,ν] * h[μ,ν,b] for i=1:5, j=1:2, μ=1:4, ν=1:3) for b=1:7]
     @test RBMs.interaction_energy(rbm, v, h) ≈ Ew
     @test RBMs.energy(rbm, v, h) ≈ RBMs.energy(rbm.visible, v) + RBMs.energy(rbm.hidden, h) + Ew
 
@@ -47,6 +47,27 @@ end
     @test size(@inferred RBMs.reconstruction_error(rbm, v)) == (7,)
 
     @inferred RBMs.flip_layers(rbm)
+
+    ps = Flux.params(rbm)
+    gs = Zygote.gradient(ps) do
+        mean(RBMs.free_energy(rbm, v))
+    end
+    ∂F = RBMs.∂free_energy(rbm, v)
+    @test ∂F.visible.θ ≈ gs[rbm.visible.θ]
+    @test ∂F.hidden.θ ≈ gs[rbm.hidden.θ]
+    @test ∂F.w ≈ gs[rbm.w]
+
+    v1 = rand(Bool, size(rbm.visible)..., 7)
+    v2 = rand(Bool, size(rbm.visible)..., 7)
+    ps = Flux.params(rbm)
+    gs = Zygote.gradient(ps) do
+        RBMs.contrastive_divergence(rbm, v1, v2)
+        mean(RBMs.free_energy(rbm, v1) - RBMs.free_energy(rbm, v2))
+    end
+    ∂F = RBMs.∂contrastive_divergence(rbm, v1, v2)
+    @test ∂F.visible.θ ≈ gs[rbm.visible.θ]
+    @test ∂F.hidden.θ ≈ gs[rbm.hidden.θ]
+    @test ∂F.w ≈ gs[rbm.w]
 end
 
 @testset "Gaussian-Gaussian RBM, 1-dimension" begin
@@ -57,8 +78,8 @@ end
     )
 
     @assert isposdef([
-        rbm.visible.γ -rbm.weights;
-        -rbm.weights'  rbm.hidden.γ
+        rbm.visible.γ -rbm.w;
+        -rbm.w'  rbm.hidden.γ
     ])
 
     @test RBMs.log_partition(rbm; β = 1) ≈ RBMs.log_partition(rbm)
@@ -77,7 +98,8 @@ end
     rbm = RBMs.RBM(
         RBMs.Gaussian(randn(n...), rand(n...) .+ 0.5),
         RBMs.Gaussian(randn(m...), rand(m...) .+ 0.5),
-        randn(n..., m...) / (10 * prod(n) * prod(m)))
+        randn(n..., m...) / (10 * prod(n) * prod(m))
+    )
 
     N = length(rbm.visible)
     M = length(rbm.hidden)
@@ -88,7 +110,7 @@ end
     ]
     γv = vec(rbm.visible.γ)
     γh = vec(rbm.hidden.γ)
-    w = reshape(rbm.weights, length(rbm.visible), length(rbm.hidden))
+    w = reshape(rbm.w, length(rbm.visible), length(rbm.hidden))
     A = [diagm(γv) -w;
          -w'  diagm(γh)]
 
@@ -124,7 +146,7 @@ end
     ∂θh = vec(gs[rbm.hidden.θ])
     ∂γv = vec(gs[rbm.visible.γ])
     ∂γh = vec(gs[rbm.hidden.γ])
-    ∂w = reshape(gs[rbm.weights], length(rbm.visible), length(rbm.hidden))
+    ∂w = reshape(gs[rbm.w], length(rbm.visible), length(rbm.hidden))
 
     Σ = inv(A) # covariances
     μ = Σ * θ  # means

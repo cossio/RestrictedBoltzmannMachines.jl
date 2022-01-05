@@ -9,7 +9,7 @@ Potts layer, with external fields `θ`.
 Encodes categorical variables as one-hot vectors.
 The number of classes is the size of the first dimension.
 """
-struct Potts{A<:AbstractArray}
+struct Potts{N, T, A <: AbstractArray{T,N}} <: AbstractLayer{N}
     θ::A
 end
 Potts(::Type{T}, q::Int, n::Int...) where {T} = Potts(zeros(T, q, n...))
@@ -27,15 +27,15 @@ function Base.getproperty(layer::Potts, name::Symbol)
     end
 end
 
-free_energies(layer::Potts) = -LogExpFunctions.logsumexp(layer.θ; dims = 1)
-
-function transfer_sample(layer::Potts)
-    c = categorical_sample_from_logits(layer.θ)
-    return onehot_encode(c, 1:layer.q)
+function effective(layer::Potts, inputs::AbstractTensor; β::Real = true)
+    check_size(layer, inputs)
+    return Potts(β * (layer.θ .+ inputs))
 end
 
+free_energies(layer::Potts) = -LogExpFunctions.logsumexp(layer.θ; dims=1)
 transfer_mean(layer::Potts) = LogExpFunctions.softmax(layer.θ; dims=1)
 transfer_mean_abs(layer::Potts) = transfer_mean(layer)
+transfer_std(layer::Potts) = sqrt.(transfer_var(layer))
 
 function transfer_var(layer::Potts)
     p = transfer_mean(layer)
@@ -46,6 +46,14 @@ function transfer_mode(layer::Potts)
     return layer.θ .== maximum(layer.θ; dims=1)
 end
 
+function transfer_sample(layer::Potts)
+    c = categorical_sample_from_logits(layer.θ)
+    return onehot_encode(c, 1:layer.q)
+end
+
 ∂free_energy(layer::Potts) = (; θ = -transfer_mean(layer))
-∂energies(::Potts, x::AbstractArray) = (; θ = -x)
-effective(layer::Potts, inputs; β::Real = 1) = Potts(β * (layer.θ .+ inputs))
+
+function ∂energies(layer::Potts, x::AbstractTensor)
+    check_size(layer, x)
+    return (; θ = -x)
+end

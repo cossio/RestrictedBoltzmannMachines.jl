@@ -16,13 +16,13 @@ _zerosum_hidden!(rbm::RBM)  = rbm
 
 function _zerosum_visible!(rbm::RBM{<:Potts, <:Any})
     zerosum!(rbm.visible)
-    zerosum!(rbm.weights; dims = 1)
+    zerosum!(rbm.w; dims = 1)
     return nothing
 end
 
 function _zerosum_hidden!(rbm::RBM{<:Any, <:Potts})
     zerosum!(rbm.hidden)
-    zerosum!(rbm.weights; dims = 1 + ndims(rbm.visible))
+    zerosum!(rbm.w; dims = 1 + ndims(rbm.visible))
     return nothing
 end
 

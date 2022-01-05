@@ -70,6 +70,7 @@ end
     samples = RBMs.transfer_sample(layer, zeros(size(layer)..., 10^6))
     @test RBMs.transfer_mean(layer) ≈ RBMs.mean_(samples; dims=ndims(samples)) rtol=0.1
     @test RBMs.transfer_var(layer) ≈ RBMs.var_(samples;  dims=ndims(samples)) rtol=0.1
+    @test RBMs.transfer_std(layer) ≈ sqrt.(RBMs.transfer_var(layer))
     @test RBMs.transfer_mean_abs(layer) ≈ RBMs.mean_(abs.(samples); dims=ndims(samples)) rtol=0.1
     @test all(RBMs.energy(layer, RBMs.transfer_mode(layer)) .≤ RBMs.energy(layer, samples))
 
@@ -79,6 +80,21 @@ end
     @test typeof(∂F) == typeof(∂E)
     for (∂f, ∂e) in zip(∂F, ∂E)
         @test ∂f ≈ ∂e rtol=0.1
+    end
+
+    gs = Zygote.gradient(Flux.params(layer)) do
+        sum(RBMs.energies(layer, samples)) / size(samples)[end]
+    end
+    for (ω, ∂ω) in pairs(∂E)
+        @test ∂ω ≈ gs[getproperty(layer, ω)]
+    end
+
+    ∂F = RBMs.∂free_energy(layer)
+    gs = Zygote.gradient(Flux.params(layer)) do
+        sum(RBMs.free_energies(layer))
+    end
+    for (ω, ∂ω) in pairs(∂F)
+        @test ∂ω ≈ gs[getproperty(layer, ω)]
     end
 end
 
@@ -130,6 +146,7 @@ end
     N = (4, 5)
     layer = RBMs.Potts(randn(q, N...))
     @test RBMs.free_energies(layer) ≈ -log.(sum(exp.(layer.θ[h:h,:,:,:]) for h in 1:q))
+    @test all(sum(RBMs.transfer_mean(layer); dims=1) .≈ 1)
     # samples are proper one-hot
     @test sort(unique(RBMs.transfer_sample(layer))) == [0, 1]
     @test all(sum(RBMs.transfer_sample(layer); dims=1) .== 1)

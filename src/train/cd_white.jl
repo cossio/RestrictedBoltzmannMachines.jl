@@ -9,13 +9,13 @@ function train_white!(rbm::RBM{<:Binary, <:Binary}, data::AbstractArray;
     optimizer = Flux.ADAM(), # optimizer algorithm
     history::MVHistory = MVHistory(), # stores training log
     verbose::Bool = true,
-    weights::AbstractVector = tFillArrays.Trues(_nobs(data)), # data point weights
+    wts::Wts = nothing, # data point weights
     steps::Int = 1, # Monte Carlo steps to update fantasy particles
     initialize::Bool = false, # whether to initialize the RBM parameters
     whiten_ϵ::Real = 1e-6 # avoids singular cov matrix
 )
-    @assert size(data) == (size(rbm.visible)..., size(data)[end])
-    @assert _nobs(data) == _nobs(weights)
+    check_size(rbm.visible, data)
+    @assert isnothing(wts) || _nobs(data) == _nobs(wts)
 
     if initialize
         initialize!(rbm, data)
@@ -37,7 +37,7 @@ function train_white!(rbm::RBM{<:Binary, <:Binary}, data::AbstractArray;
     rbm_black = rbm
 
     for epoch in 1:epochs
-        batches = minibatches(data_white, weights; batchsize = batchsize)
+        batches = minibatches(data_white, wts; batchsize = batchsize)
         Δt = @elapsed for (b, (vd, wd)) in enumerate(batches)
             # update fantasy chains
             vm = sample_v_from_v(rbm_black, vm; steps = steps)
@@ -47,7 +47,7 @@ function train_white!(rbm::RBM{<:Binary, <:Binary}, data::AbstractArray;
             # compute contrastive divergence gradient
             ps = Flux.params(rbm_white)
             gs = Zygote.gradient(ps) do
-                loss = contrastive_divergence(rbm_white, vd, vm_white, wd)
+                loss = contrastive_divergence(rbm_white, vd, vm_white; wd)
                 ChainRulesCore.ignore_derivatives() do
                     push!(history, :cd_loss, loss)
                 end
@@ -62,7 +62,7 @@ function train_white!(rbm::RBM{<:Binary, <:Binary}, data::AbstractArray;
             push!(history, :batch, b)
         end
 
-        lpl = weighted_mean(log_pseudolikelihood(rbm_black, data), weights)
+        lpl = batch_mean(log_pseudolikelihood(rbm_black, data), wts)
         push!(history, :lpl, lpl)
         if verbose
             Δt_ = round(Δt, digits=2)
@@ -71,7 +71,7 @@ function train_white!(rbm::RBM{<:Binary, <:Binary}, data::AbstractArray;
         end
     end
 
-    rbm.weights .= rbm_black.weights
+    rbm.w .= rbm_black.w
     rbm.visible.θ .= rbm_black.visible.θ
     rbm.hidden.θ .= rbm_black.hidden.θ
 
@@ -80,25 +80,25 @@ end
 
 function whiten(rbm::RBM{<:Binary, <:Binary}, L::LowerTriangular, μ::AbstractVector)
     # TODO: extend to other layers
-    wmat = reshape(rbm.weights, length(rbm.visible), length(rbm.hidden))
+    wmat = reshape(rbm.w, length(rbm.visible), length(rbm.hidden))
     g = vec(rbm.visible.θ)
     θ = vec(rbm.hidden.θ)
     return RBM(
         Binary(reshape(L \ g, size(rbm.visible)...)),
         Binary(reshape(θ + wmat' * μ, size(rbm.hidden)...)),
-        reshape(L \ wmat, size(rbm.weights)...)
+        reshape(L \ wmat, size(rbm.w)...)
     )
 end
 
 function unwhiten(rbm::RBM{<:Binary, <:Binary}, L::LowerTriangular, μ::AbstractVector)
-    wmat = reshape(rbm.weights, length(rbm.visible), length(rbm.hidden))
+    wmat = reshape(rbm.w, length(rbm.visible), length(rbm.hidden))
     g = vec(rbm.visible.θ)
     θ = vec(rbm.hidden.θ)
     W = L * wmat
     return RBM(
         Binary(reshape(L * g, size(rbm.visible)...)),
         Binary(reshape(θ - W' * μ, size(rbm.hidden)...)),
-        reshape(W, size(rbm.weights)...)
+        reshape(W, size(rbm.w)...)
     )
 end
 

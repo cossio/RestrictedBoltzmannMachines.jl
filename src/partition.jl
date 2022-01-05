@@ -20,7 +20,7 @@ function log_partition(rbm::RBM{<:Gaussian, <:Gaussian}; β::Real = true)
     θ = β * [vec(rbm.visible.θ); vec(rbm.hidden.θ)]
     γv = β * vec(abs.(rbm.visible.γ))
     γh = β * vec(abs.(rbm.hidden.γ))
-    w = β * reshape(rbm.weights, length(rbm.visible), length(rbm.hidden))
+    w = β * reshape(rbm.w, length(rbm.visible), length(rbm.hidden))
 
     lA = block_matrix_logdet(
         Diagonal(γv), -w,
@@ -36,7 +36,7 @@ function log_partition(rbm::RBM{<:Gaussian, <:Gaussian}; β::Real = true)
 end
 
 """
-    log_likelihood(rbm, v; β=1)
+    log_likelihood(rbm, v; β = 1)
 
 Log-likelihood of `v` under `rbm`, with the partition function compued by
 extensive enumeration. For discrete layers, this is exponentially slow for large machines.

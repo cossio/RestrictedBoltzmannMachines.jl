@@ -11,14 +11,14 @@ function cd!(rbm::RBM, data::AbstractArray;
     lossadd = (_...) -> 0, # regularization
     verbose::Bool = true,
     ps = Flux.params(rbm),
-    data_weights::AbstractVector = FillArrays.Trues(_nobs(data)), # data point weights
+    wts::Wts = nothing, # data point weights
     steps::Int = 1, # Monte Carlo steps to update fantasy particles
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
-    @assert _nobs(data) == _nobs(data_weights)
+    @assert isnothing(wts) || _nobs(data) == _nobs(wts)
 
     for epoch in 1:epochs
-        batches = minibatches(data, data_weights; batchsize = batchsize)
+        batches = minibatches(data, weights; batchsize = batchsize)
         Δt = @elapsed for (b, (vd, wd)) in enumerate(batches)
             # fantasy chains
             _idx = rand(1:_nobs(data), batchsize)
@@ -27,7 +27,7 @@ function cd!(rbm::RBM, data::AbstractArray;
 
             # compute contrastive divergence gradient
             gs = Zygote.gradient(ps) do
-                loss = contrastive_divergence(rbm, vd, vm, wd)
+                loss = contrastive_divergence(rbm, vd, vm; wd)
                 regu = lossadd(rbm, vd, vm, wd)
                 ChainRulesCore.ignore_derivatives() do
                     push!(history, :cd_loss, loss)
@@ -43,7 +43,7 @@ function cd!(rbm::RBM, data::AbstractArray;
             push!(history, :batch, b)
         end
 
-        lpl = weighted_mean(log_pseudolikelihood(rbm, data), data_weights)
+        lpl = batch_mean(log_pseudolikelihood(rbm, data), weights)
         push!(history, :lpl, lpl)
         if verbose
             Δt_ = round(Δt, digits=2)
@@ -57,10 +57,49 @@ end
 """
     contrastive_divergence(rbm, vd, vm, wd = 1)
 
-Contrastive divergence loss. `vd` is a data sample, and `vm` are samples from the model.
+Contrastive divergence loss.
+`vd` is a data sample, and `vm` are samples from the model.
 """
-function contrastive_divergence(rbm::RBM, vd, vm, wd = true)
-    Fd = free_energy(rbm, vd)
-    Fm = free_energy(rbm, vm)
-    return weighted_mean(Fd, wd) - weighted_mean(Fm)
+function contrastive_divergence(
+    rbm::RBM, vd::AbstractTensor, vm::AbstractTensor; wd::Wts = nothing, wm::Wts = nothing
+)
+    Fd = mean_free_energy(rbm, vd; wts=wd)
+    Fm = mean_free_energy(rbm, vm; wts=wm)
+    return Fd - Fm
+end
+
+function mean_free_energy(
+    rbm::RBM{<:AbstractLayer{N}}, v::AbstractTensor{N}; wts::Nothing = nothing
+) where {N}
+    return free_energy(rbm, v)
+end
+
+function mean_free_energy(
+    rbm::RBM, v::AbstractTensor{N}; wts::Wts = nothing
+) where {N}
+    return batch_mean(free_energy(rbm, v))
+end
+
+function ∂contrastive_divergence(
+    rbm::RBM, vd::AbstractTensor, vm::AbstractTensor; wd::Wts = nothing, wm::Wts = nothing
+)
+    ∂d = ∂free_energy(rbm, vd; wts = wd)
+    ∂m = ∂free_energy(rbm, vm; wts = wm)
+    @assert typeof(∂d) == typeof(∂m)
+    return subtract_gradients(∂d, ∂m)
+end
+
+subtract_gradients(∂1::N, ∂2::N) where {N<:NamedTuple} = map(subtract_gradients, ∂1, ∂2)
+subtract_gradients(∂1::A, ∂2::A) where {A<:AbstractTensor} = ∂1 - ∂2
+
+function update!(rbm::RBM, ∂, optimizer)
+    Flux.update!(optimizer, rbm.w, ∂.w)
+    update!(rbm.visible, ∂.visible, optimizer)
+    update!(rbm.hidden, ∂.hidden, optimizer)
+end
+
+function update!(layer::AbstractLayer, ∂, optimizer)
+    for (k, g) in pairs(∂)
+        Flux.update!(getproperty(layer, k), g, optimizer)
+    end
 end

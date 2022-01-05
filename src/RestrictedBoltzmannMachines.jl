@@ -4,6 +4,9 @@ module RestrictedBoltzmannMachines
     import Flux, Zygote, ChainRulesCore
     using ValueHistories: MVHistory
 
+    abstract type AbstractLayer{N} end
+    const AbstractTensor{N, T<:Real} = AbstractArray{T,N}
+
     include("util.jl")
     include("minibatches.jl")
     include("onehot.jl")

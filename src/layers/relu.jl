@@ -3,12 +3,12 @@
 
 ReLU layer, with location parameters `θ` and scale parameters `γ`.
 """
-struct ReLU{A<:AbstractArray}
+struct ReLU{N, T, A <: AbstractArray{T,N}} <: AbstractLayer{N}
     θ::A
     γ::A
     function ReLU(θ::A, γ::A) where {A<:AbstractArray}
         @assert size(θ) == size(γ)
-        return new{A}(θ, γ)
+        return new{ndims(A), eltype(A), A}(θ, γ)
     end
 end
 
@@ -17,7 +17,18 @@ ReLU(n::Int...) = ReLU(Float64, n...)
 
 Flux.@functor ReLU
 
-energies(layer::ReLU, x) = relu_energy.(layer.θ, layer.γ, x)
+function effective(layer::ReLU, inputs::AbstractTensor; β::Real = true)
+    check_size(layer, inputs)
+    θ = β * (layer.θ .+ inputs)
+    γ = β * broadlike(layer.γ, inputs)
+    return ReLU(promote(θ, γ)...)
+end
+
+function energies(layer::ReLU, x::AbstractTensor)
+    check_size(layer, x)
+    return relu_energy.(layer.θ, layer.γ, x)
+end
+
 free_energies(layer::ReLU) = relu_free.(layer.θ, layer.γ)
 transfer_sample(layer::ReLU) = relu_rand.(layer.θ, layer.γ)
 transfer_mode(layer::ReLU) = max.(layer.θ ./ abs.(layer.γ), 0)
@@ -38,22 +49,16 @@ function transfer_var(layer::ReLU)
     return @. ν * tnvar(-μ / √ν)
 end
 
-function effective(layer::ReLU, inputs; β::Real = true)
-    θ = β * (layer.θ .+ inputs)
-    γ = β * broadlike(layer.γ, inputs)
-    return ReLU(promote(θ, γ)...)
-end
+transfer_std(layer::ReLU) = sqrt.(transfer_var(layer))
 
 function ∂free_energy(layer::ReLU)
     μ = transfer_mean(layer)
     ν = transfer_var(layer)
-    return (
-        θ = -μ,
-        γ = @. (ν + μ^2) / 2
-    )
+    return (θ = -μ, γ = (ν .+ μ.^2) / 2)
 end
 
-function ∂energies(::ReLU, x::AbstractArray)
+function ∂energies(layer::ReLU, x::AbstractTensor)
+    check_size(layer, x)
     xp = max.(x, 0)
     return (θ = -xp, γ = @. xp^2 / 2)
 end

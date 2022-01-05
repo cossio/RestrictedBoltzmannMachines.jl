@@ -43,18 +43,28 @@ function std_(A::AbstractArray; corrected::Bool=true, mean=nothing, dims)
     return dropdims(std(A; corrected=corrected, mean=mean, dims=dims); dims=dims)
 end
 
-"""
-    weighted_mean(v, w)
+const Wts = Union{AbstractVector, Nothing}
 
-Mean of `v` with weights `w`.
 """
-function weighted_mean(v::AbstractArray, w::AbstractArray; dims = :)
-    return mean(w .* v; dims = dims) / mean(w; dims = dims)
+    batch_mean(x, [wts])
+
+Mean of `x` (over its last dimension), with (optional) weights `wts`,
+dropping the reduced dimension.
+"""
+function batch_mean(x::AbstractTensor{N}, wts::AbstractVector) where {N}
+    @assert size(x, N) == length(wts)
+    xmat = reshape(x, :, length(wts))
+    xw = batch_mean(xmat, wts)
+    return reshape(xw, Base.front(size(x)))
 end
-
-# faster special case
-function weighted_mean(v::AbstractArray, w::Real = true; dims = :)
-    return mean(v; dims = dims)
+function batch_mean(x::AbstractMatrix, wts::AbstractVector)
+    @assert size(x, 2) == length(wts)
+    return x * wts / sum(wts)
+end
+batch_mean(x::AbstractVector, wts::AbstractVector) = dot(x, wts / sum(wts))
+function batch_mean(x::AbstractTensor{N}, ::Nothing = nothing) where {N}
+    xm = mean(x; dims=N)
+    return reshape(xm, Base.front(size(x)))
 end
 
 """
@@ -78,6 +88,8 @@ promote_to(x, ys...) = first(promote(x, ys...))
 
 """
     broadlike(A, B...)
-Reshapes (broadcasts) `A` into the size of `A .+ B .+ ...`, without doing the sum.
+
+Broadcasts `A` into the size of `A .+ B .+ ...` (without actually doing a sum).
 """
-broadlike(A, B...) = broadcast(first ∘ tuple, A, B...)
+broadlike(A, B...) = first_argument.(A, B...)
+first_argument(x, y...) = x

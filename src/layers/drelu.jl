@@ -1,11 +1,11 @@
-struct dReLU{A<:AbstractArray}
+struct dReLU{N, T, A <: AbstractArray{T,N}} <: AbstractLayer{N}
     θp::A
     θn::A
     γp::A
     γn::A
     function dReLU(θp::A, θn::A, γp::A, γn::A) where {A<:AbstractArray}
         @assert size(θp) == size(θn) == size(γp) == size(γn)
-        return new{A}(θp, θn, γp, γn)
+        return new{ndims(A), eltype(A), A}(θp, θn, γp, γn)
     end
 end
 
@@ -21,13 +21,23 @@ dReLU(n::Int...) = dReLU(Float64, n...)
 
 Flux.@functor dReLU
 
-function energies(layer::dReLU, x::AbstractArray)
+function effective(layer::dReLU, inputs::AbstractTensor; β::Real = true)
+    θp = β * (layer.θp .+ inputs)
+    θn = β * (layer.θn .+ inputs)
+    γp = β * broadlike(layer.γp, θp)
+    γn = β * broadlike(layer.γn, θn)
+    return dReLU(promote(θp, θn, γp, γn)...)
+end
+
+function energies(layer::dReLU, x::AbstractTensor)
+    check_size(layer, x)
     return drelu_energy.(layer.θp, layer.θn, layer.γp, layer.γn, x)
 end
 
 free_energies(layer::dReLU) = drelu_free.(layer.θp, layer.θn, layer.γp, layer.γn)
 transfer_sample(layer::dReLU) = drelu_rand.(layer.θp, layer.θn, layer.γp, layer.γn)
 transfer_mode(layer::dReLU) = drelu_mode.(layer.θp, layer.θn, layer.γp, layer.γn)
+transfer_std(layer::dReLU) = sqrt.(transfer_var(layer))
 
 function transfer_mean(layer::dReLU)
     lp = ReLU( layer.θp, layer.γp)
@@ -68,6 +78,11 @@ function transfer_mean_abs(layer::dReLU)
     return pp .* μp - pn .* μn
 end
 
+Base.size(layer::dReLU) = size(layer.θp)
+Base.size(layer::dReLU, d::Int) = size(layer.θp, d)
+Base.ndims(layer::dReLU) = ndims(layer.θp)
+Base.length(layer::dReLU) = length(layer.θp)
+
 function ∂free_energy(layer::dReLU)
     lp = ReLU( layer.θp, layer.γp)
     ln = ReLU(-layer.θn, layer.γn)
@@ -79,35 +94,18 @@ function ∂free_energy(layer::dReLU)
     μp, μn = transfer_mean(lp), -transfer_mean(ln)
     νp, νn = transfer_var(lp), transfer_var(ln)
 
-    μ2p = @. νp + μp^2
-    μ2n = @. νn + μn^2
+    μ2p = @. (νp + μp^2) / 2
+    μ2n = @. (νn + μn^2) / 2
 
-    return (
-        θp = -pp .* μp,
-        θn = -pn .* μn,
-        γp = pp .* μ2p/2,
-        γn = pn .* μ2n/2
-    )
+    return (θp = -pp .* μp, θn = -pn .* μn, γp = pp .* μ2p, γn = pn .* μ2n)
 end
 
-function ∂energies(::dReLU, x::AbstractArray)
+function ∂energies(layer::dReLU, x::AbstractTensor)
+    check_size(layer, x)
     xp = max.(x, 0)
     xn = min.(x, 0)
     return (θp = -xp, θn = -xn, γp = xp.^2 / 2, γn = xn.^2 / 2)
 end
-
-function effective(layer::dReLU, inputs; β::Real = true)
-    θp = β * (layer.θp .+ inputs)
-    θn = β * (layer.θn .+ inputs)
-    γp = β * broadlike(layer.γp, inputs)
-    γn = β * broadlike(layer.γn, inputs)
-    return dReLU(promote(θp, θn, γp, γn)...)
-end
-
-Base.size(layer::dReLU) = size(layer.θp)
-Base.size(layer::dReLU, d::Int) = size(layer.θp, d)
-Base.ndims(layer::dReLU) = ndims(layer.θp)
-Base.length(layer::dReLU) = length(layer.θp)
 
 function drelu_energy(θp::Real, θn::Real, γp::Real, γn::Real, x::Real)
     return drelu_energy(promote(θp, θn)..., promote(γp, γn)..., x)

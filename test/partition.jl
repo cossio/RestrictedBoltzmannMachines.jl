@@ -17,7 +17,7 @@ include("tests_init.jl")
     end
     @test log(Z) ≈ RBMs.log_partition(rbm; β)
 
-    rbm.weights .= 0
+    rbm.w .= 0
     ps = Flux.params(rbm)
     gs = Zygote.gradient(ps) do
         RBMs.log_partition(rbm)
@@ -43,7 +43,7 @@ end
     end
     @test log(Z) ≈ RBMs.log_partition(rbm; β)
 
-    rbm.weights .= 0
+    rbm.w .= 0
     ps = Flux.params(rbm)
     gs = Zygote.gradient(ps) do
         RBMs.log_partition(rbm)

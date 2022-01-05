@@ -3,7 +3,7 @@ function center(rbm::RBM, λv::AbstractArray, λh::AbstractArray)
     inputs_v = inputs_h_to_v(rbm, λh)
     visible = center(rbm.visible, inputs_v)
     hidden  = center(rbm.hidden,  inputs_h)
-    return RBM(visible, hidden, rbm.weights)
+    return RBM(visible, hidden, rbm.w)
 end
 
 center(layer::Binary, inputs::AbstractArray) = Binary(layer.θ + inputs)
@@ -39,13 +39,13 @@ function pcd_center!(rbm::RBM, data::AbstractArray;
     lossadd = (_...) -> 0, # regularization
     verbose::Bool = true,
     ps = Flux.params(rbm),
-    data_weights::AbstractVector = FillArrays.Trues(_nobs(data)), # data point weights
+    wts::Wts = nothing, # data point weights
     steps::Int = 1, # Monte Carlo steps to update fantasy particles
     α::Real = 0.5,
     callback=nothing
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
-    @assert _nobs(data) == _nobs(data_weights)
+    @assert isnothing(wts) || _nobs(data) == _nobs(wts)
 
     # initialize fantasy chains
     _idx = rand(1:_nobs(data), batchsize)
@@ -53,25 +53,25 @@ function pcd_center!(rbm::RBM, data::AbstractArray;
     vm = sample_v_from_v(rbm, _vm; steps = steps)
 
     hdat = mean_h_from_v(rbm, data)
-    λv = mean_(data; dims=ndims(data))
-    λh = mean_(hdat; dims=ndims(hdat))
+    λv = batch_mean(data, wts)
+    λh = batch_mean(hdat, wts)
 
     center!(rbm, λv, λh)
     rbm_ = uncenter(rbm, λv, λh)
 
     for epoch in 1:epochs
-        batches = minibatches(data, data_weights; batchsize = batchsize)
+        batches = minibatches(data, wts; batchsize = batchsize)
         Δt = @elapsed for (b, (vd, wd)) in enumerate(batches)
             # update fantasy chains
             vm = sample_v_from_v(rbm_, vm; steps = steps)
             inputs = inputs_v_to_h(rbm_, vd)
             hd = transfer_mean(rbm_.hidden, inputs)
-            λh = (1 - α) * λh + α * mean_(hd; dims=ndims(hd))
+            λh = (1 - α) * λh + α * batch_mean(hd, wd)
 
             # compute contrastive divergence gradient
             gs = Zygote.gradient(ps) do
                 rbm_ = uncenter(rbm, λv, λh)
-                loss = contrastive_divergence(rbm_, vd, vm, wd)
+                loss = contrastive_divergence(rbm_, vd, vm; wd)
                 regu = lossadd(rbm_, vd, vm, wd)
                 ChainRulesCore.ignore_derivatives() do
                     push!(history, :cd_loss, loss)
@@ -87,7 +87,7 @@ function pcd_center!(rbm::RBM, data::AbstractArray;
             push!(history, :batch, b)
         end
 
-        lpl = weighted_mean(log_pseudolikelihood(rbm_, data), data_weights)
+        lpl = batch_mean(log_pseudolikelihood(rbm_, data), wts)
         push!(history, :lpl, lpl)
         if verbose
             Δt_ = round(Δt, digits=2)

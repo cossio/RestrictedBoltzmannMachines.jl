@@ -11,11 +11,11 @@ function pcd!(rbm::RBM, data::AbstractArray;
     lossadd = (_...) -> 0, # regularization
     verbose::Bool = true,
     ps = Flux.params(rbm),
-    data_weights::AbstractVector = FillArrays.Trues(_nobs(data)), # data point weights
+    wts::Wts = nothing, # data point weights
     steps::Int = 1, # Monte Carlo steps to update fantasy particles
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
-    @assert _nobs(data) == _nobs(data_weights)
+    @assert isnothing(wts) || _nobs(data) == _nobs(wts)
 
     # initialize fantasy chains
     _idx = rand(1:_nobs(data), batchsize)
@@ -23,14 +23,14 @@ function pcd!(rbm::RBM, data::AbstractArray;
     vm = sample_v_from_v(rbm, _vm; steps = steps)
 
     for epoch in 1:epochs
-        batches = minibatches(data, data_weights; batchsize = batchsize)
+        batches = minibatches(data, wts; batchsize = batchsize)
         Δt = @elapsed for (b, (vd, wd)) in enumerate(batches)
             # update fantasy chains
             vm = sample_v_from_v(rbm, vm; steps = steps)
 
             # compute contrastive divergence gradient
             gs = Zygote.gradient(ps) do
-                loss = contrastive_divergence(rbm, vd, vm, wd)
+                loss = contrastive_divergence(rbm, vd, vm; wd)
                 regu = lossadd(rbm, vd, vm, wd)
                 ChainRulesCore.ignore_derivatives() do
                     push!(history, :cd_loss, loss)
@@ -46,7 +46,7 @@ function pcd!(rbm::RBM, data::AbstractArray;
             push!(history, :batch, b)
         end
 
-        lpl = weighted_mean(log_pseudolikelihood(rbm, data), data_weights)
+        lpl = batch_mean(log_pseudolikelihood(rbm, data), wts)
         push!(history, :lpl, lpl)
         if verbose
             Δt_ = round(Δt, digits=2)
