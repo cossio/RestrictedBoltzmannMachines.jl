@@ -27,22 +27,19 @@ uncenter(layer, inputs::AbstractArray) = center(layer, -inputs)
 uncenter!(layer, inputs::AbstractArray) = center!(layer, -inputs)
 
 """
-    pcd_center!(rbm, data)
+    centered_pcd!(rbm, data)
 
 Trains the RBM on data using Persistent Contrastive divergence, with centered gradients.
 """
-function pcd_center!(rbm::RBM, data::AbstractArray;
+function centered_pcd!(rbm::RBM, data::AbstractArray;
     batchsize = 1,
     epochs = 1,
     optimizer = default_optimizer(_nobs(data), batchsize, epochs), # optimizer algorithm
     history::MVHistory = MVHistory(), # stores training log
-    lossadd = (_...) -> 0, # regularization
     verbose::Bool = true,
-    ps = Flux.params(rbm),
     wts::Wts = nothing, # data point weights
     steps::Int = 1, # Monte Carlo steps to update fantasy particles
     α::Real = 0.5,
-    callback=nothing
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert isnothing(wts) || _nobs(data) == _nobs(wts)
@@ -102,4 +99,11 @@ function pcd_center!(rbm::RBM, data::AbstractArray;
     uncenter!(rbm, λv, λh)
 
     return history
+end
+
+function center_gradients!(∂::NamedTuple, rbm::RBM{<:Binary,<:Binary}, )
+    @assert size(∂w) == size(rbm.w)
+    @assert size(λv) == size(rbm.visible)
+    @assert size(λh) == size(rbm.hidden)
+
 end

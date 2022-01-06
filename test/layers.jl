@@ -326,6 +326,11 @@ end
     @test ∂.θn ≈ gs[layer.θn]
     @test ∂.γp ≈ gs[layer.γp]
     @test ∂.γn ≈ gs[layer.γn]
+    μ = RBMs.transfer_mean(layer)
+    ν = RBMs.transfer_var(layer)
+    μ2 = @. ν + μ^2
+    @test ∂.θp + ∂.θn ≈ -μ
+    @test ∂.γp + ∂.γn ≈ μ2/2
 end
 
 @testset "pReLU" begin
@@ -335,7 +340,7 @@ end
         sum(RBMs.free_energies(layer))
     end
     ∂ = RBMs.∂free_energy(layer)
-    @test ∂.θ ≈ gs[layer.θ]
+    @test ∂.θ ≈ gs[layer.θ] ≈ -RBMs.transfer_mean(layer)
     @test ∂.γ ≈ gs[layer.γ]
     @test ∂.Δ ≈ gs[layer.Δ]
     @test ∂.η ≈ gs[layer.η]
@@ -348,7 +353,7 @@ end
         sum(RBMs.free_energies(layer))
     end
     ∂ = RBMs.∂free_energy(layer)
-    @test ∂.θ ≈ gs[layer.θ]
+    @test ∂.θ ≈ gs[layer.θ] ≈ -RBMs.transfer_mean(layer)
     @test ∂.γ ≈ gs[layer.γ]
     @test ∂.Δ ≈ gs[layer.Δ]
     @test ∂.ξ ≈ gs[layer.ξ]
