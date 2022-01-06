@@ -1,3 +1,6 @@
+# It is recommended to load MKL before any other package
+using MKL
+
 using Documenter, Literate
 import RestrictedBoltzmannMachines as RBMs
 
