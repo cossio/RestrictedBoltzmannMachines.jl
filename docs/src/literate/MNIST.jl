@@ -142,6 +142,7 @@ RBMs.log_pseudolikelihood(rbm, tests_x) |> mean
 Plot of log-pseudolikelihood during learning.
 Note that this shows the pseudolikelihood of the train data.
 =#
+
 lines(get(history, :lpl)...)
 
 #=
@@ -185,7 +186,7 @@ end
 fig
 
 
-# # Parameter initialization
+# ## Parameter initialization
 
 #=
 If we initialize parameters, in particular matching the single-site statistics,
@@ -238,7 +239,7 @@ end
 fig
 
 
-# # Weight normalization
+# ## Weight normalization
 
 #=
 The authors of <https://arxiv.org/abs/1602.07868> introduce weight normalization to boost
@@ -252,7 +253,7 @@ rbm = RBMs.RBM(
     randn(Float,28,28,200)/28
 )
 RBMs.initialize!(rbm, train_x)
-history_wnorm = RBMs.train_norm!(
+history_wnorm = RBMs.pcd_norm!(
     rbm, train_x; epochs=200, batchsize=256,
     optimizer=Flux.ADAM()
 )

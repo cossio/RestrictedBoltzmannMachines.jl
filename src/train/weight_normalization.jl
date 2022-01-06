@@ -38,17 +38,14 @@ function pcd_norm!(rbm::RBM, data::AbstractArray;
             update!(optimizer, rbm.visible, ∂.visible)
             update!(optimizer, rbm.hidden, ∂.hidden)
 
-            #= Only the update of the weights is affected by the normalization
-            scheme of Salimans & Kingma 2016. We first update v, g following
-            Eq.(3) of the paper. =#
-            ∂g = sum(∂.w .* wv ./ vnorm; dims=1:ndims(rbm.visible))
-            ∂v = ∂.w .* wg ./ vnorm - ∂g .* wg .* wv ./ vnorm.^2
+            #= Now update the weights following Salimans & Kingma 2016.
+            Only the update of the weights is affected by the normalization scheme. =#
+            ∂gv = ∂wnorm(∂.w, rbm.w, wg, wv)
 
-            Flux.update!(optimizer, rbm.w, ∂.w)
-            update!(optimizer, wg, ∂g)
-            update!(optimizer, wv, ∂v)
+            update!(optimizer, wg, ∂gv.g)
+            update!(optimizer, wv, ∂gv.v)
 
-            # Update the RBM weights using the parameters v, g
+            # Update the RBM weights using the updated values of v, g
             vnorm .= sqrt.(sum(abs2, wv; dims=1:ndims(rbm.visible)))
             rbm.w .= wg .* wv ./ vnorm
 
@@ -65,4 +62,25 @@ function pcd_norm!(rbm::RBM, data::AbstractArray;
         end
     end
     return history
+end
+
+@doc raw"""
+    ∂wnorm(∂w, w, g, v)
+
+Given the gradients `∂w` of a function `f(w)`, returns the gradients `∂g, ∂v` of `f` with
+respect to the re-parameterization:
+
+```math
+\mathbf{w} = g \frac{\mathbf{v}}{\|\mathbf{v}\|}
+```
+
+See Salimans & Kingma 2016,
+<https://proceedings.neurips.cc/paper/2016/hash/ed265bc903a5a097f61d3ec064d96d2e-Abstract.html>.
+"""
+function ∂wnorm(∂w::AbstractArray, w::AbstractArray, g::AbstractArray, v::AbstractArray)
+    @assert size(∂w) == size(w) == size(v)
+    # see Eq.(3) of Salimans & Kingma 2016
+    ∂g = sum!(similar(g), ∂w .* w ./ g)
+    ∂v = (∂w - ∂g .* w ./ g) .* w ./ v
+    return (g = ∂g, v = ∂v)
 end
