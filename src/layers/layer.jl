@@ -178,6 +178,22 @@ function unflatten(layer::AbstractLayer, x::AbstractMatrix)
     return reshape(x, size(layer)..., size(x, 2))
 end
 
+"""
+    sufficient_statistics(layer, data; [wts])
+
+Returns a `NamedTuple` of the sufficient statistics used by the layer.
+"""
+function sufficient_statistics(
+    layer::AbstractLayer, x::AbstractTensor; wts::Nothing = nothing
+)
+    check_size(layer, x)
+    if ndims(layer) == ndims(x)
+        return sufficient_statistics(layer, reshape(x, size(x)..., 1), wts)
+    else
+        return sufficient_statistics(layer, x, wts)
+    end
+end
+
 function check_size(layer::AbstractLayer{N}, x::AbstractTensor{N}) where {N}
     size(x) == size(layer) || throw_size_mismatch_error(layer, x)
 end

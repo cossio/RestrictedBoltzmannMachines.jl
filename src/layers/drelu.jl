@@ -100,11 +100,23 @@ function ∂free_energy(layer::dReLU)
     return (θp = -pp .* μp, θn = -pn .* μn, γp = pp .* μ2p, γn = pn .* μ2n)
 end
 
-function ∂energies(layer::dReLU, x::AbstractTensor)
+function ∂energy(layer::dReLU; xp, xn, xn2, xp2)
+    for ξ in (xp, xn, xp2, xn2)
+        @assert size(ξ::AbstractTensor) == size(layer)
+    end
+    return (θp = -xp, θn = -xn, γp = xp2 / 2, γn = xn2 / 2)
+end
+
+function sufficient_statistics(layer::dReLU, x::AbstractTensor, wts::Wts)
     check_size(layer, x)
+    @assert size(x) == (size(layer)..., size(x)[end])
     xp = max.(x, 0)
     xn = min.(x, 0)
-    return (θp = -xp, θn = -xn, γp = xp.^2 / 2, γn = xn.^2 / 2)
+    μp = batch_mean(xp, wts)
+    μn = batch_mean(xn, wts)
+    μp2 = batch_mean(xp.^2, wts)
+    μn2 = batch_mean(xn.^2, wts)
+    return (; xp = μp, xn = μn, xp2 = μp2, xn2 = μn2)
 end
 
 function drelu_energy(θp::Real, θn::Real, γp::Real, γn::Real, x::Real)

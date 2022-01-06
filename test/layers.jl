@@ -77,7 +77,8 @@ end
     @test all(RBMs.energy(layer, RBMs.transfer_mode(layer)) .≤ RBMs.energy(layer, samples))
 
     ∂F = RBMs.∂free_energy(layer)
-    ∂E = RBMs.∂energy(layer, samples)
+    ts = RBMs.sufficient_statistics(layer, samples)
+    ∂E = RBMs.∂energy(layer; ts...)
     @test length(∂F) == length(∂E)
     @test typeof(∂F) == typeof(∂E)
     for (∂f, ∂e) in zip(∂F, ∂E)

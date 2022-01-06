@@ -1,37 +1,11 @@
 """
-    ∂energies(layer, x)
+    ∂energy(layer; ts...)
 
-Derivative of energies of configurations `x` with respect to layer parameters.
-Similar to `∂energy`, but does not average over configurations.
+Derivative of average energy of configurations with respect to layer parameters,
+where `ts...` refers to the sufficient statistics from samples required by the layer.
+See [`sufficient_statistics`](@ref).
 """
-function ∂energies(layer::AbstractLayer, x::Real)
-    xs = FillArrays.Fill(x, size(layer))
-    return ∂energies(layer, xs)
-end
-
-"""
-    ∂energy(layer, inputs = 0; β = 1, wts = 1)
-
-Derivative of average energy of configurations with respect to layer parameters.
-Similar to `∂energies`, but averages over configurations (weigthed by `wts`).
-"""
-∂energy(layer::AbstractLayer, x::Real; wts::Nothing = nothing) = ∂energies(layer, x)
-function ∂energy(
-    layer::AbstractLayer{N}, x::AbstractTensor{N}; wts::Nothing = nothing
-) where {N}
-    check_size(layer, x)
-    @assert size(layer) == size(x)
-    return ∂energies(layer, x)
-end
-function ∂energy(layer::AbstractLayer, x::AbstractTensor{N}; wts::Wts = nothing) where {N}
-    check_size(layer, x)
-    @assert size(x) == (size(layer)..., size(x, N))
-    dE = ∂energies(layer, x)
-    return map(dE) do dx
-        @assert size(dx) == size(x)
-        batch_mean(dx, wts)
-    end
-end
+function ∂energy end
 
 """
     ∂free_energy(layer, inputs = 0; wts = 1)
@@ -62,15 +36,14 @@ function ∂free_energy(layer::AbstractLayer, inputs::AbstractTensor; wts::Wts =
 end
 
 function ∂free_energy(
-    rbm::RBM, v::AbstractTensor;
-    inputs::AbstractArray = inputs_v_to_h(rbm, v), wts::Wts = nothing
+    rbm::RBM, v::AbstractTensor; wts::Wts = nothing,
+    ts = sufficient_statistics(rbm.visible, v; wts)
 )
-    check_size(rbm, v, inputs)
+    inputs = inputs_v_to_h(rbm, v)
     h = transfer_mean(rbm.hidden, inputs)
-    ∂v = ∂energy(rbm.visible, v; wts)
+    ∂v = ∂energy(rbm.visible; ts...)
     ∂h = ∂free_energy(rbm.hidden, inputs; wts)
 
-    check_size(rbm, v, h)
     v_ = flatten(rbm.visible, activations_convert_maybe(h, v))
     h_ = flatten(rbm.hidden, h)
     ∂w = ∂w_flat(v_, h_, wts)

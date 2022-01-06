@@ -57,10 +57,18 @@ function ∂free_energy(layer::ReLU)
     return (θ = -μ, γ = (ν .+ μ.^2) / 2)
 end
 
-function ∂energies(layer::ReLU, x::AbstractTensor)
+function ∂energy(layer::ReLU; xp::AbstractTensor, xp2::AbstractTensor)
+    @assert size(xp) == size(xp2) == size(layer)
+    return (; θ = -xp, γ = xp2/2)
+end
+
+function sufficient_statistics(layer::ReLU, x::AbstractTensor, wts::Wts)
     check_size(layer, x)
+    @assert size(x) == (size(layer)..., size(x)[end])
     xp = max.(x, 0)
-    return (θ = -xp, γ = @. xp^2 / 2)
+    μp = batch_mean(xp, wts)
+    μp2 = batch_mean(xp.^2, wts)
+    return (; xp = μp, xp2 = μp2)
 end
 
 function relu_energy(θ::Real, γ::Real, x::Real)

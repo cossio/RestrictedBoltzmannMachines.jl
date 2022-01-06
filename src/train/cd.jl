@@ -15,6 +15,8 @@ function cd!(rbm::RBM, data::AbstractArray;
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert isnothing(wts) || _nobs(data) == _nobs(wts)
 
+    ts = sufficient_statistics(rbm.visible, data; wts)
+
     for epoch in 1:epochs
         batches = minibatches(data, wts; batchsize = batchsize)
         Δt = @elapsed for (b, (vd, wd)) in enumerate(batches)
@@ -23,7 +25,7 @@ function cd!(rbm::RBM, data::AbstractArray;
             _vm = copy(selectdim(data, ndims(data), _idx))
             vm = sample_v_from_v(rbm, _vm; steps = steps)
             # compute gradients
-            ∂ = ∂contrastive_divergence(rbm, vd, vm; wd = wd, wm = wd)
+            ∂ = ∂contrastive_divergence(rbm, vd, vm; wd = wd, wm = wd, ts)
             # update parameters with gradients
             update!(optimizer, rbm, ∂)
         end
@@ -72,11 +74,10 @@ end
 function ∂contrastive_divergence(
     rbm::RBM, vd::AbstractTensor, vm::AbstractTensor;
     wd::Wts = nothing, wm::Wts = nothing,
-    inputs_d = inputs_v_to_h(rbm, vd),
-    inputs_m = inputs_v_to_h(rbm, vm)
+    ts = sufficient_statistics(rbm.visible, vd; wts = wd)
 )
-    ∂d = ∂free_energy(rbm, vd; wts = wd, inputs = inputs_d)
-    ∂m = ∂free_energy(rbm, vm; wts = wm, inputs = inputs_m)
+    ∂d = ∂free_energy(rbm, vd; wts = wd, ts)
+    ∂m = ∂free_energy(rbm, vm; wts = wm)
     return subtract_gradients(∂d, ∂m)
 end
 

@@ -50,10 +50,3 @@ function transfer_sample(layer::Potts)
     c = categorical_sample_from_logits(layer.θ)
     return onehot_encode(c, 1:layer.q)
 end
-
-∂free_energy(layer::Potts) = (; θ = -transfer_mean(layer))
-
-function ∂energies(layer::Potts, x::AbstractTensor)
-    check_size(layer, x)
-    return (; θ = -x)
-end

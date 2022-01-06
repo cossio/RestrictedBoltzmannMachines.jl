@@ -39,13 +39,6 @@ function transfer_sample(layer::Spin)
     return ifelse.(u .* (1 .+ exp.(-2layer.θ)) .< 1, Int8(1), Int8(-1))
 end
 
-∂free_energy(layer::Spin) = (; θ = -transfer_mean(layer))
-
-function ∂energies(layer::Spin, x::AbstractTensor)
-    check_size(layer, x)
-    return (; θ = -x)
-end
-
 function spin_free(θ::Real)
     abs_θ = abs(θ)
     return -abs_θ - LogExpFunctions.log1pexp(-2abs_θ)

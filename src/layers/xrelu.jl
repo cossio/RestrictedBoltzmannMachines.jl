@@ -67,20 +67,30 @@ function ∂free_energy(layer::xReLU)
     return (θ = ∂θ, γ = ∂γ, Δ = ∂Δ, ξ = ∂ξ)
 end
 
-function ∂energies(layer::xReLU, x::AbstractTensor)
-    check_size(layer, x)
-
-    xp = max.(x, 0)
-    xn = min.(x, 0)
-
+function ∂energy(layer::xReLU; x, xp, xn, xp2, xn2)
+    for ξ in (x, xp, xn, xp2, xn2)
+        @assert size(ξ::AbstractTensor) == size(layer)
+    end
     η = @. layer.ξ / (1 + abs(layer.ξ))
-
     ∂θ = @. -x
-    ∂γ = @. (xp^2 / (1 + η) + xn^2 / (1 - η)) / 2
+    ∂γ = @. (xp2 / (1 + η) + xn2 / (1 - η)) / 2
     ∂Δ = @. -xp / (1 + η) + xn / (1 - η)
     ∂ξ = @. (
-        (-layer.γ/2 * xp^2 + layer.Δ * xp) / (1 + layer.ξ + abs(layer.ξ))^2 +
-        ( layer.γ/2 * xn^2 + layer.Δ * xn) / (1 - layer.ξ + abs(layer.ξ))^2
+        (-layer.γ/2 * xp2 + layer.Δ * xp) / (1 + layer.ξ + abs(layer.ξ))^2 +
+        ( layer.γ/2 * xn2 + layer.Δ * xn) / (1 - layer.ξ + abs(layer.ξ))^2
     )
     return (θ = ∂θ, γ = ∂γ, Δ = ∂Δ, ξ = ∂ξ)
+end
+
+function sufficient_statistics(layer::xReLU, x::AbstractTensor, wts::Wts)
+    check_size(layer, x)
+    @assert size(x) == (size(layer)..., size(x)[end])
+    xp = max.(x, 0)
+    xn = min.(x, 0)
+    μ = batch_mean(x, wts)
+    μp = batch_mean(xp, wts)
+    μn = batch_mean(xn, wts)
+    μp2 = batch_mean(xp.^2, wts)
+    μn2 = batch_mean(xn.^2, wts)
+    return (x = μ, xp = μp, xn = μn, xp2 = μp2, xn2 = μn2)
 end

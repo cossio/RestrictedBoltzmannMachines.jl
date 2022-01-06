@@ -24,9 +24,6 @@ function pcd_centered!(rbm::RBM, data::AbstractArray;
     _vm = selectdim(data, ndims(data), _idx)
     vm = sample_v_from_v(rbm, _vm; steps = steps)
 
-    center!(rbm, λv, λh)
-    rbm_ = uncenter(rbm, λv, λh)
-
     for epoch in 1:epochs
         batches = minibatches(data, wts; batchsize = batchsize)
         Δt = @elapsed for (b, (vd, wd)) in enumerate(batches)
@@ -72,20 +69,18 @@ end
 # TODO: Implement for other layers
 function ∂contrastive_divergence_centered(
     rbm::RBM{<:Binary, <:Binary}, vd::AbstractTensor, vm::AbstractTensor;
-    wd::Wts = nothing, wm::Wts = nothing,
-    inputs_d = inputs_v_to_h(rbm, vd),
-    inputs_m = inputs_v_to_h(rbm, vm)
+    wd::Wts = nothing, wm::Wts = nothing, ts = sufficient_statistics(rbm.visible, vd; wts)
 )
-    ∂d = ∂free_energy(rbm, vd; wts = wd, inputs = inputs_d)
-    ∂m = ∂free_energy(rbm, vm; wts = wm, inputs = inputs_m)
+    ∂d = ∂free_energy(rbm, vd; wts = wd, ts)
+    ∂m = ∂free_energy(rbm, vm; wts = wm)
     ∂ = subtract_gradients(∂d, ∂m)
 
-    # reuse estimates of <v> and <h> from the gradients
-    λv = -∂d.visible.θ
-    λh = -∂d.hidden.θ
+    # reuse estimates <h>d from the gradients
+    λv = -∂d.visible.θ # uses full data thanks to sufficient_statistics mechanism
+    λh = -∂d.hidden.θ # uses minibatch
+
 
 end
-
 
 function center_gradients!(∂::NamedTuple, rbm::RBM{<:Binary,<:Binary})
     μv = -∂.visible.θ

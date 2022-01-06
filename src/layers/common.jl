@@ -20,6 +20,20 @@ function energy(layer::Union{Binary, Spin, Potts}, x::AbstractTensor)
     return E::Union{Number, AbstractVector}
 end
 
+∂free_energy(layer::Union{Binary, Spin, Potts}) = (; θ = -transfer_mean(layer))
+
+function ∂energy(layer::Union{Binary, Spin, Potts}; x::AbstractTensor)
+    @assert size(x) == size(layer)
+    return (; θ = -x)
+end
+
+function sufficient_statistics(layer::Union{Binary,Spin,Potts}, x::AbstractTensor, wts::Wts)
+    check_size(layer, x)
+    @assert size(x) == (size(layer)..., size(x)[end])
+    μ = batch_mean(x, wts)
+    return (; x = μ)
+end
+
 number_of_colors(layer::Potts) = layer.q
 number_of_colors(layer) = 1
 

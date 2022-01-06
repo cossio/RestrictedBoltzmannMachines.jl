@@ -28,13 +28,6 @@ function transfer_sample(layer::Binary)
     return map(binary_rand, layer.θ, u)
 end
 
-∂free_energy(layer::Binary) = (; θ = -transfer_mean(layer))
-
-function ∂energies(layer::Binary, x::AbstractTensor)
-    check_size(layer, x)
-    return (; θ = -x)
-end
-
 function binary_mode(θ::Real)
     @assert !isnan(θ)
     return θ > 0

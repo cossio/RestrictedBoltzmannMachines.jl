@@ -54,9 +54,17 @@ function ∂free_energy(layer::Gaussian)
     )
 end
 
-function ∂energies(layer::Gaussian, x::AbstractTensor)
+function ∂energy(layer::Gaussian; x::AbstractTensor, x2::AbstractTensor)
+    @assert size(x) == size(x2) == size(layer)
+    return (; θ = -x, γ = x2/2)
+end
+
+function sufficient_statistics(layer::Gaussian, x::AbstractTensor, wts::Wts)
     check_size(layer, x)
-    return (θ = -x, γ = @. x^2 / 2)
+    @assert size(x) == (size(layer)..., size(x)[end])
+    μ = batch_mean(x, wts)
+    μ2 = batch_mean(x.^2, wts)
+    return (; x = μ, x2 = μ2)
 end
 
 gauss_energy(θ::Real, γ::Real, x::Real) = (abs(γ) * x / 2 - θ) * x
