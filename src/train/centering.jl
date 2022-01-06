@@ -14,10 +14,12 @@ function pcd_centered!(rbm::RBM, data::AbstractArray;
     verbose::Bool = true,
     wts::Wts = nothing, # data point weights
     steps::Int = 1, # Monte Carlo steps to update fantasy particles
-    α::Real = 0.5,
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert isnothing(wts) || _nobs(data) == _nobs(wts)
+
+    # data statistics
+    ts = sufficient_statistics(rbm.visible, data; wts)
 
     # initialize fantasy chains
     _idx = rand(1:_nobs(data), batchsize)
@@ -26,30 +28,16 @@ function pcd_centered!(rbm::RBM, data::AbstractArray;
 
     for epoch in 1:epochs
         batches = minibatches(data, wts; batchsize = batchsize)
-        Δt = @elapsed for (b, (vd, wd)) in enumerate(batches)
+        Δt = @elapsed for (vd, wd) in batches
             # update fantasy chains
-            vm = sample_v_from_v(rbm_, vm; steps = steps)
-
-            # compute contrastive divergence gradient
-            gs = Zygote.gradient(ps) do
-                rbm_ = uncenter(rbm, λv, λh)
-                loss = contrastive_divergence(rbm_, vd, vm; wd)
-                regu = lossadd(rbm_, vd, vm, wd)
-                ChainRulesCore.ignore_derivatives() do
-                    push!(history, :cd_loss, loss)
-                    push!(history, :reg_loss, regu)
-                end
-                return loss + regu
-            end
-
+            vm = sample_v_from_v(rbm, vm; steps = steps)
+            # compute centered gradients
+            ∂c = ∂contrastive_divergence_centered(rbm, vd, vm; wd, ts)
             # update parameters using gradient
-            Flux.update!(optimizer, ps, gs)
-
-            push!(history, :epoch, epoch)
-            push!(history, :batch, b)
+            update!(optimizer, rbm, ∂c)
         end
 
-        lpl = batch_mean(log_pseudolikelihood(rbm_, data), wts)
+        lpl = batch_mean(log_pseudolikelihood(rbm, data), wts)
         push!(history, :lpl, lpl)
         if verbose
             Δt_ = round(Δt, digits=2)
@@ -58,18 +46,13 @@ function pcd_centered!(rbm::RBM, data::AbstractArray;
         end
     end
 
-    hdat = mean_h_from_v(rbm_, data)
-    λv = mean_(data; dims=ndims(data))
-    λh = mean_(hdat; dims=ndims(hdat))
-    uncenter!(rbm, λv, λh)
-
     return history
 end
 
 # TODO: Implement for other layers
 function ∂contrastive_divergence_centered(
     rbm::RBM{<:Binary, <:Binary}, vd::AbstractTensor, vm::AbstractTensor;
-    wd::Wts = nothing, wm::Wts = nothing, ts = sufficient_statistics(rbm.visible, vd; wts)
+    wd::Wts = nothing, wm::Wts = nothing, ts
 )
     ∂d = ∂free_energy(rbm, vd; wts = wd, ts)
     ∂m = ∂free_energy(rbm, vm; wts = wm)
@@ -79,15 +62,17 @@ function ∂contrastive_divergence_centered(
     λv = -∂d.visible.θ # uses full data thanks to sufficient_statistics mechanism
     λh = -∂d.hidden.θ # uses minibatch
 
+    # flatten
+    ∂w_flat = reshape(∂.w, length(rbm.visible), length(rbm.hidden))
 
-end
+    # centered gradients
+    ∂w_c_flat = ∂w_flat - vec(λv) * vec(∂.hidden.θ)' - vec(∂.visible.θ) * vec(λh)'
+    ∂v_c_flat = vec(∂.visible.θ) - ∂w_c_flat  * vec(λh)
+    ∂h_c_flat = vec(∂.hidden.θ)  - ∂w_c_flat' * vec(λv)
 
-function center_gradients!(∂::NamedTuple, rbm::RBM{<:Binary,<:Binary})
-    μv = -∂.visible.θ
-    μh = -∂.hidden.θ
-
-    @assert size(∂w) == size(rbm.w)
-    @assert size(λv) == size(rbm.visible)
-    @assert size(λh) == size(rbm.hidden)
-
+    return ∂c = (
+        w = reshape(∂w_c_flat, size(rbm.w)),
+        visible = (; θ = reshape(∂v_c_flat, size(rbm.visible))),
+        hidden  = (; θ = reshape(∂h_c_flat, size(rbm.hidden)))
+    )
 end

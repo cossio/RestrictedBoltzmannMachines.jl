@@ -88,13 +88,14 @@ end
     @test ∂F.hidden.θ ≈ gs[rbm.hidden.θ]
     @test ∂F.w ≈ gs[rbm.w]
 
-    v1 = rand(Bool, size(rbm.visible)..., 7)
-    v2 = rand(Bool, size(rbm.visible)..., 7)
+    vd = rand(Bool, size(rbm.visible)..., 7)
+    vm = rand(Bool, size(rbm.visible)..., 7)
     ps = Flux.params(rbm)
     gs = Zygote.gradient(ps) do
-        RBMs.contrastive_divergence(rbm, v1, v2)
+        RBMs.contrastive_divergence(rbm, vd, vm)
     end
-    ∂F = RBMs.∂contrastive_divergence(rbm, v1, v2)
+    ts = RBMs.sufficient_statistics(rbm.visible, vd)
+    ∂F = RBMs.∂contrastive_divergence(rbm, vd, vm; ts)
     @test ∂F.visible.θ ≈ gs[rbm.visible.θ]
     @test ∂F.hidden.θ ≈ gs[rbm.hidden.θ]
     @test ∂F.w ≈ gs[rbm.w]

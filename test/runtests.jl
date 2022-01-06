@@ -17,3 +17,4 @@ using SafeTestsets, Random, Test
 @time @safetestset "pseudolikelihood" begin include("pseudolikelihood.jl") end
 
 @time @safetestset "weight normalization" begin include("weight_normalization.jl") end
+@time @safetestset "centering" begin include("centering.jl") end

@@ -24,11 +24,11 @@ function pcd!(rbm::RBM, data::AbstractArray;
 
     for epoch in 1:epochs
         batches = minibatches(data, wts; batchsize = batchsize)
-        Δt = @elapsed for (b, (vd, wd)) in enumerate(batches)
+        Δt = @elapsed for (vd, wd) in batches
             # update fantasy chains
             vm = sample_v_from_v(rbm, vm; steps = steps)
             # compute contrastive divergence gradient
-            ∂ = ∂contrastive_divergence(rbm, vd, vm; wd = wd, wm = wd, ts)
+            ∂ = ∂contrastive_divergence(rbm, vd, vm; wd, ts)
             # update parameters using gradient
             update!(optimizer, rbm, ∂)
         end

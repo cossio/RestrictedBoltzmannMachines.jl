@@ -19,7 +19,7 @@ function cd!(rbm::RBM, data::AbstractArray;
 
     for epoch in 1:epochs
         batches = minibatches(data, wts; batchsize = batchsize)
-        Δt = @elapsed for (b, (vd, wd)) in enumerate(batches)
+        Δt = @elapsed for (vd, wd) in batches
             # new fantasy chains
             _idx = rand(1:_nobs(data), batchsize)
             _vm = copy(selectdim(data, ndims(data), _idx))
