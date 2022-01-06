@@ -73,8 +73,7 @@ end
 
 function ∂contrastive_divergence(
     rbm::RBM, vd::AbstractTensor, vm::AbstractTensor;
-    wd::Wts = nothing, wm::Wts = nothing,
-    ts = sufficient_statistics(rbm.visible, vd; wts = wd)
+    wd::Wts = nothing, wm::Wts = nothing, ts
 )
     ∂d = ∂free_energy(rbm, vd; wts = wd, ts)
     ∂m = ∂free_energy(rbm, vm; wts = wm)
