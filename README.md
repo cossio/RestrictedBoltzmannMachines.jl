@@ -58,3 +58,17 @@ Some features that should be implemented in the future:
 
 - AIS estimation of the partition function.
 - Unbiased contrastive divergence sampling algorithm.
+
+## Compat requirements
+
+`Project.toml` lists the compatibility requirements for the package.
+
+The syntax of `Project.toml` doesn't allow for comments
+(see [#42697](https://github.com/JuliaLang/julia/issues/42697)).
+Therefore I explain the compat requirements here.
+
+- **julia 1.6:** I write the package in the latest Julia version (currently 1.7).
+But since 1.6 is LTS, it makes sense to try to make it work there too.
+- **DiffRules 1.8:** Need [#74](https://github.com/JuliaDiff/DiffRules.jl/pull/74).
+See [a19cd5c](https://github.com/cossio/RestrictedBoltzmannMachines.jl/commit/a19cd5cf38162f1991839cb69532480faca98068).
+Since now I am starting to use explicit gradients everywhere, this requirement might eventually go away.
