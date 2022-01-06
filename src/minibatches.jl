@@ -1,5 +1,6 @@
 function _nobs(d::AbstractArray, ds::Union{AbstractArray, Nothing}...)
-    @assert all(map(_nobs, ds) .== _nobs(d) .|| isnothing.(ds))
+    Bs = map(_nobs, ds)
+    @assert all((Bs .== _nobs(d)) .| isnothing.(ds))
     return _nobs(d)
 end
 _nobs(d::AbstractArray) = size(d, ndims(d))

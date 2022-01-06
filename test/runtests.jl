@@ -1,7 +1,14 @@
 #= As far as I know, Github Actions uses Intel CPUs.
 So it is faster to use MKL than OpenBLAS.
 It is recommended to load MKL before ANY other package.=#
-using MKL
+using MKL, LinearAlgebra
+
+if VERSION ≥ v"1.7"
+    @show BLAS.get_config()
+else
+    @show BLAS.vendor()
+end
+
 
 using SafeTestsets, Random, Test
 
@@ -17,9 +24,10 @@ using SafeTestsets, Random, Test
 @time @safetestset "regularize" begin include("regularize.jl") end
 @time @safetestset "truncnorm" begin include("truncnorm.jl") end
 @time @safetestset "optim" begin include("optim.jl") end
-@time @safetestset "pgm" begin include("compare_to_pgm/pgm.jl") end
 @time @safetestset "partition" begin include("partition.jl") end
 @time @safetestset "pseudolikelihood" begin include("pseudolikelihood.jl") end
 
 @time @safetestset "weight normalization" begin include("weight_normalization.jl") end
 @time @safetestset "centering" begin include("centering.jl") end
+
+@time @safetestset "pgm" begin include("compare_to_pgm/pgm.jl") end

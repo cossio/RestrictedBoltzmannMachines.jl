@@ -9,7 +9,7 @@ struct WeightNorm{Tg<:AbstractArray, Tv<:AbstractArray}
     <https://proceedings.neurips.cc/paper/2016/hash/ed265bc903a5a097f61d3ec064d96d2e-Abstract.html>.
     """
     function WeightNorm(g::AbstractArray, v::AbstractArray)
-        @assert all((size(g) .== size(v)) .|| (size(g) .== 1))
+        @assert all((size(g) .== size(v)) .| (size(g) .== 1))
         return new{typeof(g), typeof(v)}(g, v)
     end
 end
