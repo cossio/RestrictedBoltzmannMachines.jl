@@ -10,16 +10,16 @@ train_x = Array{Float}(train_x .&gt; 0.5)
 tests_x = Array{Float}(tests_x .&gt; 0.5)</code></pre><p>We train an RBM with plain contrastive divergence.</p><pre><code class="language-julia hljs">import RestrictedBoltzmannMachines as RBMs
 rbm = RBMs.RBM(RBMs.Binary(Float,28,28), RBMs.Binary(Float,128), zeros(Float,28,28,128))
 RBMs.initialize!(rbm, train_x)
-RBMs.cd!(rbm, train_x; epochs=10, batchsize=128, verbose=true, steps=1)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">epoch 1/10 (4.39s), log(pseudolikelihood)=-0.14
-epoch 2/10 (2.8s), log(pseudolikelihood)=-0.12
-epoch 3/10 (2.35s), log(pseudolikelihood)=-0.11
-epoch 4/10 (2.47s), log(pseudolikelihood)=-0.11
-epoch 5/10 (2.44s), log(pseudolikelihood)=-0.1
-epoch 6/10 (2.78s), log(pseudolikelihood)=-0.1
-epoch 7/10 (2.77s), log(pseudolikelihood)=-0.1
-epoch 8/10 (2.74s), log(pseudolikelihood)=-0.1
-epoch 9/10 (2.37s), log(pseudolikelihood)=-0.1
-epoch 10/10 (2.37s), log(pseudolikelihood)=-0.1</code></pre><p>Since we haven&#39;t loaded MKL, this first run should have used OpenBLAS. You can confirm that by doing:</p><pre><code class="language-julia hljs">using LinearAlgebra
+RBMs.cd!(rbm, train_x; epochs=10, batchsize=128, verbose=true, steps=1)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">epoch 1/10 (6.66s), log(pseudolikelihood)=-0.14
+epoch 2/10 (4.15s), log(pseudolikelihood)=-0.12
+epoch 3/10 (3.78s), log(pseudolikelihood)=-0.12
+epoch 4/10 (3.99s), log(pseudolikelihood)=-0.11
+epoch 5/10 (4.53s), log(pseudolikelihood)=-0.11
+epoch 6/10 (3.88s), log(pseudolikelihood)=-0.1
+epoch 7/10 (4.05s), log(pseudolikelihood)=-0.1
+epoch 8/10 (3.84s), log(pseudolikelihood)=-0.1
+epoch 9/10 (4.14s), log(pseudolikelihood)=-0.1
+epoch 10/10 (4.82s), log(pseudolikelihood)=-0.1</code></pre><p>Since we haven&#39;t loaded MKL, this first run should have used OpenBLAS. You can confirm that by doing:</p><pre><code class="language-julia hljs">using LinearAlgebra
 BLAS.get_config()</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">LinearAlgebra.BLAS.LBTConfig
 Libraries: 
 └ [ILP64] libopenblas64_.so</code></pre><p>That should print that it&#39;s using libopenblas. Now load MKL. If you don&#39;t have it installed, run first <code>pkg&gt; add MKL</code>.</p><pre><code class="language-julia hljs">using MKL
@@ -28,13 +28,13 @@ BLAS.get_config()</code></pre><pre class="documenter-example-output"><code class
 Libraries: 
 └ [ILP64] libmkl_rt.so</code></pre><p>In Julia 1.7 (which I assume you have), that&#39;s all you need to do. If you are on a fresh Julia session where <code>MKL</code> was not loaded before, you can skip the line <code>MKL.__init__()</code>. See <a href="https://julialang.org/blog/2021/11/julia-1.7-highlights/#libblastrampoline_mkljl">https://julialang.org/blog/2021/11/julia-1.7-highlights/#libblastrampoline_mkljl</a>. Now LinearAlgebra routines should forward to MKL (which should be confimed by the output of <code>BLAS.get_config()</code> above).</p><p>If for some reason you happen to want to go back to OpenBlAS, you can do <code>LinearAlgebra.__init()__</code>. And then <code>MKL.__init__()</code> to go back to MKL again, and so on.</p><p>Now let&#39;s rerun the RBM training.</p><pre><code class="language-julia hljs">rbm = RBMs.RBM(RBMs.Binary(Float,28,28), RBMs.Binary(Float,128), zeros(Float,28,28,128))
 RBMs.initialize!(rbm, train_x)
-RBMs.cd!(rbm, train_x; epochs=10, batchsize=128, verbose=true, steps=1)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">epoch 1/10 (2.65s), log(pseudolikelihood)=-0.14
-epoch 2/10 (2.22s), log(pseudolikelihood)=-0.12
-epoch 3/10 (2.22s), log(pseudolikelihood)=-0.11
-epoch 4/10 (2.23s), log(pseudolikelihood)=-0.11
-epoch 5/10 (2.48s), log(pseudolikelihood)=-0.11
-epoch 6/10 (2.6s), log(pseudolikelihood)=-0.1
-epoch 7/10 (2.6s), log(pseudolikelihood)=-0.1
-epoch 8/10 (2.24s), log(pseudolikelihood)=-0.1
-epoch 9/10 (2.23s), log(pseudolikelihood)=-0.1
-epoch 10/10 (2.63s), log(pseudolikelihood)=-0.1</code></pre><p>You should see that the epochs are about 2x faster with MKL.</p><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../math/">« Mathematical introduction</a><a class="docs-footer-nextpage" href="../lr_decay/">Learning rate decay »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.10 on <span class="colophon-date" title="Thursday 6 January 2022 20:16">Thursday 6 January 2022</span>. Using Julia version 1.7.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+RBMs.cd!(rbm, train_x; epochs=10, batchsize=128, verbose=true, steps=1)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">epoch 1/10 (3.63s), log(pseudolikelihood)=-0.14
+epoch 2/10 (3.52s), log(pseudolikelihood)=-0.13
+epoch 3/10 (4.06s), log(pseudolikelihood)=-0.11
+epoch 4/10 (3.52s), log(pseudolikelihood)=-0.11
+epoch 5/10 (3.56s), log(pseudolikelihood)=-0.11
+epoch 6/10 (3.62s), log(pseudolikelihood)=-0.1
+epoch 7/10 (4.36s), log(pseudolikelihood)=-0.1
+epoch 8/10 (3.59s), log(pseudolikelihood)=-0.1
+epoch 9/10 (3.65s), log(pseudolikelihood)=-0.1
+epoch 10/10 (3.7s), log(pseudolikelihood)=-0.1</code></pre><p>You should see that the epochs are about 2x faster with MKL.</p><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../math/">« Mathematical introduction</a><a class="docs-footer-nextpage" href="../lr_decay/">Learning rate decay »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.10 on <span class="colophon-date" title="Thursday 6 January 2022 21:08">Thursday 6 January 2022</span>. Using Julia version 1.7.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
