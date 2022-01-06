@@ -20,12 +20,11 @@ tests_x = Array{Float}(tests_x .> 0.5)
 nothing #hide
 
 # We train an RBM with plain contrastive divergence.
-
+import RestrictedBoltzmannMachines as RBMs
 rbm = RBMs.RBM(RBMs.Binary(Float,28,28), RBMs.Binary(Float,128), zeros(Float,28,28,128))
 RBMs.initialize!(rbm, train_x)
 RBMs.cd!(rbm, train_x; epochs=10, batchsize=128, verbose=true, steps=1)
 nothing #hide
-
 
 # Since we haven't loaded MKL, this first run used OpenBLAS.
 # You can confirm that by doing:
