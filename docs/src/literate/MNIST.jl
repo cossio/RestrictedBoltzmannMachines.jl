@@ -254,7 +254,7 @@ RBMs.initialize!(rbm, train_x)
 wn = RBMs.WeightNorm(rbm)
 history_wnorm = RBMs.pcd!(
     rbm, wn, train_x;
-    epochs=100, batchsize=256, verbose=true, steps=1, optimizer=Flux.ADAM()
+    epochs=200, batchsize=256, verbose=true, steps=1, optimizer=Flux.ADAM()
 )
 nothing #hide
 
