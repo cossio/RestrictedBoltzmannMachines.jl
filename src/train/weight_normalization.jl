@@ -37,14 +37,14 @@ More precisely, we assume that:
 If not provided `λ` defaults to ones.
 """
 function WeightNorm(rbm::RBM, λ::AbstractArray)
-    @assert size(λ) == (ntuple(Returns(1), ndims(rbm.visible))..., size(rbm.hidden)...)
+    @assert size(λ) == (ntuple(_ -> 1, ndims(rbm.visible))..., size(rbm.hidden)...)
     g = weight_norms(rbm)
     v = λ .* rbm.w ./ g
     return WeightNorm(g, v)
 end
 
 function WeightNorm(rbm::RBM, λ::Real = 1)
-    sz = (ntuple(Returns(1), ndims(rbm.visible))..., size(rbm.hidden)...)
+    sz = (ntuple(_ -> 1, ndims(rbm.visible))..., size(rbm.hidden)...)
     λs = FillArrays.Fill(λ, sz)
     return WeightNorm(rbm, λs)
 end
@@ -53,7 +53,7 @@ weight_norms(rbm::RBM) = sqrt.(sum(abs2, rbm.w; dims=1:ndims(rbm.visible)))
 
 function update_w_from_vg!(rbm::RBM, wn::WeightNorm)
     @assert size(wn.v) == size(rbm.w)
-    @assert size(wn.g) == (ntuple(Returns(1), ndims(rbm.visible))..., size(rbm.hidden)...)
+    @assert size(wn.g) == (ntuple(_ -> 1, ndims(rbm.visible))..., size(rbm.hidden)...)
     λ = sqrt.(sum(abs2, wn.v; dims=1:ndims(rbm.visible)))
     rbm.w .= wn.g .* wn.v ./ λ
     return rbm
@@ -82,7 +82,7 @@ end
 
 function ∂wnorm(∂w::AbstractArray, rbm::RBM, wn::WeightNorm)
     @assert size(∂w) == size(rbm.w) == size(wn.v)
-    @assert size(wn.g) == (ntuple(Returns(1), ndims(rbm.visible))..., size(rbm.hidden)...)
+    @assert size(wn.g) == (ntuple(_ -> 1, ndims(rbm.visible))..., size(rbm.hidden)...)
     return ∂wnorm(∂w, rbm.w, wn.g, wn.v)
 end
 
