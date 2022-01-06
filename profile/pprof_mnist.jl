@@ -1,6 +1,7 @@
 using Random, Test, Profile
 import RestrictedBoltzmannMachines as RBMs
 import MLDatasets, PProf
+using MKL # faster on Intel CPUs
 
 println("Loading MNIST data ...")
 
