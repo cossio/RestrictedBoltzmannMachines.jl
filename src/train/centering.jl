@@ -1,37 +1,12 @@
-function center(rbm::RBM, λv::AbstractArray, λh::AbstractArray)
-    inputs_h = inputs_v_to_h(rbm, λv)
-    inputs_v = inputs_h_to_v(rbm, λh)
-    visible = center(rbm.visible, inputs_v)
-    hidden  = center(rbm.hidden,  inputs_h)
-    return RBM(visible, hidden, rbm.w)
-end
-
-center(layer::Binary, inputs::AbstractArray) = Binary(layer.θ + inputs)
-
-function center!(rbm::RBM, λv::AbstractArray, λh::AbstractArray)
-    inputs_h = inputs_v_to_h(rbm, λv)
-    inputs_v = inputs_h_to_v(rbm, λh)
-    center!(rbm.visible, inputs_v)
-    center!(rbm.hidden,  inputs_h)
-    return rbm
-end
-
-function center!(layer::Binary, inputs::AbstractArray)
-    layer.θ .+= inputs
-    return layer
-end
-
-uncenter(rbm::RBM, λv::AbstractArray, λh::AbstractArray) = center(rbm, -λv, -λh)
-uncenter!(rbm::RBM, λv::AbstractArray, λh::AbstractArray) = center!(rbm, -λv, -λh)
-uncenter(layer, inputs::AbstractArray) = center(layer, -inputs)
-uncenter!(layer, inputs::AbstractArray) = center!(layer, -inputs)
-
 """
-    centered_pcd!(rbm, data)
+    pcd_centered!(rbm, data)
 
-Trains the RBM on data using Persistent Contrastive divergence, with centered gradients.
+Trains the RBM on data using Persistent Contrastive divergence, with centered gradients. See:
+
+J. Melchior, A. Fischer, and L. Wiskott. JMLR 17.1 (2016): 3387-3447.
+<http://jmlr.org/papers/v17/14-237.html>
 """
-function centered_pcd!(rbm::RBM, data::AbstractArray;
+function pcd_centered!(rbm::RBM, data::AbstractArray;
     batchsize = 1,
     epochs = 1,
     optimizer = default_optimizer(_nobs(data), batchsize, epochs), # optimizer algorithm
@@ -49,10 +24,6 @@ function centered_pcd!(rbm::RBM, data::AbstractArray;
     _vm = selectdim(data, ndims(data), _idx)
     vm = sample_v_from_v(rbm, _vm; steps = steps)
 
-    hdat = mean_h_from_v(rbm, data)
-    λv = batch_mean(data, wts)
-    λh = batch_mean(hdat, wts)
-
     center!(rbm, λv, λh)
     rbm_ = uncenter(rbm, λv, λh)
 
@@ -61,9 +32,6 @@ function centered_pcd!(rbm::RBM, data::AbstractArray;
         Δt = @elapsed for (b, (vd, wd)) in enumerate(batches)
             # update fantasy chains
             vm = sample_v_from_v(rbm_, vm; steps = steps)
-            inputs = inputs_v_to_h(rbm_, vd)
-            hd = transfer_mean(rbm_.hidden, inputs)
-            λh = (1 - α) * λh + α * batch_mean(hd, wd)
 
             # compute contrastive divergence gradient
             gs = Zygote.gradient(ps) do
@@ -101,7 +69,28 @@ function centered_pcd!(rbm::RBM, data::AbstractArray;
     return history
 end
 
-function center_gradients!(∂::NamedTuple, rbm::RBM{<:Binary,<:Binary}, )
+# TODO: Implement for other layers
+function ∂contrastive_divergence_centered(
+    rbm::RBM{<:Binary, <:Binary}, vd::AbstractTensor, vm::AbstractTensor;
+    wd::Wts = nothing, wm::Wts = nothing,
+    inputs_d = inputs_v_to_h(rbm, vd),
+    inputs_m = inputs_v_to_h(rbm, vm)
+)
+    ∂d = ∂free_energy(rbm, vd; wts = wd, inputs = inputs_d)
+    ∂m = ∂free_energy(rbm, vm; wts = wm, inputs = inputs_m)
+    ∂ = subtract_gradients(∂d, ∂m)
+
+    # reuse estimates of <v> and <h> from the gradients
+    λv = -∂d.visible.θ
+    λh = -∂d.hidden.θ
+
+end
+
+
+function center_gradients!(∂::NamedTuple, rbm::RBM{<:Binary,<:Binary})
+    μv = -∂.visible.θ
+    μh = -∂.hidden.θ
+
     @assert size(∂w) == size(rbm.w)
     @assert size(λv) == size(rbm.visible)
     @assert size(λh) == size(rbm.hidden)

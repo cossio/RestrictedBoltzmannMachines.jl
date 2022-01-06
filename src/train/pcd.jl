@@ -8,9 +8,7 @@ function pcd!(rbm::RBM, data::AbstractArray;
     epochs = 1,
     optimizer = default_optimizer(_nobs(data), batchsize, epochs), # optimizer algorithm
     history::MVHistory = MVHistory(), # stores training log
-    lossadd = (_...) -> 0, # regularization
     verbose::Bool = true,
-    ps = Flux.params(rbm),
     wts::Wts = nothing, # data point weights
     steps::Int = 1, # Monte Carlo steps to update fantasy particles
 )
@@ -27,27 +25,15 @@ function pcd!(rbm::RBM, data::AbstractArray;
         Δt = @elapsed for (b, (vd, wd)) in enumerate(batches)
             # update fantasy chains
             vm = sample_v_from_v(rbm, vm; steps = steps)
-
             # compute contrastive divergence gradient
-            gs = Zygote.gradient(ps) do
-                loss = contrastive_divergence(rbm, vd, vm; wd)
-                regu = lossadd(rbm, vd, vm, wd)
-                ChainRulesCore.ignore_derivatives() do
-                    push!(history, :cd_loss, loss)
-                    push!(history, :reg_loss, regu)
-                end
-                return loss + regu
-            end
-
+            ∂ = ∂contrastive_divergence(rbm, vd, vm; wd = wd, wm = wd)
             # update parameters using gradient
-            Flux.update!(optimizer, ps, gs)
-
-            push!(history, :epoch, epoch)
-            push!(history, :batch, b)
+            update!(optimizer, rbm, ∂)
         end
 
         lpl = batch_mean(log_pseudolikelihood(rbm, data), wts)
         push!(history, :lpl, lpl)
+        push!(history, :epoch, epoch)
         if verbose
             Δt_ = round(Δt, digits=2)
             lpl_ = round(lpl, digits=2)

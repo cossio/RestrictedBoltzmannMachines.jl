@@ -8,7 +8,6 @@ function cd!(rbm::RBM, data::AbstractArray;
     epochs = 1,
     optimizer = default_optimizer(_nobs(data), batchsize, epochs), # optimizer algorithm
     history::MVHistory = MVHistory(), # stores training log
-    lossadd = (_...) -> 0, # regularization
     verbose::Bool = true,
     wts::Wts = nothing, # data point weights
     steps::Int = 1, # Monte Carlo steps to update fantasy particles
@@ -19,20 +18,19 @@ function cd!(rbm::RBM, data::AbstractArray;
     for epoch in 1:epochs
         batches = minibatches(data, wts; batchsize = batchsize)
         Δt = @elapsed for (b, (vd, wd)) in enumerate(batches)
-            # fantasy chains
+            # new fantasy chains
             _idx = rand(1:_nobs(data), batchsize)
             _vm = copy(selectdim(data, ndims(data), _idx))
             vm = sample_v_from_v(rbm, _vm; steps = steps)
-
+            # compute gradients
             ∂ = ∂contrastive_divergence(rbm, vd, vm; wd = wd, wm = wd)
+            # update parameters with gradients
             update!(optimizer, rbm, ∂)
-
-            push!(history, :epoch, epoch)
-            push!(history, :batch, b)
         end
 
         lpl = batch_mean(log_pseudolikelihood(rbm, data), wts)
         push!(history, :lpl, lpl)
+        push!(history, :epoch, epoch)
         if verbose
             Δt_ = round(Δt, digits=2)
             lpl_ = round(lpl, digits=2)
