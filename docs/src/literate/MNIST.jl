@@ -4,7 +4,7 @@ We load MNIST via the MLDatasets.jl package.
 =#
 
 import RestrictedBoltzmannMachines as RBMs
-using CairoMakie, Statistics
+using CairoMakie, Statistics, MKL
 import MLDatasets, Flux
 nothing #hide
 
@@ -58,10 +58,8 @@ below.
 =#
 
 Float = Float32
-train_x = Float.(train_x)
-tests_x = Float.(tests_x)
-train_y = Float.(train_y)
-tests_y = Float.(tests_y)
+train_x = Array{Float}(train_x)
+tests_x = Array{Float}(tests_x)
 nothing #hide
 
 #=
@@ -253,9 +251,10 @@ rbm = RBMs.RBM(
     randn(Float,28,28,200)/28
 )
 RBMs.initialize!(rbm, train_x)
-history_wnorm = RBMs.pcd_norm!(
-    rbm, train_x; epochs=200, batchsize=256,
-    optimizer=Flux.ADAM()
+wn = RBMs.WeightNorm(rbm)
+history_wnorm = RBMs.pcd!(
+    rbm, wn, train_x;
+    epochs=100, batchsize=256, verbose=true, steps=1, optimizer=Flux.ADAM()
 )
 nothing #hide
 

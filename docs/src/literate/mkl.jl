@@ -8,7 +8,7 @@ Let's do a quick comparison.
 
 # We use Float32 for the test.
 
-const Float = Float32
+Float = Float32
 
 # Now load MNIST
 

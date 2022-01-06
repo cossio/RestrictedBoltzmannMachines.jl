@@ -9,13 +9,13 @@ struct WeightNorm{Tg<:AbstractArray, Tv<:AbstractArray}
     <https://proceedings.neurips.cc/paper/2016/hash/ed265bc903a5a097f61d3ec064d96d2e-Abstract.html>.
     """
     function WeightNorm(g::AbstractArray, v::AbstractArray)
-        @assert size(g) .== size(v) .|| size(g) .== 1
-        return new{typeof(g), typeof(v)}(v, g)
+        @assert all((size(g) .== size(v)) .|| (size(g) .== 1))
+        return new{typeof(g), typeof(v)}(g, v)
     end
 end
 
 @doc raw"""
-        WeightNorm(rbm, λ)
+        WeightNorm(rbm, λ = 1)
 
 Returns a re-parameterization of `rbm` weights, defined by:
 
@@ -33,15 +33,27 @@ More precisely, we assume that:
 ```julia
 λ = sqrt.(sum(abs2, v; dims=1:ndims(rbm.visible)))
 ```
+
+If not provided `λ` defaults to ones.
 """
 function WeightNorm(rbm::RBM, λ::AbstractArray)
     @assert size(λ) == (ntuple(Returns(1), ndims(rbm.visible))..., size(rbm.hidden)...)
-    g = sqrt.(sum(abs2, rbm.w; dims=1:ndims(rbm.visible)))
+    g = weight_norms(rbm)
     v = λ .* rbm.w ./ g
-    return new{typeof(g), typeof(v)}(v, g)
+    return WeightNorm(g, v)
 end
 
+function WeightNorm(rbm::RBM, λ::Real = 1)
+    sz = (ntuple(Returns(1), ndims(rbm.visible))..., size(rbm.hidden)...)
+    λs = FillArrays.Fill(λ, sz)
+    return WeightNorm(rbm, λs)
+end
+
+weight_norms(rbm::RBM) = sqrt.(sum(abs2, rbm.w; dims=1:ndims(rbm.visible)))
+
 function update_w_from_vg!(rbm::RBM, wn::WeightNorm)
+    @assert size(wn.v) == size(rbm.w)
+    @assert size(wn.g) == (ntuple(Returns(1), ndims(rbm.visible))..., size(rbm.hidden)...)
     λ = sqrt.(sum(abs2, wn.v; dims=1:ndims(rbm.visible)))
     rbm.w .= wn.g .* wn.v ./ λ
     return rbm
@@ -70,6 +82,7 @@ end
 
 function ∂wnorm(∂w::AbstractArray, rbm::RBM, wn::WeightNorm)
     @assert size(∂w) == size(rbm.w) == size(wn.v)
+    @assert size(wn.g) == (ntuple(Returns(1), ndims(rbm.visible))..., size(rbm.hidden)...)
     return ∂wnorm(∂w, rbm.w, wn.g, wn.v)
 end
 
@@ -127,7 +140,7 @@ function pcd!(rbm::RBM, wn::WeightNorm, data::AbstractArray;
             push!(history, :batch, b)
         end
 
-        lpl = batch_mean(log_pseudolikelihood(wnorm_rbm, data), wts)
+        lpl = batch_mean(log_pseudolikelihood(rbm, data), wts)
         push!(history, :lpl, lpl)
         if verbose
             Δt_ = round(Δt, digits=2)

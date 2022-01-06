@@ -49,10 +49,10 @@ makedocs(
         "Home" => "index.md",
         "Mathematical introduction" => "math.md",
         "Examples" => [
-            "MNIST" => "literate/MNIST.md",
-            "Learning rate decay" => "literate/lr_decay.md",
             "MKL" => "literate/mkl.md",
-            "Layers" => "literate/layers.md"
+            "Learning rate decay" => "literate/lr_decay.md",
+            "Layers" => "literate/layers.md",
+            "MNIST" => "literate/MNIST.md",
         ],
         "Reference" => "reference.md"
     ],
