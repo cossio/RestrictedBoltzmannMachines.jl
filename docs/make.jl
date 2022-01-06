@@ -50,13 +50,9 @@ makedocs(
         "Mathematical introduction" => "math.md",
         "Examples" => [
             "MNIST" => "literate/MNIST.md",
-            "lr-decay" => "literate/lr_decay.md",
+            "Learning rate decay" => "literate/lr_decay.md",
             "MKL" => "literate/mkl.md",
-            "Layers" => [
-                "Gaussian layer" => "literate/layers/gauss.md",
-                "ReLU layer" => "literate/layers/relu.md",
-                "dReLU layer" => "literate/layers/drelu.md",
-            ]
+            "Layers" => "literate/layers.md"
         ],
         "Reference" => "reference.md"
     ],

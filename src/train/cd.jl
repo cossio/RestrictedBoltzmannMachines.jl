@@ -24,21 +24,6 @@ function cd!(rbm::RBM, data::AbstractArray;
             _vm = copy(selectdim(data, ndims(data), _idx))
             vm = sample_v_from_v(rbm, _vm; steps = steps)
 
-            # compute contrastive divergence gradient
-            # ps = Flux.params(rbm)
-            # gs = Zygote.gradient(ps) do
-            #     loss = contrastive_divergence(rbm, vd, vm; wd = wd, wm = wd)
-            #     regu = lossadd(rbm, vd, vm, wd)
-            #     ChainRulesCore.ignore_derivatives() do
-            #         push!(history, :cd_loss, loss)
-            #         push!(history, :reg_loss, regu)
-            #     end
-            #     return loss + regu
-            # end
-
-            # update parameters using gradient
-            #Flux.update!(optimizer, ps, gs)
-
             ∂ = ∂contrastive_divergence(rbm, vd, vm; wd = wd, wm = wd)
             update!(optimizer, rbm, ∂)
 
@@ -102,7 +87,7 @@ subtract_gradients(∂1::AbstractTensor{N}, ∂2::AbstractTensor{N}) where {N} =
 
 # update! mimics Flux.update!
 function update!(optimizer, rbm::RBM, ∂::NamedTuple)
-    Flux.update!(optimizer, rbm.w, ∂.w)
+    update!(optimizer, rbm.w, ∂.w)
     update!(optimizer, rbm.visible, ∂.visible)
     update!(optimizer, rbm.hidden, ∂.hidden)
 end
@@ -111,4 +96,8 @@ function update!(optimizer, layer::AbstractLayer, ∂::NamedTuple)
     for (k, g) in pairs(∂)
         Flux.update!(optimizer, getproperty(layer, k), g)
     end
+end
+
+function update!(optimizer, x::AbstractArray, ∂::AbstractArray)
+    Flux.update!(optimizer, x, ∂)
 end

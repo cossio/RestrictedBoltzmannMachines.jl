@@ -38,7 +38,7 @@ module RestrictedBoltzmannMachines
     include("train/pcd.jl")
     include("train/pcd_center.jl")
     include("train/cd_white.jl")
-    include("train/cd_norm.jl")
+    include("train/pcd_norm.jl")
     include("train/optim.jl")
     include("train/regularize.jl")
 end
