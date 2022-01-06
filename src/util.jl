@@ -84,7 +84,7 @@ end
 Retruns an iterator over all sequences of length `n` out of the alphabet `A`.
 """
 function generate_sequences(n::Int, A = 0:1)
-    return (collect(seq) for seq in Iterators.product(ntuple(Returns(A), n)...))
+    return (collect(seq) for seq in Iterators.product(ntuple(_ -> A, n)...))
 end
 
 """
