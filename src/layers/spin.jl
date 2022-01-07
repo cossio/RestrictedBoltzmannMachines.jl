@@ -36,10 +36,15 @@ end
 
 function transfer_sample(layer::Spin)
     u = rand(eltype(layer.θ), size(layer.θ))
-    return ifelse.(u .* (1 .+ exp.(-2layer.θ)) .< 1, Int8(1), Int8(-1))
+    return spin_rand.(layer.θ, u)
 end
 
 function spin_free(θ::Real)
     abs_θ = abs(θ)
     return -abs_θ - LogExpFunctions.log1pexp(-2abs_θ)
+end
+
+function spin_rand(θ::Real, u::Real)
+    p = LogExpFunctions.logistic(2θ)
+    return ifelse(u < p, Int8(1), Int8(-1))
 end

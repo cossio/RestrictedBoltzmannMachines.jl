@@ -117,15 +117,14 @@ end
 
 @testset "Binary" begin
     @testset "binary_rand" begin
-        binary_rand(θ, u) = u * (1 + exp(-θ)) < 1
-
+        #binary_rand(θ, u) = u * (1 + exp(-θ)) < 1
         for θ in -5:5, u in 0.0:0.1:1.0
-            @test binary_rand(θ, u) == @inferred RBMs.binary_rand(θ, u)
-        end
+            @test (@. u * (1 + exp(-θ)) < 1) == @inferred RBMs.binary_rand(θ, u)
 
+        end
         θ = randn(1000)
         u = rand(1000)
-        @test RBMs.binary_rand.(θ, u) == binary_rand.(θ, u)
+        @test RBMs.binary_rand.(θ, u) == (@. u * (1 + exp(-θ)) < 1)
     end
 
     @testset "binary_var" begin
