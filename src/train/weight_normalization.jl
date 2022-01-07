@@ -130,20 +130,20 @@ function pcd!(rbm::RBM, wn::WeightNorm, data::AbstractArray;
 
     for epoch in 1:epochs
         batches = minibatches(data, wts; batchsize = batchsize)
-        Δt = @elapsed for (b, (vd, wd)) in enumerate(batches)
+        Δt = @elapsed for (vd, wd) in batches
             # update fantasy chains
             vm = sample_v_from_v(rbm, vm; steps = steps)
             # compute contrastive divergence gradient
             ∂ = ∂contrastive_divergence(rbm, wn, vd, vm; wd = wd, ts)
             # update parameters using gradient
             update!(optimizer, rbm, wn, ∂)
-
-            push!(history, :epoch, epoch)
-            push!(history, :batch, b)
         end
 
         lpl = batch_mean(log_pseudolikelihood(rbm, data), wts)
         push!(history, :lpl, lpl)
+        push!(history, :epoch, epoch)
+        push!(history, :Δt, Δt)
+        push!(history, :vn, maximum(abs, wn.v))
         if verbose
             Δt_ = round(Δt, digits=2)
             lpl_ = round(lpl, digits=2)

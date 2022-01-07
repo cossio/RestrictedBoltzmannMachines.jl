@@ -39,6 +39,8 @@ function pcd_centered!(rbm::RBM, data::AbstractArray;
 
         lpl = batch_mean(log_pseudolikelihood(rbm, data), wts)
         push!(history, :lpl, lpl)
+        push!(history, :epoch, epoch)
+        push!(history, :Δt, Δt)
         if verbose
             Δt_ = round(Δt, digits=2)
             lpl_ = round(lpl, digits=2)
