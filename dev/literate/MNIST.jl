@@ -4,6 +4,7 @@ We load MNIST via the MLDatasets.jl package.
 =#
 
 using MKL # uses MKL for linear algebra (optional)
+nothing #hide
 
 using CairoMakie, Statistics
 import MLDatasets, Flux
@@ -146,6 +147,10 @@ Note that this shows the pseudolikelihood of the train data.
 lines(get(history, :lpl)...)
 
 #=
+Notice the abrupt oscillations at the beginning.
+Those come from the poor initialization of the RBM.
+We will correct this below.
+
 Now let's generate some random RBM samples.
 First, we select random data digits to be initial conditions for the Gibbs sampling:
 =#
@@ -198,7 +203,7 @@ rbm = RBMs.RBM(
     RBMs.Binary(Float,200),
     randn(Float,28,28,200)/28
 )
-RBMs.initialize!(rbm, train_x)
+RBMs.initialize!(rbm, train_x) # match single-site statistics
 history_init = RBMs.pcd!(rbm, train_x; epochs=200, batchsize=256, optimizer=Flux.ADAM())
 nothing #hide
 
@@ -214,7 +219,8 @@ axislegend(ax, position=:rb)
 fig
 
 #=
-Notice how the pseudolikelihood curve grows a bit faster than before.
+Notice how the pseudolikelihood curve grows a bit faster than before and is smoother.
+The initial oscillations are gone.
 =#
 
 RBMs.log_pseudolikelihood(rbm, train_x) |> mean
