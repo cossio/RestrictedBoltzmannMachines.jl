@@ -102,7 +102,7 @@ end
     data = RBMs.onehot_encode(d["data"]')
     pl = RBMs.log_pseudolikelihood(rbm, data)
 
-    # TODO: see if we can decrease rtol
+    # TODO: #7 see if we can decrease rtol
     @test mean(pl) ≈ mean(d["PL"]) rtol=0.1
     @test std(pl) ≈ std(d["PL"]) rtol=0.1
 end
