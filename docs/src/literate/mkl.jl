@@ -29,7 +29,7 @@ nothing #hide
 import RestrictedBoltzmannMachines as RBMs
 rbm = RBMs.RBM(RBMs.Binary(Float,28,28), RBMs.Binary(Float,128), zeros(Float,28,28,128))
 RBMs.initialize!(rbm, train_x)
-history_openblas = RBMs.cd!(rbm, train_x; epochs=10, batchsize=128, verbose=true, steps=1)
+history_openblas = RBMs.cd!(rbm, train_x; epochs=50, batchsize=128, verbose=true, steps=1)
 nothing #hide
 
 # Since we haven't loaded MKL, this first run should have used OpenBLAS.
@@ -65,7 +65,7 @@ Now let's rerun the RBM training.
 
 rbm = RBMs.RBM(RBMs.Binary(Float,28,28), RBMs.Binary(Float,128), zeros(Float,28,28,128))
 RBMs.initialize!(rbm, train_x)
-history_mkl = RBMs.cd!(rbm, train_x; epochs=10, batchsize=128, verbose=true, steps=1)
+history_mkl = RBMs.cd!(rbm, train_x; epochs=50, batchsize=128, verbose=true, steps=1)
 nothing #hide
 
 #=
@@ -76,5 +76,5 @@ fig = Figure(resolution=(600, 400))
 ax = Axis(fig[1,1], xlabel="epoch", ylabel="duration (seconds)")
 lines!(ax, get(history_openblas, :Δt)..., label="OpenBlAS")
 lines!(ax, get(history_mkl, :Δt)..., label="MKL")
-axislegend(ax, position=:rb)
+axislegend(ax, position=:rt)
 fig
