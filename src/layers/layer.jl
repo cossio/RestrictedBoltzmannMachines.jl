@@ -3,7 +3,7 @@ abstract type AbstractLayer{N} end
 Base.ndims(::AbstractLayer{N}) where {N} = N
 
 function effective(layer::AbstractLayer, input::Real; β::Real = true)
-    inputs = FillArrays.Falses(size(layer))
+    inputs = FillArrays.Fill(input, size(layer))
     return effective(layer, inputs; β)
 end
 
@@ -12,20 +12,15 @@ end
 
 Layer energy, reduced over layer dimensions.
 """
-function energy(layer::AbstractLayer{N}, x::AbstractTensor{N}) where {N}
-    check_size(layer, x)
-    return sum(energies(layer, x))::Number
-end
-
-function energy(layer::AbstractLayer, x::AbstractTensor{N}) where {N}
-    check_size(layer, x)
-    E = sum(energies(layer, x); dims = 1:ndims(layer))
-    return reshape(E, size(x, N))::AbstractVector
-end
-
-function energy(layer::AbstractLayer, x::Real)::Number
-    xs = FillArrays.Fill(x, size(layer))
-    return energy(layer, xs)::Number
+function energy(layer::AbstractLayer, x::AbstractTensor)
+    @assert size(layer) == size(x)[1:ndims(layer)]
+    Es = energies(layer, x)
+    if ndims(layer) == ndims(x)
+        return sum(Es)
+    else
+        E = sum(Es; dims = 1:ndims(layer))
+        return reshape(E, size(x)[(ndims(layer) + 1):end])
+    end
 end
 
 """
@@ -33,19 +28,14 @@ end
 
 Cumulant generating function of layer, reduced over layer dimensions.
 """
-function free_energy(
-    layer::AbstractLayer{N}, inputs::AbstractTensor{N}; β::Real = true
-) where {N}
-    check_size(layer, inputs)
-    F = free_energies(layer, inputs; β)
-    return sum(F)::Number
-end
-
 function free_energy(layer::AbstractLayer, inputs::AbstractTensor; β::Real = true)
-    check_size(layer, inputs)
     F = free_energies(layer, inputs; β)
-    f = sum(F; dims = 1:ndims(layer))
-    return reshape(f, size(inputs, ndims(inputs)))::AbstractVector
+    if ndims(layer) == ndims(inputs)
+        return sum(F)
+    else
+        f = sum(F; dims = 1:ndims(layer))
+        return reshape(f, size(inputs)[(ndims(layer) + 1):end])
+    end
 end
 
 function free_energy(layer::AbstractLayer, input::Real = false; β::Real = true)
@@ -61,7 +51,6 @@ Samples layer configurations conditioned on inputs.
 function transfer_sample(
     layer::AbstractLayer, inputs::Union{Real, AbstractTensor}; β::Real = true
 )
-    check_size(layer, inputs)
     layer_ = effective(layer, inputs; β)
     return transfer_sample(layer_)
 end
@@ -72,7 +61,6 @@ end
 Mode of unit activations.
 """
 function transfer_mode(layer::AbstractLayer, inputs::Union{Real, AbstractTensor})
-    check_size(layer, inputs)
     layer_ = effective(layer, inputs)
     return transfer_mode(layer_)
 end
@@ -85,7 +73,6 @@ Mean of unit activations.
 function transfer_mean(
     layer::AbstractLayer, inputs::Union{Real, AbstractTensor}; β::Real = true
 )
-    check_size(layer, inputs)
     layer_ = effective(layer, inputs; β)
     return transfer_mean(layer_)
 end
@@ -96,9 +83,8 @@ end
 Variance of unit activations.
 """
 function transfer_var(
-    layer::AbstractLayer, inputs::Union{Real, AbstractTensor}; β::Real = true
+    layer::AbstractLayer, inputs::Union{Real, AbstractArray}; β::Real = true
 )
-    check_size(layer, inputs)
     layer_ = effective(layer, inputs; β)
     return transfer_var(layer_)
 end
@@ -109,7 +95,7 @@ end
 Standard deviation of unit activations.
 """
 function transfer_std(
-    layer::AbstractLayer, inputs::Union{Real, AbstractTensor}; β::Real = true
+    layer::AbstractLayer, inputs::Union{Real, AbstractArray}; β::Real = true
 )
     layer_ = effective(layer, inputs; β)
     return transfer_std(layer_)
@@ -121,7 +107,7 @@ end
 Mean of absolute value of unit activations.
 """
 function transfer_mean_abs(
-    layer::AbstractLayer, inputs::Union{Real, AbstractTensor}; β::Real = true
+    layer::AbstractLayer, inputs::Union{Real, AbstractArray}; β::Real = true
 )
     layer_ = effective(layer, inputs; β)
     return transfer_mean_abs(layer_)
@@ -133,15 +119,10 @@ end
 Cumulant generating function of units in layer (not reduced over layer dimensions).
 """
 function free_energies(
-    layer::AbstractLayer, inputs::Union{Real, AbstractTensor}; β::Real = true
+    layer::AbstractLayer, inputs::Union{Real, AbstractArray}; β::Real = true
 )
     layer_ = effective(layer, inputs; β)
     return free_energies(layer_) / β
-end
-
-function energies(layer::AbstractLayer, x::Real)
-    xs = FillArrays.Fill(x, size(layer))
-    return energies(layer, xs)
 end
 
 """
@@ -152,14 +133,12 @@ consistently with `layer` dimensions.
 """
 flatten(::AbstractLayer, x::Real) = x
 function flatten(layer::AbstractLayer{N}, x::AbstractTensor{N}) where {N}
-    check_size(layer, x)
-    @assert size(x) == size(layer)
+    @assert size(layer) == size(x)
     return reshape(x, length(layer))
 end
-function flatten(layer::AbstractLayer, x::AbstractTensor{N}) where {N}
-    check_size(layer, x)
-    @assert size(x) == (size(layer)..., size(x, N))
-    return reshape(x, length(layer), size(x, N))
+function flatten(layer::AbstractLayer{N}, x::AbstractTensor) where {N}
+    @assert size(x)[1:N] == size(layer)
+    return reshape(x, length(layer), :)
 end
 
 """
@@ -184,9 +163,9 @@ end
 Returns a `NamedTuple` of the sufficient statistics used by the layer.
 """
 function sufficient_statistics(
-    layer::AbstractLayer, x::AbstractTensor; wts::Nothing = nothing
+    layer::AbstractLayer, x::AbstractArray; wts::Nothing = nothing
 )
-    check_size(layer, x)
+    @assert size(layer) == size(x)[1:ndims(layer)]
     if ndims(layer) == ndims(x)
         return sufficient_statistics(layer, reshape(x, size(x)..., 1), wts)
     else
@@ -194,19 +173,11 @@ function sufficient_statistics(
     end
 end
 
-function check_size(layer::AbstractLayer{N}, x::AbstractTensor{N}) where {N}
-    size(x) == size(layer) || throw_size_mismatch_error(layer, x)
+function check_size(layer::AbstractLayer, x::AbstractArray)
+    if size(layer) ≠ size(x)[1:ndims(layer)]
+        throw(DimensionMismatch(
+            "size(layer)=$(size(layer)) inconsistent with size(x)=$(size(x))"
+        ))
+    end
 end
-
-function check_size(layer::AbstractLayer, x::AbstractTensor{N}) where {N}
-    size(x) == (size(layer)..., size(x, N)) || throw_size_mismatch_error(layer, x)
-end
-
-check_size(::AbstractLayer, ::Real) = true
-
-function throw_size_mismatch_error(layer::AbstractLayer, x::AbstractTensor)
-    throw(DimensionMismatch(
-        "size(layer)=$(size(layer)) inconsistent with size(x)=$(size(x))"
-    ))
-    return false
-end
+check_size(::AbstractLayer, ::Real) = nothing

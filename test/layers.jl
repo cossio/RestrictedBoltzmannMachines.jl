@@ -1,6 +1,6 @@
 include("tests_init.jl")
 
-Random.seed!(1)
+Random.seed!(2)
 
 _layers = (
     RBMs.Binary,

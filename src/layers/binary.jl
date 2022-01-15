@@ -11,13 +11,13 @@ Binary(n::Int...) = Binary(Float64, n...)
 
 Flux.@functor Binary
 
-function effective(layer::Binary, inputs::AbstractTensor; β::Real = true)
-    check_size(layer, inputs)
+function effective(layer::Binary, inputs::AbstractArray; β::Real = true)
+    @assert size(layer) == size(inputs)[1:ndims(layer)]
     return Binary(β * (layer.θ .+ inputs))
 end
 
 free_energies(layer::Binary) = -LogExpFunctions.log1pexp.(layer.θ)
-transfer_mode(layer::Binary) = binary_mode.(layer.θ)
+transfer_mode(layer::Binary) = layer.θ .> 0
 transfer_mean(layer::Binary) = LogExpFunctions.logistic.(layer.θ)
 transfer_mean_abs(layer::Binary) = transfer_mean(layer)
 transfer_var(layer::Binary) = binary_var.(layer.θ)
@@ -26,11 +26,6 @@ transfer_std(layer::Binary) = binary_std.(layer.θ)
 function transfer_sample(layer::Binary)
     u = rand(eltype(layer.θ), size(layer))
     return binary_rand.(layer.θ, u)
-end
-
-function binary_mode(θ::Real)
-    @assert !isnan(θ)
-    return θ > 0
 end
 
 function binary_var(θ::Real)

@@ -1,26 +1,70 @@
 include("tests_init.jl")
 
-@testset "flat_interaction_energy" begin
-    N, M, B = 21, 13, 5
+# @testset "flat_interaction_energy" begin
+#     N, M, B = 21, 13, 5
 
-    w = randn(N, M)
-    v = randn(N)
-    h = randn(M)
-    @test RBMs.flat_interaction_energy(w, v, h) ≈ -v' * w * h
-    @test RBMs.flat_interaction_energy(w, v, h) ≈ RBMs.flat_interaction_energy(w', h, v)
+#     w = randn(N, M)
+#     v = randn(N)
+#     h = randn(M)
+#     @test RBMs.flat_interaction_energy(w, v, h) ≈ -v' * w * h
+#     @test RBMs.flat_interaction_energy(w, v, h) ≈ RBMs.flat_interaction_energy(w', h, v)
 
-    w = randn(N, M)
-    v = randn(N, 1)
-    h = randn(M, 1)
-    @test RBMs.flat_interaction_energy(w, vec(v), vec(h)) ≈ -vec(v)' * w * vec(h)
-    @test RBMs.flat_interaction_energy(w, v, h) ≈ -[vec(v)' * w * vec(h)]
-    @test RBMs.flat_interaction_energy(w, v, h) ≈ RBMs.flat_interaction_energy(w', h, v)
+#     w = randn(N, M)
+#     v = randn(N, 1)
+#     h = randn(M, 1)
+#     @test RBMs.flat_interaction_energy(w, vec(v), vec(h)) ≈ -vec(v)' * w * vec(h)
+#     @test RBMs.flat_interaction_energy(w, v, h) ≈ -[vec(v)' * w * vec(h)]
+#     @test RBMs.flat_interaction_energy(w, v, h) ≈ RBMs.flat_interaction_energy(w', h, v)
 
-    w = randn(N, M)
-    v = randn(N, B)
-    h = randn(M, B)
-    @test RBMs.flat_interaction_energy(w, v, h) ≈ -diag(v' * w * h)
-    @test RBMs.flat_interaction_energy(w, v, h) ≈ RBMs.flat_interaction_energy(w', h, v)
+#     w = randn(N, M)
+#     v = randn(N, B)
+#     h = randn(M, B)
+#     @test RBMs.flat_interaction_energy(w, v, h) ≈ -diag(v' * w * h)
+#     @test RBMs.flat_interaction_energy(w, v, h) ≈ RBMs.flat_interaction_energy(w', h, v)
+# end
+
+@testset "batches, n=$n, m=$m, Bv=$Bv, Bh=$Bh" for n in (5, (5,2)), m in (2, (3,4)), Bv in ((), (3,2)), Bh in ((), (3,2))
+    rbm = RBMs.RBM(RBMs.Binary(n...), RBMs.Binary(m...), randn(n..., m...))
+    randn!(rbm.visible.θ)
+    randn!(rbm.hidden.θ)
+    randn!(rbm.w)
+    wmat = reshape(rbm.w, length(rbm.visible), length(rbm.hidden))
+    v = bitrand(n..., Bv...)
+    h = bitrand(m..., Bh...)
+
+    @test size(RBMs.inputs_v_to_h(rbm, v)) == (size(rbm.hidden)...,  Bv...)
+    @test size(RBMs.inputs_h_to_v(rbm, h)) == (size(rbm.visible)..., Bh...)
+    if length(Bv) == length(Bh) == 0
+        @test RBMs.interaction_energy(rbm, v, h) isa Number
+        @test RBMs.interaction_energy(rbm, v, h) ≈ -vec(v)' * wmat * vec(h)
+        @test RBMs.energy(rbm, v, h) isa Number
+    elseif length(Bv) == 0
+        hmat = reshape(h, length(rbm.hidden), :)
+        E = -vec(v)' * wmat * hmat
+        @test RBMs.interaction_energy(rbm, v, h) isa AbstractArray
+        @test size(RBMs.interaction_energy(rbm, v, h)) == Bh
+        @test RBMs.interaction_energy(rbm, v, h) ≈ reshape(E, Bh)
+        @test size(RBMs.energy(rbm, v, h)) == Bh
+    elseif length(Bh) == 0
+        vmat = reshape(v, length(rbm.visible), :)
+        E = -vec(h)' * wmat' * vmat
+        @test RBMs.interaction_energy(rbm, v, h) isa AbstractArray
+        @test size(RBMs.interaction_energy(rbm, v, h)) == Bv
+        @test RBMs.interaction_energy(rbm, v, h) ≈ reshape(E, Bv)
+        @test size(RBMs.energy(rbm, v, h)) == Bv
+    else
+        vmat = reshape(v, length(rbm.visible), :)
+        hmat = reshape(h, length(rbm.hidden), :)
+        E = -dot.(eachcol(vmat), Ref(wmat), eachcol(hmat))
+        @test RBMs.interaction_energy(rbm, v, h) isa AbstractArray
+        @test size(RBMs.interaction_energy(rbm, v, h)) == Bv == Bh
+        @test RBMs.interaction_energy(rbm, v, h) ≈ reshape(E, Bv)
+        @test size(RBMs.energy(rbm, v, h)) == Bv == Bh
+    end
+    @inferred RBMs.inputs_v_to_h(rbm, v)
+    @inferred RBMs.inputs_h_to_v(rbm, h)
+    @inferred RBMs.interaction_energy(rbm, v, h)
+    @inferred RBMs.energy(rbm, v, h)
 end
 
 @testset "Binary-Binary RBM" begin

@@ -20,12 +20,11 @@ Flux.@functor RBM
 
 Energy of the rbm in the configuration `(v,h)`.
 """
-function energy(rbm::RBM, v::AbstractTensor, h::AbstractTensor)
-    check_size(rbm, v, h)
-    Ev::Union{Number, AbstractVector} = energy(rbm.visible, v)
-    Eh::Union{Number, AbstractVector} = energy(rbm.hidden, h)
-    Ew::Union{Number, AbstractVector} = interaction_energy(rbm, v, h)
-    return (Ev .+ Eh .+ Ew)::Union{Number, AbstractVector}
+function energy(rbm::RBM, v::AbstractArray, h::AbstractArray)
+    Ev = energy(rbm.visible, v)
+    Eh = energy(rbm.hidden, h)
+    Ew = interaction_energy(rbm, v, h)
+    return Ev .+ Eh .+ Ew
 end
 
 """
@@ -34,40 +33,30 @@ end
 Weight mediated interaction energy.
 """
 function interaction_energy(rbm::RBM, v::AbstractArray, h::AbstractArray)
-    check_size(rbm, v, h)
+    @assert size(v)[1:ndims(rbm.visible)] == size(rbm.visible)
+    @assert size(h)[1:ndims(rbm.hidden)]  == size(rbm.hidden)
     wmat = reshape(rbm.w, length(rbm.visible), length(rbm.hidden))
-    vflat = flatten(rbm.visible, activations_convert_maybe(rbm.w, v))
-    hflat = flatten(rbm.hidden,  activations_convert_maybe(rbm.w, h))
-    return flat_interaction_energy(wmat, vflat, hflat)
-end
-
-function flat_interaction_energy(w::AbstractMatrix, v::AbstractVector, h::AbstractVector)
-    @assert size(w) == (length(v), length(h))
-    return -dot(v, w, h)::Number
-end
-
-function flat_interaction_energy(w::AbstractMatrix, v::AbstractMatrix, h::AbstractVector)
-    @assert size(w) == (size(v, 1), size(h, 1))
-    E = -v' * (w * h)
-    return E::AbstractVector
-end
-
-function flat_interaction_energy(w::AbstractMatrix, v::AbstractVector, h::AbstractMatrix)
-    @assert size(w) == (size(v, 1), size(h, 1))
-    E = -h' * (w' * v)
-    return E::AbstractVector
-end
-
-function flat_interaction_energy(w::AbstractMatrix, v::AbstractMatrix, h::AbstractMatrix)
-    @assert size(w) == (size(v, 1), size(h, 1))
-    @assert size(v, 2) == size(h, 2) # batch size
-    if size(v, 1) ≥ size(h, 1)
-        E = -dropdims(sum((w' * v) .* h; dims=1); dims=1)
+    if ndims(rbm.visible) == ndims(v) && ndims(rbm.hidden) == ndims(h)
+        return -vec(v)' * wmat * vec(h)
+    elseif ndims(rbm.visible) < ndims(v) && ndims(rbm.hidden) == ndims(h)
+        vflat = reshape(v, length(rbm.visible), :)
+        Eflat = -vec(h)' * wmat' * vflat
+        return reshape(Eflat, size(v)[(ndims(rbm.visible) + 1):end])
+    elseif ndims(rbm.visible) == ndims(v) && ndims(rbm.hidden) < ndims(h)
+        hflat = reshape(h, length(rbm.hidden), :)
+        Eflat = -vec(v)' * wmat * hflat
+        return reshape(Eflat, size(h)[(ndims(rbm.hidden) + 1):end])
     else
-        E = -dropdims(sum(v .* (w * h); dims=1); dims=1)
+        @assert size(v)[(ndims(rbm.visible) + 1):end] == size(h)[(ndims(rbm.hidden) + 1):end]
+        vflat = reshape(v, length(rbm.visible), :)
+        hflat = reshape(h, length(rbm.hidden), :)
+        if size(vflat, 1) ≥ size(hflat, 1)
+            Eflat = -dropdims(sum((wmat' * vflat) .* hflat; dims=1); dims=1)
+        else
+            Eflat = -dropdims(sum(vflat .* (wmat * hflat); dims=1); dims=1)
+        end
+        return reshape(Eflat, size(v)[(ndims(rbm.visible) + 1):end])
     end
-    @assert length(E) == size(v, 2) == size(h, 2)
-    return E::AbstractVector
 end
 
 """
@@ -76,10 +65,12 @@ end
 Interaction inputs from visible to hidden layer.
 """
 function inputs_v_to_h(rbm::RBM, v::AbstractArray)
-    vflat = flatten(rbm.visible, v)
-    wflat = reshape(rbm.w, length(rbm.visible), length(rbm.hidden))
-    vconv = activations_convert_maybe(wflat, vflat)
-    return unflatten(rbm.hidden, wflat' * vconv)
+    @assert size(v)[1:ndims(rbm.visible)] == size(rbm.visible)
+    wmat = reshape(rbm.w, length(rbm.visible), length(rbm.hidden))
+    vflat = reshape(v, length(rbm.visible), :)
+    vconv = activations_convert_maybe(wmat, vflat)
+    iflat = wmat' * vconv
+    return reshape(iflat, size(rbm.hidden)..., size(v)[(ndims(rbm.visible) + 1):end]...)
 end
 
 """
@@ -88,22 +79,24 @@ end
 Interaction inputs from hidden to visible layer.
 """
 function inputs_h_to_v(rbm::RBM, h::AbstractArray)
-    hflat = flatten(rbm.hidden, h)
-    wflat = reshape(rbm.w, length(rbm.visible), length(rbm.hidden))
-    hconv = activations_convert_maybe(wflat, hflat)
-    return unflatten(rbm.visible, wflat * hconv)
+    @assert size(h)[1:ndims(rbm.hidden)] == size(rbm.hidden)
+    wmat = reshape(rbm.w, length(rbm.visible), length(rbm.hidden))
+    hflat = reshape(h, length(rbm.hidden), :)
+    hconv = activations_convert_maybe(wmat, hflat)
+    iflat = wmat * hconv
+    return reshape(iflat, size(rbm.visible)..., size(h)[(ndims(rbm.hidden) + 1):end]...)
 end
 
 # convert to common eltype before matrix multiply, to make sure we hit BLAS
-activations_convert_maybe(w::AbstractArray{W}, x::AbstractArray{X}) where {W,X} = map(W, x)
-activations_convert_maybe(w::AbstractArray{T}, x::AbstractArray{T}) where {T} = x
+activations_convert_maybe(::AbstractArray{W}, x::AbstractArray{X}) where {W,X} = map(W, x)
+activations_convert_maybe(::AbstractArray{T}, x::AbstractArray{T}) where {T} = x
 
 """
     free_energy(rbm, v; β = 1)
 
 Free energy of visible configuration (after marginalizing hidden configurations).
 """
-function free_energy(rbm::RBM, v::AbstractTensor; β::Real = true)
+function free_energy(rbm::RBM, v::AbstractArray; β::Real = true)
     E = energy(rbm.visible, v)::Union{Number, AbstractVector}
     inputs = inputs_v_to_h(rbm, v)::AbstractArray
     F = free_energy(rbm.hidden, inputs; β)::Union{Number, AbstractVector}
@@ -136,11 +129,31 @@ end
 Samples a visible configuration conditional on another visible configuration `v`.
 """
 function sample_v_from_v(rbm::RBM, v::AbstractArray; β::Real = true, steps::Int = 1)
-    check_size(rbm.visible, v)
-    @assert steps ≥ 1
+    @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
     v_ = sample_v_from_v_once(rbm, v; β)
+    steps ≤ 0 && return v_ .= v
     for _ in 1:(steps - 1)
         v_ = sample_v_from_v_once(rbm, v_; β)
+    end
+    return v_
+end
+
+function sample_v_from_v_dot(rbm::RBM, v::AbstractArray; β::Real = true, steps::Int = 1)
+    @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
+    v_ = sample_v_from_v_once(rbm, v; β)
+    steps ≤ 0 && return v_ .= v
+    for _ in 1:(steps - 1)
+        v_ .= sample_v_from_v_once(rbm, v_; β)
+    end
+    return v_
+end
+
+function sample_v_from_v_alt(rbm::RBM, v::AbstractArray; β::Real = true, steps::Int = 1)
+    @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
+    v_ = similar(v)
+    steps ≤ 0 && return v_ .= v
+    for _ in 1:steps
+        v_ .= sample_v_from_v_once(rbm, v_; β)
     end
     return v_
 end
@@ -151,11 +164,11 @@ end
 Samples a hidden configuration conditional on another hidden configuration `h`.
 """
 function sample_h_from_h(rbm::RBM, h::AbstractArray; β::Real = true, steps::Int = 1)
-    check_size(rbm.hidden, h)
+    @assert size(rbm.hidden) == size(h)[1:ndims(rbm.hidden)]
     @assert steps ≥ 1
     h_ = sample_h_from_h_once(rbm, h; β)
     for _ in 1:(steps - 1)
-        h_ = sample_h_from_h_once(rbm, h_; β)
+        h_ .= sample_h_from_h_once(rbm, h_; β)
     end
     return h_
 end
@@ -170,6 +183,36 @@ function sample_h_from_h_once(rbm::RBM, h::AbstractArray; β::Real = true)
     v = sample_v_from_h(rbm, h; β)
     h = sample_h_from_v(rbm, v; β)
     return h
+end
+
+function sample_v_from_v!(
+    rbm::RBM, v::AbstractArray, h::AbstractArray; β::Real = true, steps::Int = 1
+)
+    for _ in 1:steps
+        sample_h_from_v!(rbm, v, h; β)
+        sample_v_from_h!(rbm, v, h; β)
+    end
+    return v
+end
+
+function sample_h_from_h!(
+    rbm::RBM, v::AbstractArray, h::AbstractArray; β::Real = true, steps::Int = 1
+)
+    for _ in 1:steps
+        sample_v_from_h!(rbm, v, h; β)
+        sample_h_from_v!(rbm, v, h; β)
+    end
+    return h
+end
+
+function sample_h_from_v!(rbm::RBM, v::AbstractArray, h::AbstractArray; β::Real = true)
+    h .= sample_h_from_v(rbm, v; β)
+    return h
+end
+
+function sample_v_from_h!(rbm::RBM, v::AbstractArray, h::AbstractArray; β::Real = true)
+    v .= sample_v_from_h(rbm, h; β)
+    return v
 end
 
 """
@@ -244,44 +287,4 @@ function mirror(rbm::RBM)
     perm = ntuple(p, ndims(rbm.w))
     w = permutedims(rbm.w, perm)
     return RBM(rbm.hidden, rbm.visible, w)
-end
-
-function check_size(
-    rbm::RBM{<:AbstractLayer{N}, <:AbstractLayer{M}},
-    v::AbstractTensor{N}, h::AbstractTensor{M}
-) where {N, M}
-    check_size(rbm.visible, v)
-    check_size(rbm.hidden, h)
-end
-
-function check_size(
-    rbm::RBM{<:AbstractLayer{N}, <:AbstractLayer{M}},
-    v::AbstractTensor{N}, h::AbstractTensor
-) where {N, M}
-    check_size(rbm.visible, v)
-    check_size(rbm.hidden, h)
-end
-
-function check_size(
-    rbm::RBM{<:AbstractLayer{N}, <:AbstractLayer{M}},
-    v::AbstractTensor, h::AbstractTensor{M}
-) where {N, M}
-    check_size(rbm.visible, v)
-    check_size(rbm.hidden, h)
-end
-
-function check_size(rbm::RBM, v::AbstractTensor, h::AbstractTensor)
-    check_size(rbm.visible, v)
-    check_size(rbm.hidden, h)
-    @assert size(v) == (size(rbm.visible)..., size(v)[end])
-    @assert size(h) == (size(rbm.hidden)..., size(h)[end])
-    if size(v)[end] ≠ size(h)[end]
-        throw(DimensionMismatch(
-            """
-            inconsistent batch dimensions; got size(v) = $(size(v)), size(h) = $(size(h))
-            """
-        ))
-    else
-        return true
-    end
 end

@@ -16,8 +16,8 @@ using SafeTestsets, Random, Test
 @time @safetestset "cd" begin include("cd.jl") end
 @time @safetestset "linalg" begin include("linalg.jl") end
 @time @safetestset "onehot" begin include("onehot.jl") end
-@time @safetestset "layers" begin include("layers.jl") end
 @time @safetestset "rbm" begin include("rbm.jl") end
+@time @safetestset "layers" begin include("layers.jl") end
 @time @safetestset "minibatches" begin include("minibatches.jl") end
 @time @safetestset "zerosum" begin include("zerosum.jl") end
 @time @safetestset "initialization" begin include("initialization.jl") end

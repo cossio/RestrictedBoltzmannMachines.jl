@@ -17,8 +17,8 @@ Gaussian(n::Int...) = Gaussian(Float64, n...)
 
 Flux.@functor Gaussian
 
-function effective(layer::Gaussian, inputs::AbstractTensor; β::Real = true)
-    check_size(layer, inputs)
+function effective(layer::Gaussian, inputs::AbstractArray; β::Real = true)
+    @assert size(layer) == size(inputs)[1:ndims(layer)]
     θ = β * (layer.θ .+ inputs)
     γ = β * broadlike(layer.γ, inputs)
     return Gaussian(promote(θ, γ)...)
@@ -54,14 +54,13 @@ function ∂free_energy(layer::Gaussian)
     )
 end
 
-function ∂energy(layer::Gaussian; x::AbstractTensor, x2::AbstractTensor)
+function ∂energy(layer::Gaussian; x::AbstractArray, x2::AbstractArray)
     @assert size(x) == size(x2) == size(layer)
     return (; θ = -x, γ = x2/2)
 end
 
-function sufficient_statistics(layer::Gaussian, x::AbstractTensor, wts::Wts)
-    check_size(layer, x)
-    @assert size(x) == (size(layer)..., size(x)[end])
+function sufficient_statistics(layer::Gaussian, x::AbstractArray, wts::Wts)
+    @assert size(layer) == size(x)[1:ndims(layer)]
     μ = batch_mean(x, wts)
     μ2 = batch_mean(x.^2, wts)
     return (; x = μ, x2 = μ2)

@@ -8,28 +8,31 @@ Base.length(layer::_ThetaLayers) = length(layer.θ)
 
 Energies of units in layer (not reduced over layer dimensions).
 """
-function energies(layer::Union{Binary, Spin, Potts}, x::AbstractTensor)
-    check_size(layer, x)
+function energies(layer::Union{Binary,Spin,Potts}, x::AbstractArray)
+    @assert size(layer) == size(x)[1:ndims(layer)]
     return -layer.θ .* x
 end
 
-function energy(layer::Union{Binary, Spin, Potts}, x::AbstractTensor)
-    check_size(layer, x)
+function energy(layer::Union{Binary,Spin,Potts}, x::AbstractArray)
+    @assert size(layer) == size(x)[1:ndims(layer)]
     xconv = activations_convert_maybe(layer.θ, x)
-    E = -flatten(layer, xconv)' * vec(layer.θ)
-    return E::Union{Number, AbstractVector}
+    if ndims(layer) == ndims(x)
+        return -dot(layer.θ, x)
+    else
+        Eflat = -vec(layer.θ)' * reshape(xconv, length(layer.θ), :)
+        return reshape(Eflat, size(x)[(ndims(layer) + 1):end])
+    end
 end
 
-∂free_energy(layer::Union{Binary, Spin, Potts}) = (; θ = -transfer_mean(layer))
+∂free_energy(layer::Union{Binary,Spin,Potts}) = (; θ = -transfer_mean(layer))
 
-function ∂energy(layer::Union{Binary, Spin, Potts}; x::AbstractTensor)
+function ∂energy(layer::Union{Binary,Spin,Potts}; x::AbstractArray)
     @assert size(x) == size(layer)
     return (; θ = -x)
 end
 
-function sufficient_statistics(layer::Union{Binary,Spin,Potts}, x::AbstractTensor, wts::Wts)
-    check_size(layer, x)
-    @assert size(x) == (size(layer)..., size(x)[end])
+function sufficient_statistics(layer::Union{Binary,Spin,Potts}, x::AbstractArray, wts::Wts)
+    @assert size(layer) == size(x)[1:ndims(layer)]
     μ = batch_mean(x, wts)
     return (; x = μ)
 end

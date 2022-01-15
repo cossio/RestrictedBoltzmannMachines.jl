@@ -30,7 +30,7 @@ function effective(layer::dReLU, inputs::AbstractTensor; β::Real = true)
 end
 
 function energies(layer::dReLU, x::AbstractTensor)
-    check_size(layer, x)
+    @assert size(layer) == size(x)[1:ndims(layer)]
     return drelu_energy.(layer.θp, layer.θn, layer.γp, layer.γn, x)
 end
 
@@ -108,8 +108,7 @@ function ∂energy(layer::dReLU; xp, xn, xn2, xp2)
 end
 
 function sufficient_statistics(layer::dReLU, x::AbstractTensor, wts::Wts)
-    check_size(layer, x)
-    @assert size(x) == (size(layer)..., size(x)[end])
+    @assert size(layer) == size(x)[1:ndims(layer)]
     xp = max.(x, 0)
     xn = min.(x, 0)
     μp = batch_mean(xp, wts)

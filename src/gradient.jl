@@ -23,7 +23,7 @@ function ∂free_energy(
     return ∂free_energy(layer_eff)
 end
 
-function ∂free_energy(layer::AbstractLayer, inputs::AbstractTensor; wts::Wts = nothing)
+function ∂free_energy(layer::AbstractLayer, inputs::AbstractArray; wts::Wts = nothing)
     check_size(layer, inputs)
     layer_eff = effective(layer, inputs)
     ∂F = ∂free_energy(layer_eff)
@@ -36,7 +36,7 @@ function ∂free_energy(layer::AbstractLayer, inputs::AbstractTensor; wts::Wts =
 end
 
 function ∂free_energy(
-    rbm::RBM, v::AbstractTensor; wts::Wts = nothing,
+    rbm::RBM, v::AbstractArray; wts::Wts = nothing,
     ts = sufficient_statistics(rbm.visible, v; wts)
 )
     inputs = inputs_v_to_h(rbm, v)

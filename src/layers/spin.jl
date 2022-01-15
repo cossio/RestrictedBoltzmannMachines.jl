@@ -18,8 +18,8 @@ Spin(n::Int...) = Spin(Float64, n...)
 
 Flux.@functor Spin
 
-function effective(layer::Spin, inputs::AbstractTensor; β::Real = true)
-    check_size(layer, inputs)
+function effective(layer::Spin, inputs::AbstractArray; β::Real = true)
+    @assert size(layer) == size(inputs)[1:ndims(layer)]
     return Spin(β * (layer.θ .+ inputs))
 end
 
