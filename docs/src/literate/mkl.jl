@@ -74,7 +74,7 @@ You should see that the epochs are faster with MKL.
 using CairoMakie
 fig = Figure(resolution=(600, 400))
 ax = Axis(fig[1,1], xlabel="epoch", ylabel="duration (seconds)")
-lines!(ax, get(history_openblas, :Δt)..., label="OpenBlAS")
+lines!(ax, get(history_openblas, :Δt)..., label="OpenBLAS")
 lines!(ax, get(history_mkl, :Δt)..., label="MKL")
 axislegend(ax, position=:rt)
 fig
