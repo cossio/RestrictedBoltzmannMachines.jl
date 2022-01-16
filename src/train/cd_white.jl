@@ -67,7 +67,7 @@ function train_white!(rbm::RBM{<:Binary, <:Binary}, data::AbstractArray;
         if verbose
             Δt_ = round(Δt, digits=2)
             lpl_ = round(lpl, digits=2)
-            println("epoch $epoch/$epochs ($(Δt_)s), log(pseudolikelihood)=$lpl_")
+            println("epoch $epoch/$epochs ($(Δt_)s), log(PL)=$lpl_")
         end
     end
 
