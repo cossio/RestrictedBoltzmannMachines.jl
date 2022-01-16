@@ -130,28 +130,7 @@ Samples a visible configuration conditional on another visible configuration `v`
 """
 function sample_v_from_v(rbm::RBM, v::AbstractArray; β::Real = true, steps::Int = 1)
     @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
-    v_ = sample_v_from_v_once(rbm, v; β)
-    steps ≤ 0 && return v_ .= v
-    for _ in 1:(steps - 1)
-        v_ = sample_v_from_v_once(rbm, v_; β)
-    end
-    return v_
-end
-
-function sample_v_from_v_dot(rbm::RBM, v::AbstractArray; β::Real = true, steps::Int = 1)
-    @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
-    v_ = sample_v_from_v_once(rbm, v; β)
-    steps ≤ 0 && return v_ .= v
-    for _ in 1:(steps - 1)
-        v_ .= sample_v_from_v_once(rbm, v_; β)
-    end
-    return v_
-end
-
-function sample_v_from_v_alt(rbm::RBM, v::AbstractArray; β::Real = true, steps::Int = 1)
-    @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
-    v_ = similar(v)
-    steps ≤ 0 && return v_ .= v
+    v_ = copy(v)
     for _ in 1:steps
         v_ .= sample_v_from_v_once(rbm, v_; β)
     end
@@ -165,9 +144,8 @@ Samples a hidden configuration conditional on another hidden configuration `h`.
 """
 function sample_h_from_h(rbm::RBM, h::AbstractArray; β::Real = true, steps::Int = 1)
     @assert size(rbm.hidden) == size(h)[1:ndims(rbm.hidden)]
-    @assert steps ≥ 1
-    h_ = sample_h_from_h_once(rbm, h; β)
-    for _ in 1:(steps - 1)
+    h_ = copy(h)
+    for _ in 1:steps
         h_ .= sample_h_from_h_once(rbm, h_; β)
     end
     return h_
@@ -183,36 +161,6 @@ function sample_h_from_h_once(rbm::RBM, h::AbstractArray; β::Real = true)
     v = sample_v_from_h(rbm, h; β)
     h = sample_h_from_v(rbm, v; β)
     return h
-end
-
-function sample_v_from_v!(
-    rbm::RBM, v::AbstractArray, h::AbstractArray; β::Real = true, steps::Int = 1
-)
-    for _ in 1:steps
-        sample_h_from_v!(rbm, v, h; β)
-        sample_v_from_h!(rbm, v, h; β)
-    end
-    return v
-end
-
-function sample_h_from_h!(
-    rbm::RBM, v::AbstractArray, h::AbstractArray; β::Real = true, steps::Int = 1
-)
-    for _ in 1:steps
-        sample_v_from_h!(rbm, v, h; β)
-        sample_h_from_v!(rbm, v, h; β)
-    end
-    return h
-end
-
-function sample_h_from_v!(rbm::RBM, v::AbstractArray, h::AbstractArray; β::Real = true)
-    h .= sample_h_from_v(rbm, v; β)
-    return h
-end
-
-function sample_v_from_h!(rbm::RBM, v::AbstractArray, h::AbstractArray; β::Real = true)
-    v .= sample_v_from_h(rbm, h; β)
-    return v
 end
 
 """
