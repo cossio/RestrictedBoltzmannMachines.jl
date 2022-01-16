@@ -102,19 +102,19 @@ end
 
 function ∂energy(layer::dReLU; xp, xn, xn2, xp2)
     for ξ in (xp, xn, xp2, xn2)
-        @assert size(ξ::AbstractTensor) == size(layer)
+        @assert size(ξ::AbstractArray) == size(layer)
     end
     return (θp = -xp, θn = -xn, γp = xp2 / 2, γn = xn2 / 2)
 end
 
-function sufficient_statistics(layer::dReLU, x::AbstractTensor, wts::Wts)
+function sufficient_statistics(layer::dReLU, x::AbstractArray; wts = nothing)
     @assert size(layer) == size(x)[1:ndims(layer)]
     xp = max.(x, 0)
     xn = min.(x, 0)
-    μp = batch_mean(xp, wts)
-    μn = batch_mean(xn, wts)
-    μp2 = batch_mean(xp.^2, wts)
-    μn2 = batch_mean(xn.^2, wts)
+    μp = batchmean(layer, xp; wts)
+    μn = batchmean(layer, xn; wts)
+    μp2 = batchmean(layer, xp.^2; wts)
+    μn2 = batchmean(layer, xn.^2; wts)
     return (; xp = μp, xn = μn, xp2 = μp2, xn2 = μn2)
 end
 

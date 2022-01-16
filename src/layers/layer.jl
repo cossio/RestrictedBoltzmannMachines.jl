@@ -162,16 +162,7 @@ end
 
 Returns a `NamedTuple` of the sufficient statistics used by the layer.
 """
-function sufficient_statistics(
-    layer::AbstractLayer, x::AbstractArray; wts::Nothing = nothing
-)
-    @assert size(layer) == size(x)[1:ndims(layer)]
-    if ndims(layer) == ndims(x)
-        return sufficient_statistics(layer, reshape(x, size(x)..., 1), wts)
-    else
-        return sufficient_statistics(layer, x, wts)
-    end
-end
+function sufficient_statistics end
 
 function check_size(layer::AbstractLayer, x::AbstractArray)
     if size(layer) ≠ size(x)[1:ndims(layer)]
@@ -181,3 +172,36 @@ function check_size(layer::AbstractLayer, x::AbstractArray)
     end
 end
 check_size(::AbstractLayer, ::Real) = nothing
+
+"""
+    batchdims(layer, x)
+
+Indices of batch dimensions in `x`, with respect to `layer`.
+"""
+function batchdims(layer::AbstractLayer, x::AbstractArray)
+    @assert size(layer) == size(x)[1:ndims(layer)]
+    return (ndims(layer) + 1):ndims(x)
+end
+
+"""
+    batchsize(layer, x)
+
+Batch sizes of `x`, with respect to `layer`.
+"""
+function batchsize(layer::AbstractLayer, x::AbstractArray)
+    @assert size(layer) == size(x)[1:ndims(layer)]
+    return size(x)[batchdims(layer, x)]
+end
+
+"""
+    batchmean(layer, x; wts = nothing)
+
+Mean of `x` over batch dimensions, with weights `wts`.
+"""
+function batchmean(layer::AbstractLayer, x::AbstractArray; wts)
+    @assert size(layer) == size(x)[1:ndims(layer)]
+    μ = wmean(x; wts, dims = batchdims(layer, x))
+    return reshape(μ, size(layer))
+end
+
+batchmean(::AbstractLayer, x::Number; wts::Nothing) = x

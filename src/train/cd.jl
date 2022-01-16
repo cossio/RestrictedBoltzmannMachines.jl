@@ -9,7 +9,7 @@ function cd!(rbm::RBM, data::AbstractArray;
     optimizer = default_optimizer(_nobs(data), batchsize, epochs), # optimizer algorithm
     history::MVHistory = MVHistory(), # stores training log
     verbose::Bool = true,
-    wts::Wts = nothing, # data point weights
+    wts = nothing, # data point weights
     steps::Int = 1, # Monte Carlo steps to update fantasy particles
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
@@ -30,7 +30,7 @@ function cd!(rbm::RBM, data::AbstractArray;
             update!(optimizer, rbm, ∂)
         end
 
-        lpl = batch_mean(log_pseudolikelihood(rbm, data), wts)
+        lpl = wmean(log_pseudolikelihood(rbm, data); wts)
         push!(history, :lpl, lpl)
         push!(history, :epoch, epoch)
         push!(history, :Δt, Δt)
@@ -50,7 +50,7 @@ Contrastive divergence loss.
 `vd` is a data sample, and `vm` are samples from the model.
 """
 function contrastive_divergence(
-    rbm::RBM, vd::AbstractTensor, vm::AbstractTensor; wd::Wts = nothing, wm::Wts = nothing
+    rbm::RBM, vd::AbstractTensor, vm::AbstractTensor; wd = nothing, wm = nothing
 )
     Fd = mean_free_energy(rbm, vd; wts=wd)::Number
     Fm = mean_free_energy(rbm, vm; wts=wm)::Number
@@ -64,17 +64,16 @@ function mean_free_energy(
     return free_energy(rbm, v)::Number
 end
 
-function mean_free_energy(rbm::RBM, v::AbstractTensor; wts::Wts = nothing)
-    check_size(rbm.visible, v)
-    @assert size(v) == (size(rbm.visible)..., size(v)[end])
-    F = free_energy(rbm, v)::AbstractVector
-    @assert isnothing(wts) || length(F) == length(wts)
-    return batch_mean(free_energy(rbm, v), wts)::Number
+function mean_free_energy(rbm::RBM, v::AbstractArray; wts = nothing)
+    @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
+    F = free_energy(rbm, v)
+    @assert size(F) == batchsize(rbm.visible, v)
+    return wmean(F; wts)
 end
 
 function ∂contrastive_divergence(
     rbm::RBM, vd::AbstractTensor, vm::AbstractTensor;
-    wd::Wts = nothing, wm::Wts = nothing, ts
+    wd = nothing, wm = nothing, ts
 )
     ∂d = ∂free_energy(rbm, vd; wts = wd, ts)
     ∂m = ∂free_energy(rbm, vm; wts = wm)

@@ -18,14 +18,14 @@ ReLU(n::Int...) = ReLU(Float64, n...)
 Flux.@functor ReLU
 
 function effective(layer::ReLU, inputs::AbstractTensor; β::Real = true)
-    check_size(layer, inputs)
+    @assert size(layer) == size(inputs)[1:ndims(layer)]
     θ = β * (layer.θ .+ inputs)
     γ = β * broadlike(layer.γ, inputs)
     return ReLU(promote(θ, γ)...)
 end
 
-function energies(layer::ReLU, x::AbstractTensor)
-    check_size(layer, x)
+function energies(layer::ReLU, x::AbstractArray)
+    @assert size(layer) == size(x)[1:ndims(layer)]
     return relu_energy.(layer.θ, layer.γ, x)
 end
 
@@ -57,17 +57,17 @@ function ∂free_energy(layer::ReLU)
     return (θ = -μ, γ = (ν .+ μ.^2) / 2)
 end
 
-function ∂energy(layer::ReLU; xp::AbstractTensor, xp2::AbstractTensor)
+function ∂energy(layer::ReLU; xp::AbstractArray, xp2::AbstractArray)
     @assert size(xp) == size(xp2) == size(layer)
     return (; θ = -xp, γ = xp2/2)
 end
 
-function sufficient_statistics(layer::ReLU, x::AbstractTensor, wts::Wts)
+function sufficient_statistics(layer::ReLU, x::AbstractArray; wts = nothing)
     check_size(layer, x)
-    @assert size(x) == (size(layer)..., size(x)[end])
+    @assert size(layer) == size(x)[1:ndims(layer)]
     xp = max.(x, 0)
-    μp = batch_mean(xp, wts)
-    μp2 = batch_mean(xp.^2, wts)
+    μp = batchmean(layer, xp; wts)
+    μp2 = batchmean(layer, xp.^2; wts)
     return (; xp = μp, xp2 = μp2)
 end
 

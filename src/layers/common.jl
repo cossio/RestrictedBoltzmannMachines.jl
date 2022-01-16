@@ -31,10 +31,13 @@ function ∂energy(layer::Union{Binary,Spin,Potts}; x::AbstractArray)
     return (; θ = -x)
 end
 
-function sufficient_statistics(layer::Union{Binary,Spin,Potts}, x::AbstractArray, wts::Wts)
+function sufficient_statistics(
+    layer::Union{Binary,Spin,Potts},
+    x::AbstractArray;
+    wts = nothing
+)
     @assert size(layer) == size(x)[1:ndims(layer)]
-    μ = batch_mean(x, wts)
-    return (; x = μ)
+    return (; x = batchmean(layer, x; wts))
 end
 
 number_of_colors(layer::Potts) = layer.q

@@ -12,7 +12,7 @@ function pcd_centered!(rbm::RBM, data::AbstractArray;
     optimizer = default_optimizer(_nobs(data), batchsize, epochs), # optimizer algorithm
     history::MVHistory = MVHistory(), # stores training log
     verbose::Bool = true,
-    wts::Wts = nothing, # data point weights
+    wts = nothing, # data point weights
     steps::Int = 1, # Monte Carlo steps to update fantasy particles
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
@@ -37,7 +37,7 @@ function pcd_centered!(rbm::RBM, data::AbstractArray;
             update!(optimizer, rbm, ∂c)
         end
 
-        lpl = batch_mean(log_pseudolikelihood(rbm, data), wts)
+        lpl = wmean(log_pseudolikelihood(rbm, data); wts)
         push!(history, :lpl, lpl)
         push!(history, :epoch, epoch)
         push!(history, :Δt, Δt)
@@ -54,7 +54,7 @@ end
 # TODO: Implement for other layers
 function ∂contrastive_divergence_centered(
     rbm::RBM{<:Binary, <:Binary}, vd::AbstractTensor, vm::AbstractTensor;
-    wd::Wts = nothing, wm::Wts = nothing, ts
+    wd = nothing, wm = nothing, ts
 )
     ∂d = ∂free_energy(rbm, vd; wts = wd, ts)
     ∂m = ∂free_energy(rbm, vm; wts = wm)

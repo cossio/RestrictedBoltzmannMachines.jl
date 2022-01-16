@@ -37,45 +37,25 @@ function std_(A::AbstractArray; corrected::Bool=true, mean=nothing, dims)
     return dropdims(std(A; corrected=corrected, mean=mean, dims=dims); dims=dims)
 end
 
-const Wts = Union{AbstractVector, Nothing}
-
 """
-    batch_mean(x, [wts])
+    wmean(A; wts = nothing, dims = :)
 
-Mean of `x` (over its last dimension), with (optional) weights `wts`,
-dropping the reduced dimension.
+Weighted mean of `A` along dimensions `dims`, with weights `wts`.
 """
-function batch_mean(x::AbstractTensor, wts::AbstractVector)
-    if ndims(x) == 0
-        return batch_mean_zerodims_error()
-    elseif ndims(x) == 1
-        return dot(x, wts / sum(wts))::Number
+function wmean(A::AbstractArray; wts::Union{AbstractArray,Nothing} = nothing, dims = :)
+    if isnothing(wts)
+        return mean(A; dims = dims)
+    elseif dims === (:)
+        @assert size(wts) == size(A)
+        return sum(A .* wts / sum(wts); dims = dims)
     else
-        @assert ndims(x) ≥ 2
-        @assert size(x) == (Base.front(size(x))..., length(wts))
-        xmat = reshape(x, :, length(wts))
-        xw = xmat * wts / sum(wts)
-        result = reshape(xw, Base.front(size(x)))
-        @assert ndims(result) == ndims(x) - 1 ≥ 1
-        return result::AbstractArray
+        @assert size(wts) == size.(Ref(A), dims)
+        wsz = ntuple(ndims(A)) do i
+            i ∈ dims ? size(A, i) : 1
+        end
+        w = reshape(wts, wsz) / sum(wts)
+        return sum(A .* w; dims = dims)
     end
-end
-
-function batch_mean(x::AbstractTensor, ::Nothing = nothing)
-    if ndims(x) == 0
-        return batch_mean_zerodims_error()
-    elseif ndims(x) == 1
-        return mean(x)::Number
-    else
-        @assert ndims(x) ≥ 2
-        xm = dropdims(mean(x; dims=ndims(x)), dims=ndims(x))
-        @assert ndims(xm) ≥ 1
-        return xm
-    end
-end
-
-function batch_mean_zerodims_error()
-    throw(ArgumentError("Zero-dimensional arrays not supported"))
 end
 
 """

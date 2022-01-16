@@ -23,20 +23,20 @@ function ∂free_energy(
     return ∂free_energy(layer_eff)
 end
 
-function ∂free_energy(layer::AbstractLayer, inputs::AbstractArray; wts::Wts = nothing)
+function ∂free_energy(layer::AbstractLayer, inputs::AbstractArray; wts = nothing)
     check_size(layer, inputs)
     layer_eff = effective(layer, inputs)
     ∂F = ∂free_energy(layer_eff)
     return map(∂F) do ∂fs
         @assert size(∂fs) == size(layer_eff)
-        ∂ω = batch_mean(∂fs, wts)
+        ∂ω = batchmean(layer, ∂fs; wts)
         @assert size(∂ω) == size(layer)
         ∂ω
     end
 end
 
 function ∂free_energy(
-    rbm::RBM, v::AbstractArray; wts::Wts = nothing,
+    rbm::RBM, v::AbstractArray; wts = nothing,
     ts = sufficient_statistics(rbm.visible, v; wts)
 )
     inputs = inputs_v_to_h(rbm, v)

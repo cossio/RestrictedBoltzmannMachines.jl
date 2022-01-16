@@ -25,38 +25,38 @@ function initialize!(rbm::RBM, data::AbstractArray; ϵ::Real = 1e-6)
     return rbm
 end
 
-function initialize!(layer::Binary, data::AbstractTensor{N}; ϵ::Real = 1e-6) where {N}
-    @assert size(data) == (size(layer)..., size(data, N))
+function initialize!(layer::Binary, data::AbstractArray; ϵ::Real=1e-6, wts=nothing)
+    @assert size(layer) == size(data)[1:ndims(layer)]
     @assert 0 < ϵ < 1/2
-    μ = batch_mean(data)
+    μ = batchmean(layer, data; wts)
     μϵ = clamp.(μ, ϵ, 1 - ϵ)
     @. layer.θ = -log(1/μϵ - 1)
     return layer
 end
 
-function initialize!(layer::Spin, data::AbstractTensor{N}; ϵ::Real = 1e-6) where {N}
-    @assert size(data) == (size(layer)..., size(data, N))
+function initialize!(layer::Spin, data::AbstractArray; ϵ::Real=1e-6, wts=nothing)
+    @assert size(layer) == size(data)[1:ndims(layer)]
     @assert 0 < ϵ < 1/2
-    μ = batch_mean(data)
+    μ = batchmean(layer, data; wts)
     μϵ = clamp.(μ, ϵ - 1, 1 - ϵ)
     layer.θ .= atanh.(μϵ)
     return layer
 end
 
-function initialize!(layer::Potts, data::AbstractTensor{N}; ϵ::Real = 1e-6) where {N}
-    @assert size(data) == (size(layer)..., size(data, N))
+function initialize!(layer::Potts, data::AbstractArray; ϵ::Real=1e-6, wts=nothing)
+    @assert size(layer) == size(data)[1:ndims(layer)]
     @assert 0 < ϵ < 1/2
-    μ = batch_mean(data)
+    μ = batchmean(layer, data; wts)
     μϵ = clamp.(μ, ϵ, 1 - ϵ)
     layer.θ .= log.(μϵ)
     return layer # does not do zerosum!
 end
 
-function initialize!(layer::Gaussian, data::AbstractArray; ϵ::Real = 1e-6) where {N}
-    @assert size(data) == (size(layer)..., size(data, N))
+function initialize!(layer::Gaussian, data::AbstractArray; ϵ::Real=1e-6, wts=nothing)
+    @assert size(layer) == size(data)[1:ndims(layer)]
     @assert 0 < ϵ < 1/2
-    μ = batch_mean(data)
-    ν = var_(data; dims=ndims(data))
+    μ = batchmean(layer, data; wts)
+    ν = batchmean(layer, (data .- μ).^2; wts)
     layer.γ .= inv.(ν .+ ϵ)
     layer.θ .= μ .* layer.γ
     return layer

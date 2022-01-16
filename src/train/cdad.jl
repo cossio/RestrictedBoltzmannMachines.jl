@@ -11,7 +11,7 @@ function cdad!(rbm::RBM, data::AbstractArray;
     history::MVHistory = MVHistory(), # stores training log
     lossadd = (_...) -> 0, # regularization
     verbose::Bool = true,
-    wts::Wts = nothing, # data point weights
+    wts = nothing, # data point weights
     steps::Int = 1, # Monte Carlo steps to update fantasy particles
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
@@ -44,7 +44,7 @@ function cdad!(rbm::RBM, data::AbstractArray;
             push!(history, :batch, b)
         end
 
-        lpl = batch_mean(log_pseudolikelihood(rbm, data), wts)
+        lpl = wmean(log_pseudolikelihood(rbm, data); wts)
         push!(history, :lpl, lpl)
         if verbose
             Δt_ = round(Δt, digits=2)

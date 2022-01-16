@@ -38,47 +38,6 @@ end
     @test Inf32 === @inferred RBMs.inf(1f0)
 end
 
-@testset "batch_mean" begin
-    @test RBMs.batch_mean([1,2,3,4], [1,1,2,2]) ≈ (1 + 2 + 2 * (3 + 4))/(1 + 1 + 2 + 2)
-
-    w = rand(2)
-
-    A = randn(2)
-    @test RBMs.batch_mean(A) == RBMs.batch_mean(A, nothing) ≈ mean(A)
-    @test RBMs.batch_mean(A) isa Number
-    @inferred RBMs.batch_mean(A)
-
-    @test RBMs.batch_mean(A, w) ≈ dot(A, w) / sum(w)
-    @test RBMs.batch_mean(A, w) isa Number
-    @inferred RBMs.batch_mean(A, w)
-
-    A = randn(3,2)
-    @test RBMs.batch_mean(A) == RBMs.batch_mean(A, nothing) ≈ vec(mean(A; dims=2))
-    @test RBMs.batch_mean(A) isa Vector
-    @test length(RBMs.batch_mean(A)) == 3
-    @inferred RBMs.batch_mean(A)
-
-    @test RBMs.batch_mean(A, w) ≈ A * w / sum(w)
-    @test RBMs.batch_mean(A, w) isa Vector
-    @test length(RBMs.batch_mean(A, w)) == 3
-    @inferred RBMs.batch_mean(A, w)
-
-    A = randn(4,3,2)
-    @test RBMs.batch_mean(A) == RBMs.batch_mean(A, nothing) ≈ dropdims(mean(A; dims=3); dims=3)
-    @test RBMs.batch_mean(A) isa Matrix
-    @test size(RBMs.batch_mean(A)) == (4,3)
-    @inferred RBMs.batch_mean(A)
-
-    @test RBMs.batch_mean(A, w) ≈ dropdims(sum(A .* reshape(w,1,1,2); dims=3); dims=3) / sum(w)
-    @test RBMs.batch_mean(A, w) isa Matrix
-    @test size(RBMs.batch_mean(A, w)) == (4,3)
-    @inferred RBMs.batch_mean(A, w)
-
-    @test_throws ArgumentError RBMs.batch_mean(fill(randn()))
-    @test_throws ArgumentError RBMs.batch_mean(fill(randn()), nothing)
-    @test_throws ArgumentError RBMs.batch_mean(fill(randn()), [randn()])
-end
-
 @testset "generate_sequences" begin
     @test collect(RBMs.generate_sequences(2, 1:3)) == reshape(
            [
@@ -97,4 +56,20 @@ end
     @inferred RBMs.broadlike(A, B)
     @test RBMs.broadlike(A) == A
     @test RBMs.broadlike(A, 1) == A
+end
+
+@testset "wmean" begin
+    A = randn(4,3,5,2)
+    @test RBMs.wmean(A) ≈ mean(A)
+    @test RBMs.wmean(A; dims=(2,4)) ≈ mean(A; dims=(2,4))
+    @inferred RBMs.wmean(A)
+    @inferred RBMs.wmean(A; dims=(2,4))
+
+    wts = rand(size(A)...)
+    @test RBMs.wmean(A; wts) ≈ sum(A .* wts / sum(wts))
+    @inferred RBMs.wmean(A; wts)
+
+    wts = rand(3,2)
+    @test RBMs.wmean(A; dims=(2,4), wts) ≈ sum(reshape(wts,1,3,1,2) .* A; dims=(2,4))/sum(wts)
+    @inferred RBMs.wmean(A; dims=(2,4), wts)
 end

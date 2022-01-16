@@ -65,16 +65,24 @@ end
 
     @test RBMs.energy(layer, x) ≈ vec(sum(RBMs.energies(layer, x); dims=1:ndims(layer)))
     @test RBMs.free_energy(layer, inputs; β) ≈ vec(sum(RBMs.free_energies(layer, inputs; β); dims=1:ndims(layer)))
+    @test all(RBMs.energy(layer, RBMs.transfer_mode(layer)) .≤ RBMs.energy(layer, x))
+    @test RBMs.transfer_std(layer) ≈ sqrt.(RBMs.transfer_var(layer))
 
     μ = RBMs.transfer_mean(layer, inputs)
     @test only(Zygote.gradient(j -> sum(RBMs.free_energies(layer, j)), inputs)) ≈ -μ
 
+    ∂F = RBMs.∂free_energy(layer)
+    gs = Zygote.gradient(Flux.params(layer)) do
+        sum(RBMs.free_energies(layer))
+    end
+    for (ω, ∂ω) in pairs(∂F)
+        @test ∂ω ≈ gs[getproperty(layer, ω)]
+    end
+
     samples = RBMs.transfer_sample(layer, zeros(size(layer)..., 10^6))
     @test RBMs.transfer_mean(layer) ≈ RBMs.mean_(samples; dims=ndims(samples)) rtol=0.1
     @test RBMs.transfer_var(layer) ≈ RBMs.var_(samples;  dims=ndims(samples)) rtol=0.1
-    @test RBMs.transfer_std(layer) ≈ sqrt.(RBMs.transfer_var(layer))
     @test RBMs.transfer_mean_abs(layer) ≈ RBMs.mean_(abs.(samples); dims=ndims(samples)) rtol=0.1
-    @test all(RBMs.energy(layer, RBMs.transfer_mode(layer)) .≤ RBMs.energy(layer, samples))
 
     ∂F = RBMs.∂free_energy(layer)
     ts = RBMs.sufficient_statistics(layer, samples)
@@ -89,14 +97,6 @@ end
         sum(RBMs.energies(layer, samples)) / size(samples)[end]
     end
     for (ω, ∂ω) in pairs(∂E)
-        @test ∂ω ≈ gs[getproperty(layer, ω)]
-    end
-
-    ∂F = RBMs.∂free_energy(layer)
-    gs = Zygote.gradient(Flux.params(layer)) do
-        sum(RBMs.free_energies(layer))
-    end
-    for (ω, ∂ω) in pairs(∂F)
         @test ∂ω ≈ gs[getproperty(layer, ω)]
     end
 end

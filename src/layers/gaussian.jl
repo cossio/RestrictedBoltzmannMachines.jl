@@ -59,11 +59,9 @@ function ∂energy(layer::Gaussian; x::AbstractArray, x2::AbstractArray)
     return (; θ = -x, γ = x2/2)
 end
 
-function sufficient_statistics(layer::Gaussian, x::AbstractArray, wts::Wts)
+function sufficient_statistics(layer::Gaussian, x::AbstractArray; wts = nothing)
     @assert size(layer) == size(x)[1:ndims(layer)]
-    μ = batch_mean(x, wts)
-    μ2 = batch_mean(x.^2, wts)
-    return (; x = μ, x2 = μ2)
+    return (; x = batchmean(layer, x; wts), x2 = batchmean(layer, x.^2; wts))
 end
 
 gauss_energy(θ::Real, γ::Real, x::Real) = (abs(γ) * x / 2 - θ) * x

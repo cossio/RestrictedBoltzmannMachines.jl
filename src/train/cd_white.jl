@@ -9,7 +9,7 @@ function train_white!(rbm::RBM{<:Binary, <:Binary}, data::AbstractArray;
     optimizer = ADAM(), # optimizer algorithm
     history::MVHistory = MVHistory(), # stores training log
     verbose::Bool = true,
-    wts::Wts = nothing, # data point weights
+    wts = nothing, # data point weights
     steps::Int = 1, # Monte Carlo steps to update fantasy particles
     initialize::Bool = false, # whether to initialize the RBM parameters
     whiten_ϵ::Real = 1e-6 # avoids singular cov matrix
@@ -62,7 +62,7 @@ function train_white!(rbm::RBM{<:Binary, <:Binary}, data::AbstractArray;
             push!(history, :batch, b)
         end
 
-        lpl = batch_mean(log_pseudolikelihood(rbm_black, data), wts)
+        lpl = wmean(log_pseudolikelihood(rbm_black, data); wts)
         push!(history, :lpl, lpl)
         if verbose
             Δt_ = round(Δt, digits=2)

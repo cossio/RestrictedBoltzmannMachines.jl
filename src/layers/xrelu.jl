@@ -82,15 +82,17 @@ function ∂energy(layer::xReLU; x, xp, xn, xp2, xn2)
     return (θ = ∂θ, γ = ∂γ, Δ = ∂Δ, ξ = ∂ξ)
 end
 
-function sufficient_statistics(layer::xReLU, x::AbstractTensor, wts::Wts)
-    check_size(layer, x)
-    @assert size(x) == (size(layer)..., size(x)[end])
+function sufficient_statistics(layer::xReLU, x::AbstractTensor; wts = nothing)
+    @assert size(layer) == size(x)[1:ndims(layer)]
+
     xp = max.(x, 0)
     xn = min.(x, 0)
-    μ = batch_mean(x, wts)
-    μp = batch_mean(xp, wts)
-    μn = batch_mean(xn, wts)
-    μp2 = batch_mean(xp.^2, wts)
-    μn2 = batch_mean(xn.^2, wts)
+
+    μ = batchmean(layer, x; wts)
+    μp = batchmean(layer, xp; wts)
+    μn = batchmean(layer, xn; wts)
+    μp2 = batchmean(layer, xp.^2; wts)
+    μn2 = batchmean(layer, xn.^2; wts)
+
     return (x = μ, xp = μp, xn = μn, xp2 = μp2, xn2 = μn2)
 end

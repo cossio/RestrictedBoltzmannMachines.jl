@@ -84,8 +84,9 @@ end
 
 function ∂energy(layer::pReLU; x, xp, xn, xp2, xn2)
     for ξ in (x, xp, xn, xp2, xn2)
-        @assert size(ξ::AbstractTensor) == size(layer)
+        @assert size(ξ::AbstractArray) == size(layer)
     end
+
     ∂θ = @. -x
     ∂γ = @. (xp2 / (1 + layer.η) + xn2 / (1 - layer.η)) / 2
     ∂Δ = @. -(xp / (1 + layer.η) - xn / (1 - layer.η))
@@ -93,21 +94,21 @@ function ∂energy(layer::pReLU; x, xp, xn, xp2, xn2)
         (-layer.γ * xp2 / 2 + layer.Δ * xp) / (1 + layer.η)^2 +
         ( layer.γ * xn2 / 2 + layer.Δ * xn) / (1 - layer.η)^2
     )
+
     return (θ = ∂θ, γ = ∂γ, Δ = ∂Δ, η = ∂η)
 end
 
-function sufficient_statistics(layer::pReLU, x::AbstractTensor, wts::Wts)
-    check_size(layer, x)
-    @assert size(x) == (size(layer)..., size(x)[end])
+function sufficient_statistics(layer::pReLU, x::AbstractArray; wts = nothing)
+    @assert size(layer) == size(x)[1:ndims(layer)]
 
     xp = max.(x, 0)
     xn = min.(x, 0)
 
-    μ = batch_mean(x, wts)
-    μp = batch_mean(xp, wts)
-    μn = batch_mean(xn, wts)
-    μp2 = batch_mean(xp.^2, wts)
-    μn2 = batch_mean(xn.^2, wts)
+    μ = batchmean(layer, x; wts)
+    μp = batchmean(layer, xp; wts)
+    μn = batchmean(layer, xn; wts)
+    μp2 = batchmean(layer, xp.^2; wts)
+    μn2 = batchmean(layer, xn.^2; wts)
 
     return (x = μ, xp = μp, xn = μn, xp2 = μp2, xn2 = μn2)
 end

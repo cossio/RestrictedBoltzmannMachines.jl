@@ -261,7 +261,7 @@ end
 Stochastic reconstruction error of `v`.
 """
 function reconstruction_error(rbm::RBM, v::AbstractTensor; β::Real = true, steps::Int = 1)
-    check_size(rbm.visible, v)
+    @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
     v_ = sample_v_from_v(rbm, v; β, steps)
     ϵ = mean(abs.(v .- v_); dims = 1:ndims(rbm.visible))
     if ndims(v) == ndims(rbm.visible)

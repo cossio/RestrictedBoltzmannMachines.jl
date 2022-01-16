@@ -28,7 +28,7 @@ function Base.getproperty(layer::Potts, name::Symbol)
 end
 
 function effective(layer::Potts, inputs::AbstractTensor; β::Real = true)
-    check_size(layer, inputs)
+    @assert size(layer) == size(inputs)[1:ndims(layer)]
     return Potts(β * (layer.θ .+ inputs))
 end
 
