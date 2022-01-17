@@ -14,25 +14,27 @@ Unit activation moments, conjugate to layer parameters.
 These are obtained by differentiating `free_energies` with respect to the layer parameters.
 Averages over configurations (weigthed by `wts`).
 """
-function ∂free_energy(
-    layer::AbstractLayer{N}, inputs::Union{Real, AbstractTensor{N}}; wts::Nothing = nothing
-) where {N}
-    check_size(layer, inputs)
+function ∂free_energy(layer::AbstractLayer, inputs::AbstractArray; wts = nothing)
+    @assert size(layer) == size(inputs)[1:ndims(layer)]
     layer_eff = effective(layer, inputs)
-    @assert size(layer_eff) == size(layer)
-    return ∂free_energy(layer_eff)
+    ∂Feff = ∂free_energy(layer_eff)
+    if ndims(layer) == ndims(inputs)
+        @assert isnothing(wts)
+        @assert size(layer_eff) == size(layer)
+        return ∂Feff
+    else
+        return map(∂Feff) do ∂fs
+            @assert size(∂fs) == size(layer_eff)
+            ∂ω = batchmean(layer, ∂fs; wts)
+            @assert size(∂ω) == size(layer)
+            ∂ω
+        end
+    end
 end
 
-function ∂free_energy(layer::AbstractLayer, inputs::AbstractArray; wts = nothing)
-    check_size(layer, inputs)
-    layer_eff = effective(layer, inputs)
-    ∂F = ∂free_energy(layer_eff)
-    return map(∂F) do ∂fs
-        @assert size(∂fs) == size(layer_eff)
-        ∂ω = batchmean(layer, ∂fs; wts)
-        @assert size(∂ω) == size(layer)
-        ∂ω
-    end
+function ∂free_energy(layer::AbstractLayer, input::Real; wts::Nothing = nothing)
+    inputs = FillArrays.Fill(input, size(layer))
+    return ∂free_energy(layer, inputs; wts)
 end
 
 function ∂free_energy(
