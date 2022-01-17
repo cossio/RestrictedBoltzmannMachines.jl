@@ -40,8 +40,31 @@ function sufficient_statistics(
     return (; x = batchmean(layer, x; wts))
 end
 
-number_of_colors(layer::Potts) = layer.q
-number_of_colors(layer) = 1
+"""
+    colors(layer)
+
+Number of possible states of units in discrete layers.
+"""
+colors(layer::Union{Spin,Binary}) = 2
+colors(layer::Potts) = layer.q
+
+"""
+    sitedims(layer)
+
+Number of dimensions of layer, with special handling of Potts layer,
+for which the first dimension doesn't count as a site dimension.
+"""
+sitedims(layer::AbstractLayer) = ndims(layer)
+sitedims(layer::Potts) = ndims(layer) - 1
+
+"""
+    sitesize(layer)
+
+Size of layer, with special handling of Potts layer,
+for which the first dimension doesn't count as a site dimension.
+"""
+sitesize(layer::AbstractLayer) = size(layer)
+sitesize(layer::Potts) = size(layer)[2:end]
 
 function pReLU(layer::dReLU)
     γ = @. 2layer.γp * layer.γn / (layer.γp + layer.γn)

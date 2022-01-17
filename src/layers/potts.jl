@@ -48,5 +48,5 @@ end
 
 function transfer_sample(layer::Potts)
     c = categorical_sample_from_logits(layer.θ)
-    return onehot_encode(c, 1:layer.q)
+    return onehot_encode(c, 1:colors(layer))
 end
