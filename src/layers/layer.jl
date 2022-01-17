@@ -198,7 +198,7 @@ end
 
 Mean of `x` over batch dimensions, with weights `wts`.
 """
-function batchmean(layer::AbstractLayer, x::AbstractArray; wts)
+function batchmean(layer::AbstractLayer, x::AbstractArray; wts = nothing)
     @assert size(layer) == size(x)[1:ndims(layer)]
     μ = wmean(x; wts, dims = batchdims(layer, x))
     return reshape(μ, size(layer))
