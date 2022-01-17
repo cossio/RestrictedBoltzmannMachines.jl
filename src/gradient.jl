@@ -1,8 +1,8 @@
 """
-    ∂energy(layer; ts...)
+    ∂energy(layer; stats...)
 
 Derivative of average energy of configurations with respect to layer parameters,
-where `ts...` refers to the sufficient statistics from samples required by the layer.
+where `stats...` refers to the sufficient statistics from samples required by the layer.
 See [`sufficient_statistics`](@ref).
 """
 function ∂energy end
@@ -39,29 +39,25 @@ end
 
 function ∂free_energy(
     rbm::RBM, v::AbstractArray; wts = nothing,
-    ts = sufficient_statistics(rbm.visible, v; wts)
+    stats = sufficient_statistics(rbm.visible, v; wts)
 )
     inputs = inputs_v_to_h(rbm, v)
     h = transfer_mean(rbm.hidden, inputs)
-    ∂v = ∂energy(rbm.visible; ts...)
+    ∂v = ∂energy(rbm.visible; stats...)
     ∂h = ∂free_energy(rbm.hidden, inputs; wts)
 
-    v_ = flatten(rbm.visible, activations_convert_maybe(h, v))
-    h_ = flatten(rbm.hidden, h)
-    ∂w = ∂w_flat(v_, h_, wts)
-    @assert size(∂w) == (length(rbm.visible), length(rbm.hidden))
+    hmat = reshape(h, length(rbm.hidden), :)
+    vmat = activations_convert_maybe(hmat, reshape(v, length(rbm.visible), :))
+    @assert size(vmat, 2) == size(hmat, 2)
+    if isnothing(wts)
+        ∂wflat = -vmat * hmat' / size(vmat, 2)
+    else
+        @assert size(wts) == batchsize(rbm.visible, v)
+        @assert size(vmat, 2) == size(hmat, 2) == length(wts)
+        ∂wflat = -vmat * Diagonal(vec(wts)) * hmat' / size(vmat, 2)
+    end
+    @assert size(∂wflat) == (length(rbm.visible), length(rbm.hidden))
+    ∂w = reshape(∂wflat, size(rbm.w))
 
     return (visible = ∂v, hidden = ∂h, w = reshape(∂w, size(rbm.w)))
-end
-
-∂w_flat(v::AbstractVector, h::AbstractVector, wts::Nothing = nothing) = -v * h'
-
-function ∂w_flat(v::AbstractMatrix, h::AbstractMatrix, wts::Nothing = nothing)
-    @assert size(v, 2) == size(h, 2)
-    return -v * h' / size(v, 2)
-end
-
-function ∂w_flat(v::AbstractMatrix, h::AbstractMatrix, wts::AbstractVector)
-    @assert size(v, 2) == size(h, 2) == length(wts)
-    return -v * Diagonal(wts) * h' / size(v, 2)
 end

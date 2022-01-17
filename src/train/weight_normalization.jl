@@ -121,7 +121,7 @@ function pcd!(rbm::RBM, wn::WeightNorm, data::AbstractArray;
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert isnothing(wts) || _nobs(data) == _nobs(wts)
 
-    ts = sufficient_statistics(rbm.visible, data; wts)
+    stats = sufficient_statistics(rbm.visible, data; wts)
 
     # initialize fantasy chains
     _idx = rand(1:_nobs(data), batchsize)
@@ -134,7 +134,7 @@ function pcd!(rbm::RBM, wn::WeightNorm, data::AbstractArray;
             # update fantasy chains
             vm = sample_v_from_v(rbm, vm; steps = steps)
             # compute contrastive divergence gradient
-            ∂ = ∂contrastive_divergence(rbm, wn, vd, vm; wd = wd, ts)
+            ∂ = ∂contrastive_divergence(rbm, wn, vd, vm; wd = wd, stats)
             # update parameters using gradient
             update!(optimizer, rbm, wn, ∂)
         end

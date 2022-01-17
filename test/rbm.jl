@@ -138,8 +138,8 @@ end
     gs = Zygote.gradient(ps) do
         RBMs.contrastive_divergence(rbm, vd, vm)
     end
-    ts = RBMs.sufficient_statistics(rbm.visible, vd)
-    ∂F = RBMs.∂contrastive_divergence(rbm, vd, vm; ts)
+    stats = RBMs.sufficient_statistics(rbm.visible, vd)
+    ∂F = RBMs.∂contrastive_divergence(rbm, vd, vm; stats)
     @test ∂F.visible.θ ≈ gs[rbm.visible.θ]
     @test ∂F.hidden.θ ≈ gs[rbm.hidden.θ]
     @test ∂F.w ≈ gs[rbm.w]

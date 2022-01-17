@@ -43,11 +43,13 @@ end
     @test (@inferred size(layer)) == N
     @test (@inferred length(layer)) == prod(N)
     @test (@inferred ndims(layer)) == length(N)
+    @test RBMs.batchsize(layer, bitrand(N)) == ()
 
     x = bitrand(N..., B)
     inputs = randn(N..., B)
     β = rand()
 
+    @test RBMs.batchsize(layer, x) == (B,)
     @test size(RBMs.energy(layer, x)) == (B,)
     @test size(RBMs.free_energy(layer, inputs; β=1)) == (B,)
     @test size(RBMs.transfer_sample(layer, inputs; β=1)) == size(inputs)
@@ -85,8 +87,8 @@ end
     @test RBMs.transfer_mean_abs(layer) ≈ RBMs.mean_(abs.(samples); dims=ndims(samples)) rtol=0.1
 
     ∂F = RBMs.∂free_energy(layer)
-    ts = RBMs.sufficient_statistics(layer, samples)
-    ∂E = RBMs.∂energy(layer; ts...)
+    stats = RBMs.sufficient_statistics(layer, samples)
+    ∂E = RBMs.∂energy(layer; stats...)
     @test length(∂F) == length(∂E)
     @test typeof(∂F) == typeof(∂E)
     for (∂f, ∂e) in zip(∂F, ∂E)

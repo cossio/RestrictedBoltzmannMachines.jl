@@ -15,7 +15,7 @@ function cd!(rbm::RBM, data::AbstractArray;
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert isnothing(wts) || _nobs(data) == _nobs(wts)
 
-    ts = sufficient_statistics(rbm.visible, data; wts)
+    stats = sufficient_statistics(rbm.visible, data; wts)
 
     for epoch in 1:epochs
         batches = minibatches(data, wts; batchsize = batchsize)
@@ -25,9 +25,11 @@ function cd!(rbm::RBM, data::AbstractArray;
             _vm = copy(selectdim(data, ndims(data), _idx))
             vm = sample_v_from_v(rbm, _vm; steps = steps)
             # compute gradients
-            ∂ = ∂contrastive_divergence(rbm, vd, vm; wd = wd, wm = wd, ts)
+            ∂ = ∂contrastive_divergence(rbm, vd, vm; wd = wd, wm = wd, stats)
             # update parameters with gradients
             update!(optimizer, rbm, ∂)
+            # store gradient norms
+            push!(history, :norm∂, gradnorms(∂))
         end
 
         lpl = wmean(log_pseudolikelihood(rbm, data); wts)
@@ -50,32 +52,29 @@ Contrastive divergence loss.
 `vd` is a data sample, and `vm` are samples from the model.
 """
 function contrastive_divergence(
-    rbm::RBM, vd::AbstractTensor, vm::AbstractTensor; wd = nothing, wm = nothing
+    rbm::RBM, vd::AbstractArray, vm::AbstractArray; wd = nothing, wm = nothing
 )
     Fd = mean_free_energy(rbm, vd; wts=wd)::Number
     Fm = mean_free_energy(rbm, vm; wts=wm)::Number
     return Fd - Fm
 end
 
-function mean_free_energy(
-    rbm::RBM{<:AbstractLayer{N}}, v::AbstractTensor{N}; wts::Nothing = nothing
-) where {N}
-    check_size(rbm.visible, v)
-    return free_energy(rbm, v)::Number
-end
-
 function mean_free_energy(rbm::RBM, v::AbstractArray; wts = nothing)
     @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
     F = free_energy(rbm, v)
-    @assert size(F) == batchsize(rbm.visible, v)
-    return wmean(F; wts)
+    if ndims(rbm.visible) == ndims(v)
+        return F::Number
+    else
+        @assert size(F) == batchsize(rbm.visible, v)
+        return wmean(F; wts)
+    end
 end
 
 function ∂contrastive_divergence(
-    rbm::RBM, vd::AbstractTensor, vm::AbstractTensor;
-    wd = nothing, wm = nothing, ts
+    rbm::RBM, vd::AbstractArray, vm::AbstractArray;
+    wd = nothing, wm = nothing, stats
 )
-    ∂d = ∂free_energy(rbm, vd; wts = wd, ts)
+    ∂d = ∂free_energy(rbm, vd; wts = wd, stats)
     ∂m = ∂free_energy(rbm, vm; wts = wm)
     return subtract_gradients(∂d, ∂m)
 end
@@ -96,6 +95,7 @@ function update!(optimizer, layer::AbstractLayer, ∂::NamedTuple)
     end
 end
 
-function update!(optimizer, x::AbstractArray, ∂::AbstractArray)
-    Flux.update!(optimizer, x, ∂)
-end
+update!(optimizer, x::AbstractArray, ∂::AbstractArray) = Flux.update!(optimizer, x, ∂)
+
+gradnorms(∂::NamedTuple) = map(gradnorms, ∂)
+gradnorms(∂::AbstractArray) = norm(∂)

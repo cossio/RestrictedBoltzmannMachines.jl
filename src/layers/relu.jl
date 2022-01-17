@@ -63,7 +63,6 @@ function ∂energy(layer::ReLU; xp::AbstractArray, xp2::AbstractArray)
 end
 
 function sufficient_statistics(layer::ReLU, x::AbstractArray; wts = nothing)
-    check_size(layer, x)
     @assert size(layer) == size(x)[1:ndims(layer)]
     xp = max.(x, 0)
     μp = batchmean(layer, xp; wts)

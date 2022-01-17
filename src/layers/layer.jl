@@ -126,52 +126,11 @@ function free_energies(
 end
 
 """
-    flatten(layer, x)
-
-Flattens `x` into a scalar, vector, or matrix (where last dimension is batch),
-consistently with `layer` dimensions.
-"""
-flatten(::AbstractLayer, x::Real) = x
-function flatten(layer::AbstractLayer{N}, x::AbstractTensor{N}) where {N}
-    @assert size(layer) == size(x)
-    return reshape(x, length(layer))
-end
-function flatten(layer::AbstractLayer{N}, x::AbstractTensor) where {N}
-    @assert size(x)[1:N] == size(layer)
-    return reshape(x, length(layer), :)
-end
-
-"""
-    unflatten(layer, x)
-
-Given a flattened (scalar, vector, or matrix) `x`, reshapes it into to match the
-size of `layer`.
-"""
-unflatten(layer::AbstractLayer, x::Real) = FillArrays.Fill(x, size(layer))
-function unflatten(layer::AbstractLayer, x::AbstractVector)
-    @assert length(layer) == length(x)
-    return reshape(x, size(layer))
-end
-function unflatten(layer::AbstractLayer, x::AbstractMatrix)
-    @assert length(layer) == size(x, 1)
-    return reshape(x, size(layer)..., size(x, 2))
-end
-
-"""
     sufficient_statistics(layer, data; [wts])
 
 Returns a `NamedTuple` of the sufficient statistics used by the layer.
 """
 function sufficient_statistics end
-
-function check_size(layer::AbstractLayer, x::AbstractArray)
-    if size(layer) ≠ size(x)[1:ndims(layer)]
-        throw(DimensionMismatch(
-            "size(layer)=$(size(layer)) inconsistent with size(x)=$(size(x))"
-        ))
-    end
-end
-check_size(::AbstractLayer, ::Real) = nothing
 
 """
     batchdims(layer, x)
@@ -203,5 +162,4 @@ function batchmean(layer::AbstractLayer, x::AbstractArray; wts = nothing)
     μ = wmean(x; wts, dims = batchdims(layer, x))
     return reshape(μ, size(layer))
 end
-
 batchmean(::AbstractLayer, x::Number; wts::Nothing) = x

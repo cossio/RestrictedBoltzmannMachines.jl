@@ -14,7 +14,7 @@ function train_white!(rbm::RBM{<:Binary, <:Binary}, data::AbstractArray;
     initialize::Bool = false, # whether to initialize the RBM parameters
     whiten_ϵ::Real = 1e-6 # avoids singular cov matrix
 )
-    check_size(rbm.visible, data)
+    @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert isnothing(wts) || _nobs(data) == _nobs(wts)
 
     if initialize

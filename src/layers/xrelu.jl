@@ -21,8 +21,8 @@ xReLU(n::Int...) = xReLU(Float64, n...)
 
 Flux.@functor xReLU
 
-function effective(layer::xReLU, inputs::AbstractTensor; β::Real = true)
-    check_size(layer, inputs)
+function effective(layer::xReLU, inputs::AbstractArray; β::Real = true)
+    @assert size(layer) == size(inputs)[1:ndims(layer)]
     θ = β * (layer.θ .+ inputs)
     γ = β * broadlike(layer.γ, inputs)
     Δ = β * broadlike(layer.Δ, inputs)
