@@ -14,9 +14,7 @@ struct Potts{N, T, A <: AbstractArray{T,N}} <: AbstractLayer{N}
 end
 Potts(::Type{T}, q::Int, n::Int...) where {T} = Potts(zeros(T, q, n...))
 Potts(q::Int, n::Int...) = Potts(Float64, q, n...)
-
 Flux.@functor Potts
-
 Base.propertynames(::Potts) = (:q, fieldnames(Potts)...)
 
 function Base.getproperty(layer::Potts, name::Symbol)
@@ -36,14 +34,11 @@ free_energies(layer::Potts) = -LogExpFunctions.logsumexp(layer.θ; dims=1)
 transfer_mean(layer::Potts) = LogExpFunctions.softmax(layer.θ; dims=1)
 transfer_mean_abs(layer::Potts) = transfer_mean(layer)
 transfer_std(layer::Potts) = sqrt.(transfer_var(layer))
+transfer_mode(layer::Potts) = layer.θ .== maximum(layer.θ; dims=1)
 
 function transfer_var(layer::Potts)
     p = transfer_mean(layer)
     return p .* (1 .- p)
-end
-
-function transfer_mode(layer::Potts)
-    return layer.θ .== maximum(layer.θ; dims=1)
 end
 
 function transfer_sample(layer::Potts)
