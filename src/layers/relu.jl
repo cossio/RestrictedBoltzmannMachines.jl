@@ -17,7 +17,7 @@ ReLU(n::Int...) = ReLU(Float64, n...)
 
 Flux.@functor ReLU
 
-function effective(layer::ReLU, inputs::AbstractTensor; β::Real = true)
+function effective(layer::ReLU, inputs::AbstractArray; β::Real = true)
     @assert size(layer) == size(inputs)[1:ndims(layer)]
     θ = β * (layer.θ .+ inputs)
     γ = β * broadlike(layer.γ, inputs)

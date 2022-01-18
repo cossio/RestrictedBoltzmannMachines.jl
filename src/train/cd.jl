@@ -80,7 +80,7 @@ function ∂contrastive_divergence(
 end
 
 subtract_gradients(∂1::NamedTuple, ∂2::NamedTuple) = map(subtract_gradients, ∂1, ∂2)
-subtract_gradients(∂1::AbstractTensor{N}, ∂2::AbstractTensor{N}) where {N} = ∂1 - ∂2
+subtract_gradients(∂1::AbstractArray, ∂2::AbstractArray) where {N} = ∂1 - ∂2
 
 # update! mimics Flux.update!
 function update!(optimizer, rbm::RBM, ∂::NamedTuple)

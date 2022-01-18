@@ -21,7 +21,7 @@ dReLU(n::Int...) = dReLU(Float64, n...)
 
 Flux.@functor dReLU
 
-function effective(layer::dReLU, inputs::AbstractTensor; β::Real = true)
+function effective(layer::dReLU, inputs::AbstractArray; β::Real = true)
     θp = β * (layer.θp .+ inputs)
     θn = β * (layer.θn .+ inputs)
     γp = β * broadlike(layer.γp, θp)
@@ -29,7 +29,7 @@ function effective(layer::dReLU, inputs::AbstractTensor; β::Real = true)
     return dReLU(promote(θp, θn, γp, γn)...)
 end
 
-function energies(layer::dReLU, x::AbstractTensor)
+function energies(layer::dReLU, x::AbstractArray)
     @assert size(layer) == size(x)[1:ndims(layer)]
     return drelu_energy.(layer.θp, layer.θn, layer.γp, layer.γn, x)
 end

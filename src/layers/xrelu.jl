@@ -69,7 +69,7 @@ end
 
 function ∂energy(layer::xReLU; x, xp, xn, xp2, xn2)
     for ξ in (x, xp, xn, xp2, xn2)
-        @assert size(ξ::AbstractTensor) == size(layer)
+        @assert size(ξ::AbstractArray) == size(layer)
     end
     η = @. layer.ξ / (1 + abs(layer.ξ))
     ∂θ = @. -x
@@ -82,7 +82,7 @@ function ∂energy(layer::xReLU; x, xp, xn, xp2, xn2)
     return (θ = ∂θ, γ = ∂γ, Δ = ∂Δ, ξ = ∂ξ)
 end
 
-function sufficient_statistics(layer::xReLU, x::AbstractTensor; wts = nothing)
+function sufficient_statistics(layer::xReLU, x::AbstractArray; wts = nothing)
     @assert size(layer) == size(x)[1:ndims(layer)]
 
     xp = max.(x, 0)

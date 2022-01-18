@@ -130,11 +130,11 @@ Samples a visible configuration conditional on another visible configuration `v`
 """
 function sample_v_from_v(rbm::RBM, v::AbstractArray; β::Real = true, steps::Int = 1)
     @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
-    v_ = copy(v)
+    v1 = copy(v)
     for _ in 1:steps
-        v_ .= sample_v_from_v_once(rbm, v_; β)
+        v1 .= sample_v_from_v_once(rbm, v1; β)
     end
-    return v_
+    return v1
 end
 
 """
@@ -144,11 +144,11 @@ Samples a hidden configuration conditional on another hidden configuration `h`.
 """
 function sample_h_from_h(rbm::RBM, h::AbstractArray; β::Real = true, steps::Int = 1)
     @assert size(rbm.hidden) == size(h)[1:ndims(rbm.hidden)]
-    h_ = copy(h)
+    h1 = copy(h)
     for _ in 1:steps
-        h_ .= sample_h_from_h_once(rbm, h_; β)
+        h1 .= sample_h_from_h_once(rbm, h1; β)
     end
-    return h_
+    return h1
 end
 
 function sample_v_from_v_once(rbm::RBM, v::AbstractArray; β::Real = true)
@@ -208,10 +208,10 @@ end
 
 Stochastic reconstruction error of `v`.
 """
-function reconstruction_error(rbm::RBM, v::AbstractTensor; β::Real = true, steps::Int = 1)
+function reconstruction_error(rbm::RBM, v::AbstractArray; β::Real = true, steps::Int = 1)
     @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
-    v_ = sample_v_from_v(rbm, v; β, steps)
-    ϵ = mean(abs.(v .- v_); dims = 1:ndims(rbm.visible))
+    v1 = sample_v_from_v(rbm, v; β, steps)
+    ϵ = mean(abs.(v .- v1); dims = 1:ndims(rbm.visible))
     if ndims(v) == ndims(rbm.visible)
         return only(ϵ)
     else

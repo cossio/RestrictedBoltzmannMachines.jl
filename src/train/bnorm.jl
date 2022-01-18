@@ -63,7 +63,7 @@ end
 
 # TODO: Implement for other layers
 function ∂contrastive_divergence_bnorm(
-    rbm::RBM{<:Binary, <:Binary}, vd::AbstractTensor, vm::AbstractTensor;
+    rbm::RBM{<:Binary, <:Binary}, vd::AbstractArray, vm::AbstractArray;
     wd = nothing, wm = nothing, stats
 )
     ∂d = ∂free_energy(rbm, vd; wts = wd, stats)

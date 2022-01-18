@@ -96,11 +96,8 @@ end
 
 Initializes RBM weights such that typical inputs to hidden units are λ.
 """
-function initialize_weights!(
-    rbm::RBM, data::AbstractTensor{N};
-    λ::Real = 0.1, ϵ::Real = 1e-6
-) where {N}
-    @assert size(data) == (size(rbm.visible)..., size(data, N))
+function initialize_weights!(rbm::RBM, data::AbstractArray; λ::Real = 0.1, ϵ::Real = 1e-6)
+    @assert size(data) == (size(rbm.visible)..., size(data, ndims(data)))
     d = dot(data, data) / size(data, ndims(rbm.visible) + 1)
     randn!(rbm.w)
     rbm.w .*= λ / √(d + ϵ)

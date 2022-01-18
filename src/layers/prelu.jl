@@ -21,7 +21,7 @@ pReLU(n::Int...) = pReLU(Float64, n...)
 
 Flux.@functor pReLU
 
-function effective(layer::pReLU, inputs::AbstractTensor; β::Real = true)
+function effective(layer::pReLU, inputs::AbstractArray; β::Real = true)
     θ = β * (layer.θ .+ inputs)
     γ = β * broadlike(layer.γ, inputs)
     Δ = β * broadlike(layer.Δ, inputs)

@@ -12,7 +12,7 @@ end
 
 Layer energy, reduced over layer dimensions.
 """
-function energy(layer::AbstractLayer, x::AbstractTensor)
+function energy(layer::AbstractLayer, x::AbstractArray)
     @assert size(layer) == size(x)[1:ndims(layer)]
     Es = energies(layer, x)
     if ndims(layer) == ndims(x)
@@ -28,7 +28,7 @@ end
 
 Cumulant generating function of layer, reduced over layer dimensions.
 """
-function free_energy(layer::AbstractLayer, inputs::AbstractTensor; β::Real = true)
+function free_energy(layer::AbstractLayer, inputs::AbstractArray; β::Real = true)
     F = free_energies(layer, inputs; β)
     if ndims(layer) == ndims(inputs)
         return sum(F)
@@ -49,7 +49,7 @@ end
 Samples layer configurations conditioned on inputs.
 """
 function transfer_sample(
-    layer::AbstractLayer, inputs::Union{Real, AbstractTensor}; β::Real = true
+    layer::AbstractLayer, inputs::Union{Real, AbstractArray}; β::Real = true
 )
     layer_ = effective(layer, inputs; β)
     return transfer_sample(layer_)
@@ -60,7 +60,7 @@ end
 
 Mode of unit activations.
 """
-function transfer_mode(layer::AbstractLayer, inputs::Union{Real, AbstractTensor})
+function transfer_mode(layer::AbstractLayer, inputs::Union{Real, AbstractArray})
     layer_ = effective(layer, inputs)
     return transfer_mode(layer_)
 end
@@ -71,7 +71,7 @@ end
 Mean of unit activations.
 """
 function transfer_mean(
-    layer::AbstractLayer, inputs::Union{Real, AbstractTensor}; β::Real = true
+    layer::AbstractLayer, inputs::Union{Real, AbstractArray}; β::Real = true
 )
     layer_ = effective(layer, inputs; β)
     return transfer_mean(layer_)

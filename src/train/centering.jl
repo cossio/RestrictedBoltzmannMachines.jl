@@ -58,7 +58,7 @@ end
 
 # TODO: Implement for other layers
 function ∂contrastive_divergence_centered(
-    rbm::RBM{<:Binary, <:Binary}, vd::AbstractTensor, vm::AbstractTensor;
+    rbm::RBM{<:Binary, <:Binary}, vd::AbstractArray, vm::AbstractArray;
     wd = nothing, wm = nothing, stats, center_v::Bool = true, center_h::Bool = true
 )
     ∂d = ∂free_energy(rbm, vd; wts = wd, stats)
