@@ -27,7 +27,6 @@ module RestrictedBoltzmannMachines
     include("rbm.jl")
 
     include("zerosum.jl")
-    include("gradient.jl")
     include("pseudolikelihood.jl")
     include("partition.jl")
     include("ais.jl")

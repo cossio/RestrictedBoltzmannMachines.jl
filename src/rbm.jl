@@ -236,3 +236,34 @@ function mirror(rbm::RBM)
     w = permutedims(rbm.w, perm)
     return RBM(rbm.hidden, rbm.visible, w)
 end
+
+"""
+    ∂free_energy(rbm, v)
+
+Gradient of `free_energy(rbm, v)` with respect to model parameters.
+If `v` consists of multiple samples (batches), then an average is taken.
+"""
+function ∂free_energy(
+    rbm::RBM, v::AbstractArray; wts = nothing,
+    stats = sufficient_statistics(rbm.visible, v; wts)
+)
+    inputs = inputs_v_to_h(rbm, v)
+    h = transfer_mean(rbm.hidden, inputs)
+    ∂v = ∂energy(rbm.visible; stats...)
+    ∂h = ∂free_energy(rbm.hidden, inputs; wts)
+
+    hmat = reshape(h, length(rbm.hidden), :)
+    vmat = activations_convert_maybe(hmat, reshape(v, length(rbm.visible), :))
+    @assert size(vmat, 2) == size(hmat, 2)
+    if isnothing(wts)
+        ∂wflat = -vmat * hmat' / size(vmat, 2)
+    else
+        @assert size(wts) == batchsize(rbm.visible, v)
+        @assert size(vmat, 2) == size(hmat, 2) == length(wts)
+        ∂wflat = -vmat * Diagonal(vec(wts)) * hmat' / size(vmat, 2)
+    end
+    @assert size(∂wflat) == (length(rbm.visible), length(rbm.hidden))
+    ∂w = reshape(∂wflat, size(rbm.w))
+
+    return (visible = ∂v, hidden = ∂h, w = reshape(∂w, size(rbm.w)))
+end
