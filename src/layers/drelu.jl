@@ -21,6 +21,11 @@ dReLU(n::Int...) = dReLU(Float64, n...)
 
 Flux.@functor dReLU
 
+Base.size(layer::dReLU) = size(layer.θp)
+Base.size(layer::dReLU, d::Int) = size(layer.θp, d)
+Base.ndims(layer::dReLU) = ndims(layer.θp)
+Base.length(layer::dReLU) = length(layer.θp)
+
 function effective(layer::dReLU, inputs::AbstractArray; β::Real = true)
     θp = β * (layer.θp .+ inputs)
     θn = β * (layer.θn .+ inputs)
@@ -77,11 +82,6 @@ function transfer_mean_abs(layer::dReLU)
     μp, μn = transfer_mean(lp), -transfer_mean(ln)
     return pp .* μp - pn .* μn
 end
-
-Base.size(layer::dReLU) = size(layer.θp)
-Base.size(layer::dReLU, d::Int) = size(layer.θp, d)
-Base.ndims(layer::dReLU) = ndims(layer.θp)
-Base.length(layer::dReLU) = length(layer.θp)
 
 function ∂free_energy(layer::dReLU)
     lp = ReLU( layer.θp, layer.γp)
