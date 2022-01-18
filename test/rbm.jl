@@ -1,28 +1,5 @@
 include("tests_init.jl")
 
-# @testset "flat_interaction_energy" begin
-#     N, M, B = 21, 13, 5
-
-#     w = randn(N, M)
-#     v = randn(N)
-#     h = randn(M)
-#     @test RBMs.flat_interaction_energy(w, v, h) ≈ -v' * w * h
-#     @test RBMs.flat_interaction_energy(w, v, h) ≈ RBMs.flat_interaction_energy(w', h, v)
-
-#     w = randn(N, M)
-#     v = randn(N, 1)
-#     h = randn(M, 1)
-#     @test RBMs.flat_interaction_energy(w, vec(v), vec(h)) ≈ -vec(v)' * w * vec(h)
-#     @test RBMs.flat_interaction_energy(w, v, h) ≈ -[vec(v)' * w * vec(h)]
-#     @test RBMs.flat_interaction_energy(w, v, h) ≈ RBMs.flat_interaction_energy(w', h, v)
-
-#     w = randn(N, M)
-#     v = randn(N, B)
-#     h = randn(M, B)
-#     @test RBMs.flat_interaction_energy(w, v, h) ≈ -diag(v' * w * h)
-#     @test RBMs.flat_interaction_energy(w, v, h) ≈ RBMs.flat_interaction_energy(w', h, v)
-# end
-
 @testset "batches, n=$n, m=$m, Bv=$Bv, Bh=$Bh" for n in (5, (5,2)), m in (2, (3,4)), Bv in ((), (3,2)), Bh in ((), (3,2))
     rbm = RBMs.RBM(RBMs.Binary(n...), RBMs.Binary(m...), randn(n..., m...))
     randn!(rbm.visible.θ)
@@ -32,8 +9,12 @@ include("tests_init.jl")
     v = bitrand(n..., Bv...)
     h = bitrand(m..., Bh...)
 
+    @test RBMs.batchsize(rbm.visible, v) == Bv
+    @test RBMs.batchsize(rbm.hidden, h) == Bh
+
     @test size(RBMs.inputs_v_to_h(rbm, v)) == (size(rbm.hidden)...,  Bv...)
     @test size(RBMs.inputs_h_to_v(rbm, h)) == (size(rbm.visible)..., Bh...)
+
     if length(Bv) == length(Bh) == 0
         @test RBMs.interaction_energy(rbm, v, h) isa Number
         @test RBMs.interaction_energy(rbm, v, h) ≈ -vec(v)' * wmat * vec(h)
@@ -67,11 +48,36 @@ include("tests_init.jl")
     @inferred RBMs.energy(rbm, v, h)
 end
 
-@testset "Binary-Binary RBM" begin
-    rbm = RBMs.RBM(RBMs.Binary(5, 2), RBMs.Binary(4, 3), randn(5, 2, 4, 3))
-    randn!(rbm.w)
+@testset "sample_v_from_v and sample_h_from_h on binary RBM" begin
+    rbm = RBMs.RBM(RBMs.Binary(3,2), RBMs.Binary(2,3), randn(3,2,2,3))
     randn!(rbm.visible.θ)
     randn!(rbm.hidden.θ)
+    rbm.w .= 0
+
+    v = bitrand(size(rbm.visible)..., 10^6)
+    v .= RBMs.sample_v_from_v(rbm, v)
+    @test RBMs.batchmean(rbm.visible, v) ≈ RBMs.transfer_mean(rbm.visible) rtol=0.1
+
+    h = bitrand(size(rbm.hidden)...,  10^6)
+    h .= RBMs.sample_h_from_h(rbm, h)
+    @test RBMs.batchmean(rbm.hidden, h) ≈ RBMs.transfer_mean(rbm.hidden) rtol=0.1
+
+    randn!(rbm.w)
+    h .= RBMs.sample_h_from_v(rbm, v)
+    μ = RBMs.transfer_mean(rbm.hidden, RBMs.inputs_v_to_h(rbm, v))
+    @test RBMs.batchmean(rbm.hidden, h) ≈ RBMs.batchmean(rbm.hidden, μ) rtol=0.1
+
+    randn!(rbm.w)
+    v .= RBMs.sample_v_from_h(rbm, h)
+    μ = RBMs.transfer_mean(rbm.visible, RBMs.inputs_h_to_v(rbm, h))
+    @test RBMs.batchmean(rbm.visible, v) ≈ RBMs.batchmean(rbm.visible, μ) rtol=0.1
+end
+
+@testset "Binary-Binary RBM" begin
+    rbm = RBMs.RBM(RBMs.Binary(5, 2), RBMs.Binary(4, 3), randn(5, 2, 4, 3))
+    randn!(rbm.visible.θ)
+    randn!(rbm.hidden.θ)
+    randn!(rbm.w)
 
     v = rand(Bool, size(rbm.visible)..., 7)
     h = rand(Bool, size(rbm.hidden)..., 7)
@@ -138,8 +144,9 @@ end
     gs = Zygote.gradient(ps) do
         RBMs.contrastive_divergence(rbm, vd, vm)
     end
-    stats = RBMs.sufficient_statistics(rbm.visible, vd)
-    ∂F = RBMs.∂contrastive_divergence(rbm, vd, vm; stats)
+    # stats = RBMs.sufficient_statistics(rbm.visible, vd)
+    # ∂F = RBMs.∂contrastive_divergence(rbm, vd, vm; stats)
+    ∂F = RBMs.∂contrastive_divergence(rbm, vd, vm)
     @test ∂F.visible.θ ≈ gs[rbm.visible.θ]
     @test ∂F.hidden.θ ≈ gs[rbm.hidden.θ]
     @test ∂F.w ≈ gs[rbm.w]
