@@ -69,8 +69,7 @@ function mean_free_energy(rbm::RBM, v::AbstractArray; wts = nothing)
 end
 
 function ∂contrastive_divergence(
-    rbm::RBM, vd::AbstractArray, vm::AbstractArray;
-    wd = nothing, wm = nothing,
+    rbm::RBM, vd::AbstractArray, vm::AbstractArray; wd = nothing, wm = nothing,
     stats = sufficient_statistics(rbm.visible, vd; wts = wd)
 )
     ∂d = ∂free_energy(rbm, vd; wts = wd, stats)

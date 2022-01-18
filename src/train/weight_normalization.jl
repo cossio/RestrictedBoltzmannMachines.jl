@@ -123,10 +123,8 @@ function pcd!(rbm::RBM, wn::WeightNorm, data::AbstractArray;
 
     stats = sufficient_statistics(rbm.visible, data; wts)
 
-    # initialize fantasy chains
-    _idx = rand(1:_nobs(data), batchsize)
-    _vm = selectdim(data, ndims(data), _idx)
-    vm = sample_v_from_v(rbm, _vm; steps = steps)
+    # initialize fantasy chains by sampling visible layer
+    vm = transfer_sample(rbm.visible, falses(size(rbm.visible)..., batchsize))
 
     for epoch in 1:epochs
         batches = minibatches(data, wts; batchsize = batchsize)
