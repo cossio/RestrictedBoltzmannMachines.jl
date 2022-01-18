@@ -20,16 +20,14 @@ function cd!(rbm::RBM, data::AbstractArray;
     for epoch in 1:epochs
         batches = minibatches(data, wts; batchsize = batchsize)
         Δt = @elapsed for (vd, wd) in batches
-            # new fantasy chains
-            _idx = rand(1:_nobs(data), batchsize)
-            _vm = copy(selectdim(data, ndims(data), _idx))
-            vm = sample_v_from_v(rbm, _vm; steps = steps)
+            # fantasy particles
+            vm = sample_v_from_v(rbm, vd; steps = steps)
             # compute gradients
             ∂ = ∂contrastive_divergence(rbm, vd, vm; wd = wd, wm = wd, stats)
             # update parameters with gradients
             update!(optimizer, rbm, ∂)
             # store gradient norms
-            push!(history, :norm∂, gradnorms(∂))
+            push!(history, :∂, gradnorms(∂))
         end
 
         lpl = wmean(log_pseudolikelihood(rbm, data); wts)
