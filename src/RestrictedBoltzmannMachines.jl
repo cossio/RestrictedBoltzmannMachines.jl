@@ -18,6 +18,7 @@ module RestrictedBoltzmannMachines
     include("layers/spin.jl")
     include("layers/potts.jl")
     include("layers/gaussian.jl")
+    include("layers/stdgauss.jl")
     include("layers/relu.jl")
     include("layers/drelu.jl")
     include("layers/prelu.jl")

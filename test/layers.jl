@@ -2,11 +2,14 @@ include("tests_init.jl")
 
 Random.seed!(2)
 
+Float = Float32 # use less memory than Float64
+
 _layers = (
     RBMs.Binary,
     RBMs.Spin,
     RBMs.Potts,
     RBMs.Gaussian,
+    RBMs.StdGauss,
     RBMs.ReLU,
     RBMs.dReLU,
     RBMs.pReLU,
@@ -16,24 +19,26 @@ _layers = (
 function random_layer(
     ::Type{T}, N::Int...
 ) where {T <: Union{RBMs.Binary, RBMs.Spin, RBMs.Potts}}
-    return T(randn(N...))
+    return T(randn(Float, N...))
 end
 
 function random_layer(::Type{T}, N::Int...) where {T <: Union{RBMs.Gaussian, RBMs.ReLU}}
-    return T(randn(N...), rand(N...))
+    return T(randn(Float, N...), rand(Float, N...))
 end
 
 function random_layer(::Type{RBMs.dReLU}, N::Int...)
-    return RBMs.dReLU(randn(N...), randn(N...), rand(N...), rand(N...))
+    return RBMs.dReLU(randn(Float, N...), randn(Float, N...), rand(Float, N...), rand(Float, N...))
 end
 
 function random_layer(::Type{RBMs.xReLU}, N::Int...)
-    return RBMs.xReLU(randn(N...), rand(N...), randn(N...), randn(N...))
+    return RBMs.xReLU(randn(Float, N...), rand(Float, N...), randn(Float, N...), randn(Float, N...))
 end
 
 function random_layer(::Type{RBMs.pReLU}, N::Int...)
-    return RBMs.pReLU(randn(N...), rand(N...), randn(N...), 2rand(N...) .- 1)
+    return RBMs.pReLU(randn(Float, N...), rand(Float, N...), randn(Float, N...), 2rand(Float, N...) .- 1)
 end
+
+random_layer(::Type{RBMs.StdGauss}, N::Int...) = RBMs.StdGauss(Float, N...)
 
 @testset "testing $Layer" for Layer in _layers
     N = (3, 2)
@@ -46,8 +51,8 @@ end
     @test RBMs.batchsize(layer, bitrand(N)) == ()
 
     x = bitrand(N..., B)
-    inputs = randn(N..., B)
-    β = rand()
+    inputs = randn(Float, N..., B)
+    β = rand(Float, )
 
     @test RBMs.batchsize(layer, x) == (B,)
     @test size(RBMs.energy(layer, x)) == (B,)
@@ -74,32 +79,31 @@ end
     @test only(Zygote.gradient(j -> sum(RBMs.free_energies(layer, j)), inputs)) ≈ -μ
 
     ∂F = RBMs.∂free_energy(layer)
-    gs = Zygote.gradient(Flux.params(layer)) do
+    gs = Zygote.gradient(layer) do layer
         sum(RBMs.free_energies(layer))
     end
     for (ω, ∂ω) in pairs(∂F)
-        @test ∂ω ≈ gs[getproperty(layer, ω)]
+        @test ∂ω ≈ getproperty(only(gs), ω)
     end
 
-    samples = RBMs.transfer_sample(layer, zeros(size(layer)..., 10^6))
+    samples = RBMs.transfer_sample(layer, zeros(Float, size(layer)..., 10^6))
     @test RBMs.transfer_mean(layer) ≈ RBMs.mean_(samples; dims=ndims(samples)) rtol=0.1
     @test RBMs.transfer_var(layer) ≈ RBMs.var_(samples;  dims=ndims(samples)) rtol=0.1
     @test RBMs.transfer_mean_abs(layer) ≈ RBMs.mean_(abs.(samples); dims=ndims(samples)) rtol=0.1
 
     ∂F = RBMs.∂free_energy(layer)
-    stats = RBMs.sufficient_statistics(layer, samples)
-    ∂E = RBMs.∂energy(layer; stats...)
+    ∂E = RBMs.∂energy(layer; RBMs.sufficient_statistics(layer, samples)...)
     @test length(∂F) == length(∂E)
-    @test typeof(∂F) == typeof(∂E)
+    @test propertynames(∂F) == propertynames(∂E)
     for (∂f, ∂e) in zip(∂F, ∂E)
         @test ∂f ≈ ∂e rtol=0.1
     end
 
-    gs = Zygote.gradient(Flux.params(layer)) do
+    gs = Zygote.gradient(layer) do layer
         sum(RBMs.energies(layer, samples)) / size(samples)[end]
     end
     for (ω, ∂ω) in pairs(∂E)
-        @test ∂ω ≈ gs[getproperty(layer, ω)]
+        @test ∂ω ≈ getproperty(only(gs), ω)
     end
 end
 
@@ -109,12 +113,10 @@ end
     layer = Layer(randn(N...))
     x = bitrand(N..., B)
     @test RBMs.energies(layer, x) ≈ -layer.θ .* x
-
-    ps = Flux.params(layer)
-    gs = Zygote.gradient(ps) do
+    gs = Zygote.gradient(layer) do layer
         sum(RBMs.free_energies(layer))
     end
-    @test RBMs.∂free_energy(layer).θ ≈ gs[layer.θ] ≈ -RBMs.transfer_mean(layer)
+    @test RBMs.∂free_energy(layer).θ ≈ only(gs).θ ≈ -RBMs.transfer_mean(layer)
 end
 
 @testset "Binary" begin
@@ -173,15 +175,15 @@ end
 
     @test RBMs.free_energies(layer) ≈ quad_free.(layer.θ, layer.γ) rtol=1e-6
 
-    gs = Zygote.gradient(Flux.params(layer)) do
+    gs = Zygote.gradient(layer) do layer
         sum(RBMs.free_energies(layer))
     end
     μ = RBMs.transfer_mean(layer)
     ν = RBMs.transfer_var(layer)
     μ2 = @. ν + μ^2
     ∂ = RBMs.∂free_energy(layer)
-    @test ∂.θ ≈ gs[layer.θ] ≈ -μ
-    @test ∂.γ ≈ gs[layer.γ] ≈ μ2/2
+    @test ∂.θ ≈ only(gs).θ ≈ -μ
+    @test ∂.γ ≈ only(gs).γ ≈ μ2/2
 end
 
 @testset "ReLU" begin
@@ -200,15 +202,15 @@ end
     end
     @test RBMs.free_energies(layer) ≈ @. quad_free(layer.θ, layer.γ)
 
-    gs = Zygote.gradient(Flux.params(layer)) do
+    gs = Zygote.gradient(layer) do layer
         sum(RBMs.free_energies(layer))
     end
     μ = RBMs.transfer_mean(layer)
     ν = RBMs.transfer_var(layer)
     μ2 = @. ν + μ^2
     ∂ = RBMs.∂free_energy(layer)
-    @test ∂.θ ≈ gs[layer.θ] ≈ -μ
-    @test ∂.γ ≈ gs[layer.γ] ≈ μ2/2
+    @test ∂.θ ≈ only(gs).θ ≈ -μ
+    @test ∂.γ ≈ only(gs).γ ≈ μ2/2
 end
 
 @testset "pReLU / xReLU / dReLU convert" begin
@@ -320,14 +322,14 @@ end
 
     @test RBMs.free_energies(layer) ≈ quad_free.(layer.θp, layer.θn, abs.(layer.γp), abs.(layer.γn))
 
-    gs = Zygote.gradient(Flux.params(layer)) do
+    gs = Zygote.gradient(layer) do
         sum(RBMs.free_energies(layer))
     end
     ∂ = RBMs.∂free_energy(layer)
-    @test ∂.θp ≈ gs[layer.θp]
-    @test ∂.θn ≈ gs[layer.θn]
-    @test ∂.γp ≈ gs[layer.γp]
-    @test ∂.γn ≈ gs[layer.γn]
+    @test ∂.θp ≈ only(gs).θp
+    @test ∂.θn ≈ only(gs).θn
+    @test ∂.γp ≈ only(gs).γp
+    @test ∂.γn ≈ only(gs).γn
     μ = RBMs.transfer_mean(layer)
     ν = RBMs.transfer_var(layer)
     μ2 = @. ν + μ^2
@@ -338,25 +340,25 @@ end
 @testset "pReLU" begin
     N = (3, 5)
     layer = RBMs.pReLU(randn(N...), rand(N...), randn(N...), 2rand(N...) .- 1)
-    gs = Zygote.gradient(Flux.params(layer)) do
+    gs = Zygote.gradient(layer) do layer
         sum(RBMs.free_energies(layer))
     end
     ∂ = RBMs.∂free_energy(layer)
-    @test ∂.θ ≈ gs[layer.θ] ≈ -RBMs.transfer_mean(layer)
-    @test ∂.γ ≈ gs[layer.γ]
-    @test ∂.Δ ≈ gs[layer.Δ]
-    @test ∂.η ≈ gs[layer.η]
+    @test ∂.θ ≈ only(gs).θ ≈ -RBMs.transfer_mean(layer)
+    @test ∂.γ ≈ only(gs).γ
+    @test ∂.Δ ≈ only(gs).Δ
+    @test ∂.η ≈ only(gs).η
 end
 
 @testset "xReLU" begin
     N = (3, 5)
     layer = RBMs.xReLU(randn(N...), rand(N...), randn(N...), randn(N...))
-    gs = Zygote.gradient(Flux.params(layer)) do
+    gs = Zygote.gradient(layer) do layer
         sum(RBMs.free_energies(layer))
     end
     ∂ = RBMs.∂free_energy(layer)
-    @test ∂.θ ≈ gs[layer.θ] ≈ -RBMs.transfer_mean(layer)
-    @test ∂.γ ≈ gs[layer.γ]
-    @test ∂.Δ ≈ gs[layer.Δ]
-    @test ∂.ξ ≈ gs[layer.ξ]
+    @test ∂.θ ≈ only(gs).θ ≈ -RBMs.transfer_mean(layer)
+    @test ∂.γ ≈ only(gs).γ
+    @test ∂.Δ ≈ only(gs).Δ
+    @test ∂.ξ ≈ only(gs).ξ
 end
