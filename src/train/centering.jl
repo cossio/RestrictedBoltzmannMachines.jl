@@ -35,9 +35,9 @@ function pcd_centered!(rbm::RBM, data::AbstractArray;
             # update fantasy chains
             vm = sample_v_from_v(rbm, vm; steps = steps)
             # compute centered gradients
-            ∂c = ∂contrastive_divergence_centered(rbm, vd, vm; wd, stats, center_v, center_h)
+            ∂ = ∂contrastive_divergence_centered(rbm, vd, vm; wd, stats, center_v, center_h)
             # update parameters using gradient
-            update!(optimizer, rbm, ∂c)
+            update!(optimizer, rbm, ∂)
             # store gradient norms
             push!(history, :∂, gradnorms(∂))
         end
@@ -58,7 +58,7 @@ end
 
 # TODO: Implement for other layers
 function ∂contrastive_divergence_centered(
-    rbm::RBM{<:Binary, <:Binary}, vd::AbstractArray, vm::AbstractArray;
+    rbm::RBM, vd::AbstractArray, vm::AbstractArray;
     wd = nothing, wm = nothing, stats, center_v::Bool = true, center_h::Bool = true
 )
     ∂d = ∂free_energy(rbm, vd; wts = wd, stats)
@@ -69,17 +69,45 @@ function ∂contrastive_divergence_centered(
     λv = -∂d.visible.θ * center_v # = <v>_d (uses full data thanks to sufficient_statistics mechanism)
     λh = -∂d.hidden.θ  * center_h # = <h>_d (uses minibatch)
 
-    # flatten
+    ∂c = center_gradients(rbm, ∂, λv, λh)
+    return ∂c
+end
+
+function center_gradients(rbm::RBM, ∂::NamedTuple, λv::AbstractArray, λh::AbstractArray)
+    @assert size(rbm.visible) == size(λv)
+    @assert size(rbm.hidden) == size(λh)
+    @assert size(∂.w) == size(rbm.w)
+
     ∂w_flat = reshape(∂.w, length(rbm.visible), length(rbm.hidden))
+    ∂w_flat_c = ∂w_flat - vec(λv) * vec(∂.hidden.θ)' - vec(∂.visible.θ) * vec(λh)'
+    ∂w_c = reshape(∂w_flat_c, size(rbm.w))
 
-    # centered gradients
-    ∂w_c_flat = ∂w_flat - vec(λv) * vec(∂.hidden.θ)' - vec(∂.visible.θ) * vec(λh)'
-    ∂v_c_flat = vec(∂.visible.θ) - ∂w_c_flat  * vec(λh)
-    ∂h_c_flat = vec(∂.hidden.θ) - ∂w_c_flat' * vec(λv)
+    shift_v = reshape(∂w_c_flat  * vec(λh), size(rbm.visible))
+    shift_h = reshape(∂w_c_flat' * vec(λv), size(rbm.hidden))
+    ∂v_c = center_gradients(rbm.visible, ∂.visible, shift_v)
+    ∂h_c = center_gradients(rbm.hidden,  ∂.hidden,  shift_h)
 
-    return ∂c = (
-        w = reshape(∂w_c_flat, size(rbm.w)),
-        visible = (; θ = reshape(∂v_c_flat, size(rbm.visible))),
-        hidden  = (; θ = reshape(∂h_c_flat, size(rbm.hidden)))
-    )
+    return (visible = ∂v_c, hidden = ∂h_c, w = ∂w_c)
+end
+
+function center_gradients(
+    layer::Union{Binary,Spin,Potts,Gaussian,ReLU}, ∂::NamedTuple, λ::AbstractArray
+)
+    @assert size(layer) == size(∂.θ) == size(λ)
+    return (; θ = ∂.θ - λ)
+end
+
+function center_gradients(layer::dReLU, ∂::NamedTuple, λ::AbstractArray)
+    @assert size(layer) == size(∂.θp) == size(∂.θn) == size(λ)
+    return (θp = ∂.θp - λ, θn = ∂.θn - λ, γp = ∂.γp, γn = ∂.γn)
+end
+
+function center_gradients(layer::pReLU, ∂::NamedTuple, λ::AbstractArray)
+    @assert size(layer) == size(∂.θ) == size(λ)
+    return (θ = ∂.θ - λ, γ = ∂.γ, Δ = ∂.Δ, η = ∂.η)
+end
+
+function center_gradients(layer::xReLU, ∂::NamedTuple, λ::AbstractArray)
+    @assert size(layer) == size(∂.θ) == size(λ)
+    return (θ = ∂.θ - λ, γ = ∂.γ, Δ = ∂.Δ, ξ = ∂.ξ)
 end

@@ -42,9 +42,11 @@ function pcd_bnorm!(rbm::RBM{<:Binary, <:Binary}, data::AbstractArray;
             # update fantasy chains
             vm = sample_v_from_v(rbm, vm; steps = steps)
             # compute centered gradients
-            ∂c = ∂contrastive_divergence_bnorm(rbm, vd, vm; wd, stats)
+            ∂ = ∂contrastive_divergence_bnorm(rbm, vd, vm; wd, stats)
             # update parameters using gradient
-            update!(optimizer, rbm, ∂c)
+            update!(optimizer, rbm, ∂)
+            # store gradient norms
+            push!(history, :∂, gradnorms(∂))
         end
 
         lpl = wmean(log_pseudolikelihood(rbm, data); wts)

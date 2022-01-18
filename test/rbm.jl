@@ -129,27 +129,25 @@ end
     @test RBMs.mirror(rbm).hidden == rbm.visible
     @test RBMs.energy(RBMs.mirror(rbm), h, v) ≈ RBMs.energy(rbm, v, h)
 
-    ps = Flux.params(rbm)
-    gs = Zygote.gradient(ps) do
+    gs = Zygote.gradient(rbm) do rbm
         mean(RBMs.free_energy(rbm, v))
     end
     ∂F = RBMs.∂free_energy(rbm, v)
-    @test ∂F.visible.θ ≈ gs[rbm.visible.θ]
-    @test ∂F.hidden.θ ≈ gs[rbm.hidden.θ]
-    @test ∂F.w ≈ gs[rbm.w]
+    @test ∂F.visible.θ ≈ only(gs).visible.θ
+    @test ∂F.hidden.θ ≈ only(gs).hidden.θ
+    @test ∂F.w ≈ only(gs).w
 
     vd = rand(Bool, size(rbm.visible)..., 7)
     vm = rand(Bool, size(rbm.visible)..., 7)
-    ps = Flux.params(rbm)
-    gs = Zygote.gradient(ps) do
+    gs = Zygote.gradient(rbm) do rbm
         RBMs.contrastive_divergence(rbm, vd, vm)
     end
     # stats = RBMs.sufficient_statistics(rbm.visible, vd)
     # ∂F = RBMs.∂contrastive_divergence(rbm, vd, vm; stats)
     ∂F = RBMs.∂contrastive_divergence(rbm, vd, vm)
-    @test ∂F.visible.θ ≈ gs[rbm.visible.θ]
-    @test ∂F.hidden.θ ≈ gs[rbm.hidden.θ]
-    @test ∂F.w ≈ gs[rbm.w]
+    @test ∂F.visible.θ ≈ only(gs).visible.θ
+    @test ∂F.hidden.θ ≈ only(gs).hidden.θ
+    @test ∂F.w ≈ only(gs).w
 end
 
 @testset "Gaussian-Gaussian RBM, 1-dimension" begin
@@ -220,15 +218,14 @@ end
     Fv = sum(-(rbm.hidden.θ .+ RBMs.inputs_v_to_h(rbm, v)).^2 ./ 2rbm.hidden.γ)
     @test only(RBMs.free_energy(rbm, v)) ≈ Ev + Fv - sum(log.(2π ./ rbm.hidden.γ)) / 2
 
-    ps = Flux.params(rbm)
-    gs = Zygote.gradient(ps) do
+    gs = Zygote.gradient(rbm) do rbm
         RBMs.log_partition(rbm)
     end
-    ∂θv = vec(gs[rbm.visible.θ])
-    ∂θh = vec(gs[rbm.hidden.θ])
-    ∂γv = vec(gs[rbm.visible.γ])
-    ∂γh = vec(gs[rbm.hidden.γ])
-    ∂w = reshape(gs[rbm.w], length(rbm.visible), length(rbm.hidden))
+    ∂θv = vec(only(gs).visible.θ)
+    ∂θh = vec(only(gs).hidden.θ)
+    ∂γv = vec(only(gs).visible.γ)
+    ∂γh = vec(only(gs).hidden.γ)
+    ∂w = reshape(only(gs).w, length(rbm.visible), length(rbm.hidden))
 
     Σ = inv(A) # covariances
     μ = Σ * θ  # means

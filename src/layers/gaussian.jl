@@ -15,8 +15,6 @@ end
 Gaussian(::Type{T}, n::Int...) where {T} = Gaussian(zeros(T, n...), ones(T, n...))
 Gaussian(n::Int...) = Gaussian(Float64, n...)
 
-Flux.@functor Gaussian
-
 function effective(layer::Gaussian, inputs::AbstractArray; β::Real = true)
     @assert size(layer) == size(inputs)[1:ndims(layer)]
     θ = β * (layer.θ .+ inputs)

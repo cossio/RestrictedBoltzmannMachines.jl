@@ -14,7 +14,7 @@ struct Potts{N, T, A <: AbstractArray{T,N}} <: AbstractLayer{N}
 end
 Potts(::Type{T}, q::Int, n::Int...) where {T} = Potts(zeros(T, q, n...))
 Potts(q::Int, n::Int...) = Potts(Float64, q, n...)
-Flux.@functor Potts
+
 Base.propertynames(::Potts) = (:q, fieldnames(Potts)...)
 
 function Base.getproperty(layer::Potts, name::Symbol)

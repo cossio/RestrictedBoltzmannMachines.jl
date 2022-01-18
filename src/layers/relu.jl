@@ -15,8 +15,6 @@ end
 ReLU(::Type{T}, n::Int...) where {T} = ReLU(zeros(T, n...), ones(T, n...))
 ReLU(n::Int...) = ReLU(Float64, n...)
 
-Flux.@functor ReLU
-
 function effective(layer::ReLU, inputs::AbstractArray; β::Real = true)
     @assert size(layer) == size(inputs)[1:ndims(layer)]
     θ = β * (layer.θ .+ inputs)

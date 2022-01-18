@@ -43,10 +43,8 @@ function train_white!(rbm::RBM{<:Binary, <:Binary}, data::AbstractArray;
             vm = sample_v_from_v(rbm_black, vm; steps = steps)
             rbm_white = whiten(rbm_black, whiten_L, whiten_μ)
             vm_white = whiten(vm, whiten_L, whiten_μ)
-
             # compute contrastive divergence gradient
-            ps = Flux.params(rbm_white)
-            gs = Zygote.gradient(ps) do
+            gs = Zygote.gradient(rbm_white) do rbm_white
                 loss = contrastive_divergence(rbm_white, vd, vm_white; wd)
                 ChainRulesCore.ignore_derivatives() do
                     push!(history, :cd_loss, loss)
@@ -54,8 +52,7 @@ function train_white!(rbm::RBM{<:Binary, <:Binary}, data::AbstractArray;
                 return loss
             end
             # update parameters using gradient
-            Flux.update!(optimizer, ps, gs)
-
+            update!(optimizer, rbm_white, only(gs))
             rbm_black = unwhiten(rbm_white, whiten_L, whiten_μ)
 
             push!(history, :epoch, epoch)

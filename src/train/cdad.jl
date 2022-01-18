@@ -26,8 +26,7 @@ function cdad!(rbm::RBM, data::AbstractArray;
             vm = sample_v_from_v(rbm, _vm; steps = steps)
 
             # compute contrastive divergence gradient
-            ps = Flux.params(rbm)
-            gs = Zygote.gradient(ps) do
+            gs = Zygote.gradient(rbm) do rbm
                 loss = contrastive_divergence(rbm, vd, vm; wd = wd, wm = wd)
                 regu = lossadd(rbm, vd, vm, wd)
                 ChainRulesCore.ignore_derivatives() do
@@ -38,7 +37,7 @@ function cdad!(rbm::RBM, data::AbstractArray;
             end
 
             # update parameters using gradient
-            Flux.update!(optimizer, ps, gs)
+            update!(optimizer, rbm, only(gs))
 
             push!(history, :epoch, epoch)
             push!(history, :batch, b)

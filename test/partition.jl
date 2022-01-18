@@ -18,12 +18,11 @@ include("tests_init.jl")
     @test log(Z) ≈ RBMs.log_partition(rbm; β)
 
     rbm.w .= 0
-    ps = Flux.params(rbm)
-    gs = Zygote.gradient(ps) do
+    gs = Zygote.gradient(rbm) do rbm
         RBMs.log_partition(rbm)
     end
-    @test gs[rbm.visible.θ] ≈ Flux.sigmoid.(rbm.visible.θ)
-    @test gs[rbm.hidden.θ] ≈ Flux.sigmoid.(rbm.hidden.θ)
+    @test only(gs).visible.θ ≈ Flux.sigmoid.(rbm.visible.θ)
+    @test only(gs).hidden.θ  ≈ Flux.sigmoid.(rbm.hidden.θ)
 end
 
 @testset "Spin-Binary RBM partition function (brute force)" begin
@@ -44,10 +43,9 @@ end
     @test log(Z) ≈ RBMs.log_partition(rbm; β)
 
     rbm.w .= 0
-    ps = Flux.params(rbm)
-    gs = Zygote.gradient(ps) do
+    gs = Zygote.gradient(rbm) do rbm
         RBMs.log_partition(rbm)
     end
-    @test gs[rbm.visible.θ] ≈ tanh.(rbm.visible.θ)
-    @test gs[rbm.hidden.θ] ≈ Flux.sigmoid.(rbm.hidden.θ)
+    @test only(gs).visible.θ ≈ tanh.(rbm.visible.θ)
+    @test only(gs).hidden.θ ≈ Flux.sigmoid.(rbm.hidden.θ)
 end

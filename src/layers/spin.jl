@@ -16,8 +16,6 @@ end
 Spin(::Type{T}, n::Int...) where {T} = Spin(zeros(T, n...))
 Spin(n::Int...) = Spin(Float64, n...)
 
-Flux.@functor Spin
-
 function effective(layer::Spin, inputs::AbstractArray; β::Real = true)
     @assert size(layer) == size(inputs)[1:ndims(layer)]
     return Spin(β * (layer.θ .+ inputs))

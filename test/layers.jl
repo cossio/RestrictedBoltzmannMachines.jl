@@ -2,7 +2,7 @@ include("tests_init.jl")
 
 Random.seed!(2)
 
-Float = Float32 # use less memory than Float64
+Float = Float64
 
 _layers = (
     RBMs.Binary,
@@ -52,7 +52,7 @@ random_layer(::Type{RBMs.StdGauss}, N::Int...) = RBMs.StdGauss(Float, N...)
 
     x = bitrand(N..., B)
     inputs = randn(Float, N..., B)
-    β = rand(Float, )
+    β = rand(Float)
 
     @test RBMs.batchsize(layer, x) == (B,)
     @test size(RBMs.energy(layer, x)) == (B,)
@@ -87,8 +87,8 @@ random_layer(::Type{RBMs.StdGauss}, N::Int...) = RBMs.StdGauss(Float, N...)
     end
 
     samples = RBMs.transfer_sample(layer, zeros(Float, size(layer)..., 10^6))
-    @test RBMs.transfer_mean(layer) ≈ RBMs.mean_(samples; dims=ndims(samples)) rtol=0.1
-    @test RBMs.transfer_var(layer) ≈ RBMs.var_(samples;  dims=ndims(samples)) rtol=0.1
+    @test RBMs.transfer_mean(layer) ≈ RBMs.mean_(samples; dims=ndims(samples)) rtol=0.1 atol=0.01
+    @test RBMs.transfer_var(layer) ≈ RBMs.var_(samples; dims=ndims(samples)) rtol=0.1
     @test RBMs.transfer_mean_abs(layer) ≈ RBMs.mean_(abs.(samples); dims=ndims(samples)) rtol=0.1
 
     ∂F = RBMs.∂free_energy(layer)
@@ -124,7 +124,6 @@ end
         #binary_rand(θ, u) = u * (1 + exp(-θ)) < 1
         for θ in -5:5, u in 0.0:0.1:1.0
             @test (@. u * (1 + exp(-θ)) < 1) == @inferred RBMs.binary_rand(θ, u)
-
         end
         θ = randn(1000)
         u = rand(1000)
@@ -305,10 +304,12 @@ end
 @testset "dReLU" begin
     N = (3, 5)
     B = 13
-    x = randn(N..., B)
+    x = randn(Float, N..., B)
 
     # bound γ away from zero to avoid issues with QuadGK
-    layer = RBMs.dReLU(randn(N...), randn(N...), rand(N...) .+ 0.5, rand(N...) .+ 0.5)
+    layer = RBMs.dReLU(
+        randn(Float, N...), randn(Float, N...), rand(Float, N...) .+ 1, rand(Float, N...) .+ 1
+    )
 
     Ep = RBMs.energy(RBMs.ReLU( layer.θp, layer.γp), max.( x, 0))
     En = RBMs.energy(RBMs.ReLU(-layer.θn, layer.γn), max.(-x, 0))
@@ -319,10 +320,9 @@ end
         Z, ϵ = QuadGK.quadgk(h -> exp(-RBMs.drelu_energy(θp, θn, γp, γn, h)), -Inf, Inf)
         return -log(Z)
     end
-
     @test RBMs.free_energies(layer) ≈ quad_free.(layer.θp, layer.θn, abs.(layer.γp), abs.(layer.γn))
 
-    gs = Zygote.gradient(layer) do
+    gs = Zygote.gradient(layer) do layer
         sum(RBMs.free_energies(layer))
     end
     ∂ = RBMs.∂free_energy(layer)

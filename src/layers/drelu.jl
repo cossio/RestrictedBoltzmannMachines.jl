@@ -19,8 +19,6 @@ end
 
 dReLU(n::Int...) = dReLU(Float64, n...)
 
-Flux.@functor dReLU
-
 Base.size(layer::dReLU) = size(layer.θp)
 Base.size(layer::dReLU, d::Int) = size(layer.θp, d)
 Base.ndims(layer::dReLU) = ndims(layer.θp)
