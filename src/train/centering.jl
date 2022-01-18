@@ -15,8 +15,8 @@ function pcd_centered!(rbm::RBM, data::AbstractArray;
     verbose::Bool = true,
     wts = nothing, # data point weights
     steps::Int = 1, # Monte Carlo steps to update fantasy particles
-    center_v::Bool = true,
-    center_h::Bool = true
+    center_v::Bool = true, center_h::Bool = true, # center visible, hidden, or both
+    α::Real = false # running average for λh
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert isnothing(wts) || _nobs(data) == _nobs(wts)
@@ -27,13 +27,17 @@ function pcd_centered!(rbm::RBM, data::AbstractArray;
     # initialize fantasy chains by sampling visible layer
     vm = transfer_sample(rbm.visible, falses(size(rbm.visible)..., batchsize))
 
+    avg_h = batchmean(rbm.hidden, mean_h_from_v(rbm, data))
+
     for epoch in 1:epochs
         batches = minibatches(data, wts; batchsize = batchsize)
         Δt = @elapsed for (vd, wd) in batches
             # update fantasy chains
             vm = sample_v_from_v(rbm, vm; steps = steps)
             # compute centered gradients
-            ∂ = ∂contrastive_divergence_centered(rbm, vd, vm; wd, stats, center_v, center_h)
+            ∂ = ∂contrastive_divergence_centered(
+                rbm, vd, vm; wd, stats, center_v, center_h, α, avg_h
+            )
             # update parameters using gradient
             update!(optimizer, rbm, ∂)
             # store gradient norms
@@ -58,8 +62,9 @@ end
 function ∂contrastive_divergence_centered(
     rbm::RBM, vd::AbstractArray, vm::AbstractArray;
     wd = nothing, wm = nothing,
-    center_v::Bool = true, center_h::Bool = true, # control whether to center visible or hidden or both
-    stats = sufficient_statistics(rbm.visible, vd; wts = wd)
+    stats = sufficient_statistics(rbm.visible, vd; wts = wd),
+    center_v::Bool = true, center_h::Bool = true,
+    α::Real = false, avg_h::AbstractArray
 )
     ∂d = ∂free_energy(rbm, vd; wts = wd, stats)
     ∂m = ∂free_energy(rbm, vm; wts = wm)
@@ -68,6 +73,10 @@ function ∂contrastive_divergence_centered(
     # reuse moment estimates from the gradients
     λv = grad2mean(rbm.visible, ∂d.visible) # = <v>_d (uses full data, from sufficient_statistics)
     λh = grad2mean(rbm.hidden,  ∂d.hidden)  # = <h>_d (uses minibatch)
+
+    # since h uses minibatches, keep running a average
+    @assert size(avg_h) == size(λh)
+    λh .= avg_h .= α * avg_h .+ (1 - α) .* λh
 
     ∂c = center_gradients(rbm, ∂, center_v * λv, center_h * λh)
     return ∂c
