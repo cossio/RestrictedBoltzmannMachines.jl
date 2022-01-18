@@ -23,8 +23,7 @@ function cd!(rbm::RBM, data::AbstractArray;
             # fantasy particles
             vm = sample_v_from_v(rbm, vd; steps = steps)
             # compute gradients
-            #∂ = ∂contrastive_divergence(rbm, vd, vm; wd = wd, wm = wd, stats)
-            ∂ = ∂contrastive_divergence(rbm, vd, vm; wd = wd, wm = wd)
+            ∂ = ∂contrastive_divergence(rbm, vd, vm; wd = wd, wm = wd, stats)
             # update parameters with gradients
             update!(optimizer, rbm, ∂)
             # store gradient norms
