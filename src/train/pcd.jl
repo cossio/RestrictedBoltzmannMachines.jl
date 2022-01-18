@@ -4,8 +4,8 @@
 Trains the RBM on data using Persistent Contrastive divergence.
 """
 function pcd!(rbm::RBM, data::AbstractArray;
-    batchsize = 1,
-    epochs = 1,
+    batchsize::Int = 1,
+    epochs::Int = 1,
     optimizer = default_optimizer(_nobs(data), batchsize, epochs), # optimizer algorithm
     history::MVHistory = MVHistory(), # stores training log
     verbose::Bool = true,
@@ -17,10 +17,8 @@ function pcd!(rbm::RBM, data::AbstractArray;
 
     stats = sufficient_statistics(rbm.visible, data; wts)
 
-    # initialize fantasy chains
-    _idx = rand(1:_nobs(data), batchsize)
-    _vm = selectdim(data, ndims(data), _idx)
-    vm = sample_v_from_v(rbm, _vm; steps = steps)
+    # initialize fantasy chains by sampling visible layer
+    vm = transfer_sample(rbm.visible, falses(size(rbm.visible)..., batchsize))
 
     for epoch in 1:epochs
         batches = minibatches(data, wts; batchsize = batchsize)
