@@ -14,7 +14,6 @@ StdGauss(n::Int...) = StdGauss(Float64, n...)
 
 Base.size(layer::StdGauss) = layer.n
 Base.size(layer::StdGauss, d::Int) = layer.n[d]
-Base.ndims(layer::StdGauss) = length(layer.n)
 Base.length(layer::StdGauss) = prod(layer.n)
 
 function effective(layer::StdGauss{N,T}, inputs::AbstractArray; β::Real = true) where {N,T}

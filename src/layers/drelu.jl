@@ -21,7 +21,6 @@ dReLU(n::Int...) = dReLU(Float64, n...)
 
 Base.size(layer::dReLU) = size(layer.θp)
 Base.size(layer::dReLU, d::Int) = size(layer.θp, d)
-Base.ndims(layer::dReLU) = ndims(layer.θp)
 Base.length(layer::dReLU) = length(layer.θp)
 
 function effective(layer::dReLU, inputs::AbstractArray; β::Real = true)
