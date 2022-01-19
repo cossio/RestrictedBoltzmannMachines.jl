@@ -13,8 +13,6 @@ struct RBM{V<:AbstractLayer, H<:AbstractLayer, W<:AbstractArray}
     end
 end
 
-Flux.@functor RBM
-
 """
     energy(rbm, v, h)
 

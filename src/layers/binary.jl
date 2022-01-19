@@ -9,8 +9,6 @@ end
 Binary(::Type{T}, n::Int...) where {T} = Binary(zeros(T, n...))
 Binary(n::Int...) = Binary(Float64, n...)
 
-Flux.@functor Binary
-
 function effective(layer::Binary, inputs::AbstractArray; β::Real = true)
     @assert size(layer) == size(inputs)[1:ndims(layer)]
     return Binary(β * (layer.θ .+ inputs))
