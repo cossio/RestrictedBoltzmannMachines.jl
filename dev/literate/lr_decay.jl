@@ -78,9 +78,7 @@ First generate MC data from the RBMs.
 =#
 
 samples_v = RBMs.sample_v_from_v(rbm, tests_x; steps=1000)
-samples_h = RBMs.sample_h_from_v(rbm, samples_v)
 samples_v_decay = RBMs.sample_v_from_v(rbm_decay, tests_x; steps=1000)
-samples_h_decay = RBMs.sample_h_from_v(rbm_decay, samples_v_decay)
 nothing #hide
 
 #=
@@ -104,7 +102,7 @@ hidedecorations!(ax)
 fig
 
 #=
-Moment matching conditions
+Moment matching conditions, first for RBM with constant learning rate
 =#
 
 h_data = RBMs.mean_h_from_v(rbm, train_x);
@@ -149,8 +147,8 @@ fig
 Moment matching conditions
 =#
 
-h_data = RBMs.mean_h_from_v(rbm, train_x);
-h_model = RBMs.mean_h_from_v(rbm, samples_v_decay);
+h_data = RBMs.mean_h_from_v(rbm_decay, train_x);
+h_model = RBMs.mean_h_from_v(rbm_decay, samples_v_decay);
 
 fig = Figure(resolution=(900, 300))
 
