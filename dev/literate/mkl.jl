@@ -12,6 +12,10 @@ using LinearAlgebra
 LinearAlgebra.__init__() # don't need this on a fresh Julia session
 BLAS.get_config()
 
+# Number of BLAS threads:
+
+BLAS.get_num_threads()
+
 # We use Float32 for the test.
 
 Float = Float32
@@ -47,6 +51,10 @@ If you don't have it installed, run first `pkg> add MKL`.
 using MKL
 MKL.__init__() # don't need this on a fresh Julia session
 BLAS.get_config()
+
+# Number of BLAS threads:
+
+BLAS.get_num_threads()
 
 #=
 In Julia 1.7 (which I assume you have), that's all you need to do.
