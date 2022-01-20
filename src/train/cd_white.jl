@@ -8,7 +8,7 @@ function train_white!(rbm::RBM{<:Binary, <:Binary}, data::AbstractArray;
     epochs = 1,
     optimizer = ADAM(), # optimizer algorithm
     history::MVHistory = MVHistory(), # stores training log
-    verbose::Bool = true,
+    verbose::Bool = false,
     wts = nothing, # data point weights
     steps::Int = 1, # Monte Carlo steps to update fantasy particles
     initialize::Bool = false, # whether to initialize the RBM parameters

@@ -26,12 +26,12 @@ rbm = RBMs.RBM(
 println("Initial quick run to pre-compile things ...")
 
 # short run to pre-compile things before collecting profile
-@time RBMs.cd!(rbm, train_x[:,:,1:64]; epochs=2, batchsize=16);
+@time RBMs.cd!(rbm, train_x[:,:,1:64]; epochs=2, batchsize=16, verbose=true);
 
 println("Profiling ...")
 
 # collect profile
-history = @profile RBMs.cd!(rbm, train_x; epochs=10, batchsize=128);
+history = @profile RBMs.cd!(rbm, train_x; epochs=10, batchsize=128, verbose=true);
 
 #=
 This prints a link to a local webserver where you can inspect the profile

@@ -8,7 +8,7 @@ function cd!(rbm::RBM, data::AbstractArray;
     epochs = 1,
     optimizer = default_optimizer(_nobs(data), batchsize, epochs), # optimizer algorithm
     history::MVHistory = MVHistory(), # stores training log
-    verbose::Bool = true,
+    verbose::Bool = false,
     wts = nothing, # data point weights
     steps::Int = 1, # Monte Carlo steps to update fantasy particles
 )
