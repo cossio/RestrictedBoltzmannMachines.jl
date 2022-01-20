@@ -50,7 +50,6 @@ makedocs(
     sitename = "RestrictedBoltzmannMachines.jl",
     pages = [
         "Home" => "index.md",
-        "Mathematical introduction" => "math.md",
         "Examples" => [
             "MKL" => "literate/mkl.md",
             "Learning rate decay" => "literate/lr_decay.md",
