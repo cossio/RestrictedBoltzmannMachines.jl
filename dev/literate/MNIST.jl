@@ -166,7 +166,7 @@ fig = Figure(resolution=(800, 300))
 for i in 1:3, j in 1:8
     ax = Axis(fig[i,j], yreversed=true)
     hidedecorations!(ax)
-    heatmap!(ax, fantasy_x_init_[:,:,i,j])
+    heatmap!(ax, fantasy_x_init_[:,:,i,j], colorrange=(0,1))
 end
 fig
 
@@ -185,7 +185,7 @@ fig = Figure(resolution=(800, 300))
 for i in 1:3, j in 1:8
     ax = Axis(fig[i,j], yreversed=true)
     hidedecorations!(ax)
-    heatmap!(ax, fantasy_x_[:,:,i,j])
+    heatmap!(ax, fantasy_x_[:,:,i,j], colorrange=(0,1))
 end
 fig
 
@@ -241,7 +241,7 @@ fig = Figure(resolution=(800, 300))
 for i in 1:3, j in 1:8
     ax = Axis(fig[i,j], yreversed=true)
     hidedecorations!(ax)
-    heatmap!(ax, fantasy_x_[:,:,i,j])
+    heatmap!(ax, fantasy_x_[:,:,i,j], colorrange=(0,1))
 end
 fig
 
@@ -290,7 +290,7 @@ fig = Figure(resolution=(800, 300))
 for i in 1:3, j in 1:8
     ax = Axis(fig[i,j], yreversed=true)
     hidedecorations!(ax)
-    heatmap!(ax, fantasy_x[:,:,i,j])
+    heatmap!(ax, fantasy_x[:,:,i,j], colorrange=(0,1))
 end
 fig
 
