@@ -3,6 +3,9 @@ import RestrictedBoltzmannMachines as RBMs
 import MLDatasets, PProf
 using MKL # faster on Intel CPUs
 
+# enable debug logging so that training messages are printed
+ENV["JULIA_DEBUG"] = RBMs
+
 println("Loading MNIST data ...")
 
 # load MNIST dataset
@@ -26,12 +29,12 @@ rbm = RBMs.RBM(
 println("Initial quick run to pre-compile things ...")
 
 # short run to pre-compile things before collecting profile
-@time RBMs.cd!(rbm, train_x[:,:,1:64]; epochs=2, batchsize=16, verbose=true);
+@time RBMs.cd!(rbm, train_x[:,:,1:64]; epochs=2, batchsize=16);
 
 println("Profiling ...")
 
 # collect profile
-history = @profile RBMs.cd!(rbm, train_x; epochs=10, batchsize=128, verbose=true);
+history = @profile RBMs.cd!(rbm, train_x; epochs=10, batchsize=128);
 
 #=
 This prints a link to a local webserver where you can inspect the profile

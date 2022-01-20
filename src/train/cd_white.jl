@@ -8,7 +8,6 @@ function train_white!(rbm::RBM{<:Binary, <:Binary}, data::AbstractArray;
     epochs = 1,
     optimizer = ADAM(), # optimizer algorithm
     history::MVHistory = MVHistory(), # stores training log
-    verbose::Bool = false,
     wts = nothing, # data point weights
     steps::Int = 1, # Monte Carlo steps to update fantasy particles
     initialize::Bool = false, # whether to initialize the RBM parameters
@@ -61,11 +60,10 @@ function train_white!(rbm::RBM{<:Binary, <:Binary}, data::AbstractArray;
 
         lpl = wmean(log_pseudolikelihood(rbm_black, data); wts)
         push!(history, :lpl, lpl)
-        if verbose
-            Δt_ = round(Δt, digits=2)
-            lpl_ = round(lpl, digits=2)
-            println("epoch $epoch/$epochs ($(Δt_)s), log(PL)=$lpl_")
-        end
+
+        Δt_ = round(Δt, digits=2)
+        lpl_ = round(lpl, digits=2)
+        @debug "epoch $epoch/$epochs ($(Δt_)s), log(PL)=$lpl_"
     end
 
     rbm.w .= rbm_black.w

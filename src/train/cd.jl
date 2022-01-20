@@ -8,7 +8,6 @@ function cd!(rbm::RBM, data::AbstractArray;
     epochs = 1,
     optimizer = default_optimizer(_nobs(data), batchsize, epochs), # optimizer algorithm
     history::MVHistory = MVHistory(), # stores training log
-    verbose::Bool = false,
     wts = nothing, # data point weights
     steps::Int = 1, # Monte Carlo steps to update fantasy particles
 )
@@ -34,11 +33,10 @@ function cd!(rbm::RBM, data::AbstractArray;
         push!(history, :lpl, lpl)
         push!(history, :epoch, epoch)
         push!(history, :Δt, Δt)
-        if verbose
-            Δt_ = round(Δt, digits=2)
-            lpl_ = round(lpl, digits=2)
-            println("epoch $epoch/$epochs ($(Δt_)s), log(PL)=$lpl_")
-        end
+
+        Δt_ = round(Δt, digits=2)
+        lpl_ = round(lpl, digits=2)
+        @debug "epoch $epoch/$epochs ($(Δt_)s), log(PL)=$lpl_"
     end
     return history
 end
