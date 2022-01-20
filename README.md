@@ -33,7 +33,7 @@ pkg> add RestrictedBoltzmannMachines
 from the Pkg REPL.
 
 This package does not export any symbols.
-Since the name `RestrictedBoltzmannMachines` is verbose, I recommend to import it as:
+Since the name `RestrictedBoltzmannMachines` is verbose, it can be imported as:
 
 ```julia
 import RestrictedBoltzmannMachines as RBMs
