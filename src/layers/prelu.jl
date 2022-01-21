@@ -85,7 +85,6 @@ function ∂energy(layer::pReLU; x, xp, xn, xp2, xn2)
         @assert size(ξ::AbstractArray) == size(layer)
     end
 
-    ∂θ = @. -x
     ∂γ = @. (xp2 / (1 + layer.η) + xn2 / (1 - layer.η)) / 2
     ∂Δ = @. -(xp / (1 + layer.η) - xn / (1 - layer.η))
     ∂η = @. (
@@ -93,7 +92,7 @@ function ∂energy(layer::pReLU; x, xp, xn, xp2, xn2)
         ( layer.γ * xn2 / 2 + layer.Δ * xn) / (1 - layer.η)^2
     )
 
-    return (θ = ∂θ, γ = ∂γ, Δ = ∂Δ, η = ∂η)
+    return (θ = -x, γ = ∂γ, Δ = ∂Δ, η = ∂η)
 end
 
 function sufficient_statistics(layer::pReLU, x::AbstractArray; wts = nothing)
