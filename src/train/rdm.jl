@@ -21,7 +21,7 @@ function rdm!(rbm::RBM, data::AbstractArray;
         batches = minibatches(data, wts; batchsize = batchsize)
         Δt = @elapsed for (vd, wd) in batches
             # fantasy particles, initialized randomly
-            vm = randn(eltype(rbm.weights), size(rbm.visible)..., batchsize)
+            vm = randn(eltype(rbm.w), size(rbm.visible)..., batchsize)
             vm .= sample_v_from_v(rbm, vm; steps = steps)
             # compute gradients
             ∂ = ∂contrastive_divergence(rbm, vd, vm; wd = wd, wm = wd, stats)
