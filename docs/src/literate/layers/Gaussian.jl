@@ -34,13 +34,13 @@ Let's plot the resulting histogram of the activations of each unit.
 We also overlay the analytical PDF.
 =#
 
-fig = Figure(resolution=(500,500))
+fig = Figure(resolution=(700,500))
 ax = Axis(fig[1,1])
-xs = range(minimum(data), maximum(data), 100)
+xs = repeat(reshape(range(minimum(data), maximum(data), 100), 1, 1, 100), size(layer)...)
+ps = exp.(RBMs.free_energies(layer) .- RBMs.energies(layer, xs))
 for (iθ, θ) in enumerate(θs), (iγ, γ) in enumerate(γs)
-    hist!(ax, data[iθ, iγ, :], normalization=:pdf)
-    ps = exp.(-RBMs.gauss_energy.(θ, γ, xs) .- RBMs.gauss_free(θ, γ))
-    lines!(xs, ps, label="θ=$θ, γ=$γ", linewidth=2)
+    hist!(ax, data[iθ, iγ, :], normalization=:pdf, label="θ=$θ, γ=$γ")
+    lines!(xs[iθ, iγ, :], ps[iθ, iγ, :], linewidth=2)
 end
 axislegend(ax)
 fig
