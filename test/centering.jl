@@ -84,7 +84,7 @@ struct2nt(s) = NamedTuple{propertynames(s)}(([getproperty(s, p) for p in propert
     layer = Layer(5)
     ∂ = struct2nt(layer)
     λ = randn(size(layer))
-    applicable(RBMs.center_gradients, ∂, λ) || continue
+    applicable(RBMs.center_gradients, layer, ∂, λ) || continue
     for p in propertynames(layer)
         rand!(getproperty(layer, p))
     end
@@ -95,4 +95,13 @@ struct2nt(s) = NamedTuple{propertynames(s)}(([getproperty(s, p) for p in propert
     end
     x = randn(size(layer)..., 10)
     @test RBMs.energy(layer, x) ≈ RBMs.energy(layerc, x) - x' * λ
+end
+
+@testset "grad2mean $Layer" for Layer in subtypes(RBMs.AbstractLayer)
+    layer = Layer(5)
+    rbm = RBMs.RBM(layer, RBMs.Binary(randn(3)), randn(5,3))
+    v = RBMs.sample_v_from_v(rbm, randn(5,100); steps=100)
+    ∂ = RBMs.∂free_energy(rbm, v)
+    applicable(RBMs.grad2mean, layer, ∂.visible) || continue
+    @test RBMs.grad2mean(rbm.visible, ∂.visible) ≈ dropdims(mean(v; dims=2); dims=2)
 end

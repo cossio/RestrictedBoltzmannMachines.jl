@@ -79,7 +79,7 @@ function ∂contrastive_divergence_centered(
     return ∂c
 end
 
-# extract moments from gradients, e.g. <v> = -derivative of free energy w.r.t. θ
+# extract moments from gradients, e.g. <v> = -derivative w.r.t. θ
 grad2mean(::Union{Binary,Spin,Potts,Gaussian,ReLU,pReLU,xReLU}, ∂::NamedTuple) = -∂.θ
 grad2mean(::dReLU, ∂::NamedTuple) = -(∂.θp + ∂.θn)
 
