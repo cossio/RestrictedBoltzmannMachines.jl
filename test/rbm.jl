@@ -73,12 +73,26 @@ end
     @test RBMs.batchmean(rbm.visible, v) ≈ RBMs.batchmean(rbm.visible, μ) rtol=0.1
 end
 
-@testset "Binary-Binary RBM" begin
-    rbm = RBMs.RBM(RBMs.Binary(5, 2), RBMs.Binary(4, 3), randn(5, 2, 4, 3))
-    randn!(rbm.visible.θ)
-    randn!(rbm.hidden.θ)
-    randn!(rbm.w)
+@testset "rbm convenience constructors" begin
+    rbm = RBMs.BinaryRBM(randn(5), randn(3), randn(5,3))
+    @test rbm.visible isa RBMs.Binary
+    @test rbm.hidden isa RBMs.Binary
+    @test size(rbm.w) == (5,3)
 
+    rbm = RBMs.HopfieldRBM(randn(5), randn(3), rand(3), randn(5,3))
+    @test rbm.visible isa RBMs.Spin
+    @test rbm.hidden isa RBMs.Gaussian
+    @test size(rbm.w) == (5,3)
+    @test all(rbm.hidden.γ .> 0)
+
+    rbm = RBMs.HopfieldRBM(randn(5), randn(5,3))
+    @test rbm.visible isa RBMs.Spin
+    @test rbm.hidden isa RBMs.StdGauss
+    @test size(rbm.w) == (5,3)
+end
+
+@testset "Binary-Binary RBM" begin
+    rbm = RBMs.BinaryRBM(randn(5,2), randn(4,3), randn(5,2,4,3))
     v = rand(Bool, size(rbm.visible)..., 7)
     h = rand(Bool, size(rbm.hidden)..., 7)
     @test size(@inferred RBMs.interaction_energy(rbm, v, h)) == (7,)
