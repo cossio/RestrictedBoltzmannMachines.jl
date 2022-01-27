@@ -15,9 +15,11 @@ const literate_dir = joinpath(@__DIR__, "src/literate")
 Helper function to remove all "*.md" files from a directory.
 =#
 function clear_md_files(dir::String)
-    for file in readdir(dir; join=true)
-        if endswith(file, ".md")
-            rm(file)
+    for (root, dirs, files) in walkdir(dir)
+        for file in files
+            if endswith(file, ".md")
+                rm(joinpath(root, file))
+            end
         end
     end
 end
@@ -26,19 +28,22 @@ end
 Remove previously Literate.jl generated files. This removes all "*.md" files inside
 `literate_dir`. This is a precaution: if we build docs locally and something fails,
 and then change the name of a source file (".jl"), we will be left with a lingering
-".md" file which will be included in the docs build. The following line makes sure
-that doesn't happen.
+".md" file which will be included in the current docs build. The following line makes
+sure this doesn't happen.
 =#
 clear_md_files(literate_dir)
 
 #=
-Run Literate.jl on the .jl source files within docs/literate.
-This creates the markdown .md files inside docs/src/literate,
-with the same name but with the extension changes (.jl -> .md).
+Run Literate.jl on the .jl source files within docs/src/literate (recursively).
+For each .jl file, this creates a markdown .md file at the same location as
+and with the same name as the corresponding .jl file, but with the extension
+changed (.jl -> .md).
 =#
-for file in readdir(literate_dir; join=true)
-    if endswith(file, ".jl")
-        Literate.markdown(file, literate_dir)
+for (root, dirs, files) in walkdir(literate_dir)
+    for file in files
+        if endswith(file, ".jl")
+            Literate.markdown(joinpath(root, file), root)
+        end
     end
 end
 
