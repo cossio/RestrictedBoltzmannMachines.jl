@@ -56,7 +56,6 @@ function pcd_centered!(rbm::RBM, data::AbstractArray;
     return history
 end
 
-# TODO: Implement for other layers
 function ∂contrastive_divergence_centered(
     rbm::RBM, vd::AbstractArray, vm::AbstractArray;
     wd = nothing, wm = nothing,
@@ -68,11 +67,11 @@ function ∂contrastive_divergence_centered(
     ∂m = ∂free_energy(rbm, vm; wts = wm)
     ∂ = subtract_gradients(∂d, ∂m)
 
-    # reuse moment estimates from the gradients
-    λv = grad2mean(rbm.visible, ∂d.visible) # = <v>_d (uses full data, from sufficient_statistics)
-    λh = grad2mean(rbm.hidden,  ∂d.hidden)  # = <h>_d (uses minibatch)
+    # extract moment estimates from the gradients
+    λv = grad2mean(rbm.visible, ∂d.visible) # <v>_d, uses full data from sufficient_statistics
+    λh = grad2mean(rbm.hidden,  ∂d.hidden)  # <h>_d, uses minibatch
 
-    # since h uses minibatches, keep running a average
+    # since <h>_d uses minibatches, we keep a running average
     @assert size(avg_h) == size(λh)
     λh .= avg_h .= α * avg_h .+ (1 - α) .* λh
 
@@ -80,8 +79,9 @@ function ∂contrastive_divergence_centered(
     return ∂c
 end
 
-# estimate moments from gradients, e.g. <v> = -derivative of free energy w.r.t. θ
-grad2mean(::Union{Binary,Spin,Potts,Gaussian,ReLU}, ∂::NamedTuple) = -∂.θ
+# extract moments from gradients, e.g. <v> = -derivative of free energy w.r.t. θ
+grad2mean(::Union{Binary,Spin,Potts,Gaussian,ReLU,pReLU,xReLU}, ∂::NamedTuple) = -∂.θ
+grad2mean(::dReLU, ∂::NamedTuple) = -(∂.θp + ∂.θn)
 
 function center_gradients(rbm::RBM, ∂::NamedTuple, λv::AbstractArray, λh::AbstractArray)
     @assert size(rbm.visible) == size(λv)

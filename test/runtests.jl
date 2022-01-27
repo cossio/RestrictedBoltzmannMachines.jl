@@ -13,11 +13,11 @@ end
 using SafeTestsets, Random, Test
 
 @time @safetestset "util" begin include("util.jl") end
-@time @safetestset "cd" begin include("cd.jl") end
 @time @safetestset "linalg" begin include("linalg.jl") end
 @time @safetestset "onehot" begin include("onehot.jl") end
 @time @safetestset "rbm" begin include("rbm.jl") end
 @time @safetestset "layers" begin include("layers.jl") end
+@time @safetestset "cd" begin include("cd.jl") end
 @time @safetestset "pseudolikelihood" begin include("pseudolikelihood.jl") end
 @time @safetestset "minibatches" begin include("minibatches.jl") end
 @time @safetestset "zerosum" begin include("zerosum.jl") end
@@ -27,7 +27,7 @@ using SafeTestsets, Random, Test
 @time @safetestset "optim" begin include("optim.jl") end
 @time @safetestset "partition" begin include("partition.jl") end
 
-@time @safetestset "weight normalization" begin include("weight_normalization.jl") end
 @time @safetestset "centering" begin include("centering.jl") end
+@time @safetestset "weight normalization" begin include("weight_normalization.jl") end
 
 @time @safetestset "pgm" begin include("compare_to_pgm/pgm.jl") end
