@@ -15,16 +15,6 @@ end
 Potts(::Type{T}, q::Int, n::Int...) where {T} = Potts(zeros(T, q, n...))
 Potts(q::Int, n::Int...) = Potts(Float64, q, n...)
 
-Base.propertynames(::Potts) = (:q, fieldnames(Potts)...)
-
-function Base.getproperty(layer::Potts, name::Symbol)
-    if name == :q
-        return size(layer, 1)
-    else
-        return getfield(layer, name)
-    end
-end
-
 function effective(layer::Potts, inputs::AbstractArray; β::Real = true)
     @assert size(layer) == size(inputs)[1:ndims(layer)]
     return Potts(β * (layer.θ .+ inputs))

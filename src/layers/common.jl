@@ -46,7 +46,7 @@ end
 Number of possible states of units in discrete layers.
 """
 colors(layer::Union{Spin,Binary}) = 2
-colors(layer::Potts) = layer.q
+colors(layer::Potts) = size(layer, 1)
 
 """
     sitedims(layer)
