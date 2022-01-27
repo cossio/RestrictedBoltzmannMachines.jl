@@ -88,39 +88,27 @@ function center_gradients(rbm::RBM, ∂::NamedTuple, λv::AbstractArray, λh::Ab
     @assert size(rbm.hidden) == size(λh)
     @assert size(∂.w) == size(rbm.w)
 
-    ∂w_flat = reshape(∂.w, length(rbm.visible), length(rbm.hidden))
-    ∂w_flat_c = ∂w_flat - vec(λv) * vec(∂.hidden.θ)' - vec(∂.visible.θ) * vec(λh)'
-    ∂w_c = reshape(∂w_flat_c, size(rbm.w))
+    ∂wmat = reshape(∂.w, length(rbm.visible), length(rbm.hidden))
+    ∂cwmat = ∂wmat - vec(λv) * vec(∂.hidden.θ)' - vec(∂.visible.θ) * vec(λh)'
+    ∂cw = reshape(∂cwmat, size(rbm.w))
 
-    shift_v = reshape(∂w_flat_c  * vec(λh), size(rbm.visible))
-    shift_h = reshape(∂w_flat_c' * vec(λv), size(rbm.hidden))
-    ∂v_c = center_gradients(rbm.visible, ∂.visible, shift_v)
-    ∂h_c = center_gradients(rbm.hidden,  ∂.hidden,  shift_h)
+    shift_v = reshape(∂cwmat  * vec(λh), size(rbm.visible))
+    shift_h = reshape(∂cwmat' * vec(λv), size(rbm.hidden))
+    ∂cv = center_gradients(rbm.visible, ∂.visible, shift_v)
+    ∂ch = center_gradients(rbm.hidden,  ∂.hidden,  shift_h)
 
-    return (visible = ∂v_c, hidden = ∂h_c, w = ∂w_c)
+    return (visible = ∂cv, hidden = ∂ch, w = ∂cw)
 end
 
-function center_gradients(layer::Union{Binary,Spin,Potts}, ∂::NamedTuple, λ::AbstractArray)
+function center_gradients(
+    layer::Union{Binary,Spin,Potts,Gaussian,ReLU,pReLU,xReLU},
+    ∂::NamedTuple, λ::AbstractArray
+)
     @assert size(layer) == size(∂.θ) == size(λ)
-    return (; θ = ∂.θ - λ)
-end
-
-function center_gradients(layer::Union{Gaussian,ReLU}, ∂::NamedTuple, λ::AbstractArray)
-    @assert size(layer) == size(∂.θ) == size(λ)
-    return (θ = ∂.θ - λ, γ = ∂.γ)
+    return (∂..., θ = ∂.θ - λ)
 end
 
 function center_gradients(layer::dReLU, ∂::NamedTuple, λ::AbstractArray)
     @assert size(layer) == size(∂.θp) == size(∂.θn) == size(λ)
     return (θp = ∂.θp - λ, θn = ∂.θn - λ, γp = ∂.γp, γn = ∂.γn)
-end
-
-function center_gradients(layer::pReLU, ∂::NamedTuple, λ::AbstractArray)
-    @assert size(layer) == size(∂.θ) == size(λ)
-    return (θ = ∂.θ - λ, γ = ∂.γ, Δ = ∂.Δ, η = ∂.η)
-end
-
-function center_gradients(layer::xReLU, ∂::NamedTuple, λ::AbstractArray)
-    @assert size(layer) == size(∂.θ) == size(λ)
-    return (θ = ∂.θ - λ, γ = ∂.γ, Δ = ∂.Δ, ξ = ∂.ξ)
 end

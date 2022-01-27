@@ -38,18 +38,17 @@ end
     rbm = RBMs.RBM(RBMs.Binary(randn(4)), RBMs.Binary(randn(2)), randn(4,2))
     λv = randn(size(rbm.visible))
     λh = randn(size(rbm.hidden))
-    v = bitrand(size(rbm.visible)...,3,2)
-    h = bitrand(size(rbm.hidden)...,3,2)
     rbmc = center(rbm; λv, λh)
     @test center(rbmc; λv=-λv, λh=-λh).visible.θ ≈ rbm.visible.θ
     @test center(rbmc; λv=-λv, λh=-λh).hidden.θ ≈ rbm.hidden.θ
     @test center(rbmc; λv=-λv, λh=-λh).w ≈ rbm.w
-
     @test RBMs.interaction_energy(rbm, λv, λh) isa Number
+    v = bitrand(size(rbm.visible)...,3,2)
+    h = bitrand(size(rbm.hidden)...,3,2)
     @test energyc(rbmc, v, h; λv, λh) ≈ RBMs.energy(rbm, v, h)
     ∂rbmc = only(Zygote.gradient(rbmc -> sum(energyc(rbmc, v, h; λv, λh)), rbmc))
     ∂rbm = only(Zygote.gradient(rbm -> sum(RBMs.energy(rbm, v, h)), rbm))
-    ∂crbm = RBMs.center_gradients(rbm, ∂rbm, λv, λh);
+    ∂crbm = RBMs.center_gradients(rbm, ∂rbm, λv, λh)
 
     for i in eachindex(rbm.visible.θ)
         J = only(Zygote.gradient(rbmc -> center(rbmc; λv=-λv, λh=-λh).visible.θ[i], rbmc))
