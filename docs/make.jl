@@ -58,7 +58,11 @@ makedocs(
         "Examples" => [
             "MKL" => "literate/mkl.md",
             "Learning rate decay" => "literate/lr_decay.md",
-            "Layers" => "literate/layers.md",
+            "Layers" => [
+                "Gaussian" => "literate/layers/Gaussian.md",
+                "ReLU" => "literate/layers/ReLU.md",
+                "dReLU" => "literate/layers/dReLU.md",
+            ],
             "MNIST" => "literate/MNIST.md",
         ],
         "Reference" => "reference.md"
