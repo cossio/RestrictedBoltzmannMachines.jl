@@ -2,7 +2,6 @@ module RestrictedBoltzmannMachines
     using Random, Statistics, LinearAlgebra
     import SpecialFunctions, LogExpFunctions, FillArrays
     import Flux, Zygote, ChainRulesCore
-    import LoopVectorization
     using ValueHistories: MVHistory
 
     include("util.jl")
