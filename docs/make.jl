@@ -63,7 +63,10 @@ makedocs(
                 "ReLU" => "literate/layers/ReLU.md",
                 "dReLU" => "literate/layers/dReLU.md",
             ],
-            "MNIST" => "literate/MNIST.md",
+            "MNIST" => [
+                "literate/MNIST/MNIST.md",
+                "literate/MNIST/wnorm.md",
+            ],
         ],
         "Reference" => "reference.md"
     ],
