@@ -1,4 +1,6 @@
 #=
+# MNIST
+
 We begin by importing the required packages.
 We load MNIST via the MLDatasets.jl package.
 =#

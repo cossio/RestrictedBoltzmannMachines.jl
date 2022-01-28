@@ -66,6 +66,7 @@ makedocs(
             "MNIST" => [
                 "literate/MNIST/MNIST.md",
                 "literate/MNIST/wnorm.md",
+                "literate/MNIST/white.md",
             ],
         ],
         "Reference" => "reference.md"
