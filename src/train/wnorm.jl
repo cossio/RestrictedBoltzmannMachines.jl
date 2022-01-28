@@ -17,16 +17,16 @@ end
 @doc raw"""
         WeightNorm(rbm, λ = 1)
 
-Returns a re-parameterization of `rbm` weights, defined by:
+Returns a re-parameterization of `rbm.w`, defined by:
 
 ```math
-\mathbf{w}_\mu = g_\mu \frac{\mathbf{v}_\mu}{\|\mathbf{v}_\mu\|}
+\mathbf{w}_\mu = g_\mu^2 \frac{\mathbf{v}_\mu}{\|\mathbf{v}_\mu\|}
 ```
 
-where the parameter ``g_\mu`` encodes the norm of the weight pattern attached to
+where the parameter ``g_\mu^2`` encodes the norm of the weight pattern attached to
 hidden unit ``\mu``, while ``\mathbf{v}_\mu`` encodes its direction.
 
-The constructor `WeightNorm(rbm, λ)` initializes ``g_\mu`` and ``\mathbf{v}_\mu``
+The constructor `WeightNorm(rbm, λ)` initializes ``g_\mu^2`` and ``\mathbf{v}_\mu``
 assuming that the vectors ``\mathbf{v}_\mu`` have norms `λ`.
 More precisely, we assume that:
 
@@ -38,9 +38,9 @@ If not provided `λ` defaults to ones.
 """
 function WeightNorm(rbm::RBM, λ::AbstractArray)
     @assert size(λ) == (ntuple(_ -> 1, ndims(rbm.visible))..., size(rbm.hidden)...)
-    g = weight_norms(rbm)
-    v = λ .* rbm.w ./ g
-    return WeightNorm(g, v)
+    g2 = weight_norms(rbm)
+    v = λ .* rbm.w ./ g2
+    return WeightNorm(sqrt.(g2), v)
 end
 
 function WeightNorm(rbm::RBM, λ::Real = 1)
@@ -49,13 +49,25 @@ function WeightNorm(rbm::RBM, λ::Real = 1)
     return WeightNorm(rbm, λs)
 end
 
+"""
+    weight_norms(rbm)
+
+Norms of weight patterns attached to each hidden unit.
+"""
 weight_norms(rbm::RBM) = sqrt.(sum(abs2, rbm.w; dims=1:ndims(rbm.visible)))
 
-function update_w_from_vg!(rbm::RBM, wn::WeightNorm)
+function update_w_from_gv!(rbm::RBM, wn::WeightNorm)
     @assert size(wn.v) == size(rbm.w)
     @assert size(wn.g) == (ntuple(_ -> 1, ndims(rbm.visible))..., size(rbm.hidden)...)
-    λ = sqrt.(sum(abs2, wn.v; dims=1:ndims(rbm.visible)))
-    rbm.w .= wn.g .* wn.v ./ λ
+    v2 = sum(abs2.(wn.v); dims=1:ndims(rbm.visible))
+    rbm.w .= abs2.(wn.g) .* wn.v ./ sqrt.(v2)
+    return rbm
+end
+
+function update_w_from_gv!(w::AbstractArray, g::AbstractArray, v::AbstractArray)
+    @assert size(v) == size(w)
+    v2 = sum!(similar(g), abs2(v))
+    w .= abs2.(g) .* v ./ sqrt.(v2)
     return rbm
 end
 
@@ -66,18 +78,19 @@ Given the gradients `∂w` of a function `f(w)`, returns the gradients `∂g, �
 respect to the re-parameterization:
 
 ```math
-\mathbf{w} = g \frac{\mathbf{v}}{\|\mathbf{v}\|}
+\mathbf{w} = g^2 \frac{\mathbf{v}}{\|\mathbf{v}\|}
 ```
 
 See Salimans & Kingma 2016,
 <https://proceedings.neurips.cc/paper/2016/hash/ed265bc903a5a097f61d3ec064d96d2e-Abstract.html>.
+Note that we use ``g^2`` instead of ``g``, to ensure positiveness.
 """
 function ∂wnorm(∂w::AbstractArray, w::AbstractArray, g::AbstractArray, v::AbstractArray)
     @assert size(∂w) == size(w) == size(v)
     # see Eq.(3) of Salimans & Kingma 2016
-    ∂g = sum!(similar(g), ∂w .* w ./ g)
-    ∂v = (∂w - ∂g .* w ./ g) .* w ./ v
-    return (g = ∂g, v = ∂v)
+    ∂g2 = sum!(similar(g), ∂w .* w ./ abs2.(g))
+    ∂v = (∂w - ∂g2 .* w ./ abs2.(g)) .* w ./ v
+    return (g = 2g .* ∂g2, v = ∂v)
 end
 
 function ∂wnorm(∂w::AbstractArray, rbm::RBM, wn::WeightNorm)
@@ -99,11 +112,11 @@ function update!(optimizer, rbm::RBM, wn::WeightNorm, ∂::NamedTuple)
     update!(optimizer, rbm.hidden, ∂.hidden)
     update!(optimizer, wn.g, ∂.g)
     update!(optimizer, wn.v, ∂.v)
-    update_w_from_vg!(rbm, wn)
+    update_w_from_gv!(rbm, wn)
 end
 
 """
-    pcd!(rbm, weight_norm::WeightNorm, data)
+    pcd!(rbm, wn::WeightNorm, data)
 
 Trains the RBM on data, using the weight normalization heuristic.
 See Salimans & Kingma 2016,

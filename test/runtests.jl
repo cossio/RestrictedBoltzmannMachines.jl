@@ -28,6 +28,6 @@ using SafeTestsets, Random, Test
 @time @safetestset "partition" begin include("partition.jl") end
 
 @time @safetestset "centering" begin include("centering.jl") end
-@time @safetestset "weight normalization" begin include("weight_normalization.jl") end
+@time @safetestset "weight normalization" begin include("wnorm.jl") end
 
 @time @safetestset "pgm" begin include("compare_to_pgm/pgm.jl") end

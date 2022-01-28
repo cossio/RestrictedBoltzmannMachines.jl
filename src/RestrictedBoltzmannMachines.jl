@@ -38,7 +38,7 @@ module RestrictedBoltzmannMachines
     include("train/centering.jl")
     include("train/bnorm.jl")
     include("train/cd_white.jl")
-    include("train/weight_normalization.jl")
+    include("train/wnorm.jl")
     include("train/fast.jl")
     include("train/rdm.jl")
     include("train/optim.jl")
