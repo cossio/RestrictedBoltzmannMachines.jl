@@ -38,9 +38,9 @@ If not provided `λ` defaults to ones.
 """
 function WeightNorm(rbm::RBM, λ::AbstractArray)
     @assert size(λ) == (ntuple(_ -> 1, ndims(rbm.visible))..., size(rbm.hidden)...)
-    g2 = weight_norms(rbm)
-    v = λ .* rbm.w ./ g2
-    return WeightNorm(sqrt.(g2), v)
+    g = weight_norms(rbm)
+    v = λ .* rbm.w ./ g
+    return WeightNorm(g, v)
 end
 
 function WeightNorm(rbm::RBM, λ::Real = 1)
@@ -56,41 +56,39 @@ Norms of weight patterns attached to each hidden unit.
 """
 weight_norms(rbm::RBM) = sqrt.(sum(abs2, rbm.w; dims=1:ndims(rbm.visible)))
 
-function update_w_from_gv!(w::AbstractArray, g::AbstractArray, v::AbstractArray)
-    @assert size(v) == size(w)
-    v2 = sum!(similar(g), abs2.(v))
-    w .= abs2.(g) .* v ./ sqrt.(v2)
-    return w
-end
-
 @doc raw"""
-    ∂wnorm(∂w, w, g, v)
+    ∂wnorm(∂w, g, v)
 
-Given the gradients `∂w` of a function `f(w)`, returns the gradients `∂g, ∂v` of `f` with
-respect to the re-parameterization:
+Given the gradients `∂w` of a function `f(w)` with respect to `w`,
+returns the gradients `∂g, ∂v` of `f` with respect to the re-parameterization:
 
 ```math
-\mathbf{w} = g^2 \frac{\mathbf{v}}{\|\mathbf{v}\|}
+\mathbf{w} = g \frac{\mathbf{v}}{\|\mathbf{v}\|}
 ```
 
 See Salimans & Kingma 2016,
 <https://proceedings.neurips.cc/paper/2016/hash/ed265bc903a5a097f61d3ec064d96d2e-Abstract.html>.
-Note that we use ``g^2`` instead of ``g``, to ensure positiveness.
 """
-function ∂wnorm(∂w::AbstractArray, w::AbstractArray, g::AbstractArray, v::AbstractArray)
-    @assert size(∂w) == size(w) == size(v)
-    # see Eq.(3) of Salimans & Kingma 2016
-    ∂g2 = sum!(similar(g), ∂w .* w ./ abs2.(g))
-    ∂v = (∂w - ∂g2 .* w ./ abs2.(g)) .* w ./ v
-    return (g = 2g .* ∂g2, v = ∂v)
+function ∂wnorm(∂w::AbstractArray, g::AbstractArray, v::AbstractArray)
+    @assert size(∂w) == size(v)
+    # see Eqs. (3) and (4) of Salimans & Kingma 2016
+    vn = sqrt.(sum!(similar(g), abs2.(v)))
+    ∂g = sum!(similar(g), ∂w .* v) ./ vn
+    ∂v = (∂w - ∂g .* v ./ vn) .* g ./ vn
+    return (g = ∂g, v = ∂v)
+end
+
+function w_from_gv(g::AbstractArray, v::AbstractArray)
+    vn = sqrt.(sum!(similar(g), abs2.(v)))
+    return g .* v ./ vn
 end
 
 function ∂contrastive_divergence(
     rbm::RBM, wn::WeightNorm, args...; kwargs...
 )
     ∂ = ∂contrastive_divergence(rbm, args...; kwargs...)
-    ∂norm = ∂wnorm(∂.w, rbm.w, wn.g, wn.v)
-    return (visible = ∂.visible, hidden = ∂.hidden, g = ∂norm.g, v = ∂norm.v)
+    ∂wn = ∂wnorm(∂.w, wn.g, wn.v)
+    return (visible = ∂.visible, hidden = ∂.hidden, g = ∂wn.g, v = ∂wn.v)
 end
 
 function update!(optimizer, rbm::RBM, wn::WeightNorm, ∂::NamedTuple)
@@ -98,7 +96,8 @@ function update!(optimizer, rbm::RBM, wn::WeightNorm, ∂::NamedTuple)
     update!(optimizer, rbm.hidden, ∂.hidden)
     update!(optimizer, wn.g, ∂.g)
     update!(optimizer, wn.v, ∂.v)
-    update_w_from_gv!(rbm.w, wn.g, wn.v)
+    rbm.w .= w_from_gv(wn.g, wn.v)
+    return rbm
 end
 
 """
