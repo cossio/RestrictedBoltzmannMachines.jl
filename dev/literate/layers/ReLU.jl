@@ -1,6 +1,6 @@
-# ## ReLU layer
-
 #=
+# ReLU layer
+
 In this example we look at what the ReLU layer hidden units look like,
 for different parameter values.
 =#

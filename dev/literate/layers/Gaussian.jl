@@ -1,11 +1,9 @@
-# ## Gaussian layer
-
 #=
+# Gaussian layer
+
 In the following example we look at what the Gaussian layer hidden units look like,
 for different parameter values.
-=#
 
-#=
 First load some packages.
 =#
 

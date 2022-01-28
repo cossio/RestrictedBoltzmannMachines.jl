@@ -1,6 +1,6 @@
-# ## dReLU layer
-
 #=
+# dReLU layer
+
 In this example we look at what the dReLU layer hidden units look like,
 for different parameter values.
 =#
