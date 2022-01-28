@@ -56,19 +56,11 @@ Norms of weight patterns attached to each hidden unit.
 """
 weight_norms(rbm::RBM) = sqrt.(sum(abs2, rbm.w; dims=1:ndims(rbm.visible)))
 
-function update_w_from_gv!(rbm::RBM, wn::WeightNorm)
-    @assert size(wn.v) == size(rbm.w)
-    @assert size(wn.g) == (ntuple(_ -> 1, ndims(rbm.visible))..., size(rbm.hidden)...)
-    v2 = sum(abs2.(wn.v); dims=1:ndims(rbm.visible))
-    rbm.w .= abs2.(wn.g) .* wn.v ./ sqrt.(v2)
-    return rbm
-end
-
 function update_w_from_gv!(w::AbstractArray, g::AbstractArray, v::AbstractArray)
     @assert size(v) == size(w)
-    v2 = sum!(similar(g), abs2(v))
+    v2 = sum!(similar(g), abs2.(v))
     w .= abs2.(g) .* v ./ sqrt.(v2)
-    return rbm
+    return w
 end
 
 @doc raw"""
@@ -93,17 +85,11 @@ function ∂wnorm(∂w::AbstractArray, w::AbstractArray, g::AbstractArray, v::Ab
     return (g = 2g .* ∂g2, v = ∂v)
 end
 
-function ∂wnorm(∂w::AbstractArray, rbm::RBM, wn::WeightNorm)
-    @assert size(∂w) == size(rbm.w) == size(wn.v)
-    @assert size(wn.g) == (ntuple(_ -> 1, ndims(rbm.visible))..., size(rbm.hidden)...)
-    return ∂wnorm(∂w, rbm.w, wn.g, wn.v)
-end
-
 function ∂contrastive_divergence(
     rbm::RBM, wn::WeightNorm, args...; kwargs...
 )
     ∂ = ∂contrastive_divergence(rbm, args...; kwargs...)
-    ∂norm = ∂wnorm(∂.w, rbm, wn)
+    ∂norm = ∂wnorm(∂.w, rbm.w, wn.g, wn.v)
     return (visible = ∂.visible, hidden = ∂.hidden, g = ∂norm.g, v = ∂norm.v)
 end
 
@@ -112,7 +98,7 @@ function update!(optimizer, rbm::RBM, wn::WeightNorm, ∂::NamedTuple)
     update!(optimizer, rbm.hidden, ∂.hidden)
     update!(optimizer, wn.g, ∂.g)
     update!(optimizer, wn.v, ∂.v)
-    update_w_from_gv!(rbm, wn)
+    update_w_from_gv!(rbm.w, wn.g, wn.v)
 end
 
 """
