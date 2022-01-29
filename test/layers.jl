@@ -42,41 +42,59 @@ random_layer(::Type{RBMs.StdGauss}, N::Int...) = RBMs.StdGauss(Float, N...)
 
 @testset "testing $Layer" for Layer in _layers
     N = (3, 2)
-    B = 23
     layer = random_layer(Layer, N...)
 
     @test (@inferred size(layer)) == N
     @test (@inferred length(layer)) == prod(N)
     @test (@inferred ndims(layer)) == length(N)
-    @test RBMs.batchsize(layer, bitrand(N)) == ()
-
-    x = bitrand(N..., B)
-    inputs = randn(Float, N..., B)
-    β = rand(Float)
-
-    @test RBMs.batchsize(layer, x) == (B,)
-    @test size(RBMs.energy(layer, x)) == (B,)
-    @test size(RBMs.free_energy(layer, inputs; β=1)) == (B,)
-    @test size(RBMs.transfer_sample(layer, inputs; β=1)) == size(inputs)
-    @test size(RBMs.transfer_sample(layer, 0; β=1)) == size(RBMs.transfer_sample(layer)) == size(layer)
-    @test RBMs.free_energy(layer, inputs; β=1) ≈ RBMs.free_energy(layer, inputs)
+    @test (@inferred RBMs.batchsize(layer, rand(N...))) == ()
+    @test (@inferred RBMs.energy(layer, rand(N...))) isa Number
+    @test (@inferred RBMs.free_energy(layer)) isa Number
+    @test (@inferred RBMs.free_energy(layer, rand(N...))) isa Number
+    @test size(@inferred RBMs.transfer_mean(layer)) == size(layer)
+    @test size(@inferred RBMs.transfer_var(layer)) == size(layer)
+    @test size(@inferred RBMs.transfer_sample(layer)) == size(layer)
     @test RBMs.free_energies(layer, 0; β=1) ≈ RBMs.free_energies(layer)
-    @test RBMs.free_energy(layer) isa Real
-    @inferred RBMs.energies(layer, x)
-    @inferred RBMs.energy(layer, x)
-    @inferred RBMs.free_energies(layer)
-    @inferred RBMs.free_energy(layer)
-    @inferred RBMs.transfer_sample(layer)
-    @inferred RBMs.transfer_mean(layer)
-    @inferred RBMs.transfer_var(layer)
-
-    @test RBMs.energy(layer, x) ≈ vec(sum(RBMs.energies(layer, x); dims=1:ndims(layer)))
-    @test RBMs.free_energy(layer, inputs; β) ≈ vec(sum(RBMs.free_energies(layer, inputs; β); dims=1:ndims(layer)))
-    @test all(RBMs.energy(layer, RBMs.transfer_mode(layer)) .≤ RBMs.energy(layer, x))
     @test RBMs.transfer_std(layer) ≈ sqrt.(RBMs.transfer_var(layer))
 
-    μ = RBMs.transfer_mean(layer, inputs)
-    @test only(Zygote.gradient(j -> sum(RBMs.free_energies(layer, j)), inputs)) ≈ -μ
+    if layer isa RBMs.Potts
+        @test size(@inferred RBMs.free_energies(layer)) == (1, size(layer)[2:end]...)
+    else
+        @test size(@inferred RBMs.free_energies(layer)) == size(layer)
+    end
+
+    β = rand(Float)
+    @test size(@inferred RBMs.transfer_sample(layer, 0; β)) == size(layer)
+
+    for B in ((), (4,), (4, 5))
+        x = rand(N..., B...)
+        @test (@inferred RBMs.batchsize(layer, x)) == (B...,)
+        @test size(@inferred RBMs.energy(layer, x)) == (B...,)
+        @test size(@inferred RBMs.free_energy(layer, x; β)) == (B...,)
+        @test size(@inferred RBMs.energies(layer, x)) == size(x)
+        @test size(@inferred RBMs.transfer_sample(layer, x; β)) == size(x)
+        @test size(@inferred RBMs.transfer_mean(layer, x; β)) == size(x)
+        @test size(@inferred RBMs.transfer_var(layer, x; β)) == size(x)
+        @test RBMs.free_energy(layer, x; β=1) ≈ RBMs.free_energy(layer, x)
+        @test RBMs.transfer_mean(layer, x; β=1) ≈ RBMs.transfer_mean(layer, x)
+        @test RBMs.transfer_var(layer, x; β=1) ≈ RBMs.transfer_var(layer, x)
+        @test RBMs.transfer_std(layer, x; β) ≈ sqrt.(RBMs.transfer_var(layer, x; β))
+        @test all(RBMs.energy(layer, RBMs.transfer_mode(layer)) .≤ RBMs.energy(layer, x))
+        if layer isa RBMs.Potts
+            @test size(@inferred RBMs.free_energies(layer, x; β)) == (1, size(x)[2:end]...)
+        else
+            @test size(@inferred RBMs.free_energies(layer, x; β)) == size(x)
+        end
+        if B == ()
+            @test RBMs.energy(layer, x) ≈ sum(RBMs.energies(layer, x))
+            @test RBMs.free_energy(layer, x) ≈ sum(RBMs.free_energies(layer, x))
+        else
+            @test RBMs.energy(layer, x) ≈ reshape(sum(RBMs.energies(layer, x); dims=1:ndims(layer)), B)
+            @test RBMs.free_energy(layer, x) ≈ reshape(sum(RBMs.free_energies(layer, x); dims=1:ndims(layer)), B)
+        end
+        μ = RBMs.transfer_mean(layer, x)
+        @test only(Zygote.gradient(j -> sum(RBMs.free_energies(layer, j)), x)) ≈ -μ
+    end
 
     ∂F = RBMs.∂free_energy(layer)
     gs = Zygote.gradient(layer) do layer
