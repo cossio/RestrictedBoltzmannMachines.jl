@@ -41,7 +41,6 @@ module RestrictedBoltzmannMachines
     include("train/cd.jl")
     include("train/cdad.jl")
     include("train/pcd.jl")
-    include("train/centering.jl")
     include("train/bnorm.jl")
     include("train/cd_white.jl")
     include("train/wnorm.jl")
