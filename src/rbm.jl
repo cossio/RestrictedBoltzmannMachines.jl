@@ -291,7 +291,11 @@ function ∂free_energy(
     h = transfer_mean(rbm.hidden, inputs)
     ∂v = ∂energy(rbm.visible; stats...)
     ∂h = ∂free_energy(rbm.hidden, inputs; wts)
+    ∂w = ∂interaction_energy(rbm, v, h; wts)
+    return (visible = ∂v, hidden = ∂h, w = ∂w)
+end
 
+function ∂interaction_energy(rbm::RBM, v::AbstractArray, h::AbstractArray; wts = nothing)
     hmat = reshape(h, length(rbm.hidden), :)
     vmat = activations_convert_maybe(hmat, reshape(v, length(rbm.visible), :))
     @assert size(vmat, 2) == size(hmat, 2)
@@ -304,6 +308,5 @@ function ∂free_energy(
     end
     @assert size(∂wflat) == (length(rbm.visible), length(rbm.hidden))
     ∂w = reshape(∂wflat, size(rbm.w))
-
-    return (visible = ∂v, hidden = ∂h, w = reshape(∂w, size(rbm.w)))
+    return ∂w
 end
