@@ -40,6 +40,6 @@ function zerosum!(layer::Potts)
 end
 
 function zerosum!(A::AbstractArray; dims=1)
-    A .-= mean(A; dims=dims)
+    A .-= Statistics.mean(A; dims=dims)
     return A
 end

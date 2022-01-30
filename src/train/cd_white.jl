@@ -7,7 +7,7 @@ function train_white!(rbm::RBM{<:Binary, <:Binary}, data::AbstractArray;
     batchsize = 1,
     epochs = 1,
     optimizer = ADAM(), # optimizer algorithm
-    history::MVHistory = MVHistory(), # stores training log
+    history::ValueHistories.MVHistory = ValueHistories.MVHistory(), # stores training log
     wts = nothing, # data point weights
     steps::Int = 1, # Monte Carlo steps to update fantasy particles
     initialize::Bool = false, # whether to initialize the RBM parameters
@@ -24,7 +24,7 @@ function train_white!(rbm::RBM{<:Binary, <:Binary}, data::AbstractArray;
     data_mat = reshape(data, length(rbm.visible), size(data)[end])
     data_mat_Σ = cov(data_mat; dims=2)
     whiten_μ = mean_(data_mat; dims=2)
-    whiten_L = cholesky(data_mat_Σ + whiten_ϵ * I).L
+    whiten_L = LinearAlgebra.cholesky(data_mat_Σ + whiten_ϵ * I).L
     data_mat_white = whiten_L \ (data_mat .- whiten_μ)
     data_white = reshape(data_mat_white, size(data)...)
 
@@ -73,7 +73,7 @@ function train_white!(rbm::RBM{<:Binary, <:Binary}, data::AbstractArray;
     return history
 end
 
-function whiten(rbm::RBM{<:Binary, <:Binary}, L::LowerTriangular, μ::AbstractVector)
+function whiten(rbm::RBM{<:Binary, <:Binary}, L::LinearAlgebra.LowerTriangular, μ::AbstractVector)
     # TODO: extend to other layers
     wmat = reshape(rbm.w, length(rbm.visible), length(rbm.hidden))
     g = vec(rbm.visible.θ)
@@ -85,7 +85,7 @@ function whiten(rbm::RBM{<:Binary, <:Binary}, L::LowerTriangular, μ::AbstractVe
     )
 end
 
-function unwhiten(rbm::RBM{<:Binary, <:Binary}, L::LowerTriangular, μ::AbstractVector)
+function unwhiten(rbm::RBM{<:Binary, <:Binary}, L::LinearAlgebra.LowerTriangular, μ::AbstractVector)
     wmat = reshape(rbm.w, length(rbm.visible), length(rbm.hidden))
     g = vec(rbm.visible.θ)
     θ = vec(rbm.hidden.θ)
@@ -97,7 +97,7 @@ function unwhiten(rbm::RBM{<:Binary, <:Binary}, L::LowerTriangular, μ::Abstract
     )
 end
 
-function whiten(v::AbstractArray, L::LowerTriangular, μ::AbstractVector)
+function whiten(v::AbstractArray, L::LinearAlgebra.LowerTriangular, μ::AbstractVector)
     v_mat = reshape(v, :, size(v)[end])
     v_mat_white = L \ (v_mat .- μ)
     v_white = reshape(v_mat_white, size(v)...)

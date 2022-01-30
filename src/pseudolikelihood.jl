@@ -69,7 +69,7 @@ function log_pseudolikelihood_exact(rbm::RBM, v::AbstractArray; β::Real = true)
     )
     lPLsites = -LogExpFunctions.logsumexp(-β * ΔE; dims=1)
     @assert size(lPLsites) == (1, sitesize(rbm.visible)..., batchsize(rbm.visible, v)...)
-    lPL = mean(lPLsites; dims=2:(sitedims(rbm.visible) + 1))
+    lPL = Statistics.mean(lPLsites; dims=2:(sitedims(rbm.visible) + 1))
     return reshape(lPL, batchsize(rbm.visible, v))
 end
 

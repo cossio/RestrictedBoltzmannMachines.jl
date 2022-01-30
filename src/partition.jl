@@ -24,16 +24,16 @@ function log_partition(rbm::RBM{<:Gaussian, <:Gaussian}; β::Real = true)
     w = β * reshape(rbm.w, length(rbm.visible), length(rbm.hidden))
 
     lA = block_matrix_logdet(
-        Diagonal(γv), -w,
-        -w', Diagonal(γh)
+        LinearAlgebra.Diagonal(γv), -w,
+        -w', LinearAlgebra.Diagonal(γh)
     )
 
     iA = block_matrix_invert(
-        Diagonal(γv), -w,
-        -w', Diagonal(γh)
+        LinearAlgebra.Diagonal(γv), -w,
+        -w', LinearAlgebra.Diagonal(γh)
     )
 
-    return length(θ)/2 * log(2π) + dot(θ, iA, θ)/2 - lA/2
+    return length(θ)/2 * log(2π) + LinearAlgebra.dot(θ, iA, θ)/2 - lA/2
 end
 
 """

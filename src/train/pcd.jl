@@ -9,7 +9,7 @@ function pcd!(rbm::RBM, data::AbstractArray;
     # optimizer algorithm
     optimizer = default_optimizer(_nobs(data), batchsize, epochs),
     # stores data during training (pseudolikelihood, gradient norms, etc.)
-    history::MVHistory = MVHistory(),
+    history::ValueHistories.MVHistory = ValueHistories.MVHistory(),
     # data point weights
     wts = nothing,
     # Monte Carlo steps to update fantasy particles

@@ -28,9 +28,9 @@ function block_matrix_logdet(
     @assert size(B, 2) == size(D, 2)
 
     if length(A) ≥ length(D)
-        return logdet(A) + logdet(D - C * inv(A) * B)
+        return LinearAlgebra.logdet(A) + LinearAlgebra.logdet(D - C * inv(A) * B)
     else
-        return logdet(D) + logdet(A - B * inv(D) * C)
+        return LinearAlgebra.logdet(D) + LinearAlgebra.logdet(A - B * inv(D) * C)
     end
 end
 
@@ -73,8 +73,8 @@ function block_matrix_invert(
     ]
 
     N = [
-        I(size(B,1))  -B * d
-        -C * a  I(size(C,1))
+        LinearAlgebra.I(size(B,1))  -B * d
+        -C * a  LinearAlgebra.I(size(C,1))
     ]
 
     return M * N

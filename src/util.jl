@@ -14,7 +14,7 @@ sum_(A::AbstractArray; dims) = dropdims(sum(A; dims=dims); dims=dims)
 
 Takes the mean of `A` across dimensions `dims` and drops them.
 """
-mean_(A::AbstractArray; dims) = dropdims(mean(A; dims=dims); dims=dims)
+mean_(A::AbstractArray; dims) = dropdims(Statistics.mean(A; dims=dims); dims=dims)
 
 """
     var_(A; dims)
@@ -22,7 +22,7 @@ mean_(A::AbstractArray; dims) = dropdims(mean(A; dims=dims); dims=dims)
 Takes the variance of `A` across dimensions `dims` and drops them.
 """
 function var_(A::AbstractArray; corrected::Bool=true, mean=nothing, dims)
-    return dropdims(var(A; corrected=corrected, mean=mean, dims=dims); dims=dims)
+    return dropdims(Statistics.var(A; corrected=corrected, mean=mean, dims=dims); dims=dims)
 end
 
 """
@@ -31,7 +31,7 @@ end
 Takes the standard deviation of `A` across dimensions `dims` and drops them.
 """
 function std_(A::AbstractArray; corrected::Bool=true, mean=nothing, dims)
-    return dropdims(std(A; corrected=corrected, mean=mean, dims=dims); dims=dims)
+    return dropdims(Statistics.std(A; corrected=corrected, mean=mean, dims=dims); dims=dims)
 end
 
 """
@@ -41,7 +41,7 @@ Weighted mean of `A` along dimensions `dims`, with weights `wts`.
 """
 function wmean(A::AbstractArray; wts::Union{AbstractArray,Nothing} = nothing, dims = :)
     if isnothing(wts)
-        return mean(A; dims = dims)
+        return Statistics.mean(A; dims = dims)
     elseif dims === (:)
         @assert size(wts) == size(A)
         return sum(A .* wts / sum(wts); dims = dims)

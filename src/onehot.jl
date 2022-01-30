@@ -89,4 +89,4 @@ end
 
 Generates a random Gumbel variate.
 """
-randgumbel(::Type{T} = Float64) where {T} = -log(randexp(T))
+randgumbel(::Type{T} = Float64) where {T} = -log(Random.randexp(T))

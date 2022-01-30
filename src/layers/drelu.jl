@@ -140,7 +140,7 @@ end
 function drelu_rand(θp::T, θn::T, γp::S, γn::S) where {T<:Real, S<:Real}
     Fp, Fn = relu_free(θp, γp), relu_free(-θn, γn)
     F = -LogExpFunctions.logaddexp(-Fp, -Fn)
-    if randexp(typeof(F)) ≥ Fp - F
+    if Random.randexp(typeof(F)) ≥ Fp - F
         return  relu_rand( θp, γp)
     else
         return -relu_rand(-θn, γn)

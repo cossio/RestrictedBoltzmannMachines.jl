@@ -251,7 +251,7 @@ Stochastic reconstruction error of `v`.
 function reconstruction_error(rbm::RBM, v::AbstractArray; β::Real = true, steps::Int = 1)
     @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
     v1 = sample_v_from_v(rbm, v; β, steps)
-    ϵ = mean(abs.(v .- v1); dims = 1:ndims(rbm.visible))
+    ϵ = Statistics.mean(abs.(v .- v1); dims = 1:ndims(rbm.visible))
     if ndims(v) == ndims(rbm.visible)
         return only(ϵ)
     else
@@ -300,7 +300,7 @@ function ∂free_energy(
     else
         @assert size(wts) == batchsize(rbm.visible, v)
         @assert size(vmat, 2) == size(hmat, 2) == length(wts)
-        ∂wflat = -vmat * Diagonal(vec(wts)) * hmat' / size(vmat, 2)
+        ∂wflat = -vmat * LinearAlgebra.Diagonal(vec(wts)) * hmat' / size(vmat, 2)
     end
     @assert size(∂wflat) == (length(rbm.visible), length(rbm.hidden))
     ∂w = reshape(∂wflat, size(rbm.w))

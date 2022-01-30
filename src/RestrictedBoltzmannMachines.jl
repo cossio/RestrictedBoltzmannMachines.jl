@@ -1,8 +1,14 @@
 module RestrictedBoltzmannMachines
-    using Random, Statistics, LinearAlgebra
-    import SpecialFunctions, LogExpFunctions, FillArrays
-    import Flux, Zygote, ChainRulesCore
-    using ValueHistories: MVHistory
+    import Random
+    import Statistics
+    import LinearAlgebra
+    import SpecialFunctions
+    import LogExpFunctions
+    import FillArrays
+    import Flux
+    import Zygote
+    import ChainRulesCore
+    import ValueHistories
 
     include("util.jl")
     include("minibatches.jl")

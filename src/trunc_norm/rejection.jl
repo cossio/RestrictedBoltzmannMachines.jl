@@ -14,11 +14,11 @@ We specialize to the case where `b = Inf`.
 
 Random standard normal lower truncated at `a` (that is, Z ≥ a).
 """
-randnt(rng::AbstractRNG, a::Real) = randnt(rng, float(a))
-randnt(rng::AbstractRNG, a::BigFloat) = randnt(rng, Float64(a))
+randnt(rng::Random.AbstractRNG, a::Real) = randnt(rng, float(a))
+randnt(rng::Random.AbstractRNG, a::BigFloat) = randnt(rng, Float64(a))
 randnt(a::Real) = randnt(Random.GLOBAL_RNG, a)
 
-function randnt(rng::AbstractRNG, a::Base.IEEEFloat)
+function randnt(rng::Random.AbstractRNG, a::Base.IEEEFloat)
     if a ≤ 0
         while true
             r = randn(rng, typeof(a))
@@ -28,7 +28,7 @@ function randnt(rng::AbstractRNG, a::Base.IEEEFloat)
         t = sqrt1half(a)
         !(t < Inf) && return a
         while true
-            r = a + randexp(rng, typeof(a)) / t
+            r = a + Random.randexp(rng, typeof(a)) / t
             u = rand(rng, typeof(a))
             if u < exp(-(r - t)^2 / 2)
                 return r
@@ -58,7 +58,7 @@ end
 Samples the normal distribution with mean `μ` and standard deviation `σ`
 truncated to positive values.
 """
-function randnt_half(rng::AbstractRNG, μ::Real, σ::Real)
+function randnt_half(rng::Random.AbstractRNG, μ::Real, σ::Real)
     z = randnt(rng, -μ / σ)
     return μ + σ * z
 end

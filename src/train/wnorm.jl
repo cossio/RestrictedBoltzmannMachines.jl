@@ -111,7 +111,7 @@ function pcd!(rbm::RBM, wn::WeightNorm, data::AbstractArray;
     batchsize = 1,
     epochs = 1,
     optimizer = default_optimizer(_nobs(data), batchsize, epochs), # optimizer algorithm
-    history::MVHistory = MVHistory(), # stores training log
+    history::ValueHistories.MVHistory = ValueHistories.MVHistory(), # stores training log
     wts = nothing, # data point weights
     steps::Int = 1, # Monte Carlo steps to update fantasy particles
 )

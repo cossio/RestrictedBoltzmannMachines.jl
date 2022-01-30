@@ -47,7 +47,7 @@ function minibatches(nobs::Int; batchsize::Int, shuffle::Bool = true)
     nbatches = minibatch_count(nobs; batchsize = batchsize)
     idx = mod1.(1:(nbatches * batchsize), nobs)
     if shuffle
-        shuffle!(idx)
+        Random.shuffle!(idx)
     end
     return [idx[b:(b + batchsize - 1)] for b in 1:batchsize:length(idx)]
 end
