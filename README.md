@@ -24,14 +24,6 @@ using Pkg
 Pkg.add("RestrictedBoltzmannMachines")
 ```
 
-Alternatively,
-
-```julia
-pkg> add RestrictedBoltzmannMachines
-```
-
-from the Pkg REPL.
-
 This package does not export any symbols.
 Since the name `RestrictedBoltzmannMachines` is verbose, it can be imported as:
 
