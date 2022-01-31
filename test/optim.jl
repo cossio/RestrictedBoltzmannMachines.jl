@@ -1,4 +1,6 @@
-include("tests_init.jl")
+using Test, Random, LinearAlgebra, Statistics, DelimitedFiles
+import Zygote, Flux, Distributions, SpecialFunctions, LogExpFunctions, QuadGK, NPZ
+import RestrictedBoltzmannMachines as RBMs
 
 @testset "ExpDecay sanity check" begin
     o = RBMs.ExpDecay(0.2, 0.5, 1, 1e-3)

@@ -1,4 +1,6 @@
-include("tests_init.jl")
+using Test, Random, LinearAlgebra, Statistics, DelimitedFiles
+import Zygote, Flux, Distributions, SpecialFunctions, LogExpFunctions, QuadGK, NPZ
+import RestrictedBoltzmannMachines as RBMs
 
 @testset "Binary-Binary RBM partition function (brute force)" begin
     rbm = RBMs.RBM(RBMs.Binary(3), RBMs.Binary(2), randn(3,2))

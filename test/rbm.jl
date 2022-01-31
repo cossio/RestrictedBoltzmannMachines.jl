@@ -1,4 +1,6 @@
-include("tests_init.jl")
+using Test, Random, LinearAlgebra, Statistics, DelimitedFiles
+import Zygote, Flux, Distributions, SpecialFunctions, LogExpFunctions, QuadGK, NPZ
+import RestrictedBoltzmannMachines as RBMs
 
 @testset "batches, n=$n, m=$m, Bv=$Bv, Bh=$Bh" for n in (5, (5,2)), m in (2, (3,4)), Bv in ((), (3,2)), Bh in ((), (3,2))
     rbm = RBMs.RBM(RBMs.Binary(n...), RBMs.Binary(m...), randn(n..., m...))

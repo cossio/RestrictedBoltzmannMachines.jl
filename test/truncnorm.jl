@@ -1,4 +1,6 @@
-include("tests_init.jl")
+using Test, Random, LinearAlgebra, Statistics, DelimitedFiles
+import Zygote, Flux, Distributions, SpecialFunctions, LogExpFunctions, QuadGK, NPZ
+import RestrictedBoltzmannMachines as RBMs
 
 for a = -10:10
     d = Distributions.truncated(Distributions.Normal(); lower=a)

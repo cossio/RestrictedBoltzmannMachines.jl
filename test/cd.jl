@@ -1,4 +1,5 @@
-include("tests_init.jl")
+using Test, Random, LinearAlgebra, Statistics, DelimitedFiles
+import RestrictedBoltzmannMachines as RBMs
 
 @testset "subtract_gradients" begin
     nt1 = (x = [2], y = [3])

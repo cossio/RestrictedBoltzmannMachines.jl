@@ -1,4 +1,6 @@
-include("tests_init.jl")
+using Test, Random, LinearAlgebra, Statistics, DelimitedFiles
+import Zygote, Flux, Distributions, SpecialFunctions, LogExpFunctions, QuadGK, NPZ
+import RestrictedBoltzmannMachines as RBMs
 
 @testset "initialization Binary" begin
     data = rand(2, 3, 10^6) .≤ 3/4

@@ -1,4 +1,6 @@
-include("tests_init.jl")
+using Test, Random, LinearAlgebra, Statistics, DelimitedFiles
+import Zygote, Flux, Distributions, SpecialFunctions, LogExpFunctions, QuadGK, NPZ
+import RestrictedBoltzmannMachines as RBMs
 
 @testset "regularization" begin
     rbm = RBMs.RBM(RBMs.Binary(3,5), RBMs.Gaussian(3,2), randn(3,5,3,2))

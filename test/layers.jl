@@ -1,4 +1,9 @@
-include("tests_init.jl")
+using Test, Random, LinearAlgebra, Statistics, DelimitedFiles
+import Statistics
+import Zygote
+import LogExpFunctions
+import QuadGK
+import RestrictedBoltzmannMachines as RBMs
 
 Random.seed!(2)
 
