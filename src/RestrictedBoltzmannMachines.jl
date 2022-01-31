@@ -31,6 +31,7 @@ module RestrictedBoltzmannMachines
     include("layers/common.jl")
 
     include("rbm.jl")
+    include("special_rbms.jl")
 
     include("zerosum.jl")
     include("pseudolikelihood.jl")
