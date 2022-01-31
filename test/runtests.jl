@@ -26,5 +26,4 @@ using SafeTestsets, Random, Test
 @time @safetestset "truncnorm" begin include("truncnorm.jl") end
 @time @safetestset "optim" begin include("optim.jl") end
 @time @safetestset "partition" begin include("partition.jl") end
-@time @safetestset "weight normalization" begin include("wnorm.jl") end
 @time @safetestset "pgm" begin include("compare_to_pgm/pgm.jl") end
