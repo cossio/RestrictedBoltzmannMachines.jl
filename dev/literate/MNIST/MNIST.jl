@@ -5,9 +5,6 @@ We begin by importing the required packages.
 We load MNIST via the MLDatasets.jl package.
 =#
 
-using MKL # uses MKL for linear algebra (optional)
-nothing #hide
-
 using CairoMakie, Statistics
 import MLDatasets, Flux
 import RestrictedBoltzmannMachines as RBMs

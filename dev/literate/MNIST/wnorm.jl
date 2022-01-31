@@ -8,7 +8,7 @@ Let's try it here.
 Preliminaries:
 =#
 
-using MKL, CairoMakie, Statistics
+using CairoMakie, Statistics
 import MLDatasets, Flux
 import RestrictedBoltzmannMachines as RBMs
 nothing #hide
