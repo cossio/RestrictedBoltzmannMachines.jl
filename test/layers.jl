@@ -2,8 +2,6 @@ include("tests_init.jl")
 
 Random.seed!(2)
 
-Float = Float64
-
 _layers = (
     RBMs.Binary,
     RBMs.Spin,
@@ -16,29 +14,25 @@ _layers = (
     RBMs.xReLU
 )
 
-function random_layer(
-    ::Type{T}, N::Int...
-) where {T <: Union{RBMs.Binary, RBMs.Spin, RBMs.Potts}}
-    return T(randn(Float, N...))
-end
+random_layer(::Type{T}, N::Int...) where {T <: Union{RBMs.Binary, RBMs.Spin, RBMs.Potts}} = T(randn(N...))
+random_layer(::Type{T}, N::Int...) where {T <: Union{RBMs.Gaussian, RBMs.ReLU}} = T(randn(N...), rand(N...))
+random_layer(::Type{RBMs.dReLU}, N::Int...) = RBMs.dReLU(randn(N...), randn(N...), rand(N...), rand(N...))
+random_layer(::Type{RBMs.xReLU}, N::Int...) = RBMs.xReLU(randn(N...), rand(N...), randn(N...), randn(N...))
+random_layer(::Type{RBMs.pReLU}, N::Int...) = RBMs.pReLU(randn(N...), rand(N...), randn(N...), 2rand(N...) .- 1)
+random_layer(::Type{RBMs.StdGauss}, N::Int...) = RBMs.StdGauss(N...)
 
-function random_layer(::Type{T}, N::Int...) where {T <: Union{RBMs.Gaussian, RBMs.ReLU}}
-    return T(randn(Float, N...), rand(Float, N...))
+function _random_layers(N::Int...)
+    return (
+        RBMs.Binary(randn(N...)),
+        RBMs.Spin(randn(N...)),
+        RBMs.Potts(randn(N...)),
+        RBMS.Gaussian(randn(N...), rand(N...)),
+        RBMS.ReLU(randn(N...), rand(N...)),
+        RBMS.dReLU(randn(N...), randn(N...), rand(N...), rand(N...)),
+        RBMS.pReLU(randn(N...), rand(N...), randn(N...), 2rand(N...) .- 1),
+        RBMS.xReLU(randn(N...), rand(N...), randn(N...), randn(N...))
+    )
 end
-
-function random_layer(::Type{RBMs.dReLU}, N::Int...)
-    return RBMs.dReLU(randn(Float, N...), randn(Float, N...), rand(Float, N...), rand(Float, N...))
-end
-
-function random_layer(::Type{RBMs.xReLU}, N::Int...)
-    return RBMs.xReLU(randn(Float, N...), rand(Float, N...), randn(Float, N...), randn(Float, N...))
-end
-
-function random_layer(::Type{RBMs.pReLU}, N::Int...)
-    return RBMs.pReLU(randn(Float, N...), rand(Float, N...), randn(Float, N...), 2rand(Float, N...) .- 1)
-end
-
-random_layer(::Type{RBMs.StdGauss}, N::Int...) = RBMs.StdGauss(Float, N...)
 
 @testset "testing $Layer" for Layer in _layers
     N = (3, 2)
@@ -63,7 +57,7 @@ random_layer(::Type{RBMs.StdGauss}, N::Int...) = RBMs.StdGauss(Float, N...)
         @test size(@inferred RBMs.free_energies(layer)) == size(layer)
     end
 
-    β = rand(Float)
+    β = rand()
     @test size(@inferred RBMs.transfer_sample(layer, 0; β)) == size(layer)
 
     for B in ((), (4,), (4, 5))
@@ -104,7 +98,7 @@ random_layer(::Type{RBMs.StdGauss}, N::Int...) = RBMs.StdGauss(Float, N...)
         @test ∂ω ≈ getproperty(only(gs), ω)
     end
 
-    samples = RBMs.transfer_sample(layer, zeros(Float, size(layer)..., 10^6))
+    samples = RBMs.transfer_sample(layer, zeros(size(layer)..., 10^6))
     @test RBMs.transfer_mean(layer) ≈ RBMs.mean_(samples; dims=ndims(samples)) rtol=0.1 atol=0.01
     @test RBMs.transfer_var(layer) ≈ RBMs.var_(samples; dims=ndims(samples)) rtol=0.1
     @test RBMs.transfer_mean_abs(layer) ≈ RBMs.mean_(abs.(samples); dims=ndims(samples)) rtol=0.1
@@ -322,11 +316,11 @@ end
 @testset "dReLU" begin
     N = (3, 5)
     B = 13
-    x = randn(Float, N..., B)
+    x = randn(N..., B)
 
     # bound γ away from zero to avoid issues with QuadGK
     layer = RBMs.dReLU(
-        randn(Float, N...), randn(Float, N...), rand(Float, N...) .+ 1, rand(Float, N...) .+ 1
+        randn(N...), randn(N...), rand(N...) .+ 1, rand(N...) .+ 1
     )
 
     Ep = RBMs.energy(RBMs.ReLU( layer.θp, layer.γp), max.( x, 0))
