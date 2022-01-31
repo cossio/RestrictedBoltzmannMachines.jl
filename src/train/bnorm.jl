@@ -1,10 +1,11 @@
 """
-    pcd_centered!(rbm, data)
+    pcd_bnorm!(rbm, data)
 
 Trains the RBM on data using Persistent Contrastive divergence, with centered gradients,
 as done in the PGM repo, https://github.com/jertubiana/PGM.
 
-This is almost equivalent to centering visible units only (see [`pcd_centered!`](@ref)),
+This is almost equivalent to centering visible units only
+(see <https://github.com/cossio/CenteredRBMs.jl>),
 but the centering of the hidden unit parameters is done much smoother.
 """
 function pcd_bnorm!(rbm::RBM{<:Binary, <:Binary}, data::AbstractArray;
