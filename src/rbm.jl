@@ -87,7 +87,7 @@ function interaction_energy(rbm::RBM, v::AbstractArray, h::AbstractArray)
         Eflat = -vec(v)' * wmat * hflat
         return reshape(Eflat, size(h)[(ndims(rbm.hidden) + 1):end])
     else
-        @assert size(v)[(ndims(rbm.visible) + 1):end] == size(h)[(ndims(rbm.hidden) + 1):end]
+        @assert batchsize(rbm.visible, v) == batchsize(rbm.hidden, h)
         vflat = reshape(v, length(rbm.visible), :)
         hflat = reshape(h, length(rbm.hidden), :)
         if size(vflat, 1) ≥ size(hflat, 1)
@@ -296,17 +296,28 @@ function ∂free_energy(
 end
 
 function ∂interaction_energy(rbm::RBM, v::AbstractArray, h::AbstractArray; wts = nothing)
-    hmat = reshape(h, length(rbm.hidden), :)
-    vmat = activations_convert_maybe(hmat, reshape(v, length(rbm.visible), :))
-    @assert size(vmat, 2) == size(hmat, 2)
-    if isnothing(wts)
-        ∂wflat = -vmat * hmat' / size(vmat, 2)
+    @assert size(v)[1:ndims(rbm.visible)] == size(rbm.visible)
+    @assert size(h)[1:ndims(rbm.hidden)] == size(rbm.hidden)
+    if ndims(rbm.visible) == ndims(v) && ndims(rbm.hidden) == ndims(h)
+        @assert isnothing(wts)
+        return reshape(-vec(v) * vec(h)', size(rbm.w))
+    elseif ndims(rbm.visible) == ndims(v) && ndims(rbm.hidden) < ndims(h)
+        return reshape(-vec(v) * vec(batchmean(rbm.hidden, h; wts))', size(rbm.w))
+    elseif ndims(rbm.visible) < ndims(v) && ndims(rbm.hidden) == ndims(h)
+        return reshape(-vec(batchmean(rbm.visible, v; wts)) * vec(h)', size(rbm.w))
     else
-        @assert size(wts) == batchsize(rbm.visible, v)
-        @assert size(vmat, 2) == size(hmat, 2) == length(wts)
-        ∂wflat = -vmat * LinearAlgebra.Diagonal(vec(wts)) * hmat' / size(vmat, 2)
+        @assert batchsize(rbm.visible, v) == batchsize(rbm.hidden, h)
+        hmat = reshape(h, length(rbm.hidden), :)
+        vmat = activations_convert_maybe(hmat, reshape(v, length(rbm.visible), :))
+        @assert isnothing(wts) || size(wts) == batchsize(rbm.visible, v)
+        if isnothing(wts)
+            ∂wflat = -vmat * hmat' / size(vmat, 2)
+        else
+            @assert batchsize(rbm.visible, v) == batchsize(rbm.hidden, h) == size(wts)
+            @assert size(vmat, 2) == size(hmat, 2) == length(wts)
+            ∂wflat = -vmat * LinearAlgebra.Diagonal(vec(wts)) * hmat' / length(wts)
+        end
+        ∂w = reshape(∂wflat, size(rbm.w))
+        return ∂w
     end
-    @assert size(∂wflat) == (length(rbm.visible), length(rbm.hidden))
-    ∂w = reshape(∂wflat, size(rbm.w))
-    return ∂w
 end

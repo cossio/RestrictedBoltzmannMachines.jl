@@ -48,6 +48,11 @@ import RestrictedBoltzmannMachines as RBMs
     @inferred RBMs.inputs_h_to_v(rbm, h)
     @inferred RBMs.interaction_energy(rbm, v, h)
     @inferred RBMs.energy(rbm, v, h)
+    gs, = Zygote.gradient(rbm) do rbm
+        mean(RBMs.energy(rbm, v, h))
+    end
+    ∂w = @inferred RBMs.∂interaction_energy(rbm, v, h)
+    @test ∂w ≈ gs.w
 end
 
 @testset "sample_v_from_v and sample_h_from_h on binary RBM" begin
