@@ -68,6 +68,7 @@ end
     for B in ((), (4,), (4, 5))
         x = rand(N..., B...)
         @test (@inferred RBMs.batchsize(layer, x)) == (B...,)
+        @test (@inferred RBMs.batchdims(layer, x)) == (length(N) + 1):ndims(x)
         @test size(@inferred RBMs.energy(layer, x)) == (B...,)
         @test size(@inferred RBMs.free_energy(layer, x; β)) == (B...,)
         @test size(@inferred RBMs.energies(layer, x)) == size(x)
@@ -87,9 +88,11 @@ end
         if B == ()
             @test RBMs.energy(layer, x) ≈ sum(RBMs.energies(layer, x))
             @test RBMs.free_energy(layer, x) ≈ sum(RBMs.free_energies(layer, x))
+            @test RBMs.batchmean(layer, x) ≈ x
         else
             @test RBMs.energy(layer, x) ≈ reshape(sum(RBMs.energies(layer, x); dims=1:ndims(layer)), B)
             @test RBMs.free_energy(layer, x) ≈ reshape(sum(RBMs.free_energies(layer, x); dims=1:ndims(layer)), B)
+            @test RBMs.batchmean(layer, x) ≈ reshape(Statistics.mean(x; dims=(ndims(layer) + 1):ndims(x)), N)
         end
         μ = RBMs.transfer_mean(layer, x)
         @test only(Zygote.gradient(j -> sum(RBMs.free_energies(layer, j)), x)) ≈ -μ
