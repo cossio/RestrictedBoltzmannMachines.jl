@@ -1,6 +1,6 @@
-# It is recommended to load MKL before any other package
+#= Github Actions uses Intel CPUs, for which MKL is faster than OpenBLAS.
+It is recommended to load MKL before any other package, so we load it here. =#
 using MKL
-
 using Documenter, Literate
 import RestrictedBoltzmannMachines as RBMs
 
