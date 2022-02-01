@@ -106,7 +106,7 @@ Notice how we pass the `Float` type, to set the parameter type of the layers and
 in the RBM.
 =#
 
-rbm = RBMs.RBM(RBMs.Binary(Float,28,28), RBMs.Binary(Float,200), randn(Float,28,28,200)/28)
+rbm = RBMs.RBM(RBMs.Binary(Float,28,28), RBMs.Binary(Float,400), randn(Float,28,28,400)/28)
 nothing #hide
 
 #=
@@ -143,7 +143,7 @@ We print here the time spent in the training as a rough benchmark.
 =#
 
 @time history = RBMs.pcd!(
-    rbm, train_x; epochs=200, batchsize=256, optimizer=Flux.ADAM()
+    rbm, train_x; epochs=500, batchsize=256, optimizer=Flux.ADAM()
 )
 nothing #hide
 
@@ -209,12 +209,12 @@ the model trains better and faster.
 
 rbm = RBMs.RBM(
     RBMs.Binary(Float,28,28),
-    RBMs.Binary(Float,200),
-    randn(Float,28,28,200)/28
+    RBMs.Binary(Float,400),
+    randn(Float,28,28,400)/28
 )
 RBMs.initialize!(rbm, train_x) # match single-site statistics
 @time history_init = RBMs.pcd!(
-    rbm, train_x; epochs=200, batchsize=256, optimizer=Flux.ADAM()
+    rbm, train_x; epochs=500, batchsize=256, optimizer=Flux.ADAM()
 )
 nothing #hide
 
