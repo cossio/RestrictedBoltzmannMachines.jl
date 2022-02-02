@@ -1,4 +1,5 @@
-using Test, Random, LinearAlgebra, Statistics, DelimitedFiles
+using Test: @test, @testset
+import Random
 import Statistics
 import Zygote
 import LogExpFunctions
@@ -131,7 +132,7 @@ end
     N = (3, 4, 5)
     B = 13
     layer = Layer(randn(N...))
-    x = bitrand(N..., B)
+    x = Random.bitrand(N..., B)
     @test RBMs.energies(layer, x) ≈ -layer.θ .* x
     gs = Zygote.gradient(layer) do layer
         sum(RBMs.free_energies(layer))

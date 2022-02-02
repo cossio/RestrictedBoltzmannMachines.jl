@@ -1,11 +1,13 @@
-using Test, Random, LinearAlgebra, Statistics, DelimitedFiles
-import Zygote, Flux, Distributions, SpecialFunctions, LogExpFunctions, QuadGK, NPZ
+using Test: @test, @testset
+import Random
+import Zygote
+import Flux
 import RestrictedBoltzmannMachines as RBMs
 
 @testset "Binary-Binary RBM partition function (brute force)" begin
     rbm = RBMs.RBM(RBMs.Binary(3), RBMs.Binary(2), randn(3,2))
-    randn!(rbm.visible.θ)
-    randn!(rbm.hidden.θ)
+    Random.randn!(rbm.visible.θ)
+    Random.randn!(rbm.hidden.θ)
 
     β = rand()
 
@@ -29,8 +31,8 @@ end
 
 @testset "Spin-Binary RBM partition function (brute force)" begin
     rbm = RBMs.RBM(RBMs.Spin(3), RBMs.Binary(2), randn(3,2))
-    randn!(rbm.visible.θ)
-    randn!(rbm.hidden.θ)
+    Random.randn!(rbm.visible.θ)
+    Random.randn!(rbm.hidden.θ)
 
     β = rand()
 

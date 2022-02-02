@@ -1,5 +1,7 @@
-using Test, Random, LinearAlgebra, Statistics, DelimitedFiles
-import Zygote, Flux, Distributions, SpecialFunctions, LogExpFunctions, QuadGK, NPZ
+using Test: @test, @testset
+import Random
+import Statistics
+import LogExpFunctions
 import RestrictedBoltzmannMachines as RBMs
 
 @testset "binary pseudolikelihood" begin
@@ -9,7 +11,7 @@ import RestrictedBoltzmannMachines as RBMs
     β = 1.5
 
     rbm = RBMs.RBM(RBMs.Binary(n...), RBMs.Gaussian(m...), randn(n..., m...) / √prod(n))
-    v = bitrand(n..., B)
+    v = Random.bitrand(n..., B)
 
     E = RBMs.free_energy(rbm, v; β = β)
 
@@ -22,7 +24,7 @@ import RestrictedBoltzmannMachines as RBMs
     @test ΔE ≈ RBMs.substitution_matrix_exhaustive(rbm, v; β = β)
     lpl = -LogExpFunctions.logsumexp(-β * ΔE; dims=1)
     @assert size(lpl) == (1, n..., B)
-    @test RBMs.log_pseudolikelihood(rbm, v; β = β, exact=true) ≈ vec(mean(lpl; dims=(1,2,3)))
+    @test RBMs.log_pseudolikelihood(rbm, v; β = β, exact=true) ≈ vec(Statistics.mean(lpl; dims=(1,2,3)))
 
     ΔE = zeros(2, B)
     sites = [rand(CartesianIndices(n)) for _ in 1:B]
@@ -59,7 +61,7 @@ end
     @test ΔE ≈ RBMs.substitution_matrix_exhaustive(rbm, v; β = β)
     lpl = -LogExpFunctions.logsumexp(-β * ΔE; dims=1)
     @assert size(lpl) == (1, n..., B)
-    @test RBMs.log_pseudolikelihood(rbm, v; β = β, exact=true) ≈ vec(mean(lpl; dims=(1,2,3)))
+    @test RBMs.log_pseudolikelihood(rbm, v; β = β, exact=true) ≈ vec(Statistics.mean(lpl; dims=(1,2,3)))
 
     ΔE = zeros(2, B)
     sites = [rand(CartesianIndices(n)) for _ in 1:B]
@@ -100,7 +102,7 @@ end
     @test ΔE ≈ RBMs.substitution_matrix_exhaustive(rbm, v; β = β)
     lpl = -LogExpFunctions.logsumexp(-β * ΔE; dims=1)
     @assert size(lpl) == (1, n..., B)
-    @test RBMs.log_pseudolikelihood(rbm, v; β = β, exact=true) ≈ vec(mean(lpl; dims=(1,2,3)))
+    @test RBMs.log_pseudolikelihood(rbm, v; β = β, exact=true) ≈ vec(Statistics.mean(lpl; dims=(1,2,3)))
 
     ΔE = zeros(q, B)
     sites = [rand(CartesianIndices(n)) for _ in 1:B]

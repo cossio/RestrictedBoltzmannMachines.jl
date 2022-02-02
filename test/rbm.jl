@@ -1,15 +1,16 @@
-using Test, Random, LinearAlgebra, Statistics, DelimitedFiles
-import Zygote, Flux, Distributions, SpecialFunctions, LogExpFunctions, QuadGK, NPZ
+using Test: @test, @testset
+import Statistics
+import Random
+import LinearAlgebra
+import Zygote
+import QuadGK
 import RestrictedBoltzmannMachines as RBMs
 
 @testset "batches, n=$n, m=$m, Bv=$Bv, Bh=$Bh" for n in (5, (5,2)), m in (2, (3,4)), Bv in ((), (3,2)), Bh in ((), (3,2))
-    rbm = RBMs.RBM(RBMs.Binary(n...), RBMs.Binary(m...), randn(n..., m...))
-    randn!(rbm.visible.θ)
-    randn!(rbm.hidden.θ)
-    randn!(rbm.w)
+    rbm = RBMs.BinaryRBM(randn(n...), randn(m...), randn(n..., m...))
     wmat = reshape(rbm.w, length(rbm.visible), length(rbm.hidden))
-    v = bitrand(n..., Bv...)
-    h = bitrand(m..., Bh...)
+    v = Random.bitrand(n..., Bv...)
+    h = Random.bitrand(m..., Bh...)
 
     @test RBMs.batchsize(rbm.visible, v) == Bv
     @test RBMs.batchsize(rbm.hidden, h) == Bh
@@ -38,7 +39,7 @@ import RestrictedBoltzmannMachines as RBMs
     else
         vmat = reshape(v, length(rbm.visible), :)
         hmat = reshape(h, length(rbm.hidden), :)
-        E = -dot.(eachcol(vmat), Ref(wmat), eachcol(hmat))
+        E = -LinearAlgebra.dot.(eachcol(vmat), Ref(wmat), eachcol(hmat))
         @test RBMs.interaction_energy(rbm, v, h) isa AbstractArray
         @test size(RBMs.interaction_energy(rbm, v, h)) == Bv == Bh
         @test RBMs.interaction_energy(rbm, v, h) ≈ reshape(E, Bv)
@@ -48,33 +49,29 @@ import RestrictedBoltzmannMachines as RBMs
     @inferred RBMs.inputs_h_to_v(rbm, h)
     @inferred RBMs.interaction_energy(rbm, v, h)
     @inferred RBMs.energy(rbm, v, h)
-    gs, = Zygote.gradient(rbm) do rbm
-        mean(RBMs.energy(rbm, v, h))
+    gs = Zygote.gradient(rbm) do rbm
+        Statistics.mean(RBMs.energy(rbm, v, h))
     end
     ∂w = @inferred RBMs.∂interaction_energy(rbm, v, h)
-    @test ∂w ≈ gs.w
+    @test ∂w ≈ only(gs).w
 end
 
 @testset "sample_v_from_v and sample_h_from_h on binary RBM" begin
-    rbm = RBMs.RBM(RBMs.Binary(3,2), RBMs.Binary(2,3), randn(3,2,2,3))
-    randn!(rbm.visible.θ)
-    randn!(rbm.hidden.θ)
-    rbm.w .= 0
-
-    v = bitrand(size(rbm.visible)..., 10^6)
+    rbm = RBMs.BinaryRBM(randn(3,2), randn(2,3), zeros(3,2,2,3))
+    v = Random.bitrand(size(rbm.visible)..., 10^6)
     v .= RBMs.sample_v_from_v(rbm, v)
     @test RBMs.batchmean(rbm.visible, v) ≈ RBMs.transfer_mean(rbm.visible) rtol=0.1
 
-    h = bitrand(size(rbm.hidden)...,  10^6)
+    h = Random.bitrand(size(rbm.hidden)...,  10^6)
     h .= RBMs.sample_h_from_h(rbm, h)
     @test RBMs.batchmean(rbm.hidden, h) ≈ RBMs.transfer_mean(rbm.hidden) rtol=0.1
 
-    randn!(rbm.w)
+    Random.randn!(rbm.w)
     h .= RBMs.sample_h_from_v(rbm, v)
     μ = RBMs.transfer_mean(rbm.hidden, RBMs.inputs_v_to_h(rbm, v))
     @test RBMs.batchmean(rbm.hidden, h) ≈ RBMs.batchmean(rbm.hidden, μ) rtol=0.1
 
-    randn!(rbm.w)
+    Random.randn!(rbm.w)
     v .= RBMs.sample_v_from_h(rbm, h)
     μ = RBMs.transfer_mean(rbm.visible, RBMs.inputs_h_to_v(rbm, h))
     @test RBMs.batchmean(rbm.visible, v) ≈ RBMs.batchmean(rbm.visible, μ) rtol=0.1
@@ -149,26 +146,6 @@ end
     @test RBMs.mirror(rbm).visible == rbm.hidden
     @test RBMs.mirror(rbm).hidden == rbm.visible
     @test RBMs.energy(RBMs.mirror(rbm), h, v) ≈ RBMs.energy(rbm, v, h)
-
-    gs = Zygote.gradient(rbm) do rbm
-        mean(RBMs.free_energy(rbm, v))
-    end
-    ∂F = RBMs.∂free_energy(rbm, v)
-    @test ∂F.visible.θ ≈ only(gs).visible.θ
-    @test ∂F.hidden.θ ≈ only(gs).hidden.θ
-    @test ∂F.w ≈ only(gs).w
-
-    vd = rand(Bool, size(rbm.visible)..., 7)
-    vm = rand(Bool, size(rbm.visible)..., 7)
-    gs = Zygote.gradient(rbm) do rbm
-        RBMs.contrastive_divergence(rbm, vd, vm)
-    end
-    # stats = RBMs.sufficient_statistics(rbm.visible, vd)
-    # ∂F = RBMs.∂contrastive_divergence(rbm, vd, vm; stats)
-    ∂F = RBMs.∂contrastive_divergence(rbm, vd, vm)
-    @test ∂F.visible.θ ≈ only(gs).visible.θ
-    @test ∂F.hidden.θ ≈ only(gs).hidden.θ
-    @test ∂F.w ≈ only(gs).w
 end
 
 @testset "Gaussian-Gaussian RBM, 1-dimension" begin
@@ -178,7 +155,7 @@ end
         randn(1, 1) / 1e2
     )
 
-    @assert isposdef([
+    @assert LinearAlgebra.isposdef([
         rbm.visible.γ -rbm.w;
         -rbm.w'  rbm.hidden.γ
     ])
@@ -212,8 +189,8 @@ end
     γv = vec(rbm.visible.γ)
     γh = vec(rbm.hidden.γ)
     w = reshape(rbm.w, length(rbm.visible), length(rbm.hidden))
-    A = [diagm(γv) -w;
-         -w'  diagm(γh)]
+    A = [LinearAlgebra.diagm(γv) -w;
+         -w'  LinearAlgebra.diagm(γh)]
 
     v = randn(n..., 1)
     h = randn(m..., 1)
@@ -221,13 +198,13 @@ end
 
     @test RBMs.energy(rbm, v, h) ≈ x' * A * x / 2 - θ' * x
     @test RBMs.log_partition(rbm) ≈ (
-        (N + M)/2 * log(2π) + θ' * inv(A) * θ / 2 - logdet(A)/2
+        (N + M)/2 * log(2π) + θ' * inv(A) * θ / 2 - LinearAlgebra.logdet(A)/2
     )
     @test RBMs.log_partition(rbm; β = 1) ≈ RBMs.log_partition(rbm)
 
     β = rand()
     @test RBMs.log_partition(rbm; β) ≈ (
-        (N + M)/2 * log(2π) + β * θ' * inv(A) * θ / 2 - logdet(β*A)/2
+        (N + M)/2 * log(2π) + β * θ' * inv(A) * θ / 2 - LinearAlgebra.logdet(β*A)/2
     ) rtol=1e-6
 
     @test RBMs.log_likelihood(rbm, v; β = 1) ≈ RBMs.log_likelihood(rbm, v)
@@ -253,7 +230,7 @@ end
     C = Σ + μ * μ' # non-centered second moments
 
     @test [∂θv; ∂θh] ≈ μ
-    @test -2∂γv ≈ diag(C[1:N, 1:N]) # <vi^2>
-    @test -2∂γh ≈ diag(C[(N + 1):end, (N + 1):end]) # <hμ^2>
+    @test -2∂γv ≈ LinearAlgebra.diag(C[1:N, 1:N]) # <vi^2>
+    @test -2∂γh ≈ LinearAlgebra.diag(C[(N + 1):end, (N + 1):end]) # <hμ^2>
     @test ∂w ≈ C[1:N, (N + 1):end] # <vi*hμ>
 end

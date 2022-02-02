@@ -1,5 +1,5 @@
-using Test, Random, LinearAlgebra, Statistics, DelimitedFiles
-import Zygote, Flux, Distributions, SpecialFunctions, LogExpFunctions, QuadGK, NPZ
+using Test: @test, @testset, @inferred
+import Statistics
 import RestrictedBoltzmannMachines as RBMs
 
 @testset "two" begin
@@ -19,19 +19,19 @@ end
 @testset "mean_" begin
     A = randn(2,3,4)
     @inferred RBMs.mean_(A; dims=(1,3))
-    @test RBMs.mean_(A; dims=(1,3)) == vec(mean(A; dims=(1,3)))
+    @test RBMs.mean_(A; dims=(1,3)) == vec(Statistics.mean(A; dims=(1,3)))
 end
 
 @testset "var_" begin
     A = randn(2,3,4)
     @inferred RBMs.var_(A; dims=(1,3))
-    @test RBMs.var_(A; dims=(1,3)) ≈ vec(var(A; dims=(1,3)))
+    @test RBMs.var_(A; dims=(1,3)) ≈ vec(Statistics.var(A; dims=(1,3)))
 end
 
 @testset "std_" begin
     A = randn(2,3,4)
     @inferred RBMs.std_(A; dims=(1,3))
-    @test RBMs.std_(A; dims=(1,3)) ≈ vec(std(A; dims=(1,3)))
+    @test RBMs.std_(A; dims=(1,3)) ≈ vec(Statistics.std(A; dims=(1,3)))
 end
 
 @testset "inf" begin
@@ -62,8 +62,8 @@ end
 
 @testset "wmean" begin
     A = randn(4,3,5,2)
-    @test RBMs.wmean(A) ≈ mean(A)
-    @test RBMs.wmean(A; dims=(2,4)) ≈ mean(A; dims=(2,4))
+    @test RBMs.wmean(A) ≈ Statistics.mean(A)
+    @test RBMs.wmean(A; dims=(2,4)) ≈ Statistics.mean(A; dims=(2,4))
     @inferred RBMs.wmean(A)
     @inferred RBMs.wmean(A; dims=(2,4))
 

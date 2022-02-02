@@ -1,5 +1,7 @@
-using Test, Random, LinearAlgebra, Statistics, DelimitedFiles
-import Zygote, Flux, Distributions, SpecialFunctions, LogExpFunctions, QuadGK, NPZ
+using Test: @test, @testset
+import DelimitedFiles
+import Statistics
+import NPZ
 import RestrictedBoltzmannMachines as RBMs
 
 #=
@@ -18,14 +20,14 @@ attention to these minus signs.
 =#
 
 @testset "Binary / Binary RBM" begin
-    g = vec(readdlm("compare_to_pgm/RBM_bin_bin_g_v.txt"))
-    θ = vec(readdlm("compare_to_pgm/RBM_bin_bin_g_h.txt"))
-    w = readdlm("compare_to_pgm/RBM_bin_bin_w.txt")'
+    g = vec(DelimitedFiles.readdlm("compare_to_pgm/RBM_bin_bin_g_v.txt"))
+    θ = vec(DelimitedFiles.readdlm("compare_to_pgm/RBM_bin_bin_g_h.txt"))
+    w = DelimitedFiles.readdlm("compare_to_pgm/RBM_bin_bin_w.txt")'
 
-    v = readdlm("compare_to_pgm/RBM_bin_bin_v.txt")'
-    h = readdlm("compare_to_pgm/RBM_bin_bin_h.txt")'
-    E = vec(readdlm("compare_to_pgm/RBM_bin_bin_E.txt"))
-    F = vec(readdlm("compare_to_pgm/RBM_bin_bin_F.txt"))
+    v = DelimitedFiles.readdlm("compare_to_pgm/RBM_bin_bin_v.txt")'
+    h = DelimitedFiles.readdlm("compare_to_pgm/RBM_bin_bin_h.txt")'
+    E = vec(DelimitedFiles.readdlm("compare_to_pgm/RBM_bin_bin_E.txt"))
+    F = vec(DelimitedFiles.readdlm("compare_to_pgm/RBM_bin_bin_F.txt"))
 
     rbm = RBMs.RBM(RBMs.Binary(g), RBMs.Binary(θ), w)
     @test RBMs.energy(rbm, v, h) ≈ E rtol=1e-5
@@ -34,17 +36,17 @@ end
 
 @testset "Binary / Gaussian RBM" begin
     #= Note the minus sign in front of θ =#
-    θ = -vec(readdlm("compare_to_pgm/RBM_bin_gauss_theta_h.txt"))
-    γ =  vec(readdlm("compare_to_pgm/RBM_bin_gauss_gamma_h.txt"))
-    g = vec(readdlm("compare_to_pgm/RBM_bin_gauss_g_v.txt"))
-    w = readdlm("compare_to_pgm/RBM_bin_gauss_w.txt")'
+    θ = -vec(DelimitedFiles.readdlm("compare_to_pgm/RBM_bin_gauss_theta_h.txt"))
+    γ =  vec(DelimitedFiles.readdlm("compare_to_pgm/RBM_bin_gauss_gamma_h.txt"))
+    g = vec(DelimitedFiles.readdlm("compare_to_pgm/RBM_bin_gauss_g_v.txt"))
+    w = DelimitedFiles.readdlm("compare_to_pgm/RBM_bin_gauss_w.txt")'
 
-    v = readdlm("compare_to_pgm/RBM_bin_gauss_v.txt")'
-    h = readdlm("compare_to_pgm/RBM_bin_gauss_h.txt")'
-    Ev = vec(readdlm("compare_to_pgm/RBM_bin_gauss_Ev.txt"))
-    Eh = vec(readdlm("compare_to_pgm/RBM_bin_gauss_Eh.txt"))
-    E = vec(readdlm("compare_to_pgm/RBM_bin_gauss_E.txt"))
-    F = vec(readdlm("compare_to_pgm/RBM_bin_gauss_F.txt"))
+    v = DelimitedFiles.readdlm("compare_to_pgm/RBM_bin_gauss_v.txt")'
+    h = DelimitedFiles.readdlm("compare_to_pgm/RBM_bin_gauss_h.txt")'
+    Ev = vec(DelimitedFiles.readdlm("compare_to_pgm/RBM_bin_gauss_Ev.txt"))
+    Eh = vec(DelimitedFiles.readdlm("compare_to_pgm/RBM_bin_gauss_Eh.txt"))
+    E = vec(DelimitedFiles.readdlm("compare_to_pgm/RBM_bin_gauss_E.txt"))
+    F = vec(DelimitedFiles.readdlm("compare_to_pgm/RBM_bin_gauss_F.txt"))
 
     rbm = RBMs.RBM(RBMs.Binary(g), RBMs.Gaussian(θ, γ), w)
     @test RBMs.energy(rbm.visible, v) ≈ Ev rtol=1e-5
@@ -58,19 +60,19 @@ end
     (as well as for the reparameterized pReLU), my θ's are minus those of Jerome.
     I did this because I wanted to be consistent with the external field of Binary,
     Spin and Potts layer, for which the field appears with this sign. =#
-    θp = -vec(readdlm("compare_to_pgm/RBM_bin_dReLU_thetap_h.txt"))
-    θn =  vec(readdlm("compare_to_pgm/RBM_bin_dReLU_thetam_h.txt"))
-    γp = vec(readdlm("compare_to_pgm/RBM_bin_dReLU_gammap_h.txt"))
-    γn = vec(readdlm("compare_to_pgm/RBM_bin_dReLU_gammam_h.txt"))
-    g = vec(readdlm("compare_to_pgm/RBM_bin_dReLU_g_v.txt"))
-    w = readdlm("compare_to_pgm/RBM_bin_dReLU_w.txt")'
+    θp = -vec(DelimitedFiles.readdlm("compare_to_pgm/RBM_bin_dReLU_thetap_h.txt"))
+    θn =  vec(DelimitedFiles.readdlm("compare_to_pgm/RBM_bin_dReLU_thetam_h.txt"))
+    γp = vec(DelimitedFiles.readdlm("compare_to_pgm/RBM_bin_dReLU_gammap_h.txt"))
+    γn = vec(DelimitedFiles.readdlm("compare_to_pgm/RBM_bin_dReLU_gammam_h.txt"))
+    g = vec(DelimitedFiles.readdlm("compare_to_pgm/RBM_bin_dReLU_g_v.txt"))
+    w = DelimitedFiles.readdlm("compare_to_pgm/RBM_bin_dReLU_w.txt")'
 
-    v = readdlm("compare_to_pgm/RBM_bin_dReLU_v.txt")'
-    h = readdlm("compare_to_pgm/RBM_bin_dReLU_h.txt")'
-    Ev = vec(readdlm("compare_to_pgm/RBM_bin_dReLU_Ev.txt"))
-    Eh = vec(readdlm("compare_to_pgm/RBM_bin_dReLU_Eh.txt"))
-    E = vec(readdlm("compare_to_pgm/RBM_bin_dReLU_E.txt"))
-    F = vec(readdlm("compare_to_pgm/RBM_bin_dReLU_F.txt"))
+    v = DelimitedFiles.readdlm("compare_to_pgm/RBM_bin_dReLU_v.txt")'
+    h = DelimitedFiles.readdlm("compare_to_pgm/RBM_bin_dReLU_h.txt")'
+    Ev = vec(DelimitedFiles.readdlm("compare_to_pgm/RBM_bin_dReLU_Ev.txt"))
+    Eh = vec(DelimitedFiles.readdlm("compare_to_pgm/RBM_bin_dReLU_Eh.txt"))
+    E = vec(DelimitedFiles.readdlm("compare_to_pgm/RBM_bin_dReLU_E.txt"))
+    F = vec(DelimitedFiles.readdlm("compare_to_pgm/RBM_bin_dReLU_F.txt"))
 
     rbm = RBMs.RBM(RBMs.Binary(g), RBMs.dReLU(θp, θn, γp, γn), w)
     @test RBMs.energy(rbm.visible, v) ≈ Ev rtol=1e-5
@@ -80,17 +82,17 @@ end
 end
 
 @testset "Binary pseudolikelihood" begin
-    weights = Matrix(readdlm("compare_to_pgm/PL/RBM_Bernoulli_weights.txt")')
-    visible_g = vec(readdlm("compare_to_pgm/PL/RBM_Bernoulli_visible_fields.txt"))
-    hidden_g = vec(readdlm("compare_to_pgm/PL/RBM_Bernoulli_hidden_fields.txt"))
-    v = BitMatrix(readdlm("compare_to_pgm/PL/RBM_Bernoulli_data.txt", Bool)')
-    pl = vec(readdlm("compare_to_pgm/PL/RBM_Bernoulli_PL.txt"))
+    weights = Matrix(DelimitedFiles.readdlm("compare_to_pgm/PL/RBM_Bernoulli_weights.txt")')
+    visible_g = vec(DelimitedFiles.readdlm("compare_to_pgm/PL/RBM_Bernoulli_visible_fields.txt"))
+    hidden_g = vec(DelimitedFiles.readdlm("compare_to_pgm/PL/RBM_Bernoulli_hidden_fields.txt"))
+    v = BitMatrix(DelimitedFiles.readdlm("compare_to_pgm/PL/RBM_Bernoulli_data.txt", Bool)')
+    pl = vec(DelimitedFiles.readdlm("compare_to_pgm/PL/RBM_Bernoulli_PL.txt"))
 
     rbm = RBMs.RBM(RBMs.Binary(visible_g), RBMs.Binary(hidden_g), weights)
     pl_rbm = RBMs.log_pseudolikelihood(rbm, v)
 
-    @test mean(pl_rbm) ≈ mean(pl) rtol=0.05
-    @test std(pl_rbm)  ≈ std(pl)  rtol=0.1
+    @test Statistics.mean(pl_rbm) ≈ Statistics.mean(pl) rtol=0.05
+    @test Statistics.std(pl_rbm)  ≈ Statistics.std(pl)  rtol=0.1
 end
 
 @testset "Potts pseudolikelihood" begin
@@ -105,6 +107,6 @@ end
     pl = RBMs.log_pseudolikelihood(rbm, data)
 
     # TODO: #7 see if we can decrease rtol
-    @test mean(pl) ≈ mean(d["PL"]) rtol=0.1
-    @test std(pl) ≈ std(d["PL"]) rtol=0.1
+    @test Statistics.mean(pl) ≈ Statistics.mean(d["PL"]) rtol=0.1
+    @test Statistics.std(pl) ≈ Statistics.std(d["PL"]) rtol=0.1
 end

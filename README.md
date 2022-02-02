@@ -20,7 +20,7 @@ This package is registered.
 Install with:
 
 ```julia
-using Pkg
+import Pkg
 Pkg.add("RestrictedBoltzmannMachines")
 ```
 

@@ -1,5 +1,4 @@
-using Test, Random, LinearAlgebra, Statistics, DelimitedFiles
-import Zygote, Flux, Distributions, SpecialFunctions, LogExpFunctions, QuadGK, NPZ
+using Test: @test, @testset, @inferred, @test_throws
 import RestrictedBoltzmannMachines as RBMs
 
 @testset "obs" begin

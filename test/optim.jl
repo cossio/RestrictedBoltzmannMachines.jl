@@ -1,5 +1,7 @@
-using Test, Random, LinearAlgebra, Statistics, DelimitedFiles
-import Zygote, Flux, Distributions, SpecialFunctions, LogExpFunctions, QuadGK, NPZ
+using Test: @test, @testset
+import Random
+import Zygote
+import Flux
 import RestrictedBoltzmannMachines as RBMs
 
 @testset "ExpDecay sanity check" begin

@@ -1,12 +1,16 @@
-using Test, Random, LinearAlgebra, Statistics, DelimitedFiles
-import Zygote, Flux, Distributions, SpecialFunctions, LogExpFunctions, QuadGK, NPZ
+using Test: @test, @testset, @test_broken, @inferred
+import Statistics
+import Random
+import Zygote
+import Distributions
+import SpecialFunctions
 import RestrictedBoltzmannMachines as RBMs
 
 for a = -10:10
     d = Distributions.truncated(Distributions.Normal(); lower=a)
-    @test RBMs.tnmean(a) ≈ mean(d)
-    @test RBMs.tnstd(a)  ≈ std(d)
-    @test RBMs.tnvar(a)  ≈ var(d)
+    @test RBMs.tnmean(a) ≈ Statistics.mean(d)
+    @test RBMs.tnstd(a)  ≈ Statistics.std(d)
+    @test RBMs.tnvar(a)  ≈ Statistics.var(d)
     @test a ≤ RBMs.tnmean(a) < Inf
     @test 0 ≤ RBMs.tnvar(a) ≤ 1
 end
@@ -30,7 +34,6 @@ end
     @test (@inferred RBMs.randnt(floatmax(Float64))) == floatmax(Float64)
 end
 
-
 Random.seed!(18)
 
 @inferred RBMs.randnt_half(1.0, 2.0)
@@ -43,12 +46,12 @@ m2(μ,σ) = μ^2 + σ^2 + μ * σ * √(2/π) / SpecialFunctions.erfcx(-μ/σ/�
 
 for μ = -1:1, σ = 1:2
     samples = [RBMs.randnt_half(μ,σ) for _ = 1:10^6]
-    @test mean(samples.^1) ≈ m1(μ,σ) atol=1e-2
-    @test mean(samples.^2) ≈ m2(μ,σ) atol=1e-2
+    @test Statistics.mean(samples.^1) ≈ m1(μ,σ) atol=1e-2
+    @test Statistics.mean(samples.^2) ≈ m2(μ,σ) atol=1e-2
 end
 
 # broadcasted versions
 μ = 3randn(2,2); σ = 3rand(2,2)
 dμ, dσ = Zygote.gradient(μ,σ) do μ,σ
-    mean(m1.(μ,σ))
+    Statistics.mean(m1.(μ,σ))
 end

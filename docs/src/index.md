@@ -5,7 +5,7 @@ The package is registered.
 Install it with:
 
 ```julia
-using Pkg
+import Pkg
 Pkg.add("RestrictedBoltzmannMachines")
 ```
 

@@ -1,7 +1,8 @@
 #= Github Actions uses Intel CPUs, for which MKL is faster than OpenBLAS.
 It is recommended to load MKL before any other package, so we load it here. =#
-using MKL
-using Documenter, Literate
+import MKL
+import Documenter
+import Literate
 import RestrictedBoltzmannMachines as RBMs
 
 ENV["JULIA_DEBUG"] = "Documenter,Literate,RestrictedBoltzmannMachines"
@@ -50,7 +51,7 @@ end
 #=
 Build docs.
 =#
-makedocs(
+Documenter.makedocs(
     modules = [RBMs],
     sitename = "RestrictedBoltzmannMachines.jl",
     pages = [
@@ -81,7 +82,7 @@ clear_md_files(literate_dir)
 #=
 Deploy docs to Github pages.
 =#
-deploydocs(
+Documenter.deploydocs(
     repo = "github.com/cossio/RestrictedBoltzmannMachines.jl.git",
     devbranch = "master"
 )
