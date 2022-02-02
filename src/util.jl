@@ -1,6 +1,6 @@
 # convenience functions to get generic Inf and NaN
-inf(::Union{Type{T}, T}) where {T} = convert(T, Inf)
-two(::Union{Type{T}, T}) where {T} = convert(T, 2)
+inf(::Union{Type{T}, T}) where {T<:Number} = convert(T, Inf)
+two(::Union{Type{T}, T}) where {T<:Number} = convert(T, 2)
 
 """
     sum_(A; dims)
