@@ -66,7 +66,6 @@ Documenter.makedocs(
             ],
             "MNIST" => [
                 "literate/MNIST/MNIST.md",
-                "literate/MNIST/white.md",
             ],
         ],
         "Reference" => "reference.md"
