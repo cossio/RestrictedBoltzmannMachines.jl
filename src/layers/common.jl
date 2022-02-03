@@ -20,7 +20,7 @@ function energy(layer::Union{Binary,Spin,Potts}, x::AbstractArray)
         return -LinearAlgebra.dot(layer.θ, x)
     else
         Eflat = -vec(layer.θ)' * reshape(xconv, length(layer.θ), :)
-        return reshape(Eflat, size(x)[(ndims(layer) + 1):end])
+        return reshape(Eflat, batchsize(layer, x))
     end
 end
 
