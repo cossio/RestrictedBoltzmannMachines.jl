@@ -14,9 +14,7 @@ module RestrictedBoltzmannMachines
     include("minibatches.jl")
     include("onehot.jl")
     include("linalg.jl")
-
-    include("trunc_norm/truncnorm.jl")
-    include("trunc_norm/rejection.jl")
+    include("truncnorm.jl")
 
     include("layers/layer.jl")
     include("layers/binary.jl")

@@ -9,7 +9,6 @@ import RestrictedBoltzmannMachines as RBMs
 for a = -10:10
     d = Distributions.truncated(Distributions.Normal(); lower=a)
     @test RBMs.tnmean(a) ≈ Statistics.mean(d)
-    @test RBMs.tnstd(a)  ≈ Statistics.std(d)
     @test RBMs.tnvar(a)  ≈ Statistics.var(d)
     @test a ≤ RBMs.tnmean(a) < Inf
     @test 0 ≤ RBMs.tnvar(a) ≤ 1

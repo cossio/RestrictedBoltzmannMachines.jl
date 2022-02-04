@@ -64,3 +64,23 @@ function randnt_half(rng::Random.AbstractRNG, μ::Real, σ::Real)
 end
 
 randnt_half(μ::Real, σ::Real) = randnt_half(Random.GLOBAL_RNG, μ, σ)
+
+"""
+    tnmean(a)
+
+Mean of the standard normal distribution,
+truncated to the interval (a, +∞).
+"""
+tnmean(a::Real) = sqrt(two(a)/π) / SpecialFunctions.erfcx(a/√two(a))
+
+"""
+    tnvar(a)
+
+Variance of the standard normal distribution,
+truncated to the interval (a, +∞).
+WARNING: Fails for very very large values of `a`.
+"""
+function tnvar(a::Real)
+    μ = tnmean(a)
+    return one(μ) - (μ - a) * μ
+end
