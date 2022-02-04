@@ -7,7 +7,7 @@ Computes gradients with Zygote.
 function cdad!(rbm::RBM, data::AbstractArray;
     batchsize = 1,
     epochs = 1,
-    optimizer = default_optimizer(_nobs(data), batchsize, epochs), # optimizer algorithm
+    optimizer = Flux.ADAM(), # optimizer algorithm
     history::ValueHistories.MVHistory = ValueHistories.MVHistory(), # stores training log
     lossadd = (_...) -> 0, # regularization
     wts = nothing, # data point weights
