@@ -70,8 +70,6 @@ tests_nsamples = length(tests_y)
 #=
 The above `train_x` and `tests_x` are `BitArray`s.
 Though convenient in terms of memory space, these are very slow in linear algebra.
-Since we frequently multiply data configurations times the weights of our RBM,
-we want to speed this up.
 So we convert to floats, which have much faster matrix multiplies thanks to BLAS.
 We will use `Float32` here.
 To hit BLAS, this must be consistent with the types we use in the parameters of the RBM
@@ -98,12 +96,11 @@ fig
 
 #=
 Initialize an RBM with 100 hidden units.
-It is recommended to initialize the weights as random normals with zero mean and
+It is recommended to initialize `rbm.w` as random normals with zero mean and
 variance `= 1/(number of visible units)`.
 See [Glorot & Bengio 2010](http://proceedings.mlr.press/v9/glorot10a).
 
-Notice how we pass the `Float` type, to set the parameter type of the layers and weights
-in the RBM.
+Notice how we pass the `Float` type, to set the parameter type of the RBM.
 =#
 
 rbm = RBMs.RBM(RBMs.Binary(Float,28,28), RBMs.Binary(Float,400), randn(Float,28,28,400)/28)
