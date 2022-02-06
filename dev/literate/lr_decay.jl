@@ -35,7 +35,7 @@ RBMs.initialize!(rbm, train_x);
 opt = Flux.ADAM(0.001f0, (0.9f0, 0.999f0))
 history = MVHistory()
 RBMs.pcd!(rbm, train_x; history=history,
-    epochs=300, batchsize=128, steps=1, optimizer=opt
+    epochs=300, batchsize=128, steps=1, optim=opt
 )
 nothing #hide
 
@@ -50,14 +50,14 @@ opt = Flux.ADAM(0.001f0, (0.9f0, 0.999f0))
 history_decay = MVHistory()
 RBMs.pcd!(rbm_decay, train_x; history=history_decay,
     epochs=200, batchsize=128, steps=1,
-    optimizer=opt
+    optim=opt
 )
 println("*** decaying learning rate ***")
 for meta_epoch = 1:10
     opt.eta /= 2
     RBMs.pcd!(rbm_decay, train_x; history=history_decay,
         epochs=10, batchsize=128, steps=1,
-        optimizer=opt
+        optim=opt
     )
 end
 nothing #hide

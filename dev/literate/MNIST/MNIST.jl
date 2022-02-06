@@ -140,7 +140,7 @@ We print here the time spent in the training as a rough benchmark.
 =#
 
 @time history = RBMs.pcd!(
-    rbm, train_x; epochs=500, batchsize=256, optimizer=Flux.ADAM()
+    rbm, train_x; epochs=500, batchsize=256, optim=Flux.ADAM()
 )
 nothing #hide
 
@@ -211,7 +211,7 @@ rbm = RBMs.RBM(
 )
 RBMs.initialize!(rbm, train_x) # match single-site statistics
 @time history_init = RBMs.pcd!(
-    rbm, train_x; epochs=500, batchsize=256, optimizer=Flux.ADAM()
+    rbm, train_x; epochs=500, batchsize=256, optim=Flux.ADAM()
 )
 nothing #hide
 
