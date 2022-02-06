@@ -1,11 +1,11 @@
-struct pReLU{N, T, A <: AbstractArray{T,N}} <: AbstractLayer{N}
-    θ::A
-    γ::A
-    Δ::A
-    η::A
-    function pReLU(θ::A, γ::A, Δ::A, η::A) where {A<:AbstractArray}
+struct pReLU{N,Aθ,Aγ,AΔ,Aη} <: AbstractLayer{N}
+    θ::Aθ
+    γ::Aγ
+    Δ::AΔ
+    η::Aη
+    function pReLU(θ::AbstractArray, γ::AbstractArray, Δ::AbstractArray, η::AbstractArray)
         @assert size(θ) == size(γ) == size(Δ) == size(η)
-        return new{ndims(A), eltype(A), A}(θ, γ, Δ, η)
+        return new{ndims(θ), typeof(θ), typeof(γ), typeof(Δ), typeof(η)}(θ, γ, Δ, η)
     end
 end
 
@@ -24,7 +24,7 @@ function effective(layer::pReLU, inputs::AbstractArray; β::Real = true)
     γ = β * broadlike(layer.γ, inputs)
     Δ = β * broadlike(layer.Δ, inputs)
     η = broadlike(layer.η, inputs)
-    return pReLU(promote(θ, γ, Δ, η)...)
+    return pReLU(θ, γ, Δ, η)
 end
 
 function energies(layer::pReLU, x::AbstractArray)
@@ -80,32 +80,31 @@ function ∂free_energy(layer::pReLU)
     return (θ = ∂θ, γ = ∂γ, Δ = ∂Δ, η = ∂η)
 end
 
-function ∂energy(layer::pReLU; x, xp, xn, xp2, xn2)
-    for ξ in (x, xp, xn, xp2, xn2)
-        @assert size(ξ::AbstractArray) == size(layer)
+struct pReLUStats{A<:AbstractArray}
+    x::A; xp1::A; xn1::A; xp2::A; xn2::A;
+    function pReLUStats(layer::AbstractLayer, data::AbstractArray; wts = nothing)
+        xp = max.(data, 0)
+        xn = min.(data, 0)
+        x = batchmean(layer, data; wts)
+        xp1 = batchmean(layer, xp; wts)
+        xn1 = batchmean(layer, xn; wts)
+        xp2 = batchmean(layer, xp.^2; wts)
+        xn2 = batchmean(layer, xn.^2; wts)
+        return new{typeof(x)}(x, xp1, xn1, xp2, xn2)
     end
+end
 
-    ∂γ = @. (xp2 / (1 + layer.η) + xn2 / (1 - layer.η)) / 2
-    ∂Δ = @. -(xp / (1 + layer.η) - xn / (1 - layer.η))
+Base.size(stats::pReLUStats) = size(stats.x)
+
+function ∂energy(layer::pReLU, stats::pReLUStats)
+    @assert size(layer) == size(stats)
+    ∂γ = @. (stats.xp2 / (1 + layer.η) + stats.xn2 / (1 - layer.η)) / 2
+    ∂Δ = @. -(stats.xp1 / (1 + layer.η) - stats.xn1 / (1 - layer.η))
     ∂η = @. (
-        (-layer.γ * xp2 / 2 + layer.Δ * xp) / (1 + layer.η)^2 +
-        ( layer.γ * xn2 / 2 + layer.Δ * xn) / (1 - layer.η)^2
+        (-layer.γ * stats.xp2 / 2 + layer.Δ * stats.xp1) / (1 + layer.η)^2 +
+        ( layer.γ * stats.xn2 / 2 + layer.Δ * stats.xn1) / (1 - layer.η)^2
     )
-
-    return (θ = -x, γ = ∂γ, Δ = ∂Δ, η = ∂η)
+    return (θ = -stats.x, γ = ∂γ, Δ = ∂Δ, η = ∂η)
 end
 
-function sufficient_statistics(layer::pReLU, x::AbstractArray; wts = nothing)
-    @assert size(layer) == size(x)[1:ndims(layer)]
-
-    xp = max.(x, 0)
-    xn = min.(x, 0)
-
-    μ = batchmean(layer, x; wts)
-    μp = batchmean(layer, xp; wts)
-    μn = batchmean(layer, xn; wts)
-    μp2 = batchmean(layer, xp.^2; wts)
-    μn2 = batchmean(layer, xn.^2; wts)
-
-    return (x = μ, xp = μp, xn = μn, xp2 = μp2, xn2 = μn2)
-end
+suffstats(layer::pReLU, data::AbstractArray; wts = nothing) = pReLUStats(layer, data; wts)

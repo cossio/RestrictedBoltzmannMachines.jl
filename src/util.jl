@@ -1,43 +1,13 @@
+const TupleN{T,N} = NTuple{N,T}
+
 # convenience functions to get generic Inf and NaN
 inf(::Union{Type{T}, T}) where {T<:Number} = convert(T, Inf)
 two(::Union{Type{T}, T}) where {T<:Number} = convert(T, 2)
 
 """
-    sum_(A; dims)
-
-Sums `A` over dimensions `dims` and drops them.
-"""
-sum_(A::AbstractArray; dims) = dropdims(sum(A; dims=dims); dims=dims)
-
-"""
-    mean_(A; dims)
-
-Takes the mean of `A` across dimensions `dims` and drops them.
-"""
-mean_(A::AbstractArray; dims) = dropdims(Statistics.mean(A; dims=dims); dims=dims)
-
-"""
-    var_(A; dims)
-
-Takes the variance of `A` across dimensions `dims` and drops them.
-"""
-function var_(A::AbstractArray; corrected::Bool=true, mean=nothing, dims)
-    return dropdims(Statistics.var(A; corrected=corrected, mean=mean, dims=dims); dims=dims)
-end
-
-"""
-    std_(A; dims)
-
-Takes the standard deviation of `A` across dimensions `dims` and drops them.
-"""
-function std_(A::AbstractArray; corrected::Bool=true, mean=nothing, dims)
-    return dropdims(Statistics.std(A; corrected=corrected, mean=mean, dims=dims); dims=dims)
-end
-
-"""
     wmean(A; wts = nothing, dims = :)
 
-Weighted mean of `A` along dimensions `dims`, with weights `wts`.
+Weighted mean of `A` along dimensions `dims`, weighted by `wts`.
 """
 function wmean(A::AbstractArray; wts::Union{AbstractArray,Nothing} = nothing, dims = :)
     if isnothing(wts)
@@ -71,3 +41,8 @@ Broadcasts `A` into the size of `A .+ B .+ ...` (without actually doing a sum).
 """
 broadlike(A, B...) = first_argument.(A, B...)
 first_argument(x, y...) = x
+
+# convert to common eltype before matrix multiply, to make sure we hit BLAS
+activations_convert_maybe(::AbstractArray{T}, x::AbstractArray{T}) where {T<:AbstractFloat} = x
+activations_convert_maybe(::AbstractArray{T}, x::AbstractArray) where {T<:AbstractFloat} = map(T, x)
+activations_convert_maybe(::AbstractArray, x::AbstractArray) = x

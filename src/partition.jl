@@ -9,19 +9,19 @@ This is exponentially slow for large machines.
 If your RBM has a smaller hidden layer, mirroring the layers of the `rbm` first
 (see [`mirror`](@ref)).
 """
-function log_partition(rbm::RBM; β::Real = true)
+function log_partition(rbm::AbstractRBM; β::Real = true)
     v = ChainRulesCore.ignore_derivatives() do
-        collect_states(rbm.visible)
+        collect_states(visible(rbm))
     end
     return LogExpFunctions.logsumexp(-β * free_energy(rbm, v; β = β))
 end
 
 # For a Gaussian-Gaussian RBM we can use the analytical expression
-function log_partition(rbm::RBM{<:Gaussian, <:Gaussian}; β::Real = true)
-    θ = β * [vec(rbm.visible.θ); vec(rbm.hidden.θ)]
-    γv = β * vec(abs.(rbm.visible.γ))
-    γh = β * vec(abs.(rbm.hidden.γ))
-    w = β * reshape(rbm.w, length(rbm.visible), length(rbm.hidden))
+function log_partition(rbm::AbstractRBM{<:Gaussian, <:Gaussian}; β::Real = true)
+    θ = β * [vec(visible(rbm).θ); vec(hidden(rbm).θ)]
+    γv = β * vec(abs.(visible(rbm).γ))
+    γh = β * vec(abs.(hidden(rbm).γ))
+    w = β * reshape(weights(rbm), length(visible(rbm)), length(hidden(rbm)))
 
     lA = block_matrix_logdet(
         LinearAlgebra.Diagonal(γv), -w,
@@ -42,7 +42,7 @@ end
 Log-likelihood of `v` under `rbm`, with the partition function compued by
 extensive enumeration. For discrete layers, this is exponentially slow for large machines.
 """
-function log_likelihood(rbm::RBM, v::AbstractArray; β::Real = true)
+function log_likelihood(rbm::AbstractRBM, v::AbstractArray; β::Real = true)
     logZ = log_partition(rbm; β)
     F = free_energy(rbm, v; β)
     return -β .* F .- logZ
@@ -58,7 +58,7 @@ function iterate_states(layer::Spin)
     return map(x -> reshape(x, size(layer)..., 1), itr)
 end
 
-function iterate_states(layer::Potts)
+function iterate_states(::Potts)
     error("not implemented")
 end
 

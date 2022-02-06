@@ -8,7 +8,7 @@ module RestrictedBoltzmannMachines
     import Flux
     import Zygote
     import ChainRulesCore
-    import ValueHistories
+    using ValueHistories: MVHistory
 
     include("util.jl")
     include("minibatches.jl")
@@ -16,18 +16,18 @@ module RestrictedBoltzmannMachines
     include("linalg.jl")
     include("truncnorm.jl")
 
-    include("layers/layer.jl")
+    include("layers/abstractlayer.jl")
     include("layers/binary.jl")
     include("layers/spin.jl")
     include("layers/potts.jl")
     include("layers/gaussian.jl")
-    include("layers/stdgauss.jl")
     include("layers/relu.jl")
     include("layers/drelu.jl")
     include("layers/prelu.jl")
     include("layers/xrelu.jl")
     include("layers/common.jl")
 
+    include("abstractrbm.jl")
     include("rbm.jl")
     include("special_rbms.jl")
 

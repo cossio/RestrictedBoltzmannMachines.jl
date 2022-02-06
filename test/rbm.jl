@@ -86,13 +86,14 @@ end
     rbm = RBMs.HopfieldRBM(randn(5), randn(3), rand(3), randn(5,3))
     @test rbm.visible isa RBMs.Spin
     @test rbm.hidden isa RBMs.Gaussian
-    @test size(rbm.w) == (5,3)
+    @test size(RBMs.weights(rbm)) == (5,3)
     @test all(rbm.hidden.γ .> 0)
 
     rbm = RBMs.HopfieldRBM(randn(5), randn(5,3))
-    @test rbm.visible isa RBMs.Spin
-    @test rbm.hidden isa RBMs.StdGauss
-    @test size(rbm.w) == (5,3)
+    @test RBMs.visible(rbm) isa RBMs.Spin
+    @test iszero(RBMs.transfer_mean(RBMs.hidden(rbm)))
+    @test iszero(RBMs.transfer_var(RBMs.hidden(rbm)) .- 1)
+    @test size(RBMs.weights(rbm)) == (5,3)
 end
 
 @testset "Binary-Binary RBM" begin

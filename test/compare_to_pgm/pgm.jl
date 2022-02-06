@@ -10,8 +10,6 @@ Comparisons against https://github.com/jertubiana/PGM.
 I computed the energy, free_energy, and so on, using the PGM
 code. So here we compare if using the same RBM I obtain the same
 values of energies, etc. with my code.
-These comparisons confirm that we interpet things like weights and fields
-in the same way, or highlight the differences.
 
 The only difference is in the definition of some θ's (for Gaussian, ReLU, and dReLU layers).
 I wanted to be consistent with the definition of the external fields, which appear with
@@ -82,13 +80,13 @@ end
 end
 
 @testset "Binary pseudolikelihood" begin
-    weights = Matrix(DelimitedFiles.readdlm("compare_to_pgm/PL/RBM_Bernoulli_weights.txt")')
+    w = Matrix(DelimitedFiles.readdlm("compare_to_pgm/PL/RBM_Bernoulli_weights.txt")')
     visible_g = vec(DelimitedFiles.readdlm("compare_to_pgm/PL/RBM_Bernoulli_visible_fields.txt"))
     hidden_g = vec(DelimitedFiles.readdlm("compare_to_pgm/PL/RBM_Bernoulli_hidden_fields.txt"))
     v = BitMatrix(DelimitedFiles.readdlm("compare_to_pgm/PL/RBM_Bernoulli_data.txt", Bool)')
     pl = vec(DelimitedFiles.readdlm("compare_to_pgm/PL/RBM_Bernoulli_PL.txt"))
 
-    rbm = RBMs.RBM(RBMs.Binary(visible_g), RBMs.Binary(hidden_g), weights)
+    rbm = RBMs.RBM(RBMs.Binary(visible_g), RBMs.Binary(hidden_g), w)
     pl_rbm = RBMs.log_pseudolikelihood(rbm, v)
 
     @test Statistics.mean(pl_rbm) ≈ Statistics.mean(pl) rtol=0.05

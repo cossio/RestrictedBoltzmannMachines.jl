@@ -1,43 +1,47 @@
 const _ThetaLayers = Union{Binary, Spin, Potts, Gaussian, ReLU, pReLU, xReLU}
 Base.size(layer::_ThetaLayers) = size(layer.θ)
-Base.size(layer::_ThetaLayers, d::Int) = size(layer.θ, d)
 Base.length(layer::_ThetaLayers) = length(layer.θ)
+
+const _FieldLayers = Union{Binary, Spin, Potts}
 
 """
     energies(layer, x)
 
 Energies of units in layer (not reduced over layer dimensions).
 """
-function energies(layer::Union{Binary,Spin,Potts}, x::AbstractArray)
+function energies(layer::_FieldLayers, x::AbstractArray)
     @assert size(layer) == size(x)[1:ndims(layer)]
     return -layer.θ .* x
 end
 
-function energy(layer::Union{Binary,Spin,Potts}, x::AbstractArray)
+function energy(layer::_FieldLayers, x::AbstractArray)
     @assert size(layer) == size(x)[1:ndims(layer)]
     xconv = activations_convert_maybe(layer.θ, x)
     if ndims(layer) == ndims(x)
         return -LinearAlgebra.dot(layer.θ, x)
     else
-        Eflat = -vec(layer.θ)' * reshape(xconv, length(layer.θ), :)
+        Eflat = -vec(layer.θ)' * flatten(layer, xconv)
         return reshape(Eflat, batchsize(layer, x))
     end
 end
 
-∂free_energy(layer::Union{Binary,Spin,Potts}) = (; θ = -transfer_mean(layer))
+∂free_energy(layer::_FieldLayers) = (; θ = -transfer_mean(layer))
 
-function ∂energy(layer::Union{Binary,Spin,Potts}; x::AbstractArray)
-    @assert size(x) == size(layer)
-    return (; θ = -x)
+struct FieldStats{A<:AbstractArray}
+    μ::A
+    function FieldStats(layer::_FieldLayers, x::AbstractArray; wts=nothing)
+        μ = batchmean(layer, x; wts)
+        return new{typeof(μ)}(μ)
+    end
 end
+Base.size(stats::FieldStats) = size(stats.μ)
+Base.ndims(stats::FieldStats) = size(stats.μ)
 
-function sufficient_statistics(
-    layer::Union{Binary,Spin,Potts},
-    x::AbstractArray;
-    wts = nothing
-)
-    @assert size(layer) == size(x)[1:ndims(layer)]
-    return (; x = batchmean(layer, x; wts))
+suffstats(layer::_FieldLayers, data::AbstractArray; wts = nothing) = FieldStats(layer, data; wts)
+
+function ∂energy(layer::_FieldLayers, stats::FieldStats)
+    @assert size(layer) == size(stats.μ)
+    return (; θ = -stats.μ)
 end
 
 """

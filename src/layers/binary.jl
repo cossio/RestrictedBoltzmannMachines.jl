@@ -36,7 +36,4 @@ function binary_std(θ::Real)
     return √t / (1 + t)
 end
 
-function binary_rand(θ::Real, u::Real)
-    p = LogExpFunctions.logistic(θ)
-    return u < p
-end
+binary_rand(θ::Real, u::Real) = u < LogExpFunctions.logistic(θ)

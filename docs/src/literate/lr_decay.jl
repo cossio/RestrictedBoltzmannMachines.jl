@@ -1,28 +1,25 @@
 #=
+# Learning rate decay
+
 Effect of decaying the learning rate during training to achieve convergence.
 =#
 
-using CairoMakie, Statistics, Random, LinearAlgebra
+using Statistics: mean
+using Random: bitrand
+using LinearAlgebra: dot
 using ValueHistories: MVHistory
-import Flux, MLDatasets
+import CairoMakie
+import Flux
+import MLDatasets
 import RestrictedBoltzmannMachines as RBMs
 
 #=
-Load MNIST dataset.
+Load MNIST dataset. We select only 0 digits and binarize pixel intensities.
 =#
 
-Float = Float32;
-train_x, train_y = MLDatasets.MNIST.traindata();
-tests_x, tests_y = MLDatasets.MNIST.testdata();
-train_x = Float.(train_x .≥ 0.5);
-tests_x = Float.(tests_x .≥ 0.5);
-# select only 0s digits
-train_x = train_x[:,:, train_y .== 0]
-tests_x = tests_x[:,:, tests_y .== 0]
-train_y = train_y[train_y .== 0]
-tests_y = tests_y[tests_y .== 0]
-train_nsamples = length(train_y)
-tests_nsamples = length(tests_y)
+Float = Float32
+train_x, train_y = MLDatasets.MNIST.traindata()
+train_x = Array{Float64}(train_x[:,:, train_y .== 0] .> 0.5)
 nothing #hide
 
 #=
@@ -30,13 +27,16 @@ Consider first an RBM that we train without decaying the learning rate.
 We will train this machine for 300 epochs.
 =#
 
-rbm = RBMs.RBM(RBMs.Binary(Float,28,28), RBMs.Binary(Float,100), zeros(Float,28,28,100));
-RBMs.initialize!(rbm, train_x);
-opt = Flux.ADAM(0.001f0, (0.9f0, 0.999f0))
-history = MVHistory()
-RBMs.pcd!(rbm, train_x; history=history,
-    epochs=300, batchsize=128, steps=1, optimizer=opt
-)
+rbm_nodecay = RBMs.BinaryRBM(Float, (28,28), 100)
+RBMs.initialize!(rbm_nodecay, train_x)
+optim = Flux.ADAM(0.001)
+batchsize = 256
+vm = bitrand(28, 28, batchsize) # fantasy chains
+history_nodecay = MVHistory()
+for epoch = 1:300
+    RBMs.pcd!(rbm_nodecay, train_x; vm, history=history_nodecay, batchsize, optim)
+    push!(history_nodecay, :lpl, mean(RBMs.log_pseudolikelihood(rbm_nodecay, train_x)))
+end
 nothing #hide
 
 #=
@@ -44,21 +44,21 @@ Now train an RBM with 200 normal epochs, followed by 100 epochs where the
 learning-rate is cut in half every 10 epochs.
 =#
 
-rbm_decay = RBMs.RBM(RBMs.Binary(Float,28,28), RBMs.Binary(Float,100), zeros(Float,28,28,100));
-RBMs.initialize!(rbm_decay, train_x);
-opt = Flux.ADAM(0.001f0, (0.9f0, 0.999f0))
-history_decay = MVHistory()
-RBMs.pcd!(rbm_decay, train_x; history=history_decay,
-    epochs=200, batchsize=128, steps=1,
-    optimizer=opt
-)
-println("*** decaying learning rate ***")
-for meta_epoch = 1:10
-    opt.eta /= 2
-    RBMs.pcd!(rbm_decay, train_x; history=history_decay,
-        epochs=10, batchsize=128, steps=1,
-        optimizer=opt
-    )
+nh = 100
+rbm_decaylr = RBMs.BinaryRBM(Float, (28,28), nh)
+RBMs.initialize!(rbm_decaylr, train_x)
+optim = Flux.ADAM(0.001)
+vm = bitrand(28, 28, batchsize)
+history_decaylr = MVHistory()
+for epoch = 1:200 # first 200 epochs without lr decay
+    RBMs.pcd!(rbm_decaylr, train_x; vm, history=history_decaylr, batchsize, optim)
+    push!(history_decaylr, :lpl, mean(RBMs.log_pseudolikelihood(rbm_decaylr, train_x)))
+end
+@info "*** decaying learning rate ****"
+for iter = 1:10, epoch = 1:10 # further 10 epochs with decaying lr
+    optim.eta = 0.001 / 2^iter
+    RBMs.pcd!(rbm_decaylr, train_x; vm, history=history_decaylr, batchsize, optim)
+    push!(history_decaylr, :lpl, mean(RBMs.log_pseudolikelihood(rbm_decaylr, train_x)))
 end
 nothing #hide
 
@@ -66,11 +66,11 @@ nothing #hide
 Compare the results
 =#
 
-fig = Figure(resolution=(600,400))
-ax = Axis(fig[1,1])
-lines!(ax, get(history, :lpl)..., label="normal")
-lines!(ax, get(history_decay, :lpl)..., label="decay")
-axislegend(ax, position=:rb)
+fig = CairoMakie.Figure(resolution=(600,400))
+ax = CairoMakie.Axis(fig[1,1])
+CairoMakie.lines!(ax, get(history_nodecay, :lpl)..., label="normal")
+CairoMakie.lines!(ax, get(history_decaylr, :lpl)..., label="decay")
+CairoMakie.axislegend(ax, position=:rb)
 fig
 
 #=
@@ -78,94 +78,66 @@ Check convergence by computing the moment-matching conditions.
 First generate MC data from the RBMs.
 =#
 
-samples_v = RBMs.sample_v_from_v(rbm, tests_x; steps=1000)
-samples_v_decay = RBMs.sample_v_from_v(rbm_decay, tests_x; steps=1000)
+@time samples_v_nodecay = RBMs.sample_v_from_v(rbm_nodecay, bitrand(28,28,5000); steps=1000)
+@time samples_v_decaylr = RBMs.sample_v_from_v(rbm_decaylr, bitrand(28,28,5000); steps=1000)
 nothing #hide
 
 #=
-Now make the plots
+Now make the plots. Average digit shapes.
 =#
 
-#=
-For the RBM with constant learning-rate.
-=#
-
-fig = Figure(resolution=(900, 300))
-ax = Axis(fig[1,1])
-heatmap!(ax, mean(train_x, dims=3)[:,:,1])
-hidedecorations!(ax)
-ax = Axis(fig[1,2])
-heatmap!(ax, mean(tests_x, dims=3)[:,:,1])
-hidedecorations!(ax)
-ax = Axis(fig[1,3])
-heatmap!(ax, mean(samples_v, dims=3)[:,:,1])
-hidedecorations!(ax)
+fig = CairoMakie.Figure(resolution=(900, 300))
+ax = CairoMakie.Axis(fig[1,1], title="data")
+CairoMakie.heatmap!(ax, mean(train_x, dims=3)[:,:,1])
+CairoMakie.hidedecorations!(ax)
+ax = CairoMakie.Axis(fig[1,2], title="const. lr")
+CairoMakie.heatmap!(ax, mean(samples_v_nodecay, dims=3)[:,:,1])
+CairoMakie.hidedecorations!(ax)
+ax = CairoMakie.Axis(fig[1,3], title="lr decay")
+CairoMakie.heatmap!(ax, mean(samples_v_decaylr, dims=3)[:,:,1])
+CairoMakie.hidedecorations!(ax)
 fig
 
 #=
 Moment matching conditions, first for RBM with constant learning rate
 =#
 
-h_data = RBMs.mean_h_from_v(rbm, train_x);
-h_model = RBMs.mean_h_from_v(rbm, samples_v);
+h_data_nodecay = RBMs.mean_h_from_v(rbm_nodecay, train_x)
+h_data_decaylr = RBMs.mean_h_from_v(rbm_decaylr, train_x)
+h_model_nodecay = RBMs.mean_h_from_v(rbm_nodecay, samples_v_nodecay)
+h_model_decaylr = RBMs.mean_h_from_v(rbm_decaylr, samples_v_decaylr)
+nothing #hide
 
-fig = Figure(resolution=(900, 300))
+fig = CairoMakie.Figure(resolution=(900, 600))
 
-ax = Axis(fig[1,1], xlabel=L"\langle v_i \rangle_\mathrm{data}", ylabel=L"\langle v_i \rangle_\mathrm{model}", limits=(0,1,0,1))
-scatter!(ax, vec(mean(train_x; dims=3)), vec(mean(samples_v; dims=3)))
-abline!(ax, 0, 1; color=:red)
+ax = CairoMakie.Axis(fig[1,1], xlabel="<v>_data", ylabel="<v>_model", limits=(0,1,0,1))
+CairoMakie.scatter!(ax, vec(mean(train_x; dims=3)), vec(mean(samples_v_nodecay; dims=3)))
+CairoMakie.abline!(ax, 0, 1; color=:red)
 
-ax = Axis(fig[1,2], xlabel=L"\langle h_\mu \rangle_\mathrm{data}", ylabel=L"\langle h_\mu \rangle_\mathrm{model}", limits=(0,1,0,1))
-scatter!(ax, vec(mean(h_data; dims=2)), vec(mean(h_model; dims=2)))
-abline!(ax, 0, 1; color=:red)
+ax = CairoMakie.Axis(fig[1,2], xlabel="<h>_data", ylabel="<h>_model", limits=(0,1,0,1))
+CairoMakie.scatter!(ax, vec(mean(h_data_nodecay; dims=2)), vec(mean(h_model_nodecay; dims=2)))
+CairoMakie.abline!(ax, 0, 1; color=:red)
 
-ax = Axis(fig[1,3], xlabel=L"\langle v_i h_\mu \rangle_\mathrm{data}", ylabel=L"\langle v_i h_\mu \rangle_\mathrm{model}", limits=(0,1,0,1))
-scatter!(ax,
-    vec([dot(train_x[i,j,:], h_data[μ,:]) / size(train_x,3) for i=1:28, j=1:28, μ=1:100]),
-    vec([dot(samples_v[i,j,:], h_model[μ,:]) / size(samples_v,3) for i=1:28, j=1:28, μ=1:100])
+ax = CairoMakie.Axis(fig[1,3], xlabel="<vh>_data", ylabel="<vh>_model", limits=(0,1,0,1))
+CairoMakie.scatter!(ax,
+    vec([dot(train_x[i,j,:], h_data_nodecay[μ,:]) / size(train_x,3) for i=1:28, j=1:28, μ=1:nh]),
+    vec([dot(samples_v_nodecay[i,j,:], h_model_nodecay[μ,:]) / size(samples_v_nodecay,3) for i=1:28, j=1:28, μ=1:nh])
 )
-abline!(ax, 0, 1; color=:red)
+CairoMakie.abline!(ax, 0, 1; color=:red)
 
-fig
+ax = CairoMakie.Axis(fig[2,1], xlabel="<v>_data", ylabel="<v>_model", limits=(0,1,0,1))
+CairoMakie.scatter!(ax, vec(mean(train_x; dims=3)), vec(mean(samples_v_decaylr; dims=3)))
+CairoMakie.abline!(ax, 0, 1; color=:red)
 
-#=
-For the RBM with decaying learning-rate.
-=#
+ax = CairoMakie.Axis(fig[2,2], xlabel="<h>_data", ylabel="<h>_model", limits=(0,1,0,1))
+CairoMakie.scatter!(ax, vec(mean(h_data_decaylr; dims=2)), vec(mean(h_model_decaylr; dims=2)))
+CairoMakie.abline!(ax, 0, 1; color=:red)
 
-fig = Figure(resolution=(900, 300))
-ax = Axis(fig[1,1])
-heatmap!(ax, mean(train_x, dims=3)[:,:,1])
-hidedecorations!(ax)
-ax = Axis(fig[1,2])
-heatmap!(ax, mean(tests_x, dims=3)[:,:,1])
-hidedecorations!(ax)
-ax = Axis(fig[1,3])
-heatmap!(ax, mean(samples_v_decay, dims=3)[:,:,1])
-hidedecorations!(ax)
-fig
-
-#=
-Moment matching conditions
-=#
-
-h_data = RBMs.mean_h_from_v(rbm_decay, train_x);
-h_model = RBMs.mean_h_from_v(rbm_decay, samples_v_decay);
-
-fig = Figure(resolution=(900, 300))
-
-ax = Axis(fig[1,1], xlabel=L"\langle v_i \rangle_\mathrm{data}", ylabel=L"\langle v_i \rangle_\mathrm{model}", limits=(0,1,0,1))
-scatter!(ax, vec(mean(train_x; dims=3)), vec(mean(samples_v_decay; dims=3)))
-abline!(ax, 0, 1; color=:red)
-
-ax = Axis(fig[1,2], xlabel=L"\langle h_\mu \rangle_\mathrm{data}", ylabel=L"\langle h_\mu \rangle_\mathrm{model}", limits=(0,1,0,1))
-scatter!(ax, vec(mean(h_data; dims=2)), vec(mean(h_model; dims=2)))
-abline!(ax, 0, 1; color=:red)
-
-ax = Axis(fig[1,3], xlabel=L"\langle v_i h_\mu \rangle_\mathrm{data}", ylabel=L"\langle v_i h_\mu \rangle_\mathrm{model}", limits=(0,1,0,1))
-scatter!(ax,
-    vec([dot(train_x[i,j,:], h_data[μ,:]) / size(train_x,3) for i=1:28, j=1:28, μ=1:100]),
-    vec([dot(samples_v_decay[i,j,:], h_model[μ,:]) / size(samples_v_decay,3) for i=1:28, j=1:28, μ=1:100])
+ax = CairoMakie.Axis(fig[2,3], xlabel="<vh>_data", ylabel="<vh>_model", limits=(0,1,0,1))
+CairoMakie.scatter!(ax,
+    vec([dot(train_x[i,j,:], h_data_decaylr[μ,:]) / size(train_x,3) for i=1:28, j=1:28, μ=1:nh]),
+    vec([dot(samples_v_decaylr[i,j,:], h_model_decaylr[μ,:]) / size(samples_v_decaylr,3) for i=1:28, j=1:28, μ=1:nh])
 )
-abline!(ax, 0, 1; color=:red)
+CairoMakie.abline!(ax, 0, 1; color=:red)
 
 fig

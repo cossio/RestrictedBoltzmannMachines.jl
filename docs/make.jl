@@ -57,16 +57,17 @@ Documenter.makedocs(
     pages = [
         "Home" => "index.md",
         "Examples" => [
-            "MKL" => "literate/mkl.md",
-            "Learning rate decay" => "literate/lr_decay.md",
+            "MNIST" => "literate/MNIST.md",
             "Layers" => [
                 "Gaussian" => "literate/layers/Gaussian.md",
                 "ReLU" => "literate/layers/ReLU.md",
                 "dReLU" => "literate/layers/dReLU.md",
             ],
-            "MNIST" => [
-                "literate/MNIST/MNIST.md",
+            "Performance" => [
+                "MKL" => "literate/mkl.md",
+                "Float32 vs. Float64" => "literate/float32.md",
             ],
+            "Learning rate decay" => "literate/lr_decay.md",
         ],
         "Reference" => "reference.md"
     ],

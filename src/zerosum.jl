@@ -1,36 +1,35 @@
 """
     zerosum!(rbm)
 
-If the `rbm` has `Potts` layers (visible or hidden), fixes zerosum gauge on the weights
-and on the layer fields.
+If the `rbm` has `Potts` layers (visible or hidden), fixes zerosum gauge on the parameters.
 Otherwise, does nothing.
 """
-function zerosum!(rbm::RBM)
-    _zerosum_visible!(rbm)
-    _zerosum_hidden!(rbm)
+function zerosum!(rbm::AbstractRBM)
+    zerosum_visible!(rbm)
+    zerosum_hidden!(rbm)
     return rbm
 end
 
-_zerosum_visible!(rbm::RBM{<:AbstractLayer, <:AbstractLayer}) = rbm
-_zerosum_hidden!(rbm::RBM{<:AbstractLayer, <:AbstractLayer})  = rbm
+zerosum_visible!(rbm::RBM{<:AbstractLayer, <:AbstractLayer}) = rbm
+zerosum_hidden!(rbm::RBM{<:AbstractLayer, <:AbstractLayer})  = rbm
 
-function _zerosum_visible!(rbm::RBM{<:Potts, <:AbstractLayer})
-    zerosum!(rbm.visible)
-    zerosum!(rbm.w; dims = 1)
+function zerosum_visible!(rbm::RBM{<:Potts, <:AbstractLayer})
+    zerosum!(visible(rbm))
+    zerosum!(weights(rbm); dims = 1)
     return nothing
 end
 
-function _zerosum_hidden!(rbm::RBM{<:AbstractLayer, <:Potts})
-    zerosum!(rbm.hidden)
-    zerosum!(rbm.w; dims = 1 + ndims(rbm.visible))
+function zerosum_hidden!(rbm::RBM{<:AbstractLayer, <:Potts})
+    zerosum!(hidden(rbm))
+    zerosum!(weights(rbm); dims = 1 + ndims(visible(rbm)))
     return nothing
 end
 
 function zerosum!(rbm::RBM{<:Potts, <:Potts})
-    zerosum!(rbm.visible)
-    zerosum!(rbm.hidden)
-    zerosum!(rbm.w; dims = 1)
-    zerosum!(rbm.w; dims = 1 + ndims(rbm.visible))
+    zerosum!(visible(rbm))
+    zerosum!(hidden(rbm))
+    zerosum!(weights(rbm); dims = 1)
+    zerosum!(weights(rbm); dims = 1 + ndims(visible(rbm)))
     return nothing
 end
 

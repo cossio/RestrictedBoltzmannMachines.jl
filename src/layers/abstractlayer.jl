@@ -1,7 +1,28 @@
 abstract type AbstractLayer{N} end
 
 Base.ndims(::AbstractLayer{N}) where {N} = N
+Base.size(layer::AbstractLayer, d::Int) = size(layer)[d]
 
+"""
+    flatten(layer, x)
+
+Returns a vectorized version of `x`.
+"""
+function flatten(layer::AbstractLayer, x::AbstractArray)
+    @assert size(layer) == size(x)[1:ndims(layer)]
+    if ndims(layer) == ndims(x)
+        return vec(x)
+    else
+        return reshape(x, length(layer), :)
+    end
+end
+
+"""
+    effective(layer, inputs; β = 1)
+
+Returns an effective layer which behaves as the original with the given `inputs` and
+temperature.
+"""
 function effective(layer::AbstractLayer, input::Real; β::Real = true)
     inputs = FillArrays.Fill(input, size(layer))
     return effective(layer, inputs; β)
@@ -48,11 +69,9 @@ end
 
 Samples layer configurations conditioned on inputs.
 """
-function transfer_sample(
-    layer::AbstractLayer, inputs::Union{Real, AbstractArray}; β::Real = true
-)
-    layer_ = effective(layer, inputs; β)
-    return transfer_sample(layer_)
+function transfer_sample(layer::AbstractLayer, inputs::Union{Real,AbstractArray}; β::Real=1)
+    layer_eff = effective(layer, inputs; β)
+    return transfer_sample(layer_eff)
 end
 
 """
@@ -61,8 +80,8 @@ end
 Mode of unit activations.
 """
 function transfer_mode(layer::AbstractLayer, inputs::Union{Real, AbstractArray})
-    layer_ = effective(layer, inputs)
-    return transfer_mode(layer_)
+    layer_eff = effective(layer, inputs)
+    return transfer_mode(layer_eff)
 end
 
 """
@@ -70,11 +89,9 @@ end
 
 Mean of unit activations.
 """
-function transfer_mean(
-    layer::AbstractLayer, inputs::Union{Real, AbstractArray}; β::Real = true
-)
-    layer_ = effective(layer, inputs; β)
-    return transfer_mean(layer_)
+function transfer_mean(layer::AbstractLayer, inputs::Union{Real,AbstractArray}; β::Real=1)
+    layer_eff = effective(layer, inputs; β)
+    return transfer_mean(layer_eff)
 end
 
 """
@@ -82,9 +99,7 @@ end
 
 Variance of unit activations.
 """
-function transfer_var(
-    layer::AbstractLayer, inputs::Union{Real, AbstractArray}; β::Real = true
-)
+function transfer_var(layer::AbstractLayer, inputs::Union{Real,AbstractArray}; β::Real=1)
     layer_ = effective(layer, inputs; β)
     return transfer_var(layer_)
 end
@@ -94,11 +109,9 @@ end
 
 Standard deviation of unit activations.
 """
-function transfer_std(
-    layer::AbstractLayer, inputs::Union{Real, AbstractArray}; β::Real = true
-)
-    layer_ = effective(layer, inputs; β)
-    return transfer_std(layer_)
+function transfer_std(layer::AbstractLayer, inputs::Union{Real, AbstractArray}; β::Real=1)
+    layer_eff = effective(layer, inputs; β)
+    return transfer_std(layer_eff)
 end
 
 """
@@ -106,11 +119,9 @@ end
 
 Mean of absolute value of unit activations.
 """
-function transfer_mean_abs(
-    layer::AbstractLayer, inputs::Union{Real, AbstractArray}; β::Real = true
-)
-    layer_ = effective(layer, inputs; β)
-    return transfer_mean_abs(layer_)
+function transfer_mean_abs(layer::AbstractLayer, inputs::Union{Real,AbstractArray}; β::Real=1)
+    layer_eff = effective(layer, inputs; β)
+    return transfer_mean_abs(layer_eff)
 end
 
 """
@@ -118,19 +129,17 @@ end
 
 Cumulant generating function of units in layer (not reduced over layer dimensions).
 """
-function free_energies(
-    layer::AbstractLayer, inputs::Union{Real, AbstractArray}; β::Real = true
-)
-    layer_ = effective(layer, inputs; β)
-    return free_energies(layer_) / β
+function free_energies(layer::AbstractLayer, inputs::Union{Real,AbstractArray}; β::Real=1)
+    layer_eff = effective(layer, inputs; β)
+    return free_energies(layer_eff) / β
 end
 
 """
-    sufficient_statistics(layer, data; [wts])
+    suffstats(layer, data; [wts])
 
-Returns a `NamedTuple` of the sufficient statistics used by the layer.
+Computes the sufficient statistics of `layer` extracted from `data`.
 """
-function sufficient_statistics end
+function suffstats end
 
 """
     batchdims(layer, x)
@@ -155,28 +164,31 @@ end
 """
     batchmean(layer, x; wts = nothing)
 
-Mean of `x` over batch dimensions, with weights `wts`.
+Mean of `x` over batch dimensions, weigthed by `wts`.
 """
 function batchmean(layer::AbstractLayer, x::AbstractArray; wts = nothing)
     @assert size(layer) == size(x)[1:ndims(layer)]
     if ndims(layer) == ndims(x)
-        @assert isnothing(wts)
+        wts::Nothing
         return x
     else
         μ = wmean(x; wts, dims = batchdims(layer, x))
         return reshape(μ, size(layer))
     end
 end
-batchmean(::AbstractLayer, x::Number; wts::Nothing) = x
 
 """
-    ∂energy(layer; stats...)
+    ∂energy(layer, data; wts = nothing)
+    ∂energy(layer, stats)
 
-Derivative of average energy of configurations with respect to layer parameters,
-where `stats...` refers to the sufficient statistics from samples required by the layer.
-See [`sufficient_statistics`](@ref).
+Derivative of average energy of `data` with respect to `layer` parameters.
+In the second form, `stats` are the sufficient statistics of the layer.
+See [`suffstats`](@ref).
 """
-function ∂energy end
+function ∂energy(layer::AbstractLayer, data::AbstractArray; wts=nothing)
+    stats = suffstats(layer, data; wts)
+    return ∂energy(layer, stats)
+end
 
 """
     ∂free_energy(layer, inputs = 0; wts = 1)
@@ -190,7 +202,7 @@ function ∂free_energy(layer::AbstractLayer, inputs::AbstractArray; wts = nothi
     layer_eff = effective(layer, inputs)
     ∂Feff = ∂free_energy(layer_eff)
     if ndims(layer) == ndims(inputs)
-        @assert isnothing(wts)
+        wts::Nothing
         @assert size(layer_eff) == size(layer)
         return ∂Feff
     else

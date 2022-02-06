@@ -13,7 +13,6 @@ _layers = (
     RBMs.Spin,
     RBMs.Potts,
     RBMs.Gaussian,
-    RBMs.StdGauss,
     RBMs.ReLU,
     RBMs.dReLU,
     RBMs.pReLU,
@@ -25,7 +24,6 @@ random_layer(::Type{T}, N::Int...) where {T <: Union{RBMs.Gaussian, RBMs.ReLU}} 
 random_layer(::Type{RBMs.dReLU}, N::Int...) = RBMs.dReLU(randn(N...), randn(N...), rand(N...), rand(N...))
 random_layer(::Type{RBMs.xReLU}, N::Int...) = RBMs.xReLU(randn(N...), rand(N...), randn(N...), randn(N...))
 random_layer(::Type{RBMs.pReLU}, N::Int...) = RBMs.pReLU(randn(N...), rand(N...), randn(N...), 2rand(N...) .- 1)
-random_layer(::Type{RBMs.StdGauss}, N::Int...) = RBMs.StdGauss(N...)
 
 function _random_layers(N::Int...)
     return (
@@ -108,12 +106,12 @@ end
     end
 
     samples = RBMs.transfer_sample(layer, zeros(size(layer)..., 10^6))
-    @test RBMs.transfer_mean(layer) ≈ RBMs.mean_(samples; dims=ndims(samples)) rtol=0.1 atol=0.01
-    @test RBMs.transfer_var(layer) ≈ RBMs.var_(samples; dims=ndims(samples)) rtol=0.1
-    @test RBMs.transfer_mean_abs(layer) ≈ RBMs.mean_(abs.(samples); dims=ndims(samples)) rtol=0.1
+    @test RBMs.transfer_mean(layer) ≈ reshape(Statistics.mean(samples; dims=3), size(layer)) rtol=0.1 atol=0.01
+    @test RBMs.transfer_var(layer) ≈ reshape(Statistics.var(samples; dims=ndims(samples)), size(layer)) rtol=0.1
+    @test RBMs.transfer_mean_abs(layer) ≈ reshape(Statistics.mean(abs.(samples); dims=ndims(samples)), size(layer)) rtol=0.1
 
     ∂F = RBMs.∂free_energy(layer)
-    ∂E = RBMs.∂energy(layer; RBMs.sufficient_statistics(layer, samples)...)
+    ∂E = RBMs.∂energy(layer, samples)
     @test length(∂F) == length(∂E)
     @test propertynames(∂F) == propertynames(∂E)
     for (∂f, ∂e) in zip(∂F, ∂E)
@@ -142,7 +140,6 @@ end
 
 @testset "Binary" begin
     @testset "binary_rand" begin
-        #binary_rand(θ, u) = u * (1 + exp(-θ)) < 1
         for θ in -5:5, u in 0.0:0.1:1.0
             @test (@. u * (1 + exp(-θ)) < 1) == @inferred RBMs.binary_rand(θ, u)
         end
@@ -151,12 +148,8 @@ end
         @test RBMs.binary_rand.(θ, u) == (@. u * (1 + exp(-θ)) < 1)
     end
 
-    @testset "binary_var" begin
-        θ = randn(1000)
-        @test RBMs.binary_var.(θ) ≈ @. LogExpFunctions.logistic(θ) * LogExpFunctions.logistic(-θ)
-    end
-
     layer = RBMs.Binary(randn(7, 4, 5))
+    RBMs.transfer_var(layer) ≈ @. LogExpFunctions.logistic(layer.θ) * LogExpFunctions.logistic(-layer.θ)
     @test RBMs.free_energies(layer) ≈ -log.(sum(exp.(layer.θ .* h) for h in 0:1))
     @test sort(unique(RBMs.transfer_sample(layer))) == [0, 1]
 end

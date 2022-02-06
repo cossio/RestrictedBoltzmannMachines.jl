@@ -3,23 +3,23 @@
 
 ReLU layer, with location parameters `θ` and scale parameters `γ`.
 """
-struct ReLU{N, T, A <: AbstractArray{T,N}} <: AbstractLayer{N}
-    θ::A
-    γ::A
-    function ReLU(θ::A, γ::A) where {A<:AbstractArray}
+struct ReLU{N,A1,A2} <: AbstractLayer{N}
+    θ::A1
+    γ::A2
+    function ReLU(θ::AbstractArray, γ::AbstractArray)
         @assert size(θ) == size(γ)
-        return new{ndims(A), eltype(A), A}(θ, γ)
+        return new{ndims(θ), typeof(θ), typeof(γ)}(θ, γ)
     end
 end
 
-ReLU(::Type{T}, n::Int...) where {T} = ReLU(zeros(T, n...), ones(T, n...))
-ReLU(n::Int...) = ReLU(Float64, n...)
+ReLU(::Type{T}, sz::Int...) where {T} = ReLU(zeros(T, sz...), ones(T, sz...))
+ReLU(sz::Int...) = ReLU(Float64, sz...)
 
 function effective(layer::ReLU, inputs::AbstractArray; β::Real = true)
     @assert size(layer) == size(inputs)[1:ndims(layer)]
     θ = β * (layer.θ .+ inputs)
     γ = β * broadlike(layer.γ, inputs)
-    return ReLU(promote(θ, γ)...)
+    return ReLU(θ, γ)
 end
 
 function energies(layer::ReLU, x::AbstractArray)
@@ -55,17 +55,24 @@ function ∂free_energy(layer::ReLU)
     return (θ = -μ, γ = (ν .+ μ.^2) / 2)
 end
 
-function ∂energy(layer::ReLU; xp::AbstractArray, xp2::AbstractArray)
-    @assert size(xp) == size(xp2) == size(layer)
-    return (; θ = -xp, γ = xp2/2)
+struct ReLUStats{A<:AbstractArray}
+    xp1::A
+    xp2::A
+    function ReLUStats(layer::AbstractLayer, data::AbstractArray; wts = nothing)
+        @assert size(layer) == size(data)[1:ndims(layer)]
+        xp = max.(data, 0)
+        xp1 = batchmean(layer, xp; wts)
+        xp2 = batchmean(layer, xp.^2; wts)
+        return new{typeof(xp1)}(xp1, xp2)
+    end
 end
 
-function sufficient_statistics(layer::ReLU, x::AbstractArray; wts = nothing)
-    @assert size(layer) == size(x)[1:ndims(layer)]
-    xp = max.(x, 0)
-    μp = batchmean(layer, xp; wts)
-    μp2 = batchmean(layer, xp.^2; wts)
-    return (; xp = μp, xp2 = μp2)
+Base.size(stats::ReLUStats) = size(stats.xp1)
+suffstats(layer::ReLU, data::AbstractArray; wts = nothing) = ReLUStats(layer, data; wts)
+
+function ∂energy(layer::ReLU, stats::ReLUStats)
+    @assert size(layer) == size(stats)
+    return (; θ = -stats.xp1, γ = stats.xp2 / 2)
 end
 
 function relu_energy(θ::Real, γ::Real, x::Real)

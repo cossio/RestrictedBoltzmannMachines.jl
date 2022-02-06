@@ -1,11 +1,11 @@
-struct dReLU{N, T, A <: AbstractArray{T,N}} <: AbstractLayer{N}
-    θp::A
-    θn::A
-    γp::A
-    γn::A
-    function dReLU(θp::A, θn::A, γp::A, γn::A) where {A<:AbstractArray}
+struct dReLU{N,Aθp,Aθn,Aγp,Aγn} <: AbstractLayer{N}
+    θp::Aθp
+    θn::Aθn
+    γp::Aγp
+    γn::Aγn
+    function dReLU(θp::AbstractArray, θn::AbstractArray, γp::AbstractArray, γn::AbstractArray)
         @assert size(θp) == size(θn) == size(γp) == size(γn)
-        return new{ndims(A), eltype(A), A}(θp, θn, γp, γn)
+        return new{ndims(θp), typeof(θp), typeof(θn), typeof(γp), typeof(γn)}(θp, θn, γp, γn)
     end
 end
 
@@ -28,7 +28,7 @@ function effective(layer::dReLU, inputs::AbstractArray; β::Real = true)
     θn = β * (layer.θn .+ inputs)
     γp = β * broadlike(layer.γp, θp)
     γn = β * broadlike(layer.γn, θn)
-    return dReLU(promote(θp, θn, γp, γn)...)
+    return dReLU(θp, θn, γp, γn)
 end
 
 function energies(layer::dReLU, x::AbstractArray)
@@ -97,22 +97,46 @@ function ∂free_energy(layer::dReLU)
     return (θp = -pp .* μp, θn = -pn .* μn, γp = pp .* μ2p, γn = pn .* μ2n)
 end
 
-function ∂energy(layer::dReLU; xp, xn, xn2, xp2)
-    for ξ in (xp, xn, xp2, xn2)
-        @assert size(ξ::AbstractArray) == size(layer)
-    end
-    return (θp = -xp, θn = -xn, γp = xp2 / 2, γn = xn2 / 2)
+struct dReLU_Stats{Layer<:AbstractLayer,Nt<:NamedTuple}
+    layer::Layer
+    stats::Nt
 end
 
-function sufficient_statistics(layer::dReLU, x::AbstractArray; wts = nothing)
-    @assert size(layer) == size(x)[1:ndims(layer)]
-    xp = max.(x, 0)
-    xn = min.(x, 0)
-    μp = batchmean(layer, xp; wts)
-    μn = batchmean(layer, xn; wts)
-    μp2 = batchmean(layer, xp.^2; wts)
-    μn2 = batchmean(layer, xn.^2; wts)
-    return (; xp = μp, xn = μn, xp2 = μp2, xn2 = μn2)
+function suffstats(layer::dReLU, data::AbstractArray; wts = nothing)
+    @assert size(layer) == size(data)[1:ndims(layer)]
+    nt = (
+        μp = batchmean(layer, max.(x, 0); wts),
+        μn = batchmean(layer, min.(x, 0); wts),
+    )
+    SuffStats(layer, nt)
+end
+
+struct SufficientStatistics_dReLU{A<:AbstractArray}
+    μp::A
+    μn::A
+    μp2::A
+    μn2::A
+end
+
+struct dReLUStats{A}
+    xp1::A; xn1::A; xp2::A; xn2::A
+    function dReLUStats(layer::dReLU, data::AbstractArray; wts=nothing)
+        xp = max.(data, 0)
+        xn = min.(data, 0)
+        xp1 = batchmean(layer, xp; wts)
+        xn1 = batchmean(layer, xn; wts)
+        xp2 = batchmean(layer, xp.^2; wts)
+        xn2 = batchmean(layer, xn.^2; wts)
+        return new{typeof(xp1)}(xp1, xn1, xp2, xn2)
+    end
+end
+
+Base.size(stats::dReLUStats) = size(stats.xp1)
+suffstats(layer::dReLU, data::AbstractArray; wts = nothing) = dReLUStats(layer, data; wts)
+
+function ∂energy(layer::dReLU, stats::dReLUStats)
+    @assert size(layer) == size(stats)
+    return (θp = -stats.xp1, θn = -stats.xn1, γp = stats.xp2 / 2, γn = stats.xn2 / 2)
 end
 
 function drelu_energy(θp::Real, θn::Real, γp::Real, γn::Real, x::Real)

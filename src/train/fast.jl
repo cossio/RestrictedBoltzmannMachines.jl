@@ -4,52 +4,41 @@
 Trains the RBM on data using Persistent Contrastive divergence, with fast weights.
 See http://dl.acm.org/citation.cfm?id=1553374.1553506.
 """
-function fpcd!(rbm::RBM, data::AbstractArray;
+function fpcd!(rbm::AbstractRBM, data::AbstractArray;
     batchsize::Int = 1,
     epochs::Int = 1,
-    optimizer = default_optimizer(_nobs(data), batchsize, epochs), # optimizer algorithm
-    history::ValueHistories.MVHistory = ValueHistories.MVHistory(), # stores training log
-    wts = nothing, # data point weights
-    steps::Int = 1, # Monte Carlo steps to update fantasy particles
-    optimfast = Flux.ADAM(), # optimizer algorithm for fast weights
+    optim = Flux.ADAM(),
+    history::MVHistory = MVHistory(),
+    wts = nothing,
+    steps::Int = 1,
+    optimfast = Flux.ADAM(), # optimizer algorithm for fast parameters
     decayfast::Real = 19/20  # weight decay of fast parameters
 )
-    @assert size(data) == (size(rbm.visible)..., size(data)[end])
+    @assert size(data) == (size(visible(rbm))..., size(data)[end])
     @assert isnothing(wts) || _nobs(data) == _nobs(wts)
 
-    stats = sufficient_statistics(rbm.visible, data; wts)
+    stats = suffstats(visible(rbm), data; wts)
+    vm = transfer_sample(visible(rbm), falses(size(visible(rbm))..., batchsize))
 
-    # initialize fantasy chains by sampling visible layer
-    vm = transfer_sample(rbm.visible, falses(size(rbm.visible)..., batchsize))
-
-    # store fast weights
+    # store fast parameters
     rbmfast = deepcopy(rbm)
     # (Actually, the parameters of rbmfast are the sums θ_regular + θ_fast)
 
     for epoch in 1:epochs
         batches = minibatches(data, wts; batchsize = batchsize)
         Δt = @elapsed for (vd, wd) in batches
-            # update fantasy chains
             vm = sample_v_from_v(rbmfast, vm; steps = steps)
-            # compute contrastive divergence gradient
             ∂ = ∂contrastive_divergence(rbm, vd, vm; wd, stats)
-            # update parameters using gradient
-            update!(optimizer, rbm, ∂)
-            update!(optimfast, rbmfast, ∂)
-            # decays parameters of rbmfast towards those of rbm
-            decayfast!(rbmfast, rbm; decay=decayfast)
-            # store gradient norms
             push!(history, :∂, gradnorms(∂))
+            update!(rbm, update!(∂, rbm, optim))
+            # update fast parameters
+            update!(rbmfast, update!(∂, rbmfast, optimfast))
+            decayfast!(rbmfast, rbm; decay=decayfast)
         end
-
-        lpl = wmean(log_pseudolikelihood(rbm, data); wts)
-        push!(history, :lpl, lpl)
         push!(history, :epoch, epoch)
         push!(history, :Δt, Δt)
-
         Δt_ = round(Δt, digits=2)
-        lpl_ = round(lpl, digits=2)
-        @debug "epoch $epoch/$epochs ($(Δt_)s), log(PL)=$lpl_"
+        @debug "epoch $epoch/$epochs ($(Δt_)s)"
     end
     return history
 end
@@ -59,9 +48,9 @@ In other words, writing the parametrs of `rbmfast` as
 ω_regular + ω_fast, where ω_regular are the prameters of
 `rbm`, then here we decay the ω_fast part towards zero. =#
 function decayfast!(rbmfast::M, rbm::M; decay::Real) where {M<:RBM}
-    decayfast!(rbmfast.visible, rbm.visible; decay)
-    decayfast!(rbmfast.hidden, rbm.hidden; decay)
-    decayfast!(rbmfast.w, rbm.w; decay)
+    decayfast!(visible(rbmfast), visible(rbm); decay)
+    decayfast!(hidden(rbmfast), hidden(rbm); decay)
+    decayfast!(weights(rbmfast), weights(rbm); decay)
 end
 
 function decayfast!(fast::L, regular::L; decay::Real) where {L<:Union{Binary,Spin,Potts}}

@@ -10,21 +10,18 @@ E(v, h) = -a'v - b'h - v'wh
 
 Equivalent to `RBM(Binary(a), Binary(b), w)`.
 """
-function BinaryRBM end
-
 function BinaryRBM(a::AbstractArray, b::AbstractArray, w::AbstractArray)
     @assert size(w) == (size(a)..., size(b)...)
     return RBM(Binary(a), Binary(b), w)
 end
 
-function BinaryRBM(N::Tuple{Vararg{Int}}, M::Tuple{Vararg{Int}}, ::Type{T} = Float64) where {T}
+function BinaryRBM(::Type{T}, N::Union{Int,TupleN{Int}}, M::Union{Int,TupleN{Int}}) where {T}
     a = zeros(T, N...)
     b = zeros(T, M...)
     w = zeros(T, N..., M...)
     return BinaryRBM(a, b, w)
 end
-
-BinaryRBM(N::Int, M::Int, ::Type{T} = Float64) where {T} = BinaryRBM((N,), (M,), T)
+BinaryRBM(N::Union{Int,TupleN{Int}}, M::Union{Int,Tuple{Vararg{Int}}}) = BinaryRBM(Float64, N, M)
 
 @doc raw"""
     HopfieldRBM(g, θ, γ, w)
@@ -48,12 +45,12 @@ function HopfieldRBM(g::AbstractArray, w::AbstractArray)
     return RBM(Spin(g), StdGauss(size(w)[(ndims(g) + 1):end]...), w)
 end
 
-function HopfieldRBM(N::Tuple{Vararg{Int}}, M::Tuple{Vararg{Int}}, ::Type{T} = Float64) where {T}
-    g = zeros(N...)
-    θ = zeros(M...)
-    γ = zeros(M...)
-    w = zeros(N..., M...)
+function HopfieldRBM(::Type{T}, N::Union{Int,TupleN{Int}}, M::Union{Int,TupleN{Int}}) where {T}
+    g = zeros(T, N...)
+    θ = zeros(T, M...)
+    γ = zeros(T, M...)
+    w = zeros(T, N..., M...)
     return HopfieldRBM(g, θ, γ, w)
 end
 
-HopfieldRBM(N::Int, M::Int, ::Type{T} = Float64) where {T} = HopfieldRBM((N,), (M,), T)
+HopfieldRBM(N::Union{Int,TupleN{Int}}, M::Union{Int,TupleN{Int}}) = HopfieldRBM(Float64, N, M)

@@ -4,40 +4,29 @@
 Trains the RBM on data using contrastive divergence.
 Computes gradients with Zygote.
 """
-function cdad!(rbm::RBM, data::AbstractArray;
+function cdad!(rbm::AbstractRBM, data::AbstractArray;
     batchsize = 1,
     epochs = 1,
-    optimizer = Flux.ADAM(), # optimizer algorithm
-    history::ValueHistories.MVHistory = ValueHistories.MVHistory(), # stores training log
-    lossadd = (_...) -> 0, # regularization
-    wts = nothing, # data point weights
-    steps::Int = 1, # Monte Carlo steps to update fantasy particles
+    optim = Flux.ADAM(),
+    history::MVHistory = MVHistory(),
+    wts = nothing,
+    steps::Int = 1,
 )
-    @assert size(data) == (size(rbm.visible)..., size(data)[end])
+    @assert size(data) == (size(visible(rbm))..., size(data)[end])
     @assert isnothing(wts) || _nobs(data) == _nobs(wts)
-
     for epoch in 1:epochs
         batches = minibatches(data, wts; batchsize = batchsize)
         Δt = @elapsed for (b, (vd, wd)) in enumerate(batches)
-            # fantasy chains
-            _idx = rand(1:_nobs(data), batchsize)
-            _vm = copy(selectdim(data, ndims(data), _idx))
-            vm = sample_v_from_v(rbm, _vm; steps = steps)
-
-            # compute contrastive divergence gradient
+            vm = sample_v_from_v(rbm, vd; steps = steps)
             gs = Zygote.gradient(rbm) do rbm
                 loss = contrastive_divergence(rbm, vd, vm; wd = wd, wm = wd)
-                regu = lossadd(rbm, vd, vm, wd)
                 ChainRulesCore.ignore_derivatives() do
                     push!(history, :cd_loss, loss)
                     push!(history, :reg_loss, regu)
                 end
                 return loss + regu
             end
-
-            # update parameters using gradient
-            update!(optimizer, rbm, only(gs))
-
+            update!(rbm, update!(only(gs), rbm, optim))
             push!(history, :epoch, epoch)
             push!(history, :batch, b)
         end

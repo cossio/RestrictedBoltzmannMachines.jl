@@ -11,26 +11,23 @@ but the centering of the hidden unit parameters is done much smoother.
 function pcd_bnorm!(rbm::RBM{<:Binary, <:Binary}, data::AbstractArray;
     batchsize = 1,
     epochs = 1,
-    optimizer = default_optimizer(_nobs(data), batchsize, epochs), # optimizer algorithm
-    history::ValueHistories.MVHistory = ValueHistories.MVHistory(), # stores training log
-    wts = nothing, # data point weights
-    steps::Int = 1, # Monte Carlo steps to update fantasy particles
+    optim = default_optimizer(_nobs(data), batchsize, epochs),
+    history::MVHistory = MVHistory(),
+    wts = nothing,
+    steps::Int = 1,
 )
-    @assert size(rbm.visible) == size(data)[1:ndims(rbm.visible)]
-    # enforce one batch dimension, we need this for minibatching
-    @assert ndims(data) == ndims(rbm.visible) + 1
+    @assert size(visible(rbm)) == size(data)[1:ndims(visible(rbm))]
+    @assert ndims(data) == ndims(visible(rbm)) + 1
     @assert isnothing(wts) || _nobs(data) == _nobs(wts)
 
-    # data statistics
-    stats = sufficient_statistics(rbm.visible, data; wts)
+    stats = suffstats(visible(rbm), data; wts)
 
-    avg_data = batchmean(rbm.visible, data)
+    avg_data = batchmean(visible(rbm), data)
     avg_inputs = inputs_v_to_h(rbm, avg_data)
 
     # initialize fantasy chains
-    _idx = rand(1:_nobs(data), batchsize)
-    _vm = selectdim(data, ndims(data), _idx)
-    vm = sample_v_from_v(rbm, _vm; steps = steps)
+    vm = selectdim(data, ndims(data), rand(1:_nobs(data), batchsize))
+    vm .= sample_v_from_v(rbm, vm; steps = steps)
 
     for epoch in 1:epochs
         batches = minibatches(data, wts; batchsize = batchsize)
@@ -39,24 +36,15 @@ function pcd_bnorm!(rbm::RBM{<:Binary, <:Binary}, data::AbstractArray;
             avg_inputs_new = inputs_v_to_h(rbm, avg_data)
             rbm.hidden.θ .-= avg_inputs_new .- avg_inputs
             avg_inputs = avg_inputs_new
-            # update fantasy chains
-            vm = sample_v_from_v(rbm, vm; steps = steps)
-            # compute centered gradients
+            vm .= sample_v_from_v(rbm, vm; steps = steps)
             ∂ = ∂contrastive_divergence_bnorm(rbm, vd, vm; wd, stats)
-            # update parameters using gradient
-            update!(optimizer, rbm, ∂)
-            # store gradient norms
             push!(history, :∂, gradnorms(∂))
+            update!(rbm, update!(∂, rbm, optim))
+            push!(history, :Δ, gradnorms(∂))
         end
-
-        lpl = wmean(log_pseudolikelihood(rbm, data); wts)
-        push!(history, :lpl, lpl)
         push!(history, :epoch, epoch)
         push!(history, :Δt, Δt)
-
-        Δt_ = round(Δt, digits=2)
-        lpl_ = round(lpl, digits=2)
-        @debug "epoch $epoch/$epochs ($(Δt_)s), log(PL)=$lpl_"
+        @debug "epoch $epoch/$epochs ($(round(Δt, digits=2))s)"
     end
 
     return history
@@ -70,7 +58,7 @@ function ∂contrastive_divergence_bnorm(
     ∂d = ∂free_energy(rbm, vd; wts = wd, stats)
     ∂m = ∂free_energy(rbm, vm; wts = wm)
     ∂ = subtract_gradients(∂d, ∂m)
-    ∂w_flat = reshape(∂.w, length(rbm.visible), length(rbm.hidden))
+    ∂w_flat = reshape(∂.w, length(visible(rbm)), length(hidden(rbm)))
     ∂w_center = ∂w_flat + vec(∂d.visible.θ) * vec(∂.hidden.θ)'
     return ∂c = (
         w = reshape(∂w_center, size(rbm.w)),

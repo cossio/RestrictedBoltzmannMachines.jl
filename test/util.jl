@@ -8,36 +8,14 @@ import RestrictedBoltzmannMachines as RBMs
     @test RBMs.two(1f0) === RBMs.two(Float32) === 2f0
     @test RBMs.two(1.0) === RBMs.two(Float64) === 2.0
     @test_throws InexactError RBMs.two(Bool)
-end
-
-@testset "sum_" begin
-    A = randn(2,3,4)
-    @test size(RBMs.sum_(A; dims=(1,2))) == (4,)
-    @test RBMs.sum_(A; dims=(1,3)) == vec(sum(A; dims=(1,3)))
-end
-
-@testset "mean_" begin
-    A = randn(2,3,4)
-    @inferred RBMs.mean_(A; dims=(1,3))
-    @test RBMs.mean_(A; dims=(1,3)) == vec(Statistics.mean(A; dims=(1,3)))
-end
-
-@testset "var_" begin
-    A = randn(2,3,4)
-    @inferred RBMs.var_(A; dims=(1,3))
-    @test RBMs.var_(A; dims=(1,3)) ≈ vec(Statistics.var(A; dims=(1,3)))
-end
-
-@testset "std_" begin
-    A = randn(2,3,4)
-    @inferred RBMs.std_(A; dims=(1,3))
-    @test RBMs.std_(A; dims=(1,3)) ≈ vec(Statistics.std(A; dims=(1,3)))
+    @inferred RBMs.two(1)
 end
 
 @testset "inf" begin
     @test_throws InexactError RBMs.inf(1)
     @test Inf === @inferred RBMs.inf(1.0)
     @test Inf32 === @inferred RBMs.inf(1f0)
+    @inferred RBMs.inf(1.0)
 end
 
 @testset "generate_sequences" begin
