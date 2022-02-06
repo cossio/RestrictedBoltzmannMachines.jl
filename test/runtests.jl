@@ -1,15 +1,7 @@
-#= As far as I know, Github Actions uses Intel CPUs.
-So it is faster to use MKL than OpenBLAS.
+#= Github Actions uses Intel CPUs, so it is faster to use MKL than OpenBLAS.
 It is recommended to load MKL before ANY other package.=#
 import MKL
-import LinearAlgebra
 using SafeTestsets: @safetestset
-
-if VERSION ≥ v"1.7"
-    @show LinearAlgebra.BLAS.get_config()
-else
-    @show LinearAlgebra.BLAS.vendor()
-end
 
 @time @safetestset "util" begin include("util.jl") end
 @time @safetestset "linalg" begin include("linalg.jl") end
