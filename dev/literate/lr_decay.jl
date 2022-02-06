@@ -3,7 +3,8 @@ Effect of decaying the learning rate during training to achieve convergence.
 =#
 
 using CairoMakie, Statistics, Random, LinearAlgebra
-import Flux, MLDatasets, ValueHistories
+using ValueHistories: MVHistory
+import Flux, MLDatasets
 import RestrictedBoltzmannMachines as RBMs
 
 #=
@@ -32,7 +33,7 @@ We will train this machine for 300 epochs.
 rbm = RBMs.RBM(RBMs.Binary(Float,28,28), RBMs.Binary(Float,100), zeros(Float,28,28,100));
 RBMs.initialize!(rbm, train_x);
 opt = Flux.ADAM(0.001f0, (0.9f0, 0.999f0))
-history = ValueHistories.MVHistory()
+history = MVHistory()
 RBMs.pcd!(rbm, train_x; history=history,
     epochs=300, batchsize=128, steps=1, optimizer=opt
 )
@@ -46,7 +47,7 @@ learning-rate is cut in half every 10 epochs.
 rbm_decay = RBMs.RBM(RBMs.Binary(Float,28,28), RBMs.Binary(Float,100), zeros(Float,28,28,100));
 RBMs.initialize!(rbm_decay, train_x);
 opt = Flux.ADAM(0.001f0, (0.9f0, 0.999f0))
-history_decay = ValueHistories.MVHistory()
+history_decay = MVHistory()
 RBMs.pcd!(rbm_decay, train_x; history=history_decay,
     epochs=200, batchsize=128, steps=1,
     optimizer=opt

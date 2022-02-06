@@ -1,8 +1,8 @@
 #=
 If you have an Intel CPU, then [MKL](https://github.com/JuliaLinearAlgebra/MKL.jl)
 is generally faster than OpenBLAS.
-Since multiplying by the RBM weights is one of the most time consuming operations
-in this package, it is advisable to use MKL.
+Matrix multiplies are one of the most time consuming operations in this package,
+so it is advisable to use MKL.
 Let's do a quick comparison.
 =#
 
