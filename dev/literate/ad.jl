@@ -5,7 +5,10 @@ It is possible to calculate gradients with Zygote.
 Let's compare performance to explicit gradients.
 =#
 
-import MKL, MLDatasets
+import MKL
+import MLDatasets
+import Makie
+import CairoMakie
 import RestrictedBoltzmannMachines as RBMs
 nothing #hide
 
@@ -38,10 +41,10 @@ nothing #hide
 
 # Compare timings
 
-import CairoMakie
-fig = CairoMakie.Figure(resolution=(600, 400))
-ax = CairoMakie.Axis(fig[1,1], xlabel="epoch", ylabel="seconds")
-CairoMakie.lines!(ax, get(history_∂s, :Δt)..., label="manual")
-CairoMakie.lines!(ax, get(history_ad, :Δt)..., label="zygote")
-CairoMakie.axislegend(ax, position=:rt)
+fig = Makie.Figure(resolution=(600, 400))
+ax = Makie.Axis(fig[1,1], xlabel="epoch", ylabel="seconds")
+Makie.lines!(ax, get(history_∂s, :Δt)..., label="manual")
+Makie.lines!(ax, get(history_ad, :Δt)..., label="zygote")
+Makie.ylims!(ax, low=0)
+Makie.axislegend(ax, position=:rt)
 fig

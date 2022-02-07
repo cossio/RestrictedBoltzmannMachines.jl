@@ -4,7 +4,10 @@
 Compare training performance using `Float32` vs. `Float64`.
 =#
 
-import MKL, MLDatasets
+import MKL
+import MLDatasets
+import Makie
+import CairoMakie
 import RestrictedBoltzmannMachines as RBMs
 
 # Using Float32
@@ -27,10 +30,9 @@ nothing #hide
 
 # Compare
 
-import CairoMakie
-fig = CairoMakie.Figure(resolution=(600, 400))
-ax = CairoMakie.Axis(fig[1,1], xlabel="epoch", ylabel="seconds")
-CairoMakie.lines!(ax, get(history32, :Δt)..., label="32")
-CairoMakie.lines!(ax, get(history64, :Δt)..., label="64")
-CairoMakie.axislegend(ax, position=:rt)
+fig = Makie.Figure(resolution=(600, 400))
+ax = Makie.Axis(fig[1,1], xlabel="epoch", ylabel="seconds")
+Makie.lines!(ax, get(history32, :Δt)..., label="32")
+Makie.lines!(ax, get(history64, :Δt)..., label="64")
+Makie.axislegend(ax, position=:rt)
 fig
