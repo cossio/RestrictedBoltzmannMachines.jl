@@ -4,7 +4,7 @@
 If the `rbm` has `Potts` layers (visible or hidden), fixes zerosum gauge on the parameters.
 Otherwise, does nothing.
 """
-function zerosum!(rbm::AbstractRBM)
+function zerosum!(rbm::RBM)
     zerosum_visible!(rbm)
     zerosum_hidden!(rbm)
     return rbm

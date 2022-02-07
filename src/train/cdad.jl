@@ -4,7 +4,7 @@
 Trains the RBM on data using contrastive divergence.
 Computes gradients with Zygote.
 """
-function cdad!(rbm::AbstractRBM, data::AbstractArray;
+function cdad!(rbm::RBM, data::AbstractArray;
     batchsize = 1,
     epochs = 1,
     optim = Flux.ADAM(),

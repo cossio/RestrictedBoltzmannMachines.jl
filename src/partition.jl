@@ -21,7 +21,7 @@ function log_partition(rbm::AbstractRBM{<:Gaussian, <:Gaussian}; β::Real = true
     θ = β * [vec(visible(rbm).θ); vec(hidden(rbm).θ)]
     γv = β * vec(abs.(visible(rbm).γ))
     γh = β * vec(abs.(hidden(rbm).γ))
-    w = β * reshape(weights(rbm), length(visible(rbm)), length(hidden(rbm)))
+    w = β * flat_w(rbm)
 
     lA = block_matrix_logdet(
         LinearAlgebra.Diagonal(γv), -w,

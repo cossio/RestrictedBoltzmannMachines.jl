@@ -4,7 +4,7 @@
 Trains the RBM on data using Persistent Contrastive divergence, with fast weights.
 See http://dl.acm.org/citation.cfm?id=1553374.1553506.
 """
-function fpcd!(rbm::AbstractRBM, data::AbstractArray;
+function fpcd!(rbm::RBM, data::AbstractArray;
     batchsize::Int = 1,
     epochs::Int = 1,
     optim = Flux.ADAM(),

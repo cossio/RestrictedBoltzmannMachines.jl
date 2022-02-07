@@ -3,7 +3,7 @@
 
 Trains the RBM on data using contrastive divergence.
 """
-function cd!(rbm::AbstractRBM, data::AbstractArray;
+function cd!(rbm::RBM, data::AbstractArray;
     batchsize = 1,
     epochs = 1,
     optim = Flux.ADAM(), # optimizer algorithm

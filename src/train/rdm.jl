@@ -4,7 +4,7 @@
 Trains the RBM on data using contrastive divergence with randomly initialized chains.
 See http://arxiv.org/abs/2105.13889.
 """
-function rdm!(rbm::AbstractRBM, data::AbstractArray;
+function rdm!(rbm::RBM, data::AbstractArray;
     batchsize = 1,
     epochs = 1,
     optim = Flux.ADAM(),
