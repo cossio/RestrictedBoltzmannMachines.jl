@@ -8,6 +8,7 @@ We load MNIST via the MLDatasets.jl package.
 using Statistics: mean
 using Random: bitrand
 using ValueHistories: MVHistory
+import Makie
 import CairoMakie
 import MLDatasets
 import Flux
@@ -42,13 +43,13 @@ nothing #hide
 # Let's visualize some random digits.
 
 nrows, ncols = 10, 15
-fig = CairoMakie.Figure(resolution=(40ncols, 40nrows))
-ax = CairoMakie.Axis(fig[1,1], yreversed=true)
+fig = Makie.Figure(resolution=(40ncols, 40nrows))
+ax = Makie.Axis(fig[1,1], yreversed=true)
 idx = rand(1:size(train_x,3), nrows * ncols) # random indices of digits
 digits = reshape(train_x[:,:,idx], 28, 28, ncols, nrows)
-CairoMakie.image!(ax, imggrid(digits), colorrange=(1,0))
-CairoMakie.hidedecorations!(ax)
-CairoMakie.hidespines!(ax)
+Makie.image!(ax, imggrid(digits), colorrange=(1,0))
+Makie.hidedecorations!(ax)
+Makie.hidespines!(ax)
 fig
 
 # Initialize an RBM with 400 hidden units.
@@ -85,7 +86,7 @@ nothing #hide
 # After training, the pseudolikelihood score of the data improves significantly.
 # Plot of log-pseudolikelihood of trian data during learning.
 
-CairoMakie.lines(get(history, :lpl)..., axis = (; xlabel = "train time", ylabel="pseudolikelihood"))
+Makie.lines(get(history, :lpl)..., axis = (; xlabel = "train time", ylabel="pseudolikelihood"))
 
 # Sample digits from the RBM starting from a random condition.
 
@@ -93,9 +94,9 @@ CairoMakie.lines(get(history, :lpl)..., axis = (; xlabel = "train time", ylabel=
 
 # Plot the sampled digits.
 
-fig = CairoMakie.Figure(resolution=(40ncols, 40nrows))
-ax = CairoMakie.Axis(fig[1,1], yreversed=true)
-CairoMakie.image!(ax, imggrid(reshape(fantasy_x, 28, 28, ncols, nrows)), colorrange=(1,0))
-CairoMakie.hidedecorations!(ax)
-CairoMakie.hidespines!(ax)
+fig = Makie.Figure(resolution=(40ncols, 40nrows))
+ax = Makie.Axis(fig[1,1], yreversed=true)
+Makie.image!(ax, imggrid(reshape(fantasy_x, 28, 28, ncols, nrows)), colorrange=(1,0))
+Makie.hidedecorations!(ax)
+Makie.hidespines!(ax)
 fig

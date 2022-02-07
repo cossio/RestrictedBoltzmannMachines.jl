@@ -5,9 +5,12 @@ With an Intel CPU, [MKL](https://github.com/JuliaLinearAlgebra/MKL.jl) is genera
 than OpenBLAS. Let's do a quick comparison.
 =#
 
+import MLDatasets
+import Makie
+import CairoMakie
+
 # Load MNIST
 
-import MLDatasets
 Float = Float32
 train_x, train_y = MLDatasets.MNIST.traindata()
 train_x = Array{Float}(train_x[:, :, train_y .∈ Ref((0,1))] .≥ 0.5)
@@ -49,10 +52,9 @@ nothing #hide
 
 # The epochs should be somewhat faster with MKL.
 
-import CairoMakie
-fig = CairoMakie.Figure(resolution=(600, 400))
-ax = CairoMakie.Axis(fig[1,1], xlabel="epoch", ylabel="seconds")
-CairoMakie.lines!(ax, get(history_openblas, :Δt)..., label="OpenBLAS")
-CairoMakie.lines!(ax, get(history_mkl, :Δt)..., label="MKL")
-CairoMakie.axislegend(ax, position=:rt)
+fig = Makie.Figure(resolution=(600, 400))
+ax = Makie.Axis(fig[1,1], xlabel="epoch", ylabel="seconds")
+Makie.lines!(ax, get(history_openblas, :Δt)..., label="OpenBLAS")
+Makie.lines!(ax, get(history_mkl, :Δt)..., label="MKL")
+Makie.axislegend(ax, position=:rt)
 fig

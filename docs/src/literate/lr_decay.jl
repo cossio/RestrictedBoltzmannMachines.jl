@@ -8,6 +8,7 @@ using Statistics: mean
 using Random: bitrand
 using LinearAlgebra: dot
 using ValueHistories: MVHistory
+import Makie
 import CairoMakie
 import Flux
 import MLDatasets
@@ -66,11 +67,11 @@ nothing #hide
 Compare the results
 =#
 
-fig = CairoMakie.Figure(resolution=(600,400))
-ax = CairoMakie.Axis(fig[1,1])
-CairoMakie.lines!(ax, get(history_nodecay, :lpl)..., label="normal")
-CairoMakie.lines!(ax, get(history_decaylr, :lpl)..., label="decay")
-CairoMakie.axislegend(ax, position=:rb)
+fig = Makie.Figure(resolution=(600,400))
+ax = Makie.Axis(fig[1,1])
+Makie.lines!(ax, get(history_nodecay, :lpl)..., label="normal")
+Makie.lines!(ax, get(history_decaylr, :lpl)..., label="decay")
+Makie.axislegend(ax, position=:rb)
 fig
 
 #=
@@ -86,16 +87,16 @@ nothing #hide
 Now make the plots. Average digit shapes.
 =#
 
-fig = CairoMakie.Figure(resolution=(900, 300))
-ax = CairoMakie.Axis(fig[1,1], title="data")
-CairoMakie.heatmap!(ax, mean(train_x, dims=3)[:,:,1])
-CairoMakie.hidedecorations!(ax)
-ax = CairoMakie.Axis(fig[1,2], title="const. lr")
-CairoMakie.heatmap!(ax, mean(samples_v_nodecay, dims=3)[:,:,1])
-CairoMakie.hidedecorations!(ax)
-ax = CairoMakie.Axis(fig[1,3], title="lr decay")
-CairoMakie.heatmap!(ax, mean(samples_v_decaylr, dims=3)[:,:,1])
-CairoMakie.hidedecorations!(ax)
+fig = Makie.Figure(resolution=(900, 300))
+ax = Makie.Axis(fig[1,1], title="data")
+Makie.heatmap!(ax, mean(train_x, dims=3)[:,:,1])
+Makie.hidedecorations!(ax)
+ax = Makie.Axis(fig[1,2], title="const. lr")
+Makie.heatmap!(ax, mean(samples_v_nodecay, dims=3)[:,:,1])
+Makie.hidedecorations!(ax)
+ax = Makie.Axis(fig[1,3], title="lr decay")
+Makie.heatmap!(ax, mean(samples_v_decaylr, dims=3)[:,:,1])
+Makie.hidedecorations!(ax)
 fig
 
 #=
@@ -108,36 +109,36 @@ h_model_nodecay = RBMs.mean_h_from_v(rbm_nodecay, samples_v_nodecay)
 h_model_decaylr = RBMs.mean_h_from_v(rbm_decaylr, samples_v_decaylr)
 nothing #hide
 
-fig = CairoMakie.Figure(resolution=(900, 600))
+fig = Makie.Figure(resolution=(900, 600))
 
-ax = CairoMakie.Axis(fig[1,1], xlabel="<v>_data", ylabel="<v>_model", limits=(0,1,0,1))
-CairoMakie.scatter!(ax, vec(mean(train_x; dims=3)), vec(mean(samples_v_nodecay; dims=3)))
-CairoMakie.abline!(ax, 0, 1; color=:red)
+ax = Makie.Axis(fig[1,1], xlabel="<v>_data", ylabel="<v>_model", limits=(0,1,0,1))
+Makie.scatter!(ax, vec(mean(train_x; dims=3)), vec(mean(samples_v_nodecay; dims=3)))
+Makie.abline!(ax, 0, 1; color=:red)
 
-ax = CairoMakie.Axis(fig[1,2], xlabel="<h>_data", ylabel="<h>_model", limits=(0,1,0,1))
-CairoMakie.scatter!(ax, vec(mean(h_data_nodecay; dims=2)), vec(mean(h_model_nodecay; dims=2)))
-CairoMakie.abline!(ax, 0, 1; color=:red)
+ax = Makie.Axis(fig[1,2], xlabel="<h>_data", ylabel="<h>_model", limits=(0,1,0,1))
+Makie.scatter!(ax, vec(mean(h_data_nodecay; dims=2)), vec(mean(h_model_nodecay; dims=2)))
+Makie.abline!(ax, 0, 1; color=:red)
 
-ax = CairoMakie.Axis(fig[1,3], xlabel="<vh>_data", ylabel="<vh>_model", limits=(0,1,0,1))
-CairoMakie.scatter!(ax,
+ax = Makie.Axis(fig[1,3], xlabel="<vh>_data", ylabel="<vh>_model", limits=(0,1,0,1))
+Makie.scatter!(ax,
     vec([dot(train_x[i,j,:], h_data_nodecay[μ,:]) / size(train_x,3) for i=1:28, j=1:28, μ=1:nh]),
     vec([dot(samples_v_nodecay[i,j,:], h_model_nodecay[μ,:]) / size(samples_v_nodecay,3) for i=1:28, j=1:28, μ=1:nh])
 )
-CairoMakie.abline!(ax, 0, 1; color=:red)
+Makie.abline!(ax, 0, 1; color=:red)
 
-ax = CairoMakie.Axis(fig[2,1], xlabel="<v>_data", ylabel="<v>_model", limits=(0,1,0,1))
-CairoMakie.scatter!(ax, vec(mean(train_x; dims=3)), vec(mean(samples_v_decaylr; dims=3)))
-CairoMakie.abline!(ax, 0, 1; color=:red)
+ax = Makie.Axis(fig[2,1], xlabel="<v>_data", ylabel="<v>_model", limits=(0,1,0,1))
+Makie.scatter!(ax, vec(mean(train_x; dims=3)), vec(mean(samples_v_decaylr; dims=3)))
+Makie.abline!(ax, 0, 1; color=:red)
 
-ax = CairoMakie.Axis(fig[2,2], xlabel="<h>_data", ylabel="<h>_model", limits=(0,1,0,1))
-CairoMakie.scatter!(ax, vec(mean(h_data_decaylr; dims=2)), vec(mean(h_model_decaylr; dims=2)))
-CairoMakie.abline!(ax, 0, 1; color=:red)
+ax = Makie.Axis(fig[2,2], xlabel="<h>_data", ylabel="<h>_model", limits=(0,1,0,1))
+Makie.scatter!(ax, vec(mean(h_data_decaylr; dims=2)), vec(mean(h_model_decaylr; dims=2)))
+Makie.abline!(ax, 0, 1; color=:red)
 
-ax = CairoMakie.Axis(fig[2,3], xlabel="<vh>_data", ylabel="<vh>_model", limits=(0,1,0,1))
-CairoMakie.scatter!(ax,
+ax = Makie.Axis(fig[2,3], xlabel="<vh>_data", ylabel="<vh>_model", limits=(0,1,0,1))
+Makie.scatter!(ax,
     vec([dot(train_x[i,j,:], h_data_decaylr[μ,:]) / size(train_x,3) for i=1:28, j=1:28, μ=1:nh]),
     vec([dot(samples_v_decaylr[i,j,:], h_model_decaylr[μ,:]) / size(samples_v_decaylr,3) for i=1:28, j=1:28, μ=1:nh])
 )
-CairoMakie.abline!(ax, 0, 1; color=:red)
+Makie.abline!(ax, 0, 1; color=:red)
 
 fig

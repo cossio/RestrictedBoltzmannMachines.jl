@@ -7,7 +7,8 @@ Let's compare performance to explicit gradients.
 
 import MKL
 import MLDatasets
-import Makie, CairoMakie
+import Makie
+import CairoMakie
 import RestrictedBoltzmannMachines as RBMs
 nothing #hide
 
