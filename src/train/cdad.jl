@@ -19,25 +19,16 @@ function cdad!(rbm::RBM, data::AbstractArray;
         Δt = @elapsed for (b, (vd, wd)) in enumerate(batches)
             vm = sample_v_from_v(rbm, vd; steps = steps)
             gs = Zygote.gradient(rbm) do rbm
-                loss = contrastive_divergence(rbm, vd, vm; wd = wd, wm = wd)
-                ChainRulesCore.ignore_derivatives() do
-                    push!(history, :cd_loss, loss)
-                    push!(history, :reg_loss, regu)
-                end
-                return loss + regu
+                contrastive_divergence(rbm, vd, vm; wd = wd, wm = wd)
             end
-            update!(rbm, update!(only(gs), rbm, optim))
-            push!(history, :epoch, epoch)
-            push!(history, :batch, b)
+            ∂ = only(gs)
+            push!(history, :∂, gradnorms(∂))
+            update!(rbm, update!(∂, rbm, optim))
+            push!(history, :Δ, gradnorms(∂))
         end
-
-        lpl = wmean(log_pseudolikelihood(rbm, data); wts)
-        push!(history, :lpl, lpl)
-
-        Δt_ = round(Δt, digits=2)
-        lpl_ = round(lpl, digits=2)
-        @debug "epoch $epoch/$epochs ($(Δt_)s), log(PL)=$lpl_"
-
+        push!(history, :epoch, epoch)
+        push!(history, :Δt, Δt)
+        @debug "epoch $epoch/$epochs ($(round(Δt, digits=2))s)"
     end
     return history
 end

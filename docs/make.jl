@@ -66,6 +66,7 @@ Documenter.makedocs(
             "Performance" => [
                 "MKL" => "literate/mkl.md",
                 "Float32 vs. Float64" => "literate/float32.md",
+                "AutoDiff" => "literate/ad.md",
             ],
             "Learning rate decay" => "literate/lr_decay.md",
         ],
