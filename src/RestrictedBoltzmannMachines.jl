@@ -29,7 +29,9 @@ module RestrictedBoltzmannMachines
 
     include("abstractrbm.jl")
     include("rbm.jl")
-    include("special_rbms.jl")
+
+    include("rbms/hopfield.jl")
+    include("rbms/binary.jl")
 
     include("zerosum.jl")
     include("pseudolikelihood.jl")

@@ -61,12 +61,12 @@ end
 
     @test RBMs.reshape_maybe(fill(1), ()) == 1
     @test RBMs.reshape_maybe(fill(1), (1,)) == [1]
-    @test RBMs.reshape_maybe(fill(1), (1,1)) == [1;;]
+    @test RBMs.reshape_maybe(fill(1), (1,1)) == hcat([1])
     @test_throws Exception RBMs.reshape_maybe(fill(1), (1,2))
 
     @test RBMs.reshape_maybe([1], ()) == 1
     @test RBMs.reshape_maybe([1], (1,)) == [1]
-    @test RBMs.reshape_maybe([1], (1,1)) == [1;;]
+    @test RBMs.reshape_maybe([1], (1,1)) == hcat([1])
     @test_throws Exception RBMs.reshape_maybe([1], (1,2))
 
     A = randn(2,2)
