@@ -46,3 +46,13 @@ first_argument(x, y...) = x
 activations_convert_maybe(::AbstractArray{T}, x::AbstractArray{T}) where {T<:AbstractFloat} = x
 activations_convert_maybe(::AbstractArray{T}, x::AbstractArray) where {T<:AbstractFloat} = map(T, x)
 activations_convert_maybe(::AbstractArray, x::AbstractArray) = x
+
+"""
+    reshape_maybe(x, shape)
+
+Like `reshape(x, shape)`, except that zero-dimensional outputs are returned as scalars.
+"""
+reshape_maybe(x::Number, ::Tuple{}) = x
+reshape_maybe(x::AbstractArray, ::Tuple{}) = only(x)
+reshape_maybe(x::AbstractArray, sz::TupleN{Int}) = reshape(x, sz)
+reshape_maybe(x::Union{Number,AbstractArray}, sz::Int...) = reshape(x, sz)

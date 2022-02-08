@@ -17,10 +17,6 @@ visible(rbm::RBM) = rbm.visible
 hidden(rbm::RBM) = rbm.hidden
 weights(rbm::RBM) = rbm.w
 
-reshape_maybe(A::AbstractArray{<:Any,0}, ::Tuple{}) = only(A)
-reshape_maybe(A::AbstractArray, sz::TupleN{Int}) = reshape(A, sz)
-reshape_maybe(x::Number, ::Tuple{}) = x
-
 """
     interaction_energy(rbm, v, h)
 
