@@ -56,5 +56,6 @@ fig = Makie.Figure(resolution=(600, 400))
 ax = Makie.Axis(fig[1,1], xlabel="epoch", ylabel="seconds")
 Makie.lines!(ax, get(history_openblas, :Δt)..., label="OpenBLAS")
 Makie.lines!(ax, get(history_mkl, :Δt)..., label="MKL")
+Makie.ylims!(ax, low=0)
 Makie.axislegend(ax, position=:rt)
 fig

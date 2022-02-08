@@ -43,6 +43,9 @@ end
     layer = random_layer(Layer, N...)
 
     @test (@inferred size(layer)) == N
+    for d in 1:length(N)
+        @test (@inferred size(layer, d)) == N[d]
+    end
     @test (@inferred length(layer)) == prod(N)
     @test (@inferred ndims(layer)) == length(N)
     @test (@inferred RBMs.batchsize(layer, rand(N...))) == ()
