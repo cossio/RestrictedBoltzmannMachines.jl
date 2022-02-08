@@ -31,7 +31,7 @@ Training info is printed to the debug logger, and are hidden by default.
 To enable them, set:
 
 ```julia
-ENV["JULIA_DEBUG"] = RBMs
+ENV["JULIA_DEBUG"] = "RestrictedBoltzmannMachines"
 ```
 
 See <https://docs.julialang.org/en/v1/stdlib/Logging/> for more sophisticated approaches.
