@@ -26,7 +26,7 @@ function interaction_energy(rbm::AbstractRBM, v::AbstractArray, h::AbstractArray
     wflat = flat_w(rbm)
     vflat = flat_v(rbm, v)
     hflat = flat_h(rbm, h)
-    bsz = batchsize(rbm, v, h)
+    bsz = batch_size(rbm, v, h)
     if ndims(visible(rbm)) == ndims(v) || ndims(hidden(rbm)) == ndims(h)
         return reshape_maybe(-vflat' * wflat * hflat, bsz)
     elseif size(vflat, 1) ≥ size(hflat, 1)
@@ -45,7 +45,7 @@ function inputs_v_to_h(rbm::AbstractRBM, v::AbstractArray)
     wflat = flat_w(rbm)
     vflat = activations_convert_maybe(wflat, flat_v(rbm, v))
     iflat = wflat' * vflat
-    return reshape(iflat, size(hidden(rbm))..., batchsize(visible(rbm), v)...)
+    return reshape(iflat, size(hidden(rbm))..., batch_size(visible(rbm), v)...)
 end
 
 """
@@ -57,7 +57,7 @@ function inputs_h_to_v(rbm::AbstractRBM, h::AbstractArray)
     wflat = flat_w(rbm)
     hflat = activations_convert_maybe(wflat, flat_h(rbm, h))
     iflat = wflat * hflat
-    return reshape(iflat, size(visible(rbm))..., batchsize(hidden(rbm), h)...)
+    return reshape(iflat, size(visible(rbm))..., batch_size(hidden(rbm), h)...)
 end
 
 """
@@ -73,7 +73,7 @@ function mirror(rbm::RBM)
 end
 
 function ∂interaction_energy(rbm::RBM, v::AbstractArray, h::AbstractArray; wts = nothing)
-    bsz = batchsize(rbm, v, h)
+    bsz = batch_size(rbm, v, h)
     if ndims(visible(rbm)) == ndims(v) && ndims(hidden(rbm)) == ndims(h)
         wts::Nothing
         ∂wflat = -vec(v) * vec(h)'
@@ -84,12 +84,12 @@ function ∂interaction_energy(rbm::RBM, v::AbstractArray, h::AbstractArray; wts
     else
         hflat = flatten(hidden(rbm), h)
         vflat = activations_convert_maybe(hflat, flatten(visible(rbm), v))
-        @assert isnothing(wts) || size(wts) == batchsize(visible(rbm), v)
+        @assert isnothing(wts) || size(wts) == batch_size(visible(rbm), v)
         if isnothing(wts)
             ∂wflat = -vflat * hflat' / size(vflat, 2)
         else
             @assert size(wts) == bsz
-            @assert batchsize(visible(rbm), v) == batchsize(hidden(rbm), h) == size(wts)
+            @assert batch_size(visible(rbm), v) == batch_size(hidden(rbm), h) == size(wts)
             ∂wflat = -vflat * LinearAlgebra.Diagonal(vec(wts)) * hflat' / length(wts)
         end
     end

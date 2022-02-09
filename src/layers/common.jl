@@ -21,7 +21,7 @@ function energy(layer::_FieldLayers, x::AbstractArray)
         return -LinearAlgebra.dot(layer.θ, x)
     else
         Eflat = -vec(layer.θ)' * flatten(layer, xconv)
-        return reshape(Eflat, batchsize(layer, x))
+        return reshape(Eflat, batch_size(layer, x))
     end
 end
 

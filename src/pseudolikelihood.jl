@@ -27,7 +27,7 @@ function log_pseudolikelihood_stoch(rbm::AbstractRBM, v::AbstractArray; β::Real
     @assert size(visible(rbm)) == size(v)[1:ndims(visible(rbm))]
     sites = [
         rand(CartesianIndices(sitesize(visible(rbm))))
-        for _ in CartesianIndices(batchsize(visible(rbm), v))
+        for _ in CartesianIndices(batch_size(visible(rbm), v))
     ]
     return log_pseudolikelihood_sites(rbm, v, sites; β = β)
 end
@@ -46,12 +46,12 @@ function log_pseudolikelihood_sites(
     β::Real=true
 )
     @assert size(visible(rbm)) == size(v)[1:ndims(visible(rbm))]
-    @assert size(sites) == batchsize(visible(rbm), v)
+    @assert size(sites) == batch_size(visible(rbm), v)
     ΔE = substitution_matrix_sites(rbm, v, sites; β = β)
-    @assert size(ΔE) == (colors(visible(rbm)), batchsize(visible(rbm), v)...)
+    @assert size(ΔE) == (colors(visible(rbm)), batch_size(visible(rbm), v)...)
     lPL = -LogExpFunctions.logsumexp(-β * ΔE; dims=1)
-    @assert size(lPL) == (1, batchsize(visible(rbm), v)...)
-    return reshape(lPL, batchsize(visible(rbm), v))
+    @assert size(lPL) == (1, batch_size(visible(rbm), v)...)
+    return reshape(lPL, batch_size(visible(rbm), v))
 end
 
 """
@@ -64,12 +64,12 @@ function log_pseudolikelihood_exact(rbm::AbstractRBM, v::AbstractArray; β::Real
     @assert size(visible(rbm)) == size(v)[1:ndims(visible(rbm))]
     ΔE = substitution_matrix_exhaustive(rbm, v; β = β)
     @assert size(ΔE) == (
-        colors(visible(rbm)), sitesize(visible(rbm))..., batchsize(visible(rbm), v)...
+        colors(visible(rbm)), sitesize(visible(rbm))..., batch_size(visible(rbm), v)...
     )
     lPLsites = -LogExpFunctions.logsumexp(-β * ΔE; dims=1)
-    @assert size(lPLsites) == (1, sitesize(visible(rbm))..., batchsize(visible(rbm), v)...)
+    @assert size(lPLsites) == (1, sitesize(visible(rbm))..., batch_size(visible(rbm), v)...)
     lPL = Statistics.mean(lPLsites; dims=2:(sitedims(visible(rbm)) + 1))
-    return reshape(lPL, batchsize(visible(rbm), v))
+    return reshape(lPL, batch_size(visible(rbm), v))
 end
 
 """
@@ -93,8 +93,8 @@ function substitution_matrix_sites(
     β::Real = true
 )
     @assert size(visible(rbm)) == size(v)[1:ndims(visible(rbm))]
-    @assert size(sites) == batchsize(visible(rbm), v)
-    E_ = zeros(colors(visible(rbm)), batchsize(visible(rbm), v)...)
+    @assert size(sites) == batch_size(visible(rbm), v)
+    E_ = zeros(colors(visible(rbm)), batch_size(visible(rbm), v)...)
     for (k, x) in enumerate((false, true))
         v_ = copy(v)
         for (b, i) in pairs(sites)
@@ -103,7 +103,7 @@ function substitution_matrix_sites(
         selectdim(E_, 1, k) .= free_energy(rbm, v_; β = β)
     end
     E = [E_[(v[i, b] > 0) + 1, b] for (b, i) in pairs(sites)]
-    return E_ .- reshape(E, 1, batchsize(visible(rbm), v)...)
+    return E_ .- reshape(E, 1, batch_size(visible(rbm), v)...)
 end
 
 function substitution_matrix_sites(
@@ -113,8 +113,8 @@ function substitution_matrix_sites(
     β::Real = true
 )
     @assert size(visible(rbm)) == size(v)[1:ndims(visible(rbm))]
-    @assert size(sites) == batchsize(visible(rbm), v)
-    E_ = zeros(2, batchsize(visible(rbm), v)...)
+    @assert size(sites) == batch_size(visible(rbm), v)
+    E_ = zeros(2, batch_size(visible(rbm), v)...)
     for (k, x) in enumerate((-1, 1))
         v_ = copy(v)
         for (b, i) in pairs(sites)
@@ -123,7 +123,7 @@ function substitution_matrix_sites(
         selectdim(E_, 1, k) .= free_energy(rbm, v_; β = β)
     end
     E = [E_[(v[i, b] > 0) + 1, b] for (b, i) in pairs(sites)]
-    return E_ .- reshape(E, 1, batchsize(visible(rbm), v)...)
+    return E_ .- reshape(E, 1, batch_size(visible(rbm), v)...)
 end
 
 function substitution_matrix_sites(
@@ -133,8 +133,8 @@ function substitution_matrix_sites(
     β::Real = true
 )
     @assert size(visible(rbm)) == size(v)[1:ndims(visible(rbm))]
-    @assert size(sites) == batchsize(visible(rbm), v)
-    E_ = zeros(colors(visible(rbm)), batchsize(visible(rbm), v)...)
+    @assert size(sites) == batch_size(visible(rbm), v)
+    E_ = zeros(colors(visible(rbm)), batch_size(visible(rbm), v)...)
     for x in 1:colors(visible(rbm))
         v_ = copy(v)
         for (b, i) in pairs(sites)
@@ -145,7 +145,7 @@ function substitution_matrix_sites(
     end
     c = onehot_decode(v)
     E = [E_[c[i, b], b] for (b, i) in pairs(sites)]
-    return E_ .- reshape(E, 1, batchsize(visible(rbm), v)...)
+    return E_ .- reshape(E, 1, batch_size(visible(rbm), v)...)
 end
 
 """
@@ -174,7 +174,7 @@ function substitution_matrix_exhaustive(
     rbm::AbstractRBM{<:Binary}, v::AbstractArray; β::Real = true
 )
     @assert size(visible(rbm)) == size(v)[1:ndims(visible(rbm))]
-    batch_indices = CartesianIndices(batchsize(visible(rbm), v))
+    batch_indices = CartesianIndices(batch_size(visible(rbm), v))
     E_ = zeros(2, size(v)...)
     for i in CartesianIndices(size(visible(rbm)))
         v_ = copy(v)
@@ -191,7 +191,7 @@ function substitution_matrix_exhaustive(
     rbm::AbstractRBM{<:Spin}, v::AbstractArray; β::Real = true
 )
     @assert size(visible(rbm)) == size(v)[1:ndims(visible(rbm))]
-    batch_indices = CartesianIndices(batchsize(visible(rbm), v))
+    batch_indices = CartesianIndices(batch_size(visible(rbm), v))
     E_ = zeros(2, size(v)...)
     for i in CartesianIndices(sitesize(visible(rbm)))
         v_ = copy(v)
@@ -206,7 +206,7 @@ end
 
 function substitution_matrix_exhaustive(rbm::AbstractRBM{<:Potts}, v::AbstractArray; β::Real = true)
     @assert size(visible(rbm)) == size(v)[1:ndims(visible(rbm))]
-    batch_indices = CartesianIndices(batchsize(visible(rbm), v))
+    batch_indices = CartesianIndices(batch_size(visible(rbm), v))
     E_ = zeros(size(v))
     for i in CartesianIndices(sitesize(visible(rbm)))
         v_ = copy(v)
@@ -232,7 +232,7 @@ function log_pseudolikelihood_sites(
     β::Real = true
 )
     @assert size(visible(rbm)) == size(v)[1:ndims(visible(rbm))]
-    @assert size(sites) == batchsize(visible(rbm), v)
+    @assert size(sites) == batch_size(visible(rbm), v)
     v_ = copy(v)
     for (b, i) in pairs(sites)
         v_[i, b] = 1 - v_[i, b]
@@ -249,7 +249,7 @@ function log_pseudolikelihood_sites(
     β::Real = true
 )
     @assert size(visible(rbm)) == size(v)[1:ndims(visible(rbm))]
-    @assert size(sites) == batchsize(visible(rbm), v)
+    @assert size(sites) == batch_size(visible(rbm), v)
     v_ = copy(v)
     for (b, i) in pairs(sites)
         v_[i, b] = -v_[i, b]

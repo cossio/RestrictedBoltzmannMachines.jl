@@ -12,8 +12,8 @@ import RestrictedBoltzmannMachines as RBMs
     v = Random.bitrand(n..., Bv...)
     h = Random.bitrand(m..., Bh...)
 
-    @test RBMs.batchsize(rbm.visible, v) == Bv
-    @test RBMs.batchsize(rbm.hidden, h) == Bh
+    @test RBMs.batch_size(rbm.visible, v) == Bv
+    @test RBMs.batch_size(rbm.hidden, h) == Bh
 
     @test size(RBMs.inputs_v_to_h(rbm, v)) == (size(rbm.hidden)...,  Bv...)
     @test size(RBMs.inputs_h_to_v(rbm, h)) == (size(rbm.visible)..., Bh...)

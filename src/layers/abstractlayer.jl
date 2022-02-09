@@ -152,11 +152,11 @@ function batchdims(layer::AbstractLayer, x::AbstractArray)
 end
 
 """
-    batchsize(layer, x)
+    batch_size(layer, x)
 
 Batch sizes of `x`, with respect to `layer`.
 """
-function batchsize(layer::AbstractLayer, x::AbstractArray)
+function batch_size(layer::AbstractLayer, x::AbstractArray)
     @assert size(layer) == size(x)[1:ndims(layer)]
     return size(x)[batchdims(layer, x)]
 end

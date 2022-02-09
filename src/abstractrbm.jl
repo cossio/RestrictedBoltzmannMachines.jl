@@ -10,9 +10,9 @@ flat_w(rbm::AbstractRBM) = reshape(weights(rbm), length(visible(rbm)), length(hi
 flat_v(rbm::AbstractRBM, v::AbstractArray) = flatten(visible(rbm), v)
 flat_h(rbm::AbstractRBM, h::AbstractArray) = flatten(hidden(rbm), h)
 
-function batchsize(rbm::AbstractRBM, v::AbstractArray, h::AbstractArray)
-    visible_batchsize = batchsize(visible(rbm), v)
-    hidden_batchsize = batchsize(hidden(rbm), h)
+function batch_size(rbm::AbstractRBM, v::AbstractArray, h::AbstractArray)
+    visible_batchsize = batch_size(visible(rbm), v)
+    hidden_batchsize = batch_size(hidden(rbm), h)
     if size(hidden(rbm)) == size(h)
         return visible_batchsize
     elseif size(visible(rbm)) == size(v)
@@ -159,7 +159,7 @@ function reconstruction_error(rbm::AbstractRBM, v::AbstractArray; β::Real=true,
     if ndims(v) == ndims(visible(rbm))
         return only(ϵ)
     else
-        return reshape(ϵ, batchsize(visible(rbm), v))
+        return reshape(ϵ, batch_size(visible(rbm), v))
     end
 end
 
