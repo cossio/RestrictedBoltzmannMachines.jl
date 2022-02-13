@@ -17,7 +17,7 @@ function fpcd!(rbm::RBM, data::AbstractArray;
     @assert size(data) == (size(visible(rbm))..., size(data)[end])
     @assert isnothing(wts) || _nobs(data) == _nobs(wts)
 
-    stats = suffstats(visible(rbm), data; wts)
+    stats = suffstats(rbm, data; wts)
     vm = transfer_sample(visible(rbm), falses(size(visible(rbm))..., batchsize))
 
     # store fast parameters

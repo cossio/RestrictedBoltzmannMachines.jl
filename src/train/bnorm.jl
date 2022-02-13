@@ -20,7 +20,7 @@ function pcd_bnorm!(rbm::RBM{<:Binary, <:Binary}, data::AbstractArray;
     @assert ndims(data) == ndims(visible(rbm)) + 1
     @assert isnothing(wts) || _nobs(data) == _nobs(wts)
 
-    stats = suffstats(visible(rbm), data; wts)
+    stats = suffstats(rbm, data; wts)
 
     avg_data = batchmean(visible(rbm), data)
     avg_inputs = inputs_v_to_h(rbm, avg_data)

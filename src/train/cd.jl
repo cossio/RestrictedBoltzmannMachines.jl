@@ -10,7 +10,7 @@ function cd!(rbm::RBM, data::AbstractArray;
     history::MVHistory = MVHistory(), # stores training log
     wts = nothing, # weighted data points; named wts to avoid conflicts with RBM nomenclature
     steps::Int = 1, # Monte Carlo steps to update fantasy particles
-    stats = suffstats(visible(rbm), data; wts)
+    stats = suffstats(rbm, data; wts)
 )
     @assert size(data) == (size(visible(rbm))..., size(data)[end])
     @assert isnothing(wts) || _nobs(data) == _nobs(wts)
@@ -57,7 +57,7 @@ end
 function ∂contrastive_divergence(
     rbm::AbstractRBM, vd::AbstractArray, vm::AbstractArray;
     wd = nothing, wm = nothing,
-    stats = suffstats(visible(rbm), vd; wts = wd)
+    stats = suffstats(rbm, vd; wts = wd)
 )
     ∂d = ∂free_energy(rbm, vd; wts = wd, stats)
     ∂m = ∂free_energy(rbm, vm; wts = wm)

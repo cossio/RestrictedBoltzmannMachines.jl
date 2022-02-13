@@ -11,7 +11,7 @@ function pcd!(rbm::RBM, data::AbstractArray;
     wts = nothing,
     steps::Int = 1,
     vm = transfer_sample(visible(rbm), falses(size(visible(rbm))..., batchsize)), # fantasy chains
-    stats = suffstats(visible(rbm), data; wts) # sufficient statistics
+    stats = suffstats(rbm, data; wts) # sufficient statistics
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert isnothing(wts) || _nobs(data) == _nobs(wts)
