@@ -34,7 +34,7 @@ function pcd_bnorm!(rbm::RBM{<:Binary, <:Binary}, data::AbstractArray;
         Δt = @elapsed for (vd, wd) in batches
             # update batch norm reparameterization
             avg_inputs_new = inputs_v_to_h(rbm, avg_data)
-            rbm.hidden.θ .-= avg_inputs_new .- avg_inputs
+            hidden(rbm).θ .-= avg_inputs_new .- avg_inputs
             avg_inputs = avg_inputs_new
             vm .= sample_v_from_v(rbm, vm; steps = steps)
             ∂ = ∂contrastive_divergence_bnorm(rbm, vd, vm; wd, stats)

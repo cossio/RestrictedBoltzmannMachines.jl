@@ -14,12 +14,12 @@ function initialize! end
 function initialize!(rbm::RBM, data::AbstractArray; ϵ::Real = 1e-6)
     @assert 0 < ϵ < 1/2
     if isnothing(data)
-        initialize!(rbm.visible)
+        initialize!(visible(rbm))
     else
-        @assert size(data) == (size(rbm.visible)..., size(data)[end])
-        initialize!(rbm.visible, data; ϵ = ϵ)
+        @assert size(data) == (size(visible(rbm))..., size(data)[end])
+        initialize!(visible(rbm), data; ϵ = ϵ)
     end
-    initialize!(rbm.hidden)
+    initialize!(hidden(rbm))
     initialize_w!(rbm, data)
     zerosum!(rbm)
     return rbm
@@ -97,8 +97,8 @@ end
 Initializes `rbm.w` such that typical inputs to hidden units are λ.
 """
 function initialize_w!(rbm::RBM, data::AbstractArray; λ::Real = 0.1, ϵ::Real = 1e-6)
-    @assert size(data) == (size(rbm.visible)..., size(data, ndims(data)))
-    d = LinearAlgebra.dot(data, data) / size(data, ndims(rbm.visible) + 1)
+    @assert size(data) == (size(visible(rbm))..., size(data, ndims(data)))
+    d = LinearAlgebra.dot(data, data) / size(data, ndims(visible(rbm)) + 1)
     Random.randn!(weights(rbm))
     weights(rbm) .*= λ / √(d + ϵ)
     return rbm # does not impose zerosum

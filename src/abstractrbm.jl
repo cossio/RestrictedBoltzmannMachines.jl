@@ -87,7 +87,7 @@ end
 Samples a hidden configuration conditional on another hidden configuration `h`.
 """
 function sample_h_from_h(rbm::AbstractRBM, h::AbstractArray; β::Real = true, steps::Int = 1)
-    @assert size(rbm.hidden) == size(h)[1:ndims(hidden(rbm))]
+    @assert size(hidden(rbm)) == size(h)[1:ndims(hidden(rbm))]
     h1 = copy(h)
     for _ in 1:steps
         h1 .= sample_h_from_h_once(rbm, h1; β)

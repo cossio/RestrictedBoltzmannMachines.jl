@@ -13,7 +13,7 @@ function pcd!(rbm::RBM, data::AbstractArray;
     vm = transfer_sample(visible(rbm), falses(size(visible(rbm))..., batchsize)), # fantasy chains
     stats = suffstats(rbm, data; wts) # sufficient statistics
 )
-    @assert size(data) == (size(rbm.visible)..., size(data)[end])
+    @assert size(data) == (size(visible(rbm))..., size(data)[end])
     @assert isnothing(wts) || _nobs(data) == _nobs(wts)
     for epoch in 1:epochs
         batches = minibatches(data, wts; batchsize = batchsize)

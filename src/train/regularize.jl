@@ -21,7 +21,7 @@ Regularization used on https://github.com/jertubiana/PGM.
 function pgm_reg(
     rbm::RBM{<:Union{Binary,Spin,Potts}}; λv::Real = 1//10^4, λw::Real = 1//10
 )
-    fields_l2 = Statistics.mean(abs2, rbm.visible.θ)
+    fields_l2 = Statistics.mean(abs2, visible(rbm).θ)
     weights_l1l2 = L1L2(rbm)
     return λv/2 * fields_l2 + λw/2 * weights_l1l2
 end

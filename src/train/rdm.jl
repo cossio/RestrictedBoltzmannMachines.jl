@@ -12,7 +12,7 @@ function rdm!(rbm::RBM, data::AbstractArray;
     wts = nothing,
     steps::Int = 1,
 )
-    @assert size(data) == (size(rbm.visible)..., size(data)[end])
+    @assert size(data) == (size(visible(rbm))..., size(data)[end])
     @assert isnothing(wts) || _nobs(data) == _nobs(wts)
 
     stats = suffstats(rbm, data; wts)
