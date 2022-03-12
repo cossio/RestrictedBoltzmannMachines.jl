@@ -97,27 +97,6 @@ function ∂free_energy(layer::dReLU)
     return (θp = -pp .* μp, θn = -pn .* μn, γp = pp .* μ2p, γn = pn .* μ2n)
 end
 
-struct dReLU_Stats{Layer<:AbstractLayer,Nt<:NamedTuple}
-    layer::Layer
-    stats::Nt
-end
-
-function suffstats(layer::dReLU, data::AbstractArray; wts = nothing)
-    @assert size(layer) == size(data)[1:ndims(layer)]
-    nt = (
-        μp = batchmean(layer, max.(x, 0); wts),
-        μn = batchmean(layer, min.(x, 0); wts),
-    )
-    SuffStats(layer, nt)
-end
-
-struct SufficientStatistics_dReLU{A<:AbstractArray}
-    μp::A
-    μn::A
-    μp2::A
-    μn2::A
-end
-
 struct dReLUStats{A}
     xp1::A; xn1::A; xp2::A; xn2::A
     function dReLUStats(layer::dReLU, data::AbstractArray; wts=nothing)
