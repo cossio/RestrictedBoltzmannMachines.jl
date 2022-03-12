@@ -138,6 +138,11 @@ end
     @test size(@inferred RBMs.mode_h_from_v(rbm, v[:,:,1])) == size(rbm.hidden)
     @test size(@inferred RBMs.mode_v_from_h(rbm, h[:,:,1])) == size(rbm.visible)
 
+    @test size(@inferred RBMs.var_h_from_v(rbm, v)) == size(h)
+    @test size(@inferred RBMs.var_v_from_h(rbm, h)) == size(v)
+    @test size(@inferred RBMs.var_h_from_v(rbm, v[:,:,1])) == size(rbm.hidden)
+    @test size(@inferred RBMs.var_v_from_h(rbm, h[:,:,1])) == size(rbm.visible)
+
     @test size(@inferred RBMs.free_energy(rbm, v)) == (7,)
     @test size(@inferred RBMs.reconstruction_error(rbm, v)) == (7,)
     @test (@inferred RBMs.free_energy(rbm, v[:,:,1])) isa Real

@@ -118,6 +118,26 @@ function mean_h_from_v(rbm::AbstractRBM, v::AbstractArray; β::Real = true)
 end
 
 """
+    var_v_from_h(rbm, v; β = 1)
+
+Variance of unit activation values, conditioned on the other layer, var(v | h).
+"""
+function var_v_from_h(rbm::AbstractRBM, h::AbstractArray; β::Real = true)
+    inputs = inputs_h_to_v(rbm, h)
+    return transfer_var(visible(rbm), inputs; β)
+end
+
+"""
+    var_h_from_v(rbm, v; β = 1)
+
+Variance of unit activation values, conditioned on the other layer, var(h | v).
+"""
+function var_h_from_v(rbm::AbstractRBM, v::AbstractArray; β::Real = true)
+    inputs = inputs_v_to_h(rbm, v)
+    return transfer_var(hidden(rbm), inputs; β)
+end
+
+"""
     mean_v_from_h(rbm, v; β = 1)
 
 Mean unit activation values, conditioned on the other layer, <v | h>.
