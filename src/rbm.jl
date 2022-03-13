@@ -90,7 +90,7 @@ function ∂interaction_energy(rbm::RBM, v::AbstractArray, h::AbstractArray; wts
         else
             @assert size(wts) == bsz
             @assert batch_size(visible(rbm), v) == batch_size(hidden(rbm), h) == size(wts)
-            ∂wflat = -vflat * LinearAlgebra.Diagonal(vec(wts)) * hflat' / length(wts)
+            ∂wflat = -vflat * Diagonal(vec(wts)) * hflat' / length(wts)
         end
     end
     ∂w = reshape(∂wflat, size(weights(rbm)))

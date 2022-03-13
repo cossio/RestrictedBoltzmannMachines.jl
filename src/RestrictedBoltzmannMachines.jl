@@ -9,7 +9,9 @@ import FillArrays
 import Flux
 import Zygote
 import ChainRulesCore
+
 using ValueHistories: MVHistory
+using LinearAlgebra: Diagonal
 
 include("util.jl")
 include("minibatches.jl")

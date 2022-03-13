@@ -1,6 +1,7 @@
-using Test: @test, @testset, @inferred
 import Statistics
 import RestrictedBoltzmannMachines as RBMs
+using Test: @test, @testset, @inferred
+using Statistics: mean, var, cov
 
 @testset "two" begin
     @test RBMs.two(1) === RBMs.two(Int) === 2
@@ -40,18 +41,14 @@ end
 
 @testset "wmean" begin
     A = randn(4,3,5,2)
-    @test RBMs.wmean(A) ≈ Statistics.mean(A)
-    @test RBMs.wmean(A; dims=(2,4)) ≈ Statistics.mean(A; dims=(2,4))
-    @inferred RBMs.wmean(A)
-    @inferred RBMs.wmean(A; dims=(2,4))
+    @test mean(A) ≈ @inferred RBMs.wmean(A)
+    @test mean(A; dims=(2,4)) ≈ @inferred RBMs.wmean(A; dims=(2,4))
 
     wts = rand(size(A)...)
-    @test RBMs.wmean(A; wts) ≈ sum(A .* wts / sum(wts))
-    @inferred RBMs.wmean(A; wts)
+    @test mean(A .* wts) ≈ @inferred RBMs.wmean(A; wts)
 
     wts = rand(3,2)
-    @test RBMs.wmean(A; dims=(2,4), wts) ≈ sum(reshape(wts,1,3,1,2) .* A; dims=(2,4))/sum(wts)
-    @inferred RBMs.wmean(A; dims=(2,4), wts)
+    @test mean(reshape(wts,1,3,1,2) .* A; dims=(2,4)) ≈ @inferred RBMs.wmean(A; dims=(2,4), wts)
 end
 
 @testset "reshape_maybe" begin

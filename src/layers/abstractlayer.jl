@@ -178,6 +178,49 @@ function batchmean(layer::AbstractLayer, x::AbstractArray; wts = nothing)
 end
 
 """
+    batchvar(layer, x; wts = nothing, [mean])
+
+Variance of `x` over batch dimensions, weigthed by `wts`.
+"""
+function batchvar(
+    layer::AbstractLayer, x::AbstractArray; wts = nothing, mean = batchmean(layer, x; wts)
+)
+    @assert size(layer) == size(x)[1:ndims(layer)] == size(mean)
+    return batchmean(layer, (x .- mean).^2; wts)
+end
+
+"""
+    batchstd(layer, x; wts = nothing, [mean])
+
+Standard deviation of `x` over batch dimensions, weigthed by `wts`.
+"""
+function batchstd(
+    layer::AbstractLayer, x::AbstractArray; wts = nothing, mean = batchmean(layer, x; wts)
+)
+    return sqrt.(batchvar(layer, x; wts, mean))
+end
+
+"""
+    batchcov(layer, x; wts = nothing, [mean])
+
+Covariance of `x` over batch dimensions, weigthed by `wts`.
+"""
+function batchcov(
+    layer::AbstractLayer, x::AbstractArray; wts = nothing, mean = batchmean(layer, x; wts)
+)
+    @assert size(layer) == size(x)[1:ndims(layer)] == size(mean)
+    ξ = flatten(layer, x .- mean)
+    if isnothing(wts)
+        w = LinearAlgebra.I
+    else
+        @assert size(wts) == batch_size(layer, x)
+        w = Diagonal(vec(wts))
+    end
+    C = ξ * w * ξ' / size(ξ, 2)
+    return reshape(C, size(layer)..., size(layer)...)
+end
+
+"""
     ∂energy(layer, data; wts = nothing)
     ∂energy(layer, stats)
 

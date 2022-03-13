@@ -4,25 +4,31 @@ const TupleN{T,N} = NTuple{N,T}
 inf(::Union{Type{T}, T}) where {T<:Number} = convert(T, Inf)
 two(::Union{Type{T}, T}) where {T<:Number} = convert(T, 2)
 
-"""
+@doc raw"""
     wmean(A; wts = nothing, dims = :)
 
 Weighted mean of `A` along dimensions `dims`, weighted by `wts`.
+
+```math
+\frac{1}{N}\sum_i A_i w_i}
+```
+
+Note that the weights are not normalized.
 """
 function wmean(A::AbstractArray; wts::Union{AbstractArray,Nothing} = nothing, dims = :)
     if isnothing(wts)
-        return Statistics.mean(A; dims = dims)
+        w = true
     elseif dims === (:)
         @assert size(wts) == size(A)
-        return sum(A .* wts / sum(wts); dims = dims)
+        w = wts
     else
         @assert size(wts) == size.(Ref(A), dims)
         wsz = ntuple(ndims(A)) do i
             i ∈ dims ? size(A, i) : 1
         end
-        w = reshape(wts, wsz) / sum(wts)
-        return sum(A .* w; dims = dims)
+        w = reshape(wts, wsz)
     end
+    return Statistics.mean(A .* w; dims)
 end
 
 """

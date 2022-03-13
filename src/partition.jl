@@ -24,13 +24,13 @@ function log_partition(rbm::AbstractRBM{<:Gaussian, <:Gaussian}; β::Real = true
     w = β * flat_w(rbm)
 
     lA = block_matrix_logdet(
-        LinearAlgebra.Diagonal(γv), -w,
-        -w', LinearAlgebra.Diagonal(γh)
+        Diagonal(γv), -w,
+        -w', Diagonal(γh)
     )
 
     iA = block_matrix_invert(
-        LinearAlgebra.Diagonal(γv), -w,
-        -w', LinearAlgebra.Diagonal(γh)
+        Diagonal(γv), -w,
+        -w', Diagonal(γh)
     )
 
     return length(θ)/2 * log(2π) + LinearAlgebra.dot(θ, iA, θ)/2 - lA/2

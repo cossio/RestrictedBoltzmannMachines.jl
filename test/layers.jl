@@ -1,10 +1,13 @@
-using Test: @test, @testset
 import Random
 import Statistics
 import Zygote
 import LogExpFunctions
 import QuadGK
 import RestrictedBoltzmannMachines as RBMs
+
+using Test: @test, @testset
+using Statistics: mean, var, cov
+using RestrictedBoltzmannMachines: flatten
 
 Random.seed!(2)
 
@@ -91,10 +94,14 @@ end
             @test RBMs.energy(layer, x) ≈ sum(RBMs.energies(layer, x))
             @test RBMs.free_energy(layer, x) ≈ sum(RBMs.free_energies(layer, x))
             @test RBMs.batchmean(layer, x) ≈ x
+            @test @inferred(RBMs.batchvar(layer, x)) == zeros(N)
+            @test @inferred(RBMs.batchcov(layer, x)) == zeros(N..., N...)
         else
             @test RBMs.energy(layer, x) ≈ reshape(sum(RBMs.energies(layer, x); dims=1:ndims(layer)), B)
             @test RBMs.free_energy(layer, x) ≈ reshape(sum(RBMs.free_energies(layer, x); dims=1:ndims(layer)), B)
-            @test RBMs.batchmean(layer, x) ≈ reshape(Statistics.mean(x; dims=(ndims(layer) + 1):ndims(x)), N)
+            @test RBMs.batchmean(layer, x) ≈ reshape(mean(x; dims=(ndims(layer) + 1):ndims(x)), N)
+            @test RBMs.batchvar(layer, x) ≈ reshape(var(x; dims=(ndims(layer) + 1):ndims(x), corrected=false), N)
+            @test RBMs.batchcov(layer, x) ≈ reshape(cov(RBMs.flatten(layer, x); dims=2, corrected=false), N..., N...)
         end
         μ = RBMs.transfer_mean(layer, x)
         @test only(Zygote.gradient(j -> sum(RBMs.free_energies(layer, j)), x)) ≈ -μ
@@ -109,9 +116,9 @@ end
     end
 
     samples = RBMs.transfer_sample(layer, zeros(size(layer)..., 10^6))
-    @test RBMs.transfer_mean(layer) ≈ reshape(Statistics.mean(samples; dims=3), size(layer)) rtol=0.1 atol=0.01
-    @test RBMs.transfer_var(layer) ≈ reshape(Statistics.var(samples; dims=ndims(samples)), size(layer)) rtol=0.1
-    @test RBMs.transfer_mean_abs(layer) ≈ reshape(Statistics.mean(abs.(samples); dims=ndims(samples)), size(layer)) rtol=0.1
+    @test RBMs.transfer_mean(layer) ≈ reshape(mean(samples; dims=3), size(layer)) rtol=0.1 atol=0.01
+    @test RBMs.transfer_var(layer) ≈ reshape(var(samples; dims=ndims(samples)), size(layer)) rtol=0.1
+    @test RBMs.transfer_mean_abs(layer) ≈ reshape(mean(abs.(samples); dims=ndims(samples)), size(layer)) rtol=0.1
 
     ∂F = RBMs.∂free_energy(layer)
     ∂E = RBMs.∂energy(layer, samples)
