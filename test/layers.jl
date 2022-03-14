@@ -80,10 +80,10 @@ end
         @test size(@inferred RBMs.transfer_sample(layer, x; β)) == size(x)
         @test size(@inferred RBMs.transfer_mean(layer, x; β)) == size(x)
         @test size(@inferred RBMs.transfer_var(layer, x; β)) == size(x)
-        @test RBMs.free_energy(layer, x; β=1) ≈ RBMs.free_energy(layer, x)
-        @test RBMs.transfer_mean(layer, x; β=1) ≈ RBMs.transfer_mean(layer, x)
-        @test RBMs.transfer_var(layer, x; β=1) ≈ RBMs.transfer_var(layer, x)
-        @test RBMs.transfer_std(layer, x; β) ≈ sqrt.(RBMs.transfer_var(layer, x; β))
+        @test @inferred(RBMs.free_energy(layer, x; β=1)) ≈ RBMs.free_energy(layer, x)
+        @test @inferred(RBMs.transfer_mean(layer, x; β=1)) ≈ RBMs.transfer_mean(layer, x)
+        @test @inferred(RBMs.transfer_var(layer, x; β=1)) ≈ RBMs.transfer_var(layer, x)
+        @test @inferred(RBMs.transfer_std(layer, x; β)) ≈ sqrt.(RBMs.transfer_var(layer, x; β))
         @test all(RBMs.energy(layer, RBMs.transfer_mode(layer)) .≤ RBMs.energy(layer, x))
         if layer isa RBMs.Potts
             @test size(@inferred RBMs.free_energies(layer, x; β)) == (1, size(x)[2:end]...)
@@ -91,23 +91,23 @@ end
             @test size(@inferred RBMs.free_energies(layer, x; β)) == size(x)
         end
         if B == ()
-            @test RBMs.energy(layer, x) ≈ sum(RBMs.energies(layer, x))
-            @test RBMs.free_energy(layer, x) ≈ sum(RBMs.free_energies(layer, x))
-            @test RBMs.batchmean(layer, x) ≈ x
+            @test @inferred(RBMs.energy(layer, x)) ≈ sum(RBMs.energies(layer, x))
+            @test @inferred(RBMs.free_energy(layer, x)) ≈ sum(RBMs.free_energies(layer, x))
+            @test @inferred(RBMs.batchmean(layer, x)) ≈ x
             @test @inferred(RBMs.batchvar(layer, x)) == zeros(N)
             @test @inferred(RBMs.batchcov(layer, x)) == zeros(N..., N...)
         else
-            @test RBMs.energy(layer, x) ≈ reshape(sum(RBMs.energies(layer, x); dims=1:ndims(layer)), B)
-            @test RBMs.free_energy(layer, x) ≈ reshape(sum(RBMs.free_energies(layer, x); dims=1:ndims(layer)), B)
-            @test RBMs.batchmean(layer, x) ≈ reshape(mean(x; dims=(ndims(layer) + 1):ndims(x)), N)
-            @test RBMs.batchvar(layer, x) ≈ reshape(var(x; dims=(ndims(layer) + 1):ndims(x), corrected=false), N)
-            @test RBMs.batchcov(layer, x) ≈ reshape(cov(RBMs.flatten(layer, x); dims=2, corrected=false), N..., N...)
+            @test @inferred(RBMs.energy(layer, x)) ≈ reshape(sum(RBMs.energies(layer, x); dims=1:ndims(layer)), B)
+            @test @inferred(RBMs.free_energy(layer, x)) ≈ reshape(sum(RBMs.free_energies(layer, x); dims=1:ndims(layer)), B)
+            @test @inferred(RBMs.batchmean(layer, x)) ≈ reshape(mean(x; dims=(ndims(layer) + 1):ndims(x)), N)
+            @test @inferred(RBMs.batchvar(layer, x)) ≈ reshape(var(x; dims=(ndims(layer) + 1):ndims(x), corrected=false), N)
+            @test @inferred(RBMs.batchcov(layer, x)) ≈ reshape(cov(RBMs.flatten(layer, x); dims=2, corrected=false), N..., N...)
         end
-        μ = RBMs.transfer_mean(layer, x)
+        μ = @inferred RBMs.transfer_mean(layer, x)
         @test only(Zygote.gradient(j -> sum(RBMs.free_energies(layer, j)), x)) ≈ -μ
     end
 
-    ∂F = RBMs.∂free_energy(layer)
+    ∂F = @inferred RBMs.∂free_energy(layer)
     gs = Zygote.gradient(layer) do layer
         sum(RBMs.free_energies(layer))
     end
@@ -115,13 +115,13 @@ end
         @test ∂ω ≈ getproperty(only(gs), ω)
     end
 
-    samples = RBMs.transfer_sample(layer, zeros(size(layer)..., 10^6))
-    @test RBMs.transfer_mean(layer) ≈ reshape(mean(samples; dims=3), size(layer)) rtol=0.1 atol=0.01
-    @test RBMs.transfer_var(layer) ≈ reshape(var(samples; dims=ndims(samples)), size(layer)) rtol=0.1
-    @test RBMs.transfer_mean_abs(layer) ≈ reshape(mean(abs.(samples); dims=ndims(samples)), size(layer)) rtol=0.1
+    samples = @inferred RBMs.transfer_sample(layer, zeros(size(layer)..., 10^6))
+    @test @inferred(RBMs.transfer_mean(layer)) ≈ reshape(mean(samples; dims=3), size(layer)) rtol=0.1 atol=0.01
+    @test @inferred(RBMs.transfer_var(layer)) ≈ reshape(var(samples; dims=ndims(samples)), size(layer)) rtol=0.1
+    @test @inferred(RBMs.transfer_mean_abs(layer)) ≈ reshape(mean(abs.(samples); dims=ndims(samples)), size(layer)) rtol=0.1
 
-    ∂F = RBMs.∂free_energy(layer)
-    ∂E = RBMs.∂energy(layer, samples)
+    ∂F = @inferred RBMs.∂free_energy(layer)
+    ∂E = @inferred RBMs.∂energy(layer, samples)
     @test length(∂F) == length(∂E)
     @test propertynames(∂F) == propertynames(∂E)
     for (∂f, ∂e) in zip(∂F, ∂E)
