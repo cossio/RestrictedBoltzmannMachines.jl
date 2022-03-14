@@ -22,7 +22,7 @@ function rdm!(rbm::RBM, data::AbstractArray;
         Δt = @elapsed for (vd, wd) in batches
             # fantasy particles, initialized randomly
             vm = transfer_sample(visible(rbm), FillArrays.Falses(size(visible(rbm)))..., batchsize)
-            vm .= sample_v_from_v(rbm, vm; steps = steps)
+            vm = sample_v_from_v(rbm, vm; steps = steps)
             ∂ = ∂contrastive_divergence(rbm, vd, vm; wd = wd, wm = wd, stats)
             push!(history, :∂, gradnorms(∂))
             update!(rbm, update!(∂, rbm, optim))

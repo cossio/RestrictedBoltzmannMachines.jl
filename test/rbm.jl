@@ -59,20 +59,20 @@ end
 @testset "sample_v_from_v and sample_h_from_h on binary RBM" begin
     rbm = RBMs.BinaryRBM(randn(3,2), randn(2,3), zeros(3,2,2,3))
     v = Random.bitrand(size(rbm.visible)..., 10^6)
-    v .= RBMs.sample_v_from_v(rbm, v)
+    v = RBMs.sample_v_from_v(rbm, v)
     @test RBMs.batchmean(rbm.visible, v) ≈ RBMs.transfer_mean(rbm.visible) rtol=0.1
 
     h = Random.bitrand(size(rbm.hidden)...,  10^6)
-    h .= RBMs.sample_h_from_h(rbm, h)
+    h = RBMs.sample_h_from_h(rbm, h)
     @test RBMs.batchmean(rbm.hidden, h) ≈ RBMs.transfer_mean(rbm.hidden) rtol=0.1
 
     Random.randn!(rbm.w)
-    h .= RBMs.sample_h_from_v(rbm, v)
+    h = RBMs.sample_h_from_v(rbm, v)
     μ = RBMs.transfer_mean(rbm.hidden, RBMs.inputs_v_to_h(rbm, v))
     @test RBMs.batchmean(rbm.hidden, h) ≈ RBMs.batchmean(rbm.hidden, μ) rtol=0.1
 
     Random.randn!(rbm.w)
-    v .= RBMs.sample_v_from_h(rbm, h)
+    v = RBMs.sample_v_from_h(rbm, h)
     μ = RBMs.transfer_mean(rbm.visible, RBMs.inputs_h_to_v(rbm, h))
     @test RBMs.batchmean(rbm.visible, v) ≈ RBMs.batchmean(rbm.visible, μ) rtol=0.1
 end

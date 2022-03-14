@@ -27,7 +27,7 @@ function pcd_bnorm!(rbm::RBM{<:Binary, <:Binary}, data::AbstractArray;
 
     # initialize fantasy chains
     vm = selectdim(data, ndims(data), rand(1:_nobs(data), batchsize))
-    vm .= sample_v_from_v(rbm, vm; steps = steps)
+    vm = sample_v_from_v(rbm, vm; steps = steps)
 
     for epoch in 1:epochs
         batches = minibatches(data, wts; batchsize = batchsize)
@@ -36,7 +36,7 @@ function pcd_bnorm!(rbm::RBM{<:Binary, <:Binary}, data::AbstractArray;
             avg_inputs_new = inputs_v_to_h(rbm, avg_data)
             hidden(rbm).θ .-= avg_inputs_new .- avg_inputs
             avg_inputs = avg_inputs_new
-            vm .= sample_v_from_v(rbm, vm; steps = steps)
+            vm = sample_v_from_v(rbm, vm; steps = steps)
             ∂ = ∂contrastive_divergence_bnorm(rbm, vd, vm; wd, stats)
             push!(history, :∂, gradnorms(∂))
             update!(rbm, update!(∂, rbm, optim))
