@@ -71,28 +71,28 @@ end
     sample_v_from_v(rbm, v; β = 1, steps = 1)
 
 Samples a visible configuration conditional on another visible configuration `v`.
+Ensures type stability by requiring that the returned array is of the same type as `v`.
 """
 function sample_v_from_v(rbm::AbstractRBM, v::AbstractArray; β::Real = true, steps::Int = 1)
     @assert size(visible(rbm)) == size(v)[1:ndims(visible(rbm))]
-    v1 = copy(v)
     for _ in 1:steps
-        v1 .= sample_v_from_v_once(rbm, v1; β)
+        v = oftype(v, sample_v_from_v_once(rbm, v; β))
     end
-    return v1
+    return v
 end
 
 """
     sample_h_from_h(rbm, h; β = 1, steps = 1)
 
 Samples a hidden configuration conditional on another hidden configuration `h`.
+Ensures type stability by requiring that the returned array is of the same type as `h`.
 """
 function sample_h_from_h(rbm::AbstractRBM, h::AbstractArray; β::Real = true, steps::Int = 1)
     @assert size(hidden(rbm)) == size(h)[1:ndims(hidden(rbm))]
-    h1 = copy(h)
     for _ in 1:steps
-        h1 .= sample_h_from_h_once(rbm, h1; β)
+        h = oftype(h, sample_h_from_h_once(rbm, h; β))
     end
-    return h1
+    return h
 end
 
 function sample_v_from_v_once(rbm::AbstractRBM, v::AbstractArray; β::Real = true)
