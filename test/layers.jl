@@ -42,7 +42,7 @@ function _random_layers(N::Int...)
 end
 
 @testset "testing $Layer" for Layer in _layers
-    N = (3, 2)
+    N = (3,2)
     layer = random_layer(Layer, N...)
 
     @test (@inferred size(layer)) == N
@@ -70,7 +70,7 @@ end
     β = rand()
     @test size(@inferred RBMs.transfer_sample(layer, 0; β)) == size(layer)
 
-    for B in ((), (4,), (4, 5))
+    for B in ((), (3,), (3,2))
         x = rand(N..., B...)
         @test (@inferred RBMs.batch_size(layer, x)) == (B...,)
         @test (@inferred RBMs.batchdims(layer, x)) == (length(N) + 1):ndims(x)
