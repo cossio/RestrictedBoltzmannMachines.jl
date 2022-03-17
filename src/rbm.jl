@@ -23,16 +23,15 @@ weights(rbm::RBM) = rbm.w
 Weight mediated interaction energy.
 """
 function interaction_energy(rbm::AbstractRBM, v::AbstractArray, h::AbstractArray)
-    wflat = flat_w(rbm)
-    vflat = flat_v(rbm, v)
-    hflat = flat_h(rbm, h)
     bsz = batch_size(rbm, v, h)
     if ndims(visible(rbm)) == ndims(v) || ndims(hidden(rbm)) == ndims(h)
-        return reshape_maybe(-vflat' * wflat * hflat, bsz)
-    elseif size(vflat, 1) ≥ size(hflat, 1)
-        return reshape(-sum((wflat' * vflat) .* hflat; dims=1), bsz)
+        return reshape_maybe(-flat_v(rbm, v)' * flat_w(rbm) * flat_h(rbm, h), bsz)
+    elseif length(visible(rbm)) ≥ length(hidden(rbm))
+        I = inputs_v_to_h(rbm, v)
+        return reshape(-sum(I .* h; dims = 1:ndims(hidden(rbm))), bsz)
     else
-        return reshape(-sum(vflat .* (wflat * hflat); dims=1), bsz)
+        I = inputs_h_to_v(rbm, h)
+        return reshape(-sum(v .* I; dims=1:ndims(visible(rbm))), bsz)
     end
 end
 

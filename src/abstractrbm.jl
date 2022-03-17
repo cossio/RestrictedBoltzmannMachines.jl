@@ -13,13 +13,17 @@ flat_h(rbm::AbstractRBM, h::AbstractArray) = flatten(hidden(rbm), h)
 function batch_size(rbm::AbstractRBM, v::AbstractArray, h::AbstractArray)
     visible_batchsize = batch_size(visible(rbm), v)
     hidden_batchsize = batch_size(hidden(rbm), h)
-    if size(hidden(rbm)) == size(h)
+    if isempty(hidden_batchsize)
         return visible_batchsize
-    elseif size(visible(rbm)) == size(v)
+    elseif isempty(visible_batchsize)
         return hidden_batchsize
     else
-        @assert visible_batchsize == hidden_batchsize
-        return visible_batchsize
+        @assert all(
+            (visible_batchsize .== hidden_batchsize) .|
+            (visible_batchsize .== 1) .|
+            (hidden_batchsize .== 1)
+        )
+        return max.(visible_batchsize, hidden_batchsize)
     end
 end
 

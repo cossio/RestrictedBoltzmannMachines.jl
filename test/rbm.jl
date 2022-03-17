@@ -1,4 +1,3 @@
-using Test: @test, @testset
 import Statistics
 import Random
 import LinearAlgebra
@@ -6,11 +5,14 @@ import Zygote
 import QuadGK
 import RestrictedBoltzmannMachines as RBMs
 
+using Test: @test, @testset
+using Random: bitrand, randn!
+
 @testset "batches, n=$n, m=$m, Bv=$Bv, Bh=$Bh" for n in (5, (5,2)), m in (2, (3,4)), Bv in ((), (3,2)), Bh in ((), (3,2))
     rbm = RBMs.BinaryRBM(randn(n...), randn(m...), randn(n..., m...))
     wmat = reshape(rbm.w, length(rbm.visible), length(rbm.hidden))
-    v = Random.bitrand(n..., Bv...)
-    h = Random.bitrand(m..., Bh...)
+    v = bitrand(n..., Bv...)
+    h = bitrand(m..., Bh...)
 
     @test RBMs.batch_size(rbm.visible, v) == Bv
     @test RBMs.batch_size(rbm.hidden, h) == Bh
@@ -56,22 +58,36 @@ import RestrictedBoltzmannMachines as RBMs
     @test ∂w ≈ only(gs).w
 end
 
+@testset "singleton batch dims" begin
+    rbm = RBMs.BinaryRBM(randn(3), randn(2), randn(3,2))
+    v = bitrand(3,1,2)
+    h = bitrand(2,3,1)
+    expected = [RBMs.energy(rbm, v[:,1,j], h[:,i,1]) for i = 1:3, j = 1:2]
+    actual = @inferred RBMs.energy(rbm, v, h)
+    @test size(actual) == @inferred(RBMs.batch_size(rbm, v, h)) == (3,2)
+    @test actual ≈ expected
+
+    v = bitrand(3,2,2)
+    @test_throws Any RBMs.batch_size(rbm, v, h)
+    @test_throws Any RBMs.energy(rbm, v, h)
+end
+
 @testset "sample_v_from_v and sample_h_from_h on binary RBM" begin
     rbm = RBMs.BinaryRBM(randn(3,2), randn(2,3), zeros(3,2,2,3))
-    v = Random.bitrand(size(rbm.visible)..., 10^6)
+    v = bitrand(size(rbm.visible)..., 10^6)
     v = RBMs.sample_v_from_v(rbm, v)
     @test RBMs.batchmean(rbm.visible, v) ≈ RBMs.transfer_mean(rbm.visible) rtol=0.1
 
-    h = Random.bitrand(size(rbm.hidden)...,  10^6)
+    h = bitrand(size(rbm.hidden)...,  10^6)
     h = RBMs.sample_h_from_h(rbm, h)
     @test RBMs.batchmean(rbm.hidden, h) ≈ RBMs.transfer_mean(rbm.hidden) rtol=0.1
 
-    Random.randn!(rbm.w)
+    randn!(rbm.w)
     h = RBMs.sample_h_from_v(rbm, v)
     μ = RBMs.transfer_mean(rbm.hidden, RBMs.inputs_v_to_h(rbm, v))
     @test RBMs.batchmean(rbm.hidden, h) ≈ RBMs.batchmean(rbm.hidden, μ) rtol=0.1
 
-    Random.randn!(rbm.w)
+    randn!(rbm.w)
     v = RBMs.sample_v_from_h(rbm, h)
     μ = RBMs.transfer_mean(rbm.visible, RBMs.inputs_h_to_v(rbm, h))
     @test RBMs.batchmean(rbm.visible, v) ≈ RBMs.batchmean(rbm.visible, μ) rtol=0.1
