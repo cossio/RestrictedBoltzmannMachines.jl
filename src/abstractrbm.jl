@@ -10,25 +10,37 @@ flat_w(rbm::AbstractRBM) = reshape(weights(rbm), length(visible(rbm)), length(hi
 flat_v(rbm::AbstractRBM, v::AbstractArray) = flatten(visible(rbm), v)
 flat_h(rbm::AbstractRBM, h::AbstractArray) = flatten(hidden(rbm), h)
 
+"""
+    batch_size(rbm, v, h)
+
+Returns the batch size if `energy(rbm, v, h)` were computed.
+"""
 function batch_size(rbm::AbstractRBM, v::AbstractArray, h::AbstractArray)
-    visible_batchsize = batch_size(visible(rbm), v)
-    hidden_batchsize = batch_size(hidden(rbm), h)
-    if isempty(hidden_batchsize)
-        return visible_batchsize
-    elseif isempty(visible_batchsize)
-        return hidden_batchsize
+    v_bsz = batch_size(visible(rbm), v)
+    h_bsz = batch_size(hidden(rbm), h)
+    if isempty(v_bsz)
+        return h_bsz
+    elseif isempty(h_bsz)
+        return v_bsz
     else
-        return ntuple(max(length(visible_batchsize), length(hidden_batchsize))) do d
-            if d ≤ length(visible_batchsize) && d ≤ length(hidden_batchsize)
-                @assert visible_batchsize[d] == 1 || hidden_batchsize[d] == 1 || visible_batchsize[d] == hidden_batchsize[d]
-                max(visible_batchsize[d], hidden_batchsize[d])
-            elseif d > length(visible_batchsize)
-                hidden_batchsize[d]
-            elseif d > length(hidden_batchsize)
-                visible_batchsize[d]
-            end
-        end
+        return join_batch_size(v_bsz, h_bsz)
     end
+end
+
+function join_batch_size(bsz_1::Tuple{Int,Vararg{Int}}, bsz_2::Tuple{Int,Vararg{Int}})
+    if length(bsz_1) > length(bsz_2)
+        D = length(bsz_2)
+        sz2 = bsz_1[(D + 1):end]
+    else
+        D = length(bsz_1)
+        sz2 = bsz_2[(D + 1):end]
+    end
+    sz1 = map(bsz_1[1:D], bsz_2[1:D]) do b1, b2
+        bmin, bmax = minmax(b1, b2)
+        @assert bmin == 1 || bmin == bmax
+        bmax
+    end
+    return (sz1..., sz2...)
 end
 
 """
