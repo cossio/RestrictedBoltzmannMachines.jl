@@ -58,16 +58,26 @@ using Random: bitrand, randn!
     @test ∂w ≈ only(gs).w
 end
 
-@testset "singleton batch dims" begin # this behavior is useful at ConvolutionalRBMs.jl
+@testset "singleton batch dims" begin # this behavior is useful for ConvolutionalRBMs.jl
     rbm = RBMs.BinaryRBM(randn(3), randn(2), randn(3,2))
+
     v = bitrand(3,1,2)
     h = bitrand(2,3,1)
-    expected = [RBMs.energy(rbm, v[:,1,j], h[:,i,1]) for i = 1:3, j = 1:2]
-    actual = @inferred RBMs.energy(rbm, v, h)
-    @test size(actual) == @inferred(RBMs.batch_size(rbm, v, h)) == (3,2)
-    @test actual ≈ expected
+    @test size(RBMs.energy(rbm, v, h)) == @inferred(RBMs.batch_size(rbm, v, h)) == (3,2)
+    @test RBMs.energy(rbm, v, h) ≈ [RBMs.energy(rbm, v[:,1,j], h[:,i,1]) for i = 1:3, j = 1:2]
+
+    v = bitrand(3,1,2)
+    h = bitrand(2,3)
+    @test size(RBMs.energy(rbm, v, h)) == @inferred(RBMs.batch_size(rbm, v, h)) == (3,2)
+    @test RBMs.energy(rbm, v, h) ≈ [RBMs.energy(rbm, v[:,1,j], h[:,i]) for i = 1:3, j = 1:2]
+
+    v = bitrand(3,1)
+    h = bitrand(2,3,2)
+    @test size(RBMs.energy(rbm, v, h)) == @inferred(RBMs.batch_size(rbm, v, h)) == (3,2)
+    @test RBMs.energy(rbm, v, h) ≈ [RBMs.energy(rbm, v[:,1], h[:,i,j]) for i = 1:3, j = 1:2]
 
     v = bitrand(3,2,2)
+    h = bitrand(2,3,1)
     @test_throws Any RBMs.batch_size(rbm, v, h)
     @test_throws Any RBMs.energy(rbm, v, h)
 end

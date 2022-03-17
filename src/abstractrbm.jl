@@ -18,12 +18,16 @@ function batch_size(rbm::AbstractRBM, v::AbstractArray, h::AbstractArray)
     elseif isempty(visible_batchsize)
         return hidden_batchsize
     else
-        @assert all(
-            (visible_batchsize .== hidden_batchsize) .|
-            (visible_batchsize .== 1) .|
-            (hidden_batchsize .== 1)
-        )
-        return max.(visible_batchsize, hidden_batchsize)
+        return ntuple(max(length(visible_batchsize), length(hidden_batchsize))) do d
+            if d ≤ length(visible_batchsize) && d ≤ length(hidden_batchsize)
+                @assert visible_batchsize[d] == 1 || hidden_batchsize[d] == 1 || visible_batchsize[d] == hidden_batchsize[d]
+                max(visible_batchsize[d], hidden_batchsize[d])
+            elseif d > length(visible_batchsize)
+                hidden_batchsize[d]
+            elseif d > length(hidden_batchsize)
+                visible_batchsize[d]
+            end
+        end
     end
 end
 
