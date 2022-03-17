@@ -58,7 +58,7 @@ using Random: bitrand, randn!
     @test ∂w ≈ only(gs).w
 end
 
-@testset "singleton batch dims" begin
+@testset "singleton batch dims" begin # this behavior is useful at ConvolutionalRBMs.jl
     rbm = RBMs.BinaryRBM(randn(3), randn(2), randn(3,2))
     v = bitrand(3,1,2)
     h = bitrand(2,3,1)
