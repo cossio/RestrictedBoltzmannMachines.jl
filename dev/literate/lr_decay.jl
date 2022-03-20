@@ -88,13 +88,13 @@ Now make the plots. Average digit shapes.
 =#
 
 fig = Makie.Figure(resolution=(900, 300))
-ax = Makie.Axis(fig[1,1], title="data")
+ax = Makie.Axis(fig[1,1], title="data", yreversed=true)
 Makie.heatmap!(ax, mean(train_x, dims=3)[:,:,1])
 Makie.hidedecorations!(ax)
-ax = Makie.Axis(fig[1,2], title="const. lr")
+ax = Makie.Axis(fig[1,2], title="const. lr", yreversed=true)
 Makie.heatmap!(ax, mean(samples_v_nodecay, dims=3)[:,:,1])
 Makie.hidedecorations!(ax)
-ax = Makie.Axis(fig[1,3], title="lr decay")
+ax = Makie.Axis(fig[1,3], title="lr decay", yreversed=true)
 Makie.heatmap!(ax, mean(samples_v_decaylr, dims=3)[:,:,1])
 Makie.hidedecorations!(ax)
 fig
