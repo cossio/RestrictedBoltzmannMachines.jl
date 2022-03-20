@@ -110,8 +110,8 @@ fig = Makie.Figure(resolution=(400,300))
 ax = Makie.Axis(fig[1,1])
 F_nodecay_μ = vec(mean(F_nodecay; dims=1))
 F_nodecay_σ = vec(std(F_nodecay; dims=1))
-Makie.band!(ax, 1:steps, F_nodecay_μ - F_nodecay_σ/2, F_nodecay_μ + F_nodecay_σ/2)
-Makie.lines!(ax, 1:steps, F_nodecay_μ, label="no decay")
+Makie.band!(ax, 1:nsteps, F_nodecay_μ - F_nodecay_σ/2, F_nodecay_μ + F_nodecay_σ/2)
+Makie.lines!(ax, 1:nsteps, F_nodecay_μ, label="no decay")
 fig
 
 # Samples with lr decay
@@ -120,8 +120,8 @@ fig = Makie.Figure(resolution=(400,300))
 ax = Makie.Axis(fig[1,1])
 F_decaylr_μ = vec(mean(F_decaylr; dims=1))
 F_decaylr_σ = vec(std(F_decaylr; dims=1))
-Makie.band!(ax, 1:steps, F_decaylr_μ - F_decaylr_σ/2, F_decaylr_μ + F_decaylr_σ/2)
-Makie.lines!(ax, 1:steps, F_decaylr_μ, label="decay lr")
+Makie.band!(ax, 1:nsteps, F_decaylr_μ - F_decaylr_σ/2, F_decaylr_μ + F_decaylr_σ/2)
+Makie.lines!(ax, 1:nsteps, F_decaylr_μ, label="decay lr")
 fig
 
 #=

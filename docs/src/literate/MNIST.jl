@@ -112,8 +112,8 @@ fig = Makie.Figure(resolution=(400,300))
 ax = Makie.Axis(fig[1,1], xlabel="sampling time", ylabel="free energy")
 fantasy_F_μ = vec(mean(fantasy_F; dims=1))
 fantasy_F_σ = vec(std(fantasy_F; dims=1))
-Makie.band!(ax, 1:steps, fantasy_F_μ - fantasy_F_σ/2, fantasy_F_μ + fantasy_F_σ/2)
-Makie.lines!(ax, 1:steps, fantasy_F_μ)
+Makie.band!(ax, 1:nsteps, fantasy_F_μ - fantasy_F_σ/2, fantasy_F_μ + fantasy_F_σ/2)
+Makie.lines!(ax, 1:nsteps, fantasy_F_μ)
 fig
 
 # Plot the sampled digits.
