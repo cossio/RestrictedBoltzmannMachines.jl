@@ -23,40 +23,46 @@ train_x, train_y = MLDatasets.MNIST.traindata()
 train_x = Array{Float64}(train_x[:,:, train_y .== 0] .> 0.5)
 nothing #hide
 
+# Some hyper-parameters
+
+nh = 100 # number of hidden units
+epochs1 = 300 # epochs before lr decay
+decay_every = 10
+decay_count = 20 # periods with lr decay
+nothing #hide
+
 #=
 Consider first an RBM that we train without decaying the learning rate.
-We will train this machine for 300 epochs.
 =#
 
-rbm_nodecay = RBMs.BinaryRBM(Float, (28,28), 100)
+rbm_nodecay = RBMs.BinaryRBM(Float, (28,28), nh)
 RBMs.initialize!(rbm_nodecay, train_x)
 optim = Flux.ADAM(0.001)
 batchsize = 256
 vm = bitrand(28, 28, batchsize) # fantasy chains
 history_nodecay = MVHistory()
-for epoch = 1:300
+for epoch = 1:(epochs1 + decay_every * decay_count)
     RBMs.pcd!(rbm_nodecay, train_x; vm, history=history_nodecay, batchsize, optim)
     push!(history_nodecay, :lpl, mean(RBMs.log_pseudolikelihood(rbm_nodecay, train_x)))
 end
 nothing #hide
 
 #=
-Now train an RBM with 200 normal epochs, followed by 100 epochs where the
+Now train an RBM with some normal epochsfirst, followed by another group of epochs where the
 learning-rate is cut in half every 10 epochs.
 =#
 
-nh = 100
 rbm_decaylr = RBMs.BinaryRBM(Float, (28,28), nh)
 RBMs.initialize!(rbm_decaylr, train_x)
 optim = Flux.ADAM(0.001)
 vm = bitrand(28, 28, batchsize)
 history_decaylr = MVHistory()
-for epoch = 1:200 # first 200 epochs without lr decay
+for epoch = 1:epochs1 # first epochs without lr decay
     RBMs.pcd!(rbm_decaylr, train_x; vm, history=history_decaylr, batchsize, optim)
     push!(history_decaylr, :lpl, mean(RBMs.log_pseudolikelihood(rbm_decaylr, train_x)))
 end
 @info "*** decaying learning rate ****"
-for iter = 1:10, epoch = 1:10 # further 10 epochs with decaying lr
+for iter = 1:decay_count, epoch = 1:decay_every # later epochs with decaying lr
     optim.eta = 0.001 / 2^iter
     RBMs.pcd!(rbm_decaylr, train_x; vm, history=history_decaylr, batchsize, optim)
     push!(history_decaylr, :lpl, mean(RBMs.log_pseudolikelihood(rbm_decaylr, train_x)))
