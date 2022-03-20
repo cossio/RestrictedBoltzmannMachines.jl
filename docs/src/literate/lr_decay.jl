@@ -86,8 +86,8 @@ Check convergence by computing the moment-matching conditions.
 First generate MC data from the RBMs.
 =#
 
-@time samples_v_nodecay = RBMs.sample_v_from_v(rbm_nodecay, bitrand(28,28,5000); steps=1000)
-@time samples_v_decaylr = RBMs.sample_v_from_v(rbm_decaylr, bitrand(28,28,5000); steps=1000)
+@time samples_v_nodecay = RBMs.sample_v_from_v(rbm_nodecay, bitrand(28,28,5000); steps=5000)
+@time samples_v_decaylr = RBMs.sample_v_from_v(rbm_decaylr, bitrand(28,28,5000); steps=5000)
 nothing #hide
 
 #=
