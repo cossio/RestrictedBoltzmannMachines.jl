@@ -70,7 +70,7 @@ end
     β = rand()
     @test size(@inferred RBMs.transfer_sample(layer, 0; β)) == size(layer)
 
-    for B in ((), (3,), (3,2))
+    for B in ((), (2,), (1,2))
         x = rand(N..., B...)
         @test (@inferred RBMs.batch_size(layer, x)) == (B...,)
         @test (@inferred RBMs.batchdims(layer, x)) == (length(N) + 1):ndims(x)
