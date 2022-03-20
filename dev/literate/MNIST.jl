@@ -5,14 +5,15 @@ We begin by importing the required packages.
 We load MNIST via the MLDatasets.jl package.
 =#
 
-using Statistics: mean
-using Random: bitrand
-using ValueHistories: MVHistory
 import Makie
 import CairoMakie
 import MLDatasets
 import Flux
 import RestrictedBoltzmannMachines as RBMs
+using Statistics: mean
+using Random: bitrand
+using ValueHistories: MVHistory
+using RestrictedBoltzmannMachines: visible, initialize!, BinaryRBM, log_pseudolikelihood, transfer_sample
 nothing #hide
 
 # Useful function to plot grids of MNIST digits.
@@ -54,15 +55,15 @@ fig
 
 # Initialize an RBM with 400 hidden units.
 
-rbm = RBMs.BinaryRBM(Float, (28,28), 400)
-RBMs.initialize!(rbm, train_x) # match single-site statistics
+rbm = BinaryRBM(Float, (28,28), 400)
+initialize!(rbm, train_x) # match single-site statistics
 nothing #hide
 
 #=
 Initially, the RBM assigns a poor pseudolikelihood to the data.
 =#
 
-@time RBMs.log_pseudolikelihood(rbm, train_x) |> mean
+@time log_pseudolikelihood(rbm, train_x) |> mean
 
 #=
 (Incidentally, note how long it takes to evaluate the pseudolikelihood on the full
@@ -75,11 +76,11 @@ collecting some info during training.
 
 batchsize = 256
 optim = Flux.ADAM()
-vm = bitrand(28, 28, batchsize) # fantasy chains
+vm = transfer_sample(visible(rbm), falses(28, 28, batchsize)) # fantasy chains
 history = MVHistory()
 @time for epoch in 1:500
     RBMs.pcd!(rbm, train_x; vm, history, batchsize, optim)
-    push!(history, :lpl, mean(RBMs.log_pseudolikelihood(rbm, train_x))) # track pseudolikelihood
+    push!(history, :lpl, mean(log_pseudolikelihood(rbm, train_x))) # track pseudolikelihood
 end
 nothing #hide
 
