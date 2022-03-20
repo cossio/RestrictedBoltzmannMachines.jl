@@ -32,12 +32,12 @@ imggrid(A::AbstractArray{<:Any,4}) =
 Load the MNIST dataset.
 We will train an RBM with binary (0,1) visible and hidden units.
 Therefore we binarize the data.
-In addition, we consider only `4` digits so that training is faster.
+In addition, we consider only one kind of digit so that training is faster.
 =#
 
 Float = Float32
 train_x, train_y = MLDatasets.MNIST.traindata()
-train_x = Array{Float}(train_x[:, :, train_y .== 4] .≥ 0.5)
+train_x = Array{Float}(train_x[:, :, train_y .== 0] .≥ 0.5)
 nothing #hide
 
 # Let's visualize some random digits.

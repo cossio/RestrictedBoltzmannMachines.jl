@@ -22,7 +22,7 @@ nothing #hide
 # Load MNIST
 
 train_x, train_y = MLDatasets.MNIST.traindata()
-train_x = Array{Float}(train_x[:, :, train_y .== 4] .≥ 0.5)
+train_x = Array{Float}(train_x[:, :, train_y .== 0] .≥ 0.5)
 nothing #hide
 
 # Train using explicit gradients
