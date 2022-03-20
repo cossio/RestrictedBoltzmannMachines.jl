@@ -10,7 +10,7 @@ import CairoMakie
 import MLDatasets
 import Flux
 import RestrictedBoltzmannMachines as RBMs
-using Statistics: mean
+using Statistics: mean, std, var
 using Random: bitrand
 using ValueHistories: MVHistory
 using RestrictedBoltzmannMachines: visible, initialize!, BinaryRBM, log_pseudolikelihood, transfer_sample
