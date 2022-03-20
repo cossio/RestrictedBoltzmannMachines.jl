@@ -101,7 +101,7 @@ fantasy_F = zeros(nrows*ncols, nsteps)
 fantasy_x = bitrand(28,28,nrows*ncols)
 fantasy_F[:,1] .= RBMs.free_energy(rbm, fantasy_x)
 for t in 2:nsteps
-    @time fantasy_x = RBMs.sample_v_from_v(rbm, fantasy_x)
+    fantasy_x .= @time RBMs.sample_v_from_v(rbm, fantasy_x)
     fantasy_F[:,t] .= RBMs.free_energy(rbm, fantasy_x)
 end
 nothing #hide
