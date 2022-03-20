@@ -13,7 +13,7 @@ import RestrictedBoltzmannMachines as RBMs
 # Using Float32
 
 train_x, train_y = MLDatasets.MNIST.traindata()
-train_x = Array{Float32}(train_x[:, :, train_y .== 4] .≥ 0.5)
+train_x = Array{Float32}(train_x[:, :, train_y .== 0] .≥ 0.5)
 rbm = RBMs.BinaryRBM(Float32, (28,28), 128)
 RBMs.initialize!(rbm, train_x)
 history32 = RBMs.cd!(rbm, train_x; epochs=100, batchsize=128, steps=1)
@@ -22,7 +22,7 @@ nothing #hide
 # Using Float64
 
 train_x, train_y = MLDatasets.MNIST.traindata()
-train_x = Array{Float64}(train_x[:, :, train_y .== 4] .≥ 0.5)
+train_x = Array{Float64}(train_x[:, :, train_y .== 0] .≥ 0.5)
 rbm = RBMs.BinaryRBM(Float64, (28,28), 128)
 RBMs.initialize!(rbm, train_x)
 history64 = RBMs.cd!(rbm, train_x; epochs=100, batchsize=128, steps=1)

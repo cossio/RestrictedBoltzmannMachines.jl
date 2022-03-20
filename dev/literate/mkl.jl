@@ -13,7 +13,7 @@ import CairoMakie
 
 Float = Float32
 train_x, train_y = MLDatasets.MNIST.traindata()
-train_x = Array{Float}(train_x[:, :, train_y .== 4] .≥ 0.5)
+train_x = Array{Float}(train_x[:, :, train_y .== 0] .≥ 0.5)
 nothing #hide
 
 # Make  sure we are using OpenBLAS first:
