@@ -13,7 +13,7 @@ function log_partition(rbm::AbstractRBM; β::Real = true)
     v = ChainRulesCore.ignore_derivatives() do
         collect_states(visible(rbm))
     end
-    return LogExpFunctions.logsumexp(-β * free_energy(rbm, v; β = β))
+    return LogExpFunctions.logsumexp(-β * free_energy(rbm, v; β))
 end
 
 # For a Gaussian-Gaussian RBM we can use the analytical expression

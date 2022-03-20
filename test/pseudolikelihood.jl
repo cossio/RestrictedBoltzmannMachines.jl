@@ -13,18 +13,18 @@ import RestrictedBoltzmannMachines as RBMs
     rbm = RBMs.RBM(RBMs.Binary(n...), RBMs.Gaussian(m...), randn(n..., m...) / √prod(n))
     v = Random.bitrand(n..., B)
 
-    E = RBMs.free_energy(rbm, v; β = β)
+    E = RBMs.free_energy(rbm, v; β)
 
     ΔE = zeros(2, n..., B)
     for (k, x) in enumerate((false, true)), i in CartesianIndices(n)
         v_ = copy(v)
         v_[i, :] .= x
-        ΔE[k, i, :] .= RBMs.free_energy(rbm, v_; β = β) - E
+        ΔE[k, i, :] .= RBMs.free_energy(rbm, v_; β) - E
     end
-    @test ΔE ≈ RBMs.substitution_matrix_exhaustive(rbm, v; β = β)
+    @test ΔE ≈ RBMs.substitution_matrix_exhaustive(rbm, v; β)
     lpl = -LogExpFunctions.logsumexp(-β * ΔE; dims=1)
     @assert size(lpl) == (1, n..., B)
-    @test RBMs.log_pseudolikelihood(rbm, v; β = β, exact=true) ≈ vec(Statistics.mean(lpl; dims=(1,2,3)))
+    @test RBMs.log_pseudolikelihood(rbm, v; β, exact=true) ≈ vec(Statistics.mean(lpl; dims=(1,2,3)))
 
     ΔE = zeros(2, B)
     sites = [rand(CartesianIndices(n)) for _ in 1:B]
@@ -34,11 +34,11 @@ import RestrictedBoltzmannMachines as RBMs
         for (b, i) in enumerate(sites)
             v_[i, b] = x
         end
-        ΔE[k, :] .= RBMs.free_energy(rbm, v_; β = β) - E
+        ΔE[k, :] .= RBMs.free_energy(rbm, v_; β) - E
     end
-    @test ΔE ≈ RBMs.substitution_matrix_sites(rbm, v, sites; β = β)
+    @test ΔE ≈ RBMs.substitution_matrix_sites(rbm, v, sites; β)
     lpl = -LogExpFunctions.logsumexp(-β * ΔE; dims=1)
-    @test RBMs.log_pseudolikelihood_sites(rbm, v, sites; β = β) ≈ vec(lpl)
+    @test RBMs.log_pseudolikelihood_sites(rbm, v, sites; β) ≈ vec(lpl)
 end
 
 @testset "spins pseudolikelihood" begin
@@ -50,18 +50,18 @@ end
     rbm = RBMs.RBM(RBMs.Spin(n...), RBMs.Gaussian(m...), randn(n..., m...) / √prod(n))
     v = rand((-1, +1), n..., B)
 
-    E = RBMs.free_energy(rbm, v; β = β)
+    E = RBMs.free_energy(rbm, v; β)
 
     ΔE = zeros(2, n..., B)
     for (k, x) in enumerate((-1, 1)), i in CartesianIndices(n)
         v_ = copy(v)
         v_[i, :] .= x
-        ΔE[k, i, :] .= RBMs.free_energy(rbm, v_; β = β) - E
+        ΔE[k, i, :] .= RBMs.free_energy(rbm, v_; β) - E
     end
-    @test ΔE ≈ RBMs.substitution_matrix_exhaustive(rbm, v; β = β)
+    @test ΔE ≈ RBMs.substitution_matrix_exhaustive(rbm, v; β)
     lpl = -LogExpFunctions.logsumexp(-β * ΔE; dims=1)
     @assert size(lpl) == (1, n..., B)
-    @test RBMs.log_pseudolikelihood(rbm, v; β = β, exact=true) ≈ vec(Statistics.mean(lpl; dims=(1,2,3)))
+    @test RBMs.log_pseudolikelihood(rbm, v; β, exact=true) ≈ vec(Statistics.mean(lpl; dims=(1,2,3)))
 
     ΔE = zeros(2, B)
     sites = [rand(CartesianIndices(n)) for _ in 1:B]
@@ -70,11 +70,11 @@ end
         for (b, i) in enumerate(sites)
             v_[i, b] = x
         end
-        ΔE[k, :] .= RBMs.free_energy(rbm, v_; β = β) - E
+        ΔE[k, :] .= RBMs.free_energy(rbm, v_; β) - E
     end
-    @test ΔE ≈ RBMs.substitution_matrix_sites(rbm, v, sites; β = β)
+    @test ΔE ≈ RBMs.substitution_matrix_sites(rbm, v, sites; β)
     lpl = -LogExpFunctions.logsumexp(-β * ΔE; dims=1)
-    @test RBMs.log_pseudolikelihood_sites(rbm, v, sites; β = β) ≈ vec(lpl)
+    @test RBMs.log_pseudolikelihood_sites(rbm, v, sites; β) ≈ vec(lpl)
 end
 
 @testset "Potts pseudolikelihood" begin
@@ -90,19 +90,19 @@ end
         v[rand(1:q), i, b] = true
     end
 
-    E = RBMs.free_energy(rbm, v; β = β)
+    E = RBMs.free_energy(rbm, v; β)
 
     ΔE = zeros(q, n..., B)
     for x in 1:q, i in CartesianIndices(n)
         v_ = copy(v)
         v_[:, i, :] .= false
         v_[x, i, :] .= true
-        ΔE[x, i, :] .= RBMs.free_energy(rbm, v_; β = β) - E
+        ΔE[x, i, :] .= RBMs.free_energy(rbm, v_; β) - E
     end
-    @test ΔE ≈ RBMs.substitution_matrix_exhaustive(rbm, v; β = β)
+    @test ΔE ≈ RBMs.substitution_matrix_exhaustive(rbm, v; β)
     lpl = -LogExpFunctions.logsumexp(-β * ΔE; dims=1)
     @assert size(lpl) == (1, n..., B)
-    @test RBMs.log_pseudolikelihood(rbm, v; β = β, exact=true) ≈ vec(Statistics.mean(lpl; dims=(1,2,3)))
+    @test RBMs.log_pseudolikelihood(rbm, v; β, exact=true) ≈ vec(Statistics.mean(lpl; dims=(1,2,3)))
 
     ΔE = zeros(q, B)
     sites = [rand(CartesianIndices(n)) for _ in 1:B]
@@ -112,9 +112,9 @@ end
             v_[:, i, b] .= false
             v_[x, i, b] = true
         end
-        ΔE[x, :] .= RBMs.free_energy(rbm, v_; β = β) - E
+        ΔE[x, :] .= RBMs.free_energy(rbm, v_; β) - E
     end
-    @test ΔE ≈ RBMs.substitution_matrix_sites(rbm, v, sites; β = β)
+    @test ΔE ≈ RBMs.substitution_matrix_sites(rbm, v, sites; β)
     lpl = -LogExpFunctions.logsumexp(-β * ΔE; dims=1)
-    @test RBMs.log_pseudolikelihood_sites(rbm, v, sites; β = β) ≈ vec(lpl)
+    @test RBMs.log_pseudolikelihood_sites(rbm, v, sites; β) ≈ vec(lpl)
 end
