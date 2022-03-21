@@ -97,8 +97,8 @@ F_decaylr[:,1] .= RBMs.free_energy(rbm_decaylr, samples_v_decaylr)
 @time for step in 2:nsteps
     samples_v_nodecay .= RBMs.sample_v_from_v(rbm_nodecay, samples_v_nodecay)
     samples_v_decaylr .= RBMs.sample_v_from_v(rbm_decaylr, samples_v_decaylr)
-    F_nodecay[:,1] .= RBMs.free_energy(rbm_nodecay, samples_v_nodecay)
-    F_decaylr[:,1] .= RBMs.free_energy(rbm_decaylr, samples_v_decaylr)
+    F_nodecay[:,step] .= RBMs.free_energy(rbm_nodecay, samples_v_nodecay)
+    F_decaylr[:,step] .= RBMs.free_energy(rbm_decaylr, samples_v_decaylr)
 end
 nothing #hide
 
