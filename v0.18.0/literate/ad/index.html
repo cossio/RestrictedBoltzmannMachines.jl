@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>AutoDiff · RestrictedBoltzmannMachines.jl</title><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.039/juliamono-regular.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">RestrictedBoltzmannMachines.jl</a></span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="../MNIST/">MNIST</a></li><li><input class="collapse-toggle" id="menuitem-2-2" type="checkbox"/><label class="tocitem" for="menuitem-2-2"><span class="docs-label">Layers</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../layers/Gaussian/">Gaussian</a></li><li><a class="tocitem" href="../layers/ReLU/">ReLU</a></li><li><a class="tocitem" href="../layers/dReLU/">dReLU</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-2-3" type="checkbox" checked/><label class="tocitem" for="menuitem-2-3"><span class="docs-label">Performance</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../mkl/">MKL</a></li><li><a class="tocitem" href="../float32/">Float32 vs. Float64</a></li><li class="is-active"><a class="tocitem" href>AutoDiff</a></li></ul></li><li><a class="tocitem" href="../lr_decay/">Learning rate decay</a></li></ul></li><li><a class="tocitem" href="../../reference/">Reference</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li><a class="is-disabled">Performance</a></li><li class="is-active"><a href>AutoDiff</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>AutoDiff</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/cossio/RestrictedBoltzmannMachines.jl/blob/master/docs/src/literate/ad.jl" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Gradients-with-Zygote"><a class="docs-heading-anchor" href="#Gradients-with-Zygote">Gradients with Zygote</a><a id="Gradients-with-Zygote-1"></a><a class="docs-heading-anchor-permalink" href="#Gradients-with-Zygote" title="Permalink"></a></h1><p>It is possible to calculate gradients with Zygote. Let&#39;s compare performance to explicit gradients.</p><pre><code class="language-julia hljs">import MKL
+import MLDatasets
+import Makie
+import CairoMakie
+import RestrictedBoltzmannMachines as RBMs</code></pre><p>Setup</p><pre><code class="language-julia hljs">Float = Float32
+epochs = 100
+batchsize = 128</code></pre><p>Load MNIST</p><pre><code class="language-julia hljs">train_x, train_y = MLDatasets.MNIST.traindata()
+train_x = Array{Float}(train_x[:, :, train_y .== 0] .≥ 0.5)</code></pre><p>Train using explicit gradients</p><pre><code class="language-julia hljs">rbm_∂s = RBMs.BinaryRBM(Float, (28,28), 128)
+RBMs.initialize!(rbm_∂s, train_x)
+history_∂s = RBMs.cd!(rbm_∂s, train_x; epochs, batchsize)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">┌ Debug: epoch 1/100 (0.71s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 2/100 (0.27s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 3/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 4/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 5/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 6/100 (0.25s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 7/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 8/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 9/100 (0.25s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 10/100 (0.25s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 11/100 (0.25s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 12/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 13/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 14/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 15/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 16/100 (0.25s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 17/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 18/100 (0.25s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 19/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 20/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 21/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 22/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 23/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 24/100 (0.25s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 25/100 (0.25s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 26/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 27/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 28/100 (0.25s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 29/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 30/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 31/100 (0.25s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 32/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 33/100 (0.25s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 34/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 35/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 36/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 37/100 (0.25s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 38/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 39/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 40/100 (0.25s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 41/100 (0.25s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 42/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 43/100 (0.25s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 44/100 (0.25s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 45/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 46/100 (0.25s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 47/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 48/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 49/100 (0.25s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 50/100 (0.25s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 51/100 (0.25s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 52/100 (0.25s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 53/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 54/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 55/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 56/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 57/100 (0.28s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 58/100 (0.27s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 59/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 60/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 61/100 (0.25s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 62/100 (0.25s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 63/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 64/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 65/100 (0.25s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 66/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 67/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 68/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 69/100 (0.25s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 70/100 (0.25s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 71/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 72/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 73/100 (0.25s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 74/100 (0.25s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 75/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 76/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 77/100 (0.25s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 78/100 (0.38s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 79/100 (0.27s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 80/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 81/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 82/100 (0.25s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 83/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 84/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 85/100 (0.27s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 86/100 (0.27s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 87/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 88/100 (0.27s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 89/100 (0.28s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 90/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 91/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 92/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 93/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 94/100 (0.26s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 95/100 (0.27s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 96/100 (0.27s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 97/100 (0.27s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 98/100 (0.28s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 99/100 (0.28s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28
+┌ Debug: epoch 100/100 (0.27s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cd.jl:28</code></pre><p>Train using Zygote gradients</p><pre><code class="language-julia hljs">rbm_ad = RBMs.BinaryRBM(Float, (28,28), 128)
+RBMs.initialize!(rbm_ad, train_x)
+history_ad = RBMs.cdad!(rbm_ad, train_x; epochs, batchsize)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">┌ Debug: epoch 1/100 (4.6s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 2/100 (0.39s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 3/100 (0.38s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 4/100 (0.38s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 5/100 (0.39s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 6/100 (0.39s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 7/100 (0.39s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 8/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 9/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 10/100 (0.38s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 11/100 (0.39s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 12/100 (0.38s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 13/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 14/100 (0.38s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 15/100 (0.38s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 16/100 (0.38s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 17/100 (0.38s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 18/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 19/100 (0.38s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 20/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 21/100 (0.38s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 22/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 23/100 (0.38s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 24/100 (0.38s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 25/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 26/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 27/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 28/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 29/100 (0.38s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 30/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 31/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 32/100 (0.39s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 33/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 34/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 35/100 (0.36s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 36/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 37/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 38/100 (0.38s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 39/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 40/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 41/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 42/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 43/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 44/100 (0.36s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 45/100 (0.38s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 46/100 (0.38s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 47/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 48/100 (0.36s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 49/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 50/100 (0.38s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 51/100 (0.58s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 52/100 (0.57s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 53/100 (0.38s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 54/100 (0.38s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 55/100 (0.38s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 56/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 57/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 58/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 59/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 60/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 61/100 (0.36s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 62/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 63/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 64/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 65/100 (0.36s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 66/100 (0.36s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 67/100 (0.38s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 68/100 (0.38s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 69/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 70/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 71/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 72/100 (0.38s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 73/100 (0.38s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 74/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 75/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 76/100 (0.39s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 77/100 (0.38s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 78/100 (0.38s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 79/100 (0.36s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 80/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 81/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 82/100 (0.36s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 83/100 (0.36s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 84/100 (0.38s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 85/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 86/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 87/100 (0.36s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 88/100 (0.36s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 89/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 90/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 91/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 92/100 (0.36s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 93/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 94/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 95/100 (0.37s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 96/100 (0.38s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 97/100 (0.38s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 98/100 (0.39s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 99/100 (0.39s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31
+┌ Debug: epoch 100/100 (0.41s)
+└ @ RestrictedBoltzmannMachines ~/work/RestrictedBoltzmannMachines.jl/RestrictedBoltzmannMachines.jl/src/train/cdad.jl:31</code></pre><p>Compare timings</p><pre><code class="language-julia hljs">fig = Makie.Figure(resolution=(600, 400))
+ax = Makie.Axis(fig[1,1], xlabel=&quot;epoch&quot;, ylabel=&quot;seconds&quot;)
+Makie.lines!(ax, get(history_∂s, :Δt)..., label=&quot;manual&quot;)
+Makie.lines!(ax, get(history_ad, :Δt)..., label=&quot;zygote&quot;)
+Makie.ylims!(ax, low=0)
+Makie.axislegend(ax, position=:rt)
+fig</code></pre><img src="data:image/png;base64,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O3bs2LHtsq6HHnqotrb2/vvvb5fSAPLuySef/OKLL7BJw3Hjr3/96zvvvJOXTTqfLcKBAwdu3rw5e8pXX33Vq1cv9PYAAECHyWcQTpo0aevWrRs3brQfxmKx999/f9KkSXmsEgAA8CafQThlypRTTjll2rRplZWVDQ0N119/vSzLM2fOzGOVAACAN/kMQlmW33333T59+px++undu3evr6+vqKjo2rVrHqsEAAC8yefJMkRUUlLy4osvdsCKRo0aFY/HO2BFAB1j6NChR3YGNcCx6bTTTvN6vXlZNfvOEQsAAADHMdyGCQAAuIYgBAAAriEIAQCAawhCAADg2vEfhLW1tVdddVUwGPR6veeff/769evzXSOANnjvvffYgYqKilrMg40cjmWmaS5duvSaa64pKChgjFVWVraY4fAbcAds3sd5EGqaNmHChC1btqxdu3bHjh2hUGjs2LG4+jZ0OuvWrbP2q6+vz34KGzkc41atWjV//vyzzz77kNdLOfwG3EGbt3Vce+6554how4YN9sNoNFpQUHDLLbfkt1YArffuu+/SgUHYAjZy6Cx+97vfEdH27duzJx5+A+6Yzfs4bxG+8cYbffr0GTBggP3Q6/Wec845ixYtym+tANoRNnLo1A6/AXfM5n2cB+H69ev79euXPaV///7bt29PJpP5qhLAERg3bpwsy2VlZddcc02L2xBiI4dO7fAbcMds3sd5EDY2Nvr9/uwpgUDAsqxwOJyvKgG0icPhuPPOO5cvX97Y2PjCCy8sX758+PDhdXV1mRmwkUOndvgNuGM27+M8CK2DLiB38BSAY9nZZ589b968/v37+3y+8ePHv/baazU1NQsXLszMgI0cOrXDb8Ads3kf50EYDAYjkUj2lEgkwhgLBAL5qhJALk455ZTy8vJVq1ZlpmAjh07t8Btwx2zex3kQDhw4cPPmzdlTvvrqq169erlcrnxVCaB9YSOHTu3wG3DHbN7HeRBOmjRp69atGzdutB/GYrH3339/0qRJ+a0VwBH78ssvq6urhw0blpmCjRw6tcNvwB20ebfvaIxjjaqqp5xyyvDhw7dv315fX3/llVeGQqGdO3fmu14ArXXttdf+9a9/raysjEaj7733Xr9+/bp27bp3797MDNjIobM45DjCw2/AHbN5H+ctQlmW33333T59+px++undu3evr6+vqKjo2rVrvusF0Fq33377Rx99NG7cuGAw+NOf/nT06NGffPJJly5dMjNgI4djnK7r9tUBb7nlFiLq1asXY2zixIn2s4ffgDtm88aNeQEAgGvHeYsQAADg8BCEAADANQQhAABwDUEIAABcQxACAADXEIQAAMA1BCEAAHANQQgAAFxDEAJwZ+bMmaWlpfmuBcCxAkEIAABcQxACAADXEIQAebZu3brJkycXFha6XK6RI0d++OGHmafsPsxdu3ZdeOGFHo+nR48e9vX7M5YuXXrWWWe53W6/3z9p0qRNmza1KPnSSy8tKioqKCiYMGHCmjVrsp+tr6+/5JJLvF5vt27dHnvssaP6GgGOZQhCgHz6/PPPR4wY4fF41qxZU1NTc8EFF4wfPz47sSzLuvnmm++4446ampo777xz1qxZf/7zn+2nli5dev755w8ZMmTbtm1r1qxJJpOjRo2qqqqyn127du3w4cOJ6KOPPqqpqZk1a9aTTz6ZXeyMGTNuvfXWmpqaX/ziF7/85S9XrlzZga8b4FjSvnd1AoA2mTBhwoABAzRNy0wZPXr05MmT7b9vu+02Inr99dczz1577bUnnHCCPf/w4cNPPfXUzFP19fVut3v69On2w3POOefEE0/MLjnDLvbf//53ZkqvXr2uv/76dn1lAJ0GWoQAeaOq6rJlyyZOnChJUmbimDFjli9fnnnIGLvwwgszD3/wgx/s2rWrsrIylUp98sknmZu6EVEoFBo1alRFRQURpdPpDz/88NJLL80uOZsoiuPHj888HDBgQGVlZbu9MIBOBUEIkDdNTU2apj300EMsy7x58xobGzPz+P1+RVEyD+1b8tbU1ITDYdM0s+/QS0QlJSUNDQ1EFA6HdV0/zBiJUCiUnZE+ny8SibTjSwPoRBCEAHnj9/tFUbznnntadNSYppmZJxKJqKqaeVhbW0tEXbt2DQQCgiDU1dVlF1hbWxsKhYgoEAhIkrRnz55vWzVjrP1fD0DnhCAEyBun0zl27NhFixYZhvFt81iW9dZbb2Ue/vvf/y4rK+vZs6fT6Rw2bNjixYszTzU2Nq5YsWLMmDFE5HA4Ro8e/dprr+m6flRfAsBxAEEIkE+PPPLI5s2bp0yZsnHjxmQy+dVXXy1cuNA+mcVWXFz8wgsvrFixIhKJPPPMM88///zdd99t92rOnTt33bp1t9xyy969e7dt23bllVfKsjxr1ix7wYceeqimpuZHP/rRpk2botHo0qVLr7vuuvy8SIBjG4IQIJ9OO+201atXE9GYMWOCweDFF1+8c+fO7CAUBGHhwoVz584tKyubM2fO/ffff8MNN9hPjR8/fsmSJZ988knPnj0HDx6sKMqKFSt69OhhP3vGGWf85z//0XV9+PDh5eXlDz300E033dTxLxDg2Mcsy8p3HQDg0GbOnPniiy8e5lAfAOQOLUIAAOAaghAAALiGrlEAAOAaWoQAAMA1BCEAAHANQQgAAFxDEAIAANcQhAAAwDUEIQAAcA1BCAAAXEMQAgAA1xCEAADANQQhAABwDUEIBh2w9gAAACBJREFUAABcQxACAADXEIQAAMA1BCEAAHANQQgAAFz7f2sUs65xJwhQAAAAAElFTkSuQmCC" /><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../float32/">« Float32 vs. Float64</a><a class="docs-footer-nextpage" href="../lr_decay/">Learning rate decay »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.15 on <span class="colophon-date" title="Monday 21 March 2022 04:06">Monday 21 March 2022</span>. Using Julia version 1.7.2.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
