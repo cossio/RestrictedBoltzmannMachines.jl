@@ -4,7 +4,7 @@
 Effect of decaying the learning rate during training to achieve convergence.
 =#
 
-using Statistics: mean
+using Statistics: mean, std, var
 using Random: bitrand
 using LinearAlgebra: dot
 using ValueHistories: MVHistory
@@ -86,9 +86,43 @@ Check convergence by computing the moment-matching conditions.
 First generate MC data from the RBMs.
 =#
 
-@time samples_v_nodecay = RBMs.sample_v_from_v(rbm_nodecay, bitrand(28,28,5000); steps=5000)
-@time samples_v_decaylr = RBMs.sample_v_from_v(rbm_decaylr, bitrand(28,28,5000); steps=5000)
+nsteps = 5000
+nsamples = 5000
+F_nodecay = zeros(nsamples, nsteps)
+F_decaylr = zeros(nsamples, nsteps)
+samples_v_nodecay = bitrand(28,28,nsamples)
+samples_v_decaylr = bitrand(28,28,nsamples)
+F_nodecay[:,1] .= RBMs.free_energy(rbm_nodecay, samples_v_nodecay)
+F_decaylr[:,1] .= RBMs.free_energy(rbm_decaylr, samples_v_decaylr)
+@time for step in 2:nsteps
+    samples_v_nodecay .= RBMs.sample_v_from_v(rbm_nodecay, samples_v_nodecay)
+    samples_v_decaylr .= RBMs.sample_v_from_v(rbm_decaylr, samples_v_decaylr)
+    F_nodecay[:,1] .= RBMs.free_energy(rbm_nodecay, samples_v_nodecay)
+    F_decaylr[:,1] .= RBMs.free_energy(rbm_decaylr, samples_v_decaylr)
+end
 nothing #hide
+
+# Check equilibration of sampling
+
+# Samples without lr decay
+
+fig = Makie.Figure(resolution=(400,300))
+ax = Makie.Axis(fig[1,1])
+F_nodecay_μ = vec(mean(F_nodecay; dims=1))
+F_nodecay_σ = vec(std(F_nodecay; dims=1))
+Makie.band!(ax, 1:nsteps, F_nodecay_μ - F_nodecay_σ/2, F_nodecay_μ + F_nodecay_σ/2)
+Makie.lines!(ax, 1:nsteps, F_nodecay_μ, label="no decay")
+fig
+
+# Samples with lr decay
+
+fig = Makie.Figure(resolution=(400,300))
+ax = Makie.Axis(fig[1,1])
+F_decaylr_μ = vec(mean(F_decaylr; dims=1))
+F_decaylr_σ = vec(std(F_decaylr; dims=1))
+Makie.band!(ax, 1:nsteps, F_decaylr_μ - F_decaylr_σ/2, F_decaylr_μ + F_decaylr_σ/2)
+Makie.lines!(ax, 1:nsteps, F_decaylr_μ, label="decay lr")
+fig
 
 #=
 Now make the plots. Average digit shapes.
@@ -107,7 +141,8 @@ Makie.hidedecorations!(ax)
 fig
 
 #=
-Moment matching conditions, first for RBM with constant learning rate
+Moment matching conditions, first row for RBM with constant learning rate,
+second row for RBM with learning rate decay.
 =#
 
 h_data_nodecay = RBMs.mean_h_from_v(rbm_nodecay, train_x)

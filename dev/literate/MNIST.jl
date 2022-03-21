@@ -10,7 +10,7 @@ import CairoMakie
 import MLDatasets
 import Flux
 import RestrictedBoltzmannMachines as RBMs
-using Statistics: mean
+using Statistics: mean, std, var
 using Random: bitrand
 using ValueHistories: MVHistory
 using RestrictedBoltzmannMachines: visible, initialize!, BinaryRBM, log_pseudolikelihood, transfer_sample
@@ -63,7 +63,7 @@ nothing #hide
 Initially, the RBM assigns a poor pseudolikelihood to the data.
 =#
 
-@time log_pseudolikelihood(rbm, train_x) |> mean
+mean(@time log_pseudolikelihood(rbm, train_x))
 
 #=
 (Incidentally, note how long it takes to evaluate the pseudolikelihood on the full
@@ -78,8 +78,10 @@ batchsize = 256
 optim = Flux.ADAM()
 vm = transfer_sample(visible(rbm), falses(28, 28, batchsize)) # fantasy chains
 history = MVHistory()
-@time for epoch in 1:500
-    RBMs.pcd!(rbm, train_x; vm, history, batchsize, optim)
+@time for epoch in 1:100
+    for epoch_inner = 1:5
+        RBMs.pcd!(rbm, train_x; vm, history, batchsize, optim)
+    end
     push!(history, :lpl, mean(log_pseudolikelihood(rbm, train_x))) # track pseudolikelihood
 end
 nothing #hide
@@ -87,11 +89,32 @@ nothing #hide
 # After training, the pseudolikelihood score of the data improves significantly.
 # Plot of log-pseudolikelihood of trian data during learning.
 
-Makie.lines(get(history, :lpl)..., axis = (; xlabel = "train time", ylabel="pseudolikelihood"))
+fig = Makie.Figure(resolution=(500,300))
+ax = Makie.Axis(fig[1,1], xlabel = "train time", ylabel="pseudolikelihood")
+Makie.lines!(ax, get(history, :lpl)...)
+fig
 
 # Sample digits from the RBM starting from a random condition.
 
-@elapsed fantasy_x = RBMs.sample_v_from_v(rbm, bitrand(28,28,nrows*ncols); steps=10000)
+nsteps = 5000
+fantasy_F = zeros(nrows*ncols, nsteps)
+fantasy_x = bitrand(28,28,nrows*ncols)
+fantasy_F[:,1] .= RBMs.free_energy(rbm, fantasy_x)
+for t in 2:nsteps
+    fantasy_x .= @time RBMs.sample_v_from_v(rbm, fantasy_x)
+    fantasy_F[:,t] .= RBMs.free_energy(rbm, fantasy_x)
+end
+nothing #hide
+
+# Check equilibration of sampling
+
+fig = Makie.Figure(resolution=(400,300))
+ax = Makie.Axis(fig[1,1], xlabel="sampling time", ylabel="free energy")
+fantasy_F_μ = vec(mean(fantasy_F; dims=1))
+fantasy_F_σ = vec(std(fantasy_F; dims=1))
+Makie.band!(ax, 1:nsteps, fantasy_F_μ - fantasy_F_σ/2, fantasy_F_μ + fantasy_F_σ/2)
+Makie.lines!(ax, 1:nsteps, fantasy_F_μ)
+fig
 
 # Plot the sampled digits.
 
