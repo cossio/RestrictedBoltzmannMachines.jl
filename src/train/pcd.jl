@@ -16,9 +16,9 @@ function pcd!(rbm::RBM, data::AbstractArray;
     @assert size(data) == (size(visible(rbm))..., size(data)[end])
     @assert isnothing(wts) || _nobs(data) == _nobs(wts)
     for epoch in 1:epochs
-        batches = minibatches(data, wts; batchsize = batchsize)
+        batches = minibatches(data, wts; batchsize)
         Δt = @elapsed for (vd, wd) in batches
-            vm = sample_v_from_v(rbm, vm; steps = steps)
+            vm .= sample_v_from_v(rbm, vm; steps)
             ∂ = ∂contrastive_divergence(rbm, vd, vm; wd, stats)
             push!(history, :∂, gradnorms(∂))
             update!(rbm, update!(∂, rbm, optim))
