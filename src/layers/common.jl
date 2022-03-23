@@ -1,6 +1,5 @@
-const _ThetaLayers = Union{Binary, Spin, Potts, Gaussian, ReLU, pReLU, xReLU}
-Base.size(layer::_ThetaLayers) = size(layer.θ)
-Base.length(layer::_ThetaLayers) = length(layer.θ)
+Base.size(layer::Union{Binary, Spin, Potts, Gaussian, ReLU, pReLU, xReLU}) = size(layer.θ)
+Base.length(layer::Union{Binary, Spin, Potts, Gaussian, ReLU, pReLU, xReLU}) = length(layer.θ)
 
 const _FieldLayers = Union{Binary, Spin, Potts}
 
