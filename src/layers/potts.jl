@@ -15,6 +15,8 @@ end
 Potts(::Type{T}, q::Int, n::Int...) where {T} = Potts(zeros(T, q, n...))
 Potts(q::Int, n::Int...) = Potts(Float64, q, n...)
 
+Base.repeat(l::Potts, n::Int...) = Potts(repeat(l.θ, n...))
+
 function effective(layer::Potts, inputs::AbstractArray; β::Real = true)
     @assert size(layer) == size(inputs)[1:ndims(layer)]
     return Potts(β * (layer.θ .+ inputs))

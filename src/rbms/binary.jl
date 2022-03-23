@@ -23,3 +23,5 @@ function BinaryRBM(::Type{T}, N::Union{Int,TupleN{Int}}, M::Union{Int,TupleN{Int
 end
 
 BinaryRBM(N::Union{Int,TupleN{Int}}, M::Union{Int,Tuple{Vararg{Int}}}) = BinaryRBM(Float64, N, M)
+
+Base.repeat(l::Binary, n::Int...) = Binary(repeat(l.θ, n...))

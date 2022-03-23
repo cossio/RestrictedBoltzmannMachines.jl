@@ -19,6 +19,10 @@ end
 
 pReLU(n::Int...) = pReLU(Float64, n...)
 
+Base.repeat(l::pReLU, n::Int...) = pReLU(
+    repeat(l.θ, n...), repeat(l.γ, n...), repeat(l.Δ, n...), repeat(l.η, n...)
+)
+
 function effective(layer::pReLU, inputs::AbstractArray; β::Real = true)
     θ = β * (layer.θ .+ inputs)
     γ = β * broadlike(layer.γ, inputs)

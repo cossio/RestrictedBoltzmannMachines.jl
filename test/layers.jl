@@ -51,6 +51,7 @@ end
     end
     @test (@inferred length(layer)) == prod(N)
     @test (@inferred ndims(layer)) == length(N)
+    @test size(@inferred repeat(layer,2,3,4)) == (((2, 3) .* N)..., 4)
     @test (@inferred RBMs.batch_size(layer, rand(N...))) == ()
     @test (@inferred RBMs.energy(layer, rand(N...))) isa Number
     @test (@inferred RBMs.free_energy(layer)) isa Number

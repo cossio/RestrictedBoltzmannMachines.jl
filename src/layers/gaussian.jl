@@ -16,6 +16,8 @@ Gaussian(::Type{T}, n::Int...) where {T} = Gaussian(zeros(T, n...), ones(T, n...
 Gaussian(n::Int...) = Gaussian(Float64, n...)
 StdGauss(n::Int...) = Gaussian(FillArrays.Falses(n), FillArrays.Trues(n))
 
+Base.repeat(l::Gaussian, n::Int...) = Gaussian(repeat(l.θ, n...), repeat(l.γ, n...))
+
 function effective(layer::Gaussian, inputs::AbstractArray; β::Real = true)
     @assert size(layer) == size(inputs)[1:ndims(layer)]
     θ = β * (layer.θ .+ inputs)

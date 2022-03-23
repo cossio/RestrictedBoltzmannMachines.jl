@@ -19,6 +19,10 @@ end
 
 xReLU(n::Int...) = xReLU(Float64, n...)
 
+Base.repeat(l::xReLU, n::Int...) = xReLU(
+    repeat(l.θ, n...), repeat(l.γ, n...), repeat(l.Δ, n...), repeat(l.ξ, n...)
+)
+
 function effective(layer::xReLU, inputs::AbstractArray; β::Real = true)
     @assert size(layer) == size(inputs)[1:ndims(layer)]
     θ = β * (layer.θ .+ inputs)

@@ -22,6 +22,9 @@ dReLU(n::Int...) = dReLU(Float64, n...)
 Base.size(layer::dReLU) = size(layer.θp)
 Base.size(layer::dReLU, d::Int) = size(layer.θp, d)
 Base.length(layer::dReLU) = length(layer.θp)
+Base.repeat(l::dReLU, n::Int...) = dReLU(
+    repeat(l.θp, n...), repeat(l.θn, n...), repeat(l.γp, n...), repeat(l.γn, n...)
+)
 
 function effective(layer::dReLU, inputs::AbstractArray; β::Real = true)
     θp = β * (layer.θp .+ inputs)
