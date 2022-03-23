@@ -7,6 +7,7 @@ import RestrictedBoltzmannMachines as RBMs
 
 using Test: @test, @testset
 using Random: bitrand, randn!
+using LogExpFunctions: logsumexp
 
 @testset "batches, n=$n, m=$m, Bv=$Bv, Bh=$Bh" for n in (5, (5,2)), m in (2, (3,4)), Bv in ((), (3,2)), Bh in ((), (3,2))
     rbm = RBMs.BinaryRBM(randn(n...), randn(m...), randn(n..., m...))
@@ -193,6 +194,21 @@ end
     @test RBMs.mirror(rbm).visible == rbm.hidden
     @test RBMs.mirror(rbm).hidden == rbm.visible
     @test RBMs.energy(RBMs.mirror(rbm), h, v) ≈ RBMs.energy(rbm, v, h)
+end
+
+@testset "binary free energy" begin
+    β = π
+    rbm = RBMs.BinaryRBM(randn(1), randn(1), randn(1,1))
+    for v in [[0], [1]]
+        @test -RBMs.free_energy(rbm, v) ≈ logsumexp(-RBMs.energy(rbm, v, h) for h in [[0], [1]])
+        @test -β * RBMs.free_energy(rbm, v; β) ≈ logsumexp(-β * RBMs.energy(rbm, v, h) for h in [[0], [1]])
+    end
+
+    rbm = RBMs.BinaryRBM(randn(7), randn(2), randn(7,2))
+    v = bitrand(7)
+    hs = [[0,0], [0,1], [1,0], [1,1]]
+    @test -RBMs.free_energy(rbm, v) ≈ logsumexp(-RBMs.energy(rbm, v, h) for h in hs)
+    @test -β * RBMs.free_energy(rbm, v; β) ≈ logsumexp(-β * RBMs.energy(rbm, v, h) for h in hs)
 end
 
 @testset "Gaussian-Gaussian RBM, 1-dimension" begin
