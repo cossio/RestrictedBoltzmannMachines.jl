@@ -14,11 +14,11 @@ We specialize to the case where `b = Inf`.
 
 Random standard normal lower truncated at `a` (that is, Z ≥ a).
 """
-randnt(rng::Random.AbstractRNG, a::Real) = randnt(rng, float(a))
-randnt(rng::Random.AbstractRNG, a::BigFloat) = randnt(rng, Float64(a))
-randnt(a::Real) = randnt(Random.GLOBAL_RNG, a)
+randnt(rng::AbstractRNG, a::Real) = randnt(rng, float(a))
+randnt(rng::AbstractRNG, a::BigFloat) = randnt(rng, Float64(a))
+randnt(a::Real) = randnt(GLOBAL_RNG, a)
 
-function randnt(rng::Random.AbstractRNG, a::Base.IEEEFloat)
+function randnt(rng::AbstractRNG, a::Base.IEEEFloat)
     if a ≤ 0
         while true
             r = randn(rng, typeof(a))
@@ -28,7 +28,7 @@ function randnt(rng::Random.AbstractRNG, a::Base.IEEEFloat)
         t = sqrt1half(a)
         !(t < Inf) && return a
         while true
-            r = a + Random.randexp(rng, typeof(a)) / t
+            r = a + randexp(rng, typeof(a)) / t
             u = rand(rng, typeof(a))
             if u < exp(-(r - t)^2 / 2)
                 return r
@@ -58,12 +58,12 @@ end
 Samples the normal distribution with mean `μ` and standard deviation `σ`
 truncated to positive values.
 """
-function randnt_half(rng::Random.AbstractRNG, μ::Real, σ::Real)
+function randnt_half(rng::AbstractRNG, μ::Real, σ::Real)
     z = randnt(rng, -μ / σ)
     return μ + σ * z
 end
 
-randnt_half(μ::Real, σ::Real) = randnt_half(Random.GLOBAL_RNG, μ, σ)
+randnt_half(μ::Real, σ::Real) = randnt_half(GLOBAL_RNG, μ, σ)
 
 """
     tnmean(a)
@@ -71,7 +71,7 @@ randnt_half(μ::Real, σ::Real) = randnt_half(Random.GLOBAL_RNG, μ, σ)
 Mean of the standard normal distribution,
 truncated to the interval (a, +∞).
 """
-tnmean(a::Real) = sqrt(two(a)/π) / SpecialFunctions.erfcx(a/√two(a))
+tnmean(a::Real) = sqrt(two(a)/π) / erfcx(a/√two(a))
 
 """
     tnvar(a)

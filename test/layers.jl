@@ -1,12 +1,12 @@
 import Random
-import Statistics
 import Zygote
-import LogExpFunctions
-import QuadGK
 import RestrictedBoltzmannMachines as RBMs
 
 using Test: @test, @testset
 using Statistics: mean, var, cov
+using Random: bitrand
+using LogExpFunctions: logistic
+using QuadGK: quadgk
 using RestrictedBoltzmannMachines: flatten
 
 Random.seed!(2)
@@ -141,7 +141,7 @@ end
     N = (3, 4, 5)
     B = 13
     layer = Layer(randn(N...))
-    x = Random.bitrand(N..., B)
+    x = bitrand(N..., B)
     @test RBMs.energies(layer, x) ≈ -layer.θ .* x
     gs = Zygote.gradient(layer) do layer
         sum(RBMs.free_energies(layer))
@@ -160,7 +160,7 @@ end
     end
 
     layer = RBMs.Binary(randn(7, 4, 5))
-    RBMs.transfer_var(layer) ≈ @. LogExpFunctions.logistic(layer.θ) * LogExpFunctions.logistic(-layer.θ)
+    RBMs.transfer_var(layer) ≈ @. logistic(layer.θ) * logistic(-layer.θ)
     @test RBMs.free_energies(layer) ≈ -log.(sum(exp.(layer.θ .* h) for h in 0:1))
     @test sort(unique(RBMs.transfer_sample(layer))) == [0, 1]
 end
@@ -186,14 +186,14 @@ end
     N = (3, 4, 5)
     B = 7
 
-    # bound γ away from zero to avoid numerical issues with QuadGK
+    # bound γ away from zero to avoid numerical issues with quadgk
     layer = RBMs.Gaussian(randn(N...), rand(N...) .+ 0.5)
 
     x = randn(size(layer)..., B)
     @test RBMs.energies(layer, x) ≈ @. abs(layer.γ) * x^2 / 2 - layer.θ * x
 
     function quad_free(θ::Real, γ::Real)
-        Z, ϵ = QuadGK.quadgk(h -> exp(-RBMs.gauss_energy(θ, γ, h)), -Inf,  Inf)
+        Z, ϵ = quadgk(h -> exp(-RBMs.gauss_energy(θ, γ, h)), -Inf,  Inf)
         return -log(Z)
     end
 
@@ -214,14 +214,14 @@ end
     N = (3, 4, 5)
     B = 7
 
-    # bound γ away from zero to avoid numerical issues with QuadGK
+    # bound γ away from zero to avoid numerical issues with quadgk
     layer = RBMs.ReLU(randn(N...), rand(N...) .+ 0.5)
 
     x = abs.(randn(size(layer)..., B))
     @test RBMs.energies(layer, x) ≈ RBMs.energies(RBMs.Gaussian(layer.θ, layer.γ), x)
 
     function quad_free(θ::Real, γ::Real)
-        Z, ϵ = QuadGK.quadgk(h -> exp(-RBMs.relu_energy(θ, γ, h)), 0,  Inf)
+        Z, ϵ = quadgk(h -> exp(-RBMs.relu_energy(θ, γ, h)), 0,  Inf)
         return -log(Z)
     end
     @test RBMs.free_energies(layer) ≈ @. quad_free(layer.θ, layer.γ)
@@ -331,7 +331,7 @@ end
     B = 13
     x = randn(N..., B)
 
-    # bound γ away from zero to avoid issues with QuadGK
+    # bound γ away from zero to avoid issues with quadgk
     layer = RBMs.dReLU(
         randn(N...), randn(N...), rand(N...) .+ 1, rand(N...) .+ 1
     )
@@ -342,7 +342,7 @@ end
     @test iszero(RBMs.energy(layer, zero(x)))
 
     function quad_free(θp::Real, θn::Real, γp::Real, γn::Real)
-        Z, ϵ = QuadGK.quadgk(h -> exp(-RBMs.drelu_energy(θp, θn, γp, γn, h)), -Inf, Inf)
+        Z, ϵ = quadgk(h -> exp(-RBMs.drelu_energy(θp, θn, γp, γn, h)), -Inf, Inf)
         return -log(Z)
     end
     @test RBMs.free_energies(layer) ≈ quad_free.(layer.θp, layer.θn, abs.(layer.γp), abs.(layer.γn))

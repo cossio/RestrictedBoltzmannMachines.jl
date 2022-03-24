@@ -195,7 +195,7 @@ Stochastic reconstruction error of `v`.
 function reconstruction_error(rbm::AbstractRBM, v::AbstractArray; β::Real=true, steps::Int=1)
     @assert size(visible(rbm)) == size(v)[1:ndims(visible(rbm))]
     v1 = sample_v_from_v(rbm, v; β, steps)
-    ϵ = Statistics.mean(abs.(v .- v1); dims = 1:ndims(visible(rbm)))
+    ϵ = mean(abs.(v .- v1); dims = 1:ndims(visible(rbm)))
     if ndims(v) == ndims(visible(rbm))
         return only(ϵ)
     else

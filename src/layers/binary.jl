@@ -14,9 +14,9 @@ function effective(layer::Binary, inputs::AbstractArray; β::Real = true)
     return Binary(β * (layer.θ .+ inputs))
 end
 
-free_energies(layer::Binary) = -LogExpFunctions.log1pexp.(layer.θ)
+free_energies(layer::Binary) = -log1pexp.(layer.θ)
 transfer_mode(layer::Binary) = layer.θ .> 0
-transfer_mean(layer::Binary) = LogExpFunctions.logistic.(layer.θ)
+transfer_mean(layer::Binary) = logistic.(layer.θ)
 transfer_mean_abs(layer::Binary) = transfer_mean(layer)
 transfer_var(layer::Binary) = binary_var.(layer.θ)
 transfer_std(layer::Binary) = binary_std.(layer.θ)
@@ -36,4 +36,4 @@ function binary_std(θ::Real)
     return √t / (1 + t)
 end
 
-binary_rand(θ::Real, u::Real) = u < LogExpFunctions.logistic(θ)
+binary_rand(θ::Real, u::Real) = u < logistic(θ)

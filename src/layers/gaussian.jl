@@ -43,7 +43,7 @@ transfer_std(layer::Gaussian) = sqrt.(transfer_var(layer))
 function transfer_mean_abs(layer::Gaussian)
     μ = transfer_mean(layer)
     ν = transfer_var(layer)
-    return @. √(2ν/π) * exp(-μ^2 / (2ν)) + μ * SpecialFunctions.erf(μ / √(2ν))
+    return @. √(2ν/π) * exp(-μ^2 / (2ν)) + μ * erf(μ / √(2ν))
 end
 
 gauss_energy(θ::Real, γ::Real, x::Real) = (abs(γ) * x / 2 - θ) * x

@@ -49,7 +49,7 @@ function transfer_mean(layer::dReLU)
     ln = ReLU(-layer.θn, layer.γn)
 
     Fp, Fn = free_energies(lp), free_energies(ln)
-    F = -LogExpFunctions.logaddexp.(-Fp, -Fn)
+    F = -logaddexp.(-Fp, -Fn)
     pp, pn = exp.(F - Fp), exp.(F - Fn)
 
     μp, μn = transfer_mean(lp), -transfer_mean(ln)
@@ -61,7 +61,7 @@ function transfer_var(layer::dReLU)
     ln = ReLU(-layer.θn, layer.γn)
 
     Fp, Fn = free_energies(lp), free_energies(ln)
-    F = -LogExpFunctions.logaddexp.(-Fp, -Fn)
+    F = -logaddexp.(-Fp, -Fn)
     pp, pn = exp.(F - Fp), exp.(F - Fn)
 
     μp, μn = transfer_mean(lp), -transfer_mean(ln)
@@ -76,7 +76,7 @@ function transfer_mean_abs(layer::dReLU)
     ln = ReLU(-layer.θn, layer.γn)
 
     Fp, Fn = free_energies(lp), free_energies(ln)
-    F = -LogExpFunctions.logaddexp.(-Fp, -Fn)
+    F = -logaddexp.(-Fp, -Fn)
     pp, pn = exp.(F - Fp), exp.(F - Fn)
 
     μp, μn = transfer_mean(lp), -transfer_mean(ln)
@@ -88,7 +88,7 @@ function ∂free_energy(layer::dReLU)
     ln = ReLU(-layer.θn, layer.γn)
 
     Fp, Fn = free_energies(lp), free_energies(ln)
-    F = -LogExpFunctions.logaddexp.(-Fp, -Fn)
+    F = -logaddexp.(-Fp, -Fn)
     pp, pn = exp.(F - Fp), exp.(F - Fn)
 
     μp, μn = transfer_mean(lp), -transfer_mean(ln)
@@ -136,7 +136,7 @@ end
 function drelu_free(θp::Real, θn::Real, γp::Real, γn::Real)
     Fp = relu_free( θp, γp)
     Fn = relu_free(-θn, γn)
-    return -LogExpFunctions.logaddexp(-Fp, -Fn)
+    return -logaddexp(-Fp, -Fn)
 end
 
 function drelu_rand(θp::Real, θn::Real, γp::Real, γn::Real)
@@ -145,8 +145,8 @@ end
 
 function drelu_rand(θp::T, θn::T, γp::S, γn::S) where {T<:Real, S<:Real}
     Fp, Fn = relu_free(θp, γp), relu_free(-θn, γn)
-    F = -LogExpFunctions.logaddexp(-Fp, -Fn)
-    if Random.randexp(typeof(F)) ≥ Fp - F
+    F = -logaddexp(-Fp, -Fn)
+    if randexp(typeof(F)) ≥ Fp - F
         return  relu_rand( θp, γp)
     else
         return -relu_rand(-θn, γn)

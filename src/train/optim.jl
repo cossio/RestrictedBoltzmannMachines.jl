@@ -36,7 +36,7 @@ end
 
 Computes gradient norms.
 """
-gradnorms(∂::AbstractArray) = LinearAlgebra.norm(∂)
+gradnorms(∂::AbstractArray) = norm(∂)
 gradnorms(∂::NamedTuple) = map(gradnorms, ∂)
 
 """

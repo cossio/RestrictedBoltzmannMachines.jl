@@ -49,7 +49,7 @@ function log_pseudolikelihood_sites(
     @assert size(sites) == batch_size(visible(rbm), v)
     ΔE = substitution_matrix_sites(rbm, v, sites; β)
     @assert size(ΔE) == (colors(visible(rbm)), batch_size(visible(rbm), v)...)
-    lPL = -LogExpFunctions.logsumexp(-β * ΔE; dims=1)
+    lPL = -logsumexp(-β * ΔE; dims=1)
     @assert size(lPL) == (1, batch_size(visible(rbm), v)...)
     return reshape(lPL, batch_size(visible(rbm), v))
 end
@@ -66,9 +66,9 @@ function log_pseudolikelihood_exact(rbm::AbstractRBM, v::AbstractArray; β::Real
     @assert size(ΔE) == (
         colors(visible(rbm)), sitesize(visible(rbm))..., batch_size(visible(rbm), v)...
     )
-    lPLsites = -LogExpFunctions.logsumexp(-β * ΔE; dims=1)
+    lPLsites = -logsumexp(-β * ΔE; dims=1)
     @assert size(lPLsites) == (1, sitesize(visible(rbm))..., batch_size(visible(rbm), v)...)
-    lPL = Statistics.mean(lPLsites; dims=2:(sitedims(visible(rbm)) + 1))
+    lPL = mean(lPLsites; dims=2:(sitedims(visible(rbm)) + 1))
     return reshape(lPL, batch_size(visible(rbm), v))
 end
 
@@ -239,7 +239,7 @@ function log_pseudolikelihood_sites(
     end
     F = free_energy(rbm, v; β)
     F_ = free_energy(rbm, v_; β)
-    return -LogExpFunctions.log1pexp.(β * (F - F_))
+    return -log1pexp.(β * (F - F_))
 end
 
 function log_pseudolikelihood_sites(
@@ -256,5 +256,5 @@ function log_pseudolikelihood_sites(
     end
     F = free_energy(rbm, v; β)
     F_ = free_energy(rbm, v_; β)
-    return -LogExpFunctions.log1pexp.(β * (F - F_))
+    return -log1pexp.(β * (F - F_))
 end

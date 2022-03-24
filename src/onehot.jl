@@ -33,7 +33,7 @@ returns an array `X` of size `(*)`, such that `X[i]` is a categorical random sam
 from the distribution with logits `logits[:,i]`.
 """
 function categorical_sample_from_logits(logits::AbstractArray)
-    p = LogExpFunctions.softmax(logits; dims=1)
+    p = softmax(logits; dims=1)
     return categorical_sample(p)
 end
 
@@ -89,4 +89,4 @@ end
 
 Generates a random Gumbel variate.
 """
-randgumbel(::Type{T} = Float64) where {T} = -log(Random.randexp(T))
+randgumbel(::Type{T} = Float64) where {T} = -log(randexp(T))

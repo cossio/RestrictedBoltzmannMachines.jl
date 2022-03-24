@@ -8,8 +8,8 @@ Note that no square root is taken.
 """
 function L1L2(rbm::RBM)
     dims = ntuple(identity, ndims(visible(rbm)))
-    L1 = Statistics.mean(abs, weights(rbm); dims=dims)
-    L2 = Statistics.mean(abs2, L1)
+    L1 = mean(abs, weights(rbm); dims=dims)
+    L2 = mean(abs2, L1)
     return L2
 end
 
@@ -21,7 +21,7 @@ Regularization used on https://github.com/jertubiana/PGM.
 function pgm_reg(
     rbm::RBM{<:Union{Binary,Spin,Potts}}; λv::Real = 1//10^4, λw::Real = 1//10
 )
-    fields_l2 = Statistics.mean(abs2, visible(rbm).θ)
+    fields_l2 = mean(abs2, visible(rbm).θ)
     weights_l1l2 = L1L2(rbm)
     return λv/2 * fields_l2 + λw/2 * weights_l1l2
 end

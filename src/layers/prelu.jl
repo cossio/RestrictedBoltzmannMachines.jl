@@ -65,7 +65,7 @@ function ∂free_energy(layer::pReLU)
     ln = ReLU(-drelu.θn, drelu.γn)
 
     Fp, Fn = free_energies(lp), free_energies(ln)
-    F = -LogExpFunctions.logaddexp.(-Fp, -Fn)
+    F = -logaddexp.(-Fp, -Fn)
     pp, pn = exp.(F - Fp), exp.(F - Fn)
 
     μp, μn = transfer_mean(lp), -transfer_mean(ln)

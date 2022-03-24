@@ -1,6 +1,10 @@
-using Test, Random, LinearAlgebra, Statistics, DelimitedFiles
-import Zygote, Flux, Distributions, SpecialFunctions, LogExpFunctions, QuadGK, NPZ
+import Random
 import RestrictedBoltzmannMachines as RBMs
+
+using Test: @test, @testset, @inferred
+using Statistics: mean, std
+using LinearAlgebra, Statistics
+using LogExpFunctions: softmax
 
 @testset "onehot" begin
     q = 10
@@ -46,7 +50,7 @@ end
     q = 3
     logits = randn(q,2)
     p = mean(RBMs.onehot_encode(RBMs.categorical_sample_from_logits(logits), 1:q) for _ in 1:10^6)
-    @test p ≈ LogExpFunctions.softmax(logits; dims=1) rtol=0.01
+    @test p ≈ softmax(logits; dims=1) rtol=0.01
 end
 
 @testset "categorical_sample_from_logits_gumbel" begin
@@ -54,5 +58,5 @@ end
     q = 3
     logits = randn(q,2)
     p = mean(RBMs.onehot_encode(RBMs.categorical_sample_from_logits_gumbel(logits), 1:q) for _ in 1:10^6)
-    @test p ≈ LogExpFunctions.softmax(logits; dims=1) rtol=0.01
+    @test p ≈ softmax(logits; dims=1) rtol=0.01
 end

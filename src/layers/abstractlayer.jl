@@ -211,7 +211,7 @@ function batchcov(
     @assert size(layer) == size(x)[1:ndims(layer)] == size(mean)
     ξ = flatten(layer, x .- mean)
     if isnothing(wts)
-        w = LinearAlgebra.I
+        w = I
     else
         @assert size(wts) == batch_size(layer, x)
         w = Diagonal(vec(wts))

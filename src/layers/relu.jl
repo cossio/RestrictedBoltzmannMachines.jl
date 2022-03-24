@@ -88,7 +88,7 @@ end
 
 function relu_free(θ::Real, γ::Real)
     abs_γ = abs(γ)
-    return -SpecialFunctions.logerfcx(-θ / √(2abs_γ)) + log(2abs_γ/π) / 2
+    return -logerfcx(-θ / √(2abs_γ)) + log(2abs_γ/π) / 2
 end
 
 function relu_rand(θ::Real, γ::Real)

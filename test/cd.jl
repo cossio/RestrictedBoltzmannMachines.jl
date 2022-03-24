@@ -1,8 +1,11 @@
-using Test: @test, @testset
 import Statistics
 import Random
 import Zygote
 import RestrictedBoltzmannMachines as RBMs
+
+using Test: @test, @testset
+using Random: bitrand
+using Statistics: mean
 
 @testset "subtract_gradients" begin
     nt1 = (x = [2], y = [3])
@@ -18,9 +21,9 @@ end
 
 @testset "∂free_energy(rbm, v)" begin
     rbm = RBMs.BinaryRBM(randn(5,2), randn(4,3), randn(5,2,4,3))
-    v = Random.bitrand(size(rbm.visible)..., 7)
+    v = bitrand(size(rbm.visible)..., 7)
     gs = Zygote.gradient(rbm) do rbm
-        Statistics.mean(RBMs.free_energy(rbm, v))
+        mean(RBMs.free_energy(rbm, v))
     end
     ∂F = RBMs.∂free_energy(rbm, v)
     @test ∂F.visible.θ ≈ only(gs).visible.θ
@@ -30,8 +33,8 @@ end
 
 @testset "∂contrastive_divergence" begin
     rbm = RBMs.BinaryRBM(randn(5,2), randn(4,3), randn(5,2,4,3))
-    vd = Random.bitrand(size(RBMs.visible(rbm))..., 7)
-    vm = Random.bitrand(size(RBMs.visible(rbm))..., 7)
+    vd = bitrand(size(RBMs.visible(rbm))..., 7)
+    vm = bitrand(size(RBMs.visible(rbm))..., 7)
     gs = Zygote.gradient(rbm) do rbm
         RBMs.contrastive_divergence(rbm, vd, vm)
     end

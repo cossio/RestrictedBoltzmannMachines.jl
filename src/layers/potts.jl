@@ -22,8 +22,8 @@ function effective(layer::Potts, inputs::AbstractArray; β::Real = true)
     return Potts(β * (layer.θ .+ inputs))
 end
 
-free_energies(layer::Potts) = -LogExpFunctions.logsumexp(layer.θ; dims=1)
-transfer_mean(layer::Potts) = LogExpFunctions.softmax(layer.θ; dims=1)
+free_energies(layer::Potts) = -logsumexp(layer.θ; dims=1)
+transfer_mean(layer::Potts) = softmax(layer.θ; dims=1)
 transfer_mean_abs(layer::Potts) = transfer_mean(layer)
 transfer_std(layer::Potts) = sqrt.(transfer_var(layer))
 transfer_mode(layer::Potts) = layer.θ .== maximum(layer.θ; dims=1)

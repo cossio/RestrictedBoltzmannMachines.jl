@@ -1,8 +1,10 @@
-using Test: @test, @testset
 import DelimitedFiles
 import Statistics
 import NPZ
 import RestrictedBoltzmannMachines as RBMs
+
+using Test: @test, @testset
+using Statistics: mean, std
 
 #=
 Comparisons against https://github.com/jertubiana/PGM.
@@ -89,8 +91,8 @@ end
     rbm = RBMs.RBM(RBMs.Binary(visible_g), RBMs.Binary(hidden_g), w)
     pl_rbm = RBMs.log_pseudolikelihood(rbm, v)
 
-    @test Statistics.mean(pl_rbm) ≈ Statistics.mean(pl) rtol=0.05
-    @test Statistics.std(pl_rbm)  ≈ Statistics.std(pl)  rtol=0.1
+    @test mean(pl_rbm) ≈ mean(pl) rtol=0.05
+    @test std(pl_rbm)  ≈ std(pl)  rtol=0.1
 end
 
 @testset "Potts pseudolikelihood" begin
@@ -105,6 +107,6 @@ end
     pl = RBMs.log_pseudolikelihood(rbm, data)
 
     # TODO: #7 see if we can decrease rtol
-    @test Statistics.mean(pl) ≈ Statistics.mean(d["PL"]) rtol=0.1
-    @test Statistics.std(pl) ≈ Statistics.std(d["PL"]) rtol=0.1
+    @test mean(pl) ≈ mean(d["PL"]) rtol=0.1
+    @test std(pl) ≈ std(d["PL"]) rtol=0.1
 end

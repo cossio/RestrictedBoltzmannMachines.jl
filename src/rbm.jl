@@ -27,11 +27,11 @@ function interaction_energy(rbm::AbstractRBM, v::AbstractArray, h::AbstractArray
     if ndims(visible(rbm)) == ndims(v) || ndims(hidden(rbm)) == ndims(h)
         E = -flat_v(rbm, v)' * flat_w(rbm) * flat_h(rbm, h)
     elseif length(visible(rbm)) ≥ length(hidden(rbm))
-        I = inputs_v_to_h(rbm, v)
-        E = -sum(I .* h; dims = 1:ndims(hidden(rbm)))
+        inputs = inputs_v_to_h(rbm, v)
+        E = -sum(inputs .* h; dims = 1:ndims(hidden(rbm)))
     else
-        I = inputs_h_to_v(rbm, h)
-        E = -sum(v .* I; dims=1:ndims(visible(rbm)))
+        inputs = inputs_h_to_v(rbm, h)
+        E = -sum(v .* inputs; dims=1:ndims(visible(rbm)))
     end
     return reshape_maybe(E, bsz)
 end

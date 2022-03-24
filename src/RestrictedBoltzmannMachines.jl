@@ -1,17 +1,16 @@
 module RestrictedBoltzmannMachines
 
-import Random
-import Statistics
-import LinearAlgebra
-import SpecialFunctions
-import LogExpFunctions
 import FillArrays
 import Flux
 import Zygote
 import ChainRulesCore
 
+using Random: AbstractRNG, GLOBAL_RNG, randexp, randn!, shuffle!
+using LinearAlgebra: Diagonal, logdet, I, dot, norm
+using Statistics: mean
+using LogExpFunctions: softmax, logsumexp, log1pexp, logistic, logaddexp
+using SpecialFunctions: erf, erfcx, logerfcx
 using ValueHistories: MVHistory
-using LinearAlgebra: Diagonal
 
 include("util.jl")
 include("minibatches.jl")

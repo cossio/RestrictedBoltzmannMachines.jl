@@ -98,15 +98,15 @@ Initializes `rbm.w` such that typical inputs to hidden units are λ.
 """
 function initialize_w!(rbm::RBM, data::AbstractArray; λ::Real = 0.1, ϵ::Real = 1e-6)
     @assert size(data) == (size(visible(rbm))..., size(data, ndims(data)))
-    d = LinearAlgebra.dot(data, data) / size(data, ndims(visible(rbm)) + 1)
-    Random.randn!(weights(rbm))
+    d = dot(data, data) / size(data, ndims(visible(rbm)) + 1)
+    randn!(weights(rbm))
     weights(rbm) .*= λ / √(d + ϵ)
     return rbm # does not impose zerosum
 end
 
 function initialize_w!(rbm::RBM; λ::Real = 0.1, ϵ::Real = 1e-6)
     d = sum(transfer_var(visible(rbm)) .+ transfer_mean(visible(rbm)).^2)
-    Random.randn!(weights(rbm))
+    randn!(weights(rbm))
     weights(rbm) .*= λ / √(d + ϵ)
     return rbm
 end

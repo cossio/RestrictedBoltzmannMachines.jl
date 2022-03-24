@@ -1,13 +1,14 @@
 import Statistics
 import Random
-import LinearAlgebra
 import Zygote
-import QuadGK
 import RestrictedBoltzmannMachines as RBMs
 
 using Test: @test, @testset
 using Random: bitrand, randn!
+using Statistics: mean
+using LinearAlgebra: logdet, diag, diagm, dot, isposdef
 using LogExpFunctions: logsumexp
+using QuadGK: quadgk
 
 @testset "batches, n=$n, m=$m, Bv=$Bv, Bh=$Bh" for n in (5, (5,2)), m in (2, (3,4)), Bv in ((), (3,2)), Bh in ((), (3,2))
     rbm = RBMs.BinaryRBM(randn(n...), randn(m...), randn(n..., m...))
@@ -42,7 +43,7 @@ using LogExpFunctions: logsumexp
     else
         vmat = reshape(v, length(rbm.visible), :)
         hmat = reshape(h, length(rbm.hidden), :)
-        E = -LinearAlgebra.dot.(eachcol(vmat), Ref(wmat), eachcol(hmat))
+        E = -dot.(eachcol(vmat), Ref(wmat), eachcol(hmat))
         @test RBMs.interaction_energy(rbm, v, h) isa AbstractArray
         @test size(RBMs.interaction_energy(rbm, v, h)) == Bv == Bh
         @test RBMs.interaction_energy(rbm, v, h) ≈ reshape(E, Bv)
@@ -53,7 +54,7 @@ using LogExpFunctions: logsumexp
     @inferred RBMs.interaction_energy(rbm, v, h)
     @inferred RBMs.energy(rbm, v, h)
     gs = Zygote.gradient(rbm) do rbm
-        Statistics.mean(RBMs.energy(rbm, v, h))
+        mean(RBMs.energy(rbm, v, h))
     end
     ∂w = @inferred RBMs.∂interaction_energy(rbm, v, h)
     @test ∂w ≈ only(gs).w
@@ -218,18 +219,18 @@ end
         randn(1, 1) / 1e2
     )
 
-    @assert LinearAlgebra.isposdef([
+    @assert isposdef([
         rbm.visible.γ -rbm.w;
         -rbm.w'  rbm.hidden.γ
     ])
 
     @test RBMs.log_partition(rbm; β = 1) ≈ RBMs.log_partition(rbm)
 
-    Z, ϵ = QuadGK.quadgk(x -> exp(-only(RBMs.free_energy(rbm, [x;;]))), -Inf, Inf)
+    Z, ϵ = quadgk(x -> exp(-only(RBMs.free_energy(rbm, [x;;]))), -Inf, Inf)
     @test RBMs.log_partition(rbm) ≈ log(Z)
 
     β = 1.5
-    Z, ϵ = QuadGK.quadgk(x -> exp(-β * only(RBMs.free_energy(rbm, [x;;]; β))), -Inf, Inf)
+    Z, ϵ = quadgk(x -> exp(-β * only(RBMs.free_energy(rbm, [x;;]; β))), -Inf, Inf)
     @test RBMs.log_partition(rbm; β) ≈ log(Z)
 end
 
@@ -252,8 +253,8 @@ end
     γv = vec(rbm.visible.γ)
     γh = vec(rbm.hidden.γ)
     w = reshape(rbm.w, length(rbm.visible), length(rbm.hidden))
-    A = [LinearAlgebra.diagm(γv) -w;
-         -w'  LinearAlgebra.diagm(γh)]
+    A = [diagm(γv) -w;
+         -w'  diagm(γh)]
 
     v = randn(n..., 1)
     h = randn(m..., 1)
@@ -261,13 +262,13 @@ end
 
     @test RBMs.energy(rbm, v, h) ≈ x' * A * x / 2 - θ' * x
     @test RBMs.log_partition(rbm) ≈ (
-        (N + M)/2 * log(2π) + θ' * inv(A) * θ / 2 - LinearAlgebra.logdet(A)/2
+        (N + M)/2 * log(2π) + θ' * inv(A) * θ / 2 - logdet(A)/2
     )
     @test RBMs.log_partition(rbm; β = 1) ≈ RBMs.log_partition(rbm)
 
     β = rand()
     @test RBMs.log_partition(rbm; β) ≈ (
-        (N + M)/2 * log(2π) + β * θ' * inv(A) * θ / 2 - LinearAlgebra.logdet(β*A)/2
+        (N + M)/2 * log(2π) + β * θ' * inv(A) * θ / 2 - logdet(β*A)/2
     ) rtol=1e-6
 
     @test RBMs.log_likelihood(rbm, v; β = 1) ≈ RBMs.log_likelihood(rbm, v)
@@ -293,7 +294,7 @@ end
     C = Σ + μ * μ' # non-centered second moments
 
     @test [∂θv; ∂θh] ≈ μ
-    @test -2∂γv ≈ LinearAlgebra.diag(C[1:N, 1:N]) # <vi^2>
-    @test -2∂γh ≈ LinearAlgebra.diag(C[(N + 1):end, (N + 1):end]) # <hμ^2>
+    @test -2∂γv ≈ diag(C[1:N, 1:N]) # <vi^2>
+    @test -2∂γh ≈ diag(C[(N + 1):end, (N + 1):end]) # <hμ^2>
     @test ∂w ≈ C[1:N, (N + 1):end] # <vi*hμ>
 end
