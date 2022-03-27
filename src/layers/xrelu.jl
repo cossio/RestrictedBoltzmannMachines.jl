@@ -69,7 +69,9 @@ function ∂free_energy(layer::xReLU)
     return (θ = ∂θ, γ = ∂γ, Δ = ∂Δ, ξ = ∂ξ)
 end
 
-function ∂energy(layer::xReLU, stats::pReLUStats)
+const xReLUStats = pReLUStats
+
+function ∂energy(layer::xReLU, stats::xReLUStats)
     @assert size(layer) == size(stats)
     η = @. layer.ξ / (1 + abs(layer.ξ))
     ∂γ = @. (stats.xp2 / (1 + η) + stats.xn2 / (1 - η)) / 2
@@ -81,4 +83,4 @@ function ∂energy(layer::xReLU, stats::pReLUStats)
     return (θ = -stats.x, γ = ∂γ, Δ = ∂Δ, ξ = ∂ξ)
 end
 
-suffstats(layer::xReLU, data::AbstractArray; wts = nothing) = pReLUStats(layer, data; wts)
+suffstats(layer::xReLU, data::AbstractArray; wts = nothing) = xReLUStats(layer, data; wts)
