@@ -7,39 +7,36 @@ using Statistics: mean, var, cov
 using Random: bitrand
 using LogExpFunctions: logistic
 using QuadGK: quadgk
-using RestrictedBoltzmannMachines: flatten
+using RestrictedBoltzmannMachines: flatten, batch_size, batchmean, batchvar, batchcov
+using RestrictedBoltzmannMachines: Binary, Spin, Potts, Gaussian, ReLU, dReLU, xReLU, pReLU
+using RestrictedBoltzmannMachines: StdGauss, StdReLU, StdXReLU
+using RestrictedBoltzmannMachines: transfer_mean, transfer_var, transfer_std,
+    transfer_mean_abs, transfer_sample, transfer_mode
+using RestrictedBoltzmannMachines: energy, free_energy, free_energies, energies
 
 Random.seed!(2)
 
 _layers = (
-    RBMs.Binary,
-    RBMs.Spin,
-    RBMs.Potts,
-    RBMs.Gaussian,
-    RBMs.ReLU,
-    RBMs.dReLU,
-    RBMs.pReLU,
-    RBMs.xReLU
+    Binary,
+    Spin,
+    Potts,
+    Gaussian,
+    ReLU,
+    dReLU,
+    pReLU,
+    xReLU,
+    StdGauss,
+    StdReLU,
+    StdXReLU
 )
 
-random_layer(::Type{T}, N::Int...) where {T <: Union{RBMs.Binary, RBMs.Spin, RBMs.Potts}} = T(randn(N...))
-random_layer(::Type{T}, N::Int...) where {T <: Union{RBMs.Gaussian, RBMs.ReLU}} = T(randn(N...), rand(N...))
-random_layer(::Type{RBMs.dReLU}, N::Int...) = RBMs.dReLU(randn(N...), randn(N...), rand(N...), rand(N...))
-random_layer(::Type{RBMs.xReLU}, N::Int...) = RBMs.xReLU(randn(N...), rand(N...), randn(N...), randn(N...))
-random_layer(::Type{RBMs.pReLU}, N::Int...) = RBMs.pReLU(randn(N...), rand(N...), randn(N...), 2rand(N...) .- 1)
-
-function _random_layers(N::Int...)
-    return (
-        RBMs.Binary(randn(N...)),
-        RBMs.Spin(randn(N...)),
-        RBMs.Potts(randn(N...)),
-        RBMS.Gaussian(randn(N...), rand(N...)),
-        RBMS.ReLU(randn(N...), rand(N...)),
-        RBMS.dReLU(randn(N...), randn(N...), rand(N...), rand(N...)),
-        RBMS.pReLU(randn(N...), rand(N...), randn(N...), 2rand(N...) .- 1),
-        RBMS.xReLU(randn(N...), rand(N...), randn(N...), randn(N...))
-    )
-end
+random_layer(::Type{<:StdGauss}, N::Int...) = StdGauss(N)
+random_layer(::Type{T}, N::Int...) where {T <: Union{Binary,Spin,Potts,StdReLU}} = T(randn(N...))
+random_layer(::Type{T}, N::Int...) where {T <: Union{Gaussian,ReLU}} = T(randn(N...), rand(N...))
+random_layer(::Type{StdXReLU}, N::Int...) = StdXReLU(randn(N...), randn(N...), randn(N...))
+random_layer(::Type{dReLU}, N::Int...) = dReLU(randn(N...), randn(N...), rand(N...), rand(N...))
+random_layer(::Type{xReLU}, N::Int...) = xReLU(randn(N...), rand(N...), randn(N...), randn(N...))
+random_layer(::Type{pReLU}, N::Int...) = pReLU(randn(N...), rand(N...), randn(N...), 2rand(N...) .- 1)
 
 @testset "testing $Layer" for Layer in _layers
     N = (3,2)
@@ -52,74 +49,77 @@ end
     @test (@inferred length(layer)) == prod(N)
     @test (@inferred ndims(layer)) == length(N)
     @test size(@inferred repeat(layer,2,3,4)) == (((2, 3) .* N)..., 4)
-    @test (@inferred RBMs.batch_size(layer, rand(N...))) == ()
-    @test (@inferred RBMs.energy(layer, rand(N...))) isa Number
-    @test (@inferred RBMs.free_energy(layer)) isa Number
-    @test (@inferred RBMs.free_energy(layer, rand(N...))) isa Number
-    @test size(@inferred RBMs.transfer_mean(layer)) == size(layer)
-    @test size(@inferred RBMs.transfer_var(layer)) == size(layer)
-    @test size(@inferred RBMs.transfer_sample(layer)) == size(layer)
-    @test RBMs.free_energies(layer, 0; β=1) ≈ RBMs.free_energies(layer)
-    @test RBMs.transfer_std(layer) ≈ sqrt.(RBMs.transfer_var(layer))
+    @test (@inferred batch_size(layer, rand(N...))) == ()
+    @test (@inferred energy(layer, rand(N...))) isa Number
+    @test (@inferred free_energy(layer)) isa Number
+    @test (@inferred free_energy(layer, rand(N...))) isa Number
+    @test size(@inferred transfer_mean(layer)) == size(layer)
+    @test size(@inferred transfer_var(layer)) == size(layer)
+    @test size(@inferred transfer_sample(layer)) == size(layer)
+    @test free_energies(layer, 0; β=1) ≈ free_energies(layer)
+    @test transfer_std(layer) ≈ sqrt.(transfer_var(layer))
 
     if layer isa RBMs.Potts
-        @test size(@inferred RBMs.free_energies(layer)) == (1, size(layer)[2:end]...)
+        @test size(@inferred free_energies(layer)) == (1, size(layer)[2:end]...)
     else
-        @test size(@inferred RBMs.free_energies(layer)) == size(layer)
+        @test size(@inferred free_energies(layer)) == size(layer)
     end
 
     β = rand()
-    @test size(@inferred RBMs.transfer_sample(layer, 0; β)) == size(layer)
+    @test size(@inferred transfer_sample(layer, 0; β)) == size(layer)
 
     for B in ((), (2,), (1,2))
         x = rand(N..., B...)
-        @test (@inferred RBMs.batch_size(layer, x)) == (B...,)
+        @test (@inferred batch_size(layer, x)) == (B...,)
         @test (@inferred RBMs.batchdims(layer, x)) == (length(N) + 1):ndims(x)
-        @test size(@inferred RBMs.energy(layer, x)) == (B...,)
-        @test size(@inferred RBMs.free_energy(layer, x; β)) == (B...,)
-        @test size(@inferred RBMs.energies(layer, x)) == size(x)
-        @test size(@inferred RBMs.transfer_sample(layer, x; β)) == size(x)
-        @test size(@inferred RBMs.transfer_mean(layer, x; β)) == size(x)
-        @test size(@inferred RBMs.transfer_var(layer, x; β)) == size(x)
-        @test @inferred(RBMs.free_energy(layer, x; β=1)) ≈ RBMs.free_energy(layer, x)
-        @test @inferred(RBMs.transfer_mean(layer, x; β=1)) ≈ RBMs.transfer_mean(layer, x)
-        @test @inferred(RBMs.transfer_var(layer, x; β=1)) ≈ RBMs.transfer_var(layer, x)
-        @test @inferred(RBMs.transfer_std(layer, x; β)) ≈ sqrt.(RBMs.transfer_var(layer, x; β))
-        @test all(RBMs.energy(layer, RBMs.transfer_mode(layer)) .≤ RBMs.energy(layer, x))
+        @test size(@inferred energy(layer, x)) == (B...,)
+        @test size(@inferred free_energy(layer, x; β)) == (B...,)
+        @test size(@inferred energies(layer, x)) == size(x)
+        @test size(@inferred transfer_sample(layer, x; β)) == size(x)
+        @test size(@inferred transfer_mean(layer, x; β)) == size(x)
+        @test size(@inferred transfer_var(layer, x; β)) == size(x)
+        @test @inferred(free_energy(layer, x; β=1)) ≈ free_energy(layer, x)
+        @test @inferred(transfer_mean(layer, x; β=1)) ≈ transfer_mean(layer, x)
+        @test @inferred(transfer_var(layer, x; β=1)) ≈ transfer_var(layer, x)
+        @test @inferred(transfer_std(layer, x; β)) ≈ sqrt.(transfer_var(layer, x; β))
+        @test all(energy(layer, transfer_mode(layer)) .≤ energy(layer, x))
+
         if layer isa RBMs.Potts
-            @test size(@inferred RBMs.free_energies(layer, x; β)) == (1, size(x)[2:end]...)
+            @test size(@inferred free_energies(layer, x; β)) == (1, size(x)[2:end]...)
         else
-            @test size(@inferred RBMs.free_energies(layer, x; β)) == size(x)
+            @test size(@inferred free_energies(layer, x; β)) == size(x)
         end
+
         if B == ()
-            @test @inferred(RBMs.energy(layer, x)) ≈ sum(RBMs.energies(layer, x))
-            @test @inferred(RBMs.free_energy(layer, x)) ≈ sum(RBMs.free_energies(layer, x))
-            @test @inferred(RBMs.batchmean(layer, x)) ≈ x
-            @test @inferred(RBMs.batchvar(layer, x)) == zeros(N)
-            @test @inferred(RBMs.batchcov(layer, x)) == zeros(N..., N...)
+            @test @inferred(energy(layer, x)) ≈ sum(energies(layer, x))
+            @test @inferred(free_energy(layer, x)) ≈ sum(free_energies(layer, x))
+            @test @inferred(batchmean(layer, x)) ≈ x
+            @test @inferred(batchvar(layer, x)) == zeros(N)
+            @test @inferred(batchcov(layer, x)) == zeros(N..., N...)
         else
-            @test @inferred(RBMs.energy(layer, x)) ≈ reshape(sum(RBMs.energies(layer, x); dims=1:ndims(layer)), B)
-            @test @inferred(RBMs.free_energy(layer, x)) ≈ reshape(sum(RBMs.free_energies(layer, x); dims=1:ndims(layer)), B)
-            @test @inferred(RBMs.batchmean(layer, x)) ≈ reshape(mean(x; dims=(ndims(layer) + 1):ndims(x)), N)
-            @test @inferred(RBMs.batchvar(layer, x)) ≈ reshape(var(x; dims=(ndims(layer) + 1):ndims(x), corrected=false), N)
-            @test @inferred(RBMs.batchcov(layer, x)) ≈ reshape(cov(RBMs.flatten(layer, x); dims=2, corrected=false), N..., N...)
+            @test @inferred(energy(layer, x)) ≈ reshape(sum(energies(layer, x); dims=1:ndims(layer)), B)
+            @test @inferred(free_energy(layer, x)) ≈ reshape(sum(free_energies(layer, x); dims=1:ndims(layer)), B)
+            @test @inferred(batchmean(layer, x)) ≈ reshape(mean(x; dims=(ndims(layer) + 1):ndims(x)), N)
+            @test @inferred(batchvar(layer, x)) ≈ reshape(var(x; dims=(ndims(layer) + 1):ndims(x), corrected=false), N)
+            @test @inferred(batchcov(layer, x)) ≈ reshape(cov(flatten(layer, x); dims=2, corrected=false), N..., N...)
         end
-        μ = @inferred RBMs.transfer_mean(layer, x)
-        @test only(Zygote.gradient(j -> sum(RBMs.free_energies(layer, j)), x)) ≈ -μ
+
+        μ = @inferred transfer_mean(layer, x)
+        @test only(Zygote.gradient(j -> sum(free_energies(layer, j)), x)) ≈ -μ
     end
 
     ∂F = @inferred RBMs.∂free_energy(layer)
     gs = Zygote.gradient(layer) do layer
-        sum(RBMs.free_energies(layer))
+        sum(free_energies(layer))
     end
     for (ω, ∂ω) in pairs(∂F)
         @test ∂ω ≈ getproperty(only(gs), ω)
     end
 
-    samples = @inferred RBMs.transfer_sample(layer, zeros(size(layer)..., 10^6))
-    @test @inferred(RBMs.transfer_mean(layer)) ≈ reshape(mean(samples; dims=3), size(layer)) rtol=0.1 atol=0.01
-    @test @inferred(RBMs.transfer_var(layer)) ≈ reshape(var(samples; dims=ndims(samples)), size(layer)) rtol=0.1
-    @test @inferred(RBMs.transfer_mean_abs(layer)) ≈ reshape(mean(abs.(samples); dims=ndims(samples)), size(layer)) rtol=0.1
+    samples = @inferred transfer_sample(layer, zeros(size(layer)..., 10^6))
+    @test @inferred(transfer_mean(layer)) ≈ reshape(mean(samples; dims=3), size(layer)) rtol=0.1 atol=0.01
+    @test @inferred(transfer_var(layer)) ≈ reshape(var(samples; dims=ndims(samples)), size(layer)) rtol=0.1
+    @test @inferred(transfer_mean_abs(layer)) ≈ reshape(mean(abs.(samples); dims=ndims(samples)), size(layer)) rtol=0.1
 
     ∂F = @inferred RBMs.∂free_energy(layer)
     ∂E = @inferred RBMs.∂energy(layer, samples)
@@ -130,23 +130,23 @@ end
     end
 
     gs = Zygote.gradient(layer) do layer
-        sum(RBMs.energies(layer, samples)) / size(samples)[end]
+        sum(energies(layer, samples)) / size(samples)[end]
     end
     for (ω, ∂ω) in pairs(∂E)
         @test ∂ω ≈ getproperty(only(gs), ω)
     end
 end
 
-@testset "discrete layers ($Layer)" for Layer in (RBMs.Binary, RBMs.Spin, RBMs.Potts)
+@testset "discrete layers ($Layer)" for Layer in (Binary, Spin, RBMs.Potts)
     N = (3, 4, 5)
     B = 13
     layer = Layer(randn(N...))
     x = bitrand(N..., B)
-    @test RBMs.energies(layer, x) ≈ -layer.θ .* x
+    @test energies(layer, x) ≈ -layer.θ .* x
     gs = Zygote.gradient(layer) do layer
-        sum(RBMs.free_energies(layer))
+        sum(free_energies(layer))
     end
-    @test RBMs.∂free_energy(layer).θ ≈ only(gs).θ ≈ -RBMs.transfer_mean(layer)
+    @test RBMs.∂free_energy(layer).θ ≈ only(gs).θ ≈ -transfer_mean(layer)
 end
 
 @testset "Binary" begin
@@ -159,27 +159,27 @@ end
         @test RBMs.binary_rand.(θ, u) == (@. u * (1 + exp(-θ)) < 1)
     end
 
-    layer = RBMs.Binary(randn(7, 4, 5))
-    RBMs.transfer_var(layer) ≈ @. logistic(layer.θ) * logistic(-layer.θ)
-    @test RBMs.free_energies(layer) ≈ -log.(sum(exp.(layer.θ .* h) for h in 0:1))
-    @test sort(unique(RBMs.transfer_sample(layer))) == [0, 1]
+    layer = Binary(randn(7, 4, 5))
+    transfer_var(layer) ≈ @. logistic(layer.θ) * logistic(-layer.θ)
+    @test free_energies(layer) ≈ -log.(sum(exp.(layer.θ .* h) for h in 0:1))
+    @test sort(unique(transfer_sample(layer))) == [0, 1]
 end
 
 @testset "Spin" begin
-    layer = RBMs.Spin(randn(7, 4, 5))
-    @test RBMs.free_energies(layer) ≈ -log.(sum(exp.(layer.θ .* h) for h in (-1, 1)))
-    @test sort(unique(RBMs.transfer_sample(layer))) == [-1, 1]
+    layer = Spin(randn(7, 4, 5))
+    @test free_energies(layer) ≈ -log.(sum(exp.(layer.θ .* h) for h in (-1, 1)))
+    @test sort(unique(transfer_sample(layer))) == [-1, 1]
 end
 
 @testset "Potts" begin
     q = 3
     N = (4, 5)
     layer = RBMs.Potts(randn(q, N...))
-    @test RBMs.free_energies(layer) ≈ -log.(sum(exp.(layer.θ[h:h,:,:,:]) for h in 1:q))
-    @test all(sum(RBMs.transfer_mean(layer); dims=1) .≈ 1)
+    @test free_energies(layer) ≈ -log.(sum(exp.(layer.θ[h:h,:,:,:]) for h in 1:q))
+    @test all(sum(transfer_mean(layer); dims=1) .≈ 1)
     # samples are proper one-hot
-    @test sort(unique(RBMs.transfer_sample(layer))) == [0, 1]
-    @test all(sum(RBMs.transfer_sample(layer); dims=1) .== 1)
+    @test sort(unique(transfer_sample(layer))) == [0, 1]
+    @test all(sum(transfer_sample(layer); dims=1) .== 1)
 end
 
 @testset "Gaussian" begin
@@ -187,23 +187,23 @@ end
     B = 7
 
     # bound γ away from zero to avoid numerical issues with quadgk
-    layer = RBMs.Gaussian(randn(N...), rand(N...) .+ 0.5)
+    layer = Gaussian(randn(N...), rand(N...) .+ 0.5)
 
     x = randn(size(layer)..., B)
-    @test RBMs.energies(layer, x) ≈ @. abs(layer.γ) * x^2 / 2 - layer.θ * x
+    @test energies(layer, x) ≈ @. abs(layer.γ) * x^2 / 2 - layer.θ * x
 
     function quad_free(θ::Real, γ::Real)
         Z, ϵ = quadgk(h -> exp(-RBMs.gauss_energy(θ, γ, h)), -Inf,  Inf)
         return -log(Z)
     end
 
-    @test RBMs.free_energies(layer) ≈ quad_free.(layer.θ, layer.γ) rtol=1e-6
+    @test free_energies(layer) ≈ quad_free.(layer.θ, layer.γ) rtol=1e-6
 
     gs = Zygote.gradient(layer) do layer
-        sum(RBMs.free_energies(layer))
+        sum(free_energies(layer))
     end
-    μ = RBMs.transfer_mean(layer)
-    ν = RBMs.transfer_var(layer)
+    μ = transfer_mean(layer)
+    ν = transfer_var(layer)
     μ2 = @. ν + μ^2
     ∂ = RBMs.∂free_energy(layer)
     @test ∂.θ ≈ only(gs).θ ≈ -μ
@@ -215,22 +215,22 @@ end
     B = 7
 
     # bound γ away from zero to avoid numerical issues with quadgk
-    layer = RBMs.ReLU(randn(N...), rand(N...) .+ 0.5)
+    layer = ReLU(randn(N...), rand(N...) .+ 0.5)
 
     x = abs.(randn(size(layer)..., B))
-    @test RBMs.energies(layer, x) ≈ RBMs.energies(RBMs.Gaussian(layer.θ, layer.γ), x)
+    @test energies(layer, x) ≈ energies(Gaussian(layer.θ, layer.γ), x)
 
     function quad_free(θ::Real, γ::Real)
         Z, ϵ = quadgk(h -> exp(-RBMs.relu_energy(θ, γ, h)), 0,  Inf)
         return -log(Z)
     end
-    @test RBMs.free_energies(layer) ≈ @. quad_free(layer.θ, layer.γ)
+    @test free_energies(layer) ≈ @. quad_free(layer.θ, layer.γ)
 
     gs = Zygote.gradient(layer) do layer
-        sum(RBMs.free_energies(layer))
+        sum(free_energies(layer))
     end
-    μ = RBMs.transfer_mean(layer)
-    ν = RBMs.transfer_var(layer)
+    μ = transfer_mean(layer)
+    ν = transfer_var(layer)
     μ2 = @. ν + μ^2
     ∂ = RBMs.∂free_energy(layer)
     @test ∂.θ ≈ only(gs).θ ≈ -μ
@@ -242,88 +242,88 @@ end
     B = 13
     x = randn(N..., B)
 
-    drelu = RBMs.dReLU(randn(N...), randn(N...), rand(N...), rand(N...))
-    prelu = @inferred RBMs.pReLU(drelu)
-    xrelu = @inferred RBMs.xReLU(drelu)
-    @test drelu.θp ≈ RBMs.dReLU(prelu).θp ≈ RBMs.dReLU(xrelu).θp
-    @test drelu.θn ≈ RBMs.dReLU(prelu).θn ≈ RBMs.dReLU(xrelu).θn
-    @test drelu.γp ≈ RBMs.dReLU(prelu).γp
-    @test drelu.γn ≈ RBMs.dReLU(prelu).γn
-    @test abs.(drelu.γp) ≈ RBMs.dReLU(xrelu).γp
-    @test abs.(drelu.γn) ≈ RBMs.dReLU(xrelu).γn
-    @test RBMs.energies(drelu, x) ≈ RBMs.energies(prelu, x) ≈ RBMs.energies(xrelu, x)
-    @test RBMs.free_energies(drelu) ≈ RBMs.free_energies(prelu) ≈ RBMs.free_energies(xrelu)
-    @test RBMs.transfer_mode(drelu) ≈ RBMs.transfer_mode(prelu) ≈ RBMs.transfer_mode(xrelu)
-    @test RBMs.transfer_mean(drelu) ≈ RBMs.transfer_mean(prelu) ≈ RBMs.transfer_mean(xrelu)
-    @test RBMs.transfer_mean_abs(drelu) ≈ RBMs.transfer_mean_abs(prelu) ≈ RBMs.transfer_mean_abs(xrelu)
-    @test RBMs.transfer_var(drelu) ≈ RBMs.transfer_var(prelu) ≈ RBMs.transfer_var(xrelu)
+    drelu = dReLU(randn(N...), randn(N...), rand(N...), rand(N...))
+    prelu = @inferred pReLU(drelu)
+    xrelu = @inferred xReLU(drelu)
+    @test drelu.θp ≈ dReLU(prelu).θp ≈ dReLU(xrelu).θp
+    @test drelu.θn ≈ dReLU(prelu).θn ≈ dReLU(xrelu).θn
+    @test drelu.γp ≈ dReLU(prelu).γp
+    @test drelu.γn ≈ dReLU(prelu).γn
+    @test abs.(drelu.γp) ≈ dReLU(xrelu).γp
+    @test abs.(drelu.γn) ≈ dReLU(xrelu).γn
+    @test energies(drelu, x) ≈ energies(prelu, x) ≈ energies(xrelu, x)
+    @test free_energies(drelu) ≈ free_energies(prelu) ≈ free_energies(xrelu)
+    @test transfer_mode(drelu) ≈ transfer_mode(prelu) ≈ transfer_mode(xrelu)
+    @test transfer_mean(drelu) ≈ transfer_mean(prelu) ≈ transfer_mean(xrelu)
+    @test transfer_mean_abs(drelu) ≈ transfer_mean_abs(prelu) ≈ transfer_mean_abs(xrelu)
+    @test transfer_var(drelu) ≈ transfer_var(prelu) ≈ transfer_var(xrelu)
 
-    prelu = RBMs.pReLU(randn(N...), rand(N...), randn(N...), 2rand(N...) .- 1)
-    drelu = @inferred RBMs.dReLU(prelu)
-    xrelu = @inferred RBMs.xReLU(prelu)
-    @test prelu.θ ≈ RBMs.pReLU(drelu).θ ≈ RBMs.pReLU(xrelu).θ
-    @test prelu.γ ≈ RBMs.pReLU(drelu).γ ≈ RBMs.pReLU(xrelu).γ
-    @test prelu.Δ ≈ RBMs.pReLU(drelu).Δ ≈ RBMs.pReLU(xrelu).Δ
-    @test prelu.η ≈ RBMs.pReLU(drelu).η ≈ RBMs.pReLU(xrelu).η
-    @test RBMs.energies(drelu, x) ≈ RBMs.energies(prelu, x) ≈ RBMs.energies(xrelu, x)
-    @test RBMs.free_energies(drelu) ≈ RBMs.free_energies(prelu) ≈ RBMs.free_energies(xrelu)
-    @test RBMs.transfer_mode(drelu) ≈ RBMs.transfer_mode(prelu) ≈ RBMs.transfer_mode(xrelu)
-    @test RBMs.transfer_mean(drelu) ≈ RBMs.transfer_mean(prelu) ≈ RBMs.transfer_mean(xrelu)
-    @test RBMs.transfer_mean_abs(drelu) ≈ RBMs.transfer_mean_abs(prelu) ≈ RBMs.transfer_mean_abs(xrelu)
-    @test RBMs.transfer_var(drelu) ≈ RBMs.transfer_var(prelu) ≈ RBMs.transfer_var(xrelu)
+    prelu = pReLU(randn(N...), rand(N...), randn(N...), 2rand(N...) .- 1)
+    drelu = @inferred dReLU(prelu)
+    xrelu = @inferred xReLU(prelu)
+    @test prelu.θ ≈ pReLU(drelu).θ ≈ pReLU(xrelu).θ
+    @test prelu.γ ≈ pReLU(drelu).γ ≈ pReLU(xrelu).γ
+    @test prelu.Δ ≈ pReLU(drelu).Δ ≈ pReLU(xrelu).Δ
+    @test prelu.η ≈ pReLU(drelu).η ≈ pReLU(xrelu).η
+    @test energies(drelu, x) ≈ energies(prelu, x) ≈ energies(xrelu, x)
+    @test free_energies(drelu) ≈ free_energies(prelu) ≈ free_energies(xrelu)
+    @test transfer_mode(drelu) ≈ transfer_mode(prelu) ≈ transfer_mode(xrelu)
+    @test transfer_mean(drelu) ≈ transfer_mean(prelu) ≈ transfer_mean(xrelu)
+    @test transfer_mean_abs(drelu) ≈ transfer_mean_abs(prelu) ≈ transfer_mean_abs(xrelu)
+    @test transfer_var(drelu) ≈ transfer_var(prelu) ≈ transfer_var(xrelu)
 
-    xrelu = RBMs.xReLU(randn(N...), rand(N...), randn(N...), randn(N...))
-    drelu = @inferred RBMs.dReLU(xrelu)
-    prelu = @inferred RBMs.pReLU(xrelu)
-    @test xrelu.θ ≈ RBMs.xReLU(drelu).θ ≈ RBMs.xReLU(prelu).θ
-    @test xrelu.Δ ≈ RBMs.xReLU(drelu).Δ ≈ RBMs.xReLU(prelu).Δ
-    @test xrelu.ξ ≈ RBMs.xReLU(drelu).ξ ≈ RBMs.xReLU(prelu).ξ
-    @test xrelu.γ ≈ RBMs.xReLU(prelu).γ
-    @test abs.(xrelu.γ) ≈ RBMs.xReLU(drelu).γ
-    @test RBMs.energies(drelu, x) ≈ RBMs.energies(prelu, x) ≈ RBMs.energies(xrelu, x)
-    @test RBMs.free_energies(drelu) ≈ RBMs.free_energies(prelu) ≈ RBMs.free_energies(xrelu)
-    @test RBMs.transfer_mode(drelu) ≈ RBMs.transfer_mode(prelu) ≈ RBMs.transfer_mode(xrelu)
-    @test RBMs.transfer_mean(drelu) ≈ RBMs.transfer_mean(prelu) ≈ RBMs.transfer_mean(xrelu)
-    @test RBMs.transfer_mean_abs(drelu) ≈ RBMs.transfer_mean_abs(prelu) ≈ RBMs.transfer_mean_abs(xrelu)
-    @test RBMs.transfer_var(drelu) ≈ RBMs.transfer_var(prelu) ≈ RBMs.transfer_var(xrelu)
+    xrelu = xReLU(randn(N...), rand(N...), randn(N...), randn(N...))
+    drelu = @inferred dReLU(xrelu)
+    prelu = @inferred pReLU(xrelu)
+    @test xrelu.θ ≈ xReLU(drelu).θ ≈ xReLU(prelu).θ
+    @test xrelu.Δ ≈ xReLU(drelu).Δ ≈ xReLU(prelu).Δ
+    @test xrelu.ξ ≈ xReLU(drelu).ξ ≈ xReLU(prelu).ξ
+    @test xrelu.γ ≈ xReLU(prelu).γ
+    @test abs.(xrelu.γ) ≈ xReLU(drelu).γ
+    @test energies(drelu, x) ≈ energies(prelu, x) ≈ energies(xrelu, x)
+    @test free_energies(drelu) ≈ free_energies(prelu) ≈ free_energies(xrelu)
+    @test transfer_mode(drelu) ≈ transfer_mode(prelu) ≈ transfer_mode(xrelu)
+    @test transfer_mean(drelu) ≈ transfer_mean(prelu) ≈ transfer_mean(xrelu)
+    @test transfer_mean_abs(drelu) ≈ transfer_mean_abs(prelu) ≈ transfer_mean_abs(xrelu)
+    @test transfer_var(drelu) ≈ transfer_var(prelu) ≈ transfer_var(xrelu)
 
-    gauss = RBMs.Gaussian(randn(N...), rand(N...))
-    drelu = @inferred RBMs.dReLU(gauss)
-    prelu = @inferred RBMs.pReLU(gauss)
-    xrelu = @inferred RBMs.xReLU(gauss)
+    gauss = Gaussian(randn(N...), rand(N...))
+    drelu = @inferred dReLU(gauss)
+    prelu = @inferred pReLU(gauss)
+    xrelu = @inferred xReLU(gauss)
     @test (
-        RBMs.energies(gauss, x) ≈ RBMs.energies(drelu, x) ≈
-        RBMs.energies(prelu, x) ≈ RBMs.energies(xrelu, x)
+        energies(gauss, x) ≈ energies(drelu, x) ≈
+        energies(prelu, x) ≈ energies(xrelu, x)
     )
     @test (
-        RBMs.free_energies(gauss) ≈ RBMs.free_energies(drelu) ≈
-        RBMs.free_energies(prelu) ≈ RBMs.free_energies(xrelu)
+        free_energies(gauss) ≈ free_energies(drelu) ≈
+        free_energies(prelu) ≈ free_energies(xrelu)
     )
     @test (
-        RBMs.transfer_mode(gauss) ≈ RBMs.transfer_mode(drelu) ≈
-        RBMs.transfer_mode(prelu) ≈ RBMs.transfer_mode(xrelu)
+        transfer_mode(gauss) ≈ transfer_mode(drelu) ≈
+        transfer_mode(prelu) ≈ transfer_mode(xrelu)
     )
     @test (
-        RBMs.transfer_mean(gauss) ≈ RBMs.transfer_mean(drelu) ≈
-        RBMs.transfer_mean(prelu) ≈ RBMs.transfer_mean(xrelu)
+        transfer_mean(gauss) ≈ transfer_mean(drelu) ≈
+        transfer_mean(prelu) ≈ transfer_mean(xrelu)
     )
     @test (
-        RBMs.transfer_mean_abs(gauss) ≈ RBMs.transfer_mean_abs(drelu) ≈
-        RBMs.transfer_mean_abs(prelu) ≈ RBMs.transfer_mean_abs(xrelu)
+        transfer_mean_abs(gauss) ≈ transfer_mean_abs(drelu) ≈
+        transfer_mean_abs(prelu) ≈ transfer_mean_abs(xrelu)
     )
     @test (
-        RBMs.transfer_var(gauss) ≈ RBMs.transfer_var(drelu) ≈
-        RBMs.transfer_var(prelu) ≈ RBMs.transfer_var(xrelu)
+        transfer_var(gauss) ≈ transfer_var(drelu) ≈
+        transfer_var(prelu) ≈ transfer_var(xrelu)
     )
 
-    # relu  = RBMs.ReLU(randn(N...), rand(N...))
-    # drelu = @inferred RBMs.dReLU(relu)
-    # @test RBMs.energies(relu, x) ≈ RBMs.energies(drelu, x)
-    # @test RBMs.free_energies(relu) ≈ RBMs.free_energies(drelu)
-    # @test RBMs.transfer_mode(relu) ≈ RBMs.transfer_mode(drelu)
-    # @test RBMs.transfer_mean(relu) ≈ RBMs.transfer_mean(drelu)
-    # @test RBMs.transfer_mean_abs(relu)  ≈ RBMs.transfer_mean_abs(drelu)
-    # @test RBMs.transfer_var(relu) ≈ RBMs.transfer_var(drelu)
+    # relu  = ReLU(randn(N...), rand(N...))
+    # drelu = @inferred dReLU(relu)
+    # @test energies(relu, x) ≈ energies(drelu, x)
+    # @test free_energies(relu) ≈ free_energies(drelu)
+    # @test transfer_mode(relu) ≈ transfer_mode(drelu)
+    # @test transfer_mean(relu) ≈ transfer_mean(drelu)
+    # @test transfer_mean_abs(relu)  ≈ transfer_mean_abs(drelu)
+    # @test transfer_var(relu) ≈ transfer_var(drelu)
 end
 
 @testset "dReLU" begin
@@ -332,31 +332,31 @@ end
     x = randn(N..., B)
 
     # bound γ away from zero to avoid issues with quadgk
-    layer = RBMs.dReLU(
+    layer = dReLU(
         randn(N...), randn(N...), rand(N...) .+ 1, rand(N...) .+ 1
     )
 
-    Ep = RBMs.energy(RBMs.ReLU( layer.θp, layer.γp), max.( x, 0))
-    En = RBMs.energy(RBMs.ReLU(-layer.θn, layer.γn), max.(-x, 0))
-    @test RBMs.energy(layer, x) ≈ Ep + En
-    @test iszero(RBMs.energy(layer, zero(x)))
+    Ep = energy(ReLU( layer.θp, layer.γp), max.( x, 0))
+    En = energy(ReLU(-layer.θn, layer.γn), max.(-x, 0))
+    @test energy(layer, x) ≈ Ep + En
+    @test iszero(energy(layer, zero(x)))
 
     function quad_free(θp::Real, θn::Real, γp::Real, γn::Real)
         Z, ϵ = quadgk(h -> exp(-RBMs.drelu_energy(θp, θn, γp, γn, h)), -Inf, Inf)
         return -log(Z)
     end
-    @test RBMs.free_energies(layer) ≈ quad_free.(layer.θp, layer.θn, abs.(layer.γp), abs.(layer.γn))
+    @test free_energies(layer) ≈ quad_free.(layer.θp, layer.θn, abs.(layer.γp), abs.(layer.γn))
 
     gs = Zygote.gradient(layer) do layer
-        sum(RBMs.free_energies(layer))
+        sum(free_energies(layer))
     end
     ∂ = RBMs.∂free_energy(layer)
     @test ∂.θp ≈ only(gs).θp
     @test ∂.θn ≈ only(gs).θn
     @test ∂.γp ≈ only(gs).γp
     @test ∂.γn ≈ only(gs).γn
-    μ = RBMs.transfer_mean(layer)
-    ν = RBMs.transfer_var(layer)
+    μ = transfer_mean(layer)
+    ν = transfer_var(layer)
     μ2 = @. ν + μ^2
     @test ∂.θp + ∂.θn ≈ -μ
     @test ∂.γp + ∂.γn ≈ μ2/2
@@ -364,12 +364,12 @@ end
 
 @testset "pReLU" begin
     N = (3, 5)
-    layer = RBMs.pReLU(randn(N...), rand(N...), randn(N...), 2rand(N...) .- 1)
+    layer = pReLU(randn(N...), rand(N...), randn(N...), 2rand(N...) .- 1)
     gs = Zygote.gradient(layer) do layer
-        sum(RBMs.free_energies(layer))
+        sum(free_energies(layer))
     end
     ∂ = RBMs.∂free_energy(layer)
-    @test ∂.θ ≈ only(gs).θ ≈ -RBMs.transfer_mean(layer)
+    @test ∂.θ ≈ only(gs).θ ≈ -transfer_mean(layer)
     @test ∂.γ ≈ only(gs).γ
     @test ∂.Δ ≈ only(gs).Δ
     @test ∂.η ≈ only(gs).η
@@ -377,12 +377,12 @@ end
 
 @testset "xReLU" begin
     N = (3, 5)
-    layer = RBMs.xReLU(randn(N...), rand(N...), randn(N...), randn(N...))
+    layer = xReLU(randn(N...), rand(N...), randn(N...), randn(N...))
     gs = Zygote.gradient(layer) do layer
-        sum(RBMs.free_energies(layer))
+        sum(free_energies(layer))
     end
     ∂ = RBMs.∂free_energy(layer)
-    @test ∂.θ ≈ only(gs).θ ≈ -RBMs.transfer_mean(layer)
+    @test ∂.θ ≈ only(gs).θ ≈ -transfer_mean(layer)
     @test ∂.γ ≈ only(gs).γ
     @test ∂.Δ ≈ only(gs).Δ
     @test ∂.ξ ≈ only(gs).ξ
