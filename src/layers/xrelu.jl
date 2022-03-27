@@ -14,7 +14,7 @@ function xReLU(::Type{T}, n::Int...) where {T}
     γ = ones(T, n...)
     Δ = zeros(T, n...)
     ξ = zeros(T, n...)
-    return pReLU(θ, γ, Δ, ξ)
+    return xReLU(θ, γ, Δ, ξ)
 end
 
 xReLU(n::Int...) = xReLU(Float64, n...)
