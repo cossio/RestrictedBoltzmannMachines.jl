@@ -10,22 +10,25 @@ E(v, h) = -g'v - θ'h + \sum_\mu \frac{γ_\mu}{2} h_\mu^2 - v'wh
 ```
 """
 function HopfieldRBM(g::AbstractArray, θ::AbstractArray, γ::AbstractArray, w::AbstractArray)
-    @assert size(w) == (size(g)..., size(θ)...)
     @assert size(θ) == size(γ)
+    @assert size(w) == (size(g)..., size(θ)...)
     return RBM(Spin(g), Gaussian(θ, γ), w)
 end
 
-function HopfieldRBM(g::AbstractArray, w::AbstractArray)
-    @assert size(w)[1:ndims(g)] == size(g)
-    return RBM(Spin(g), StdGauss(size(w)[(ndims(g) + 1):end]...), w)
-end
-
-function HopfieldRBM(::Type{T}, N::Union{Int,TupleN{Int}}, M::Union{Int,TupleN{Int}}) where {T}
-    g = zeros(T, N...)
-    θ = zeros(T, M...)
-    γ = zeros(T, M...)
-    w = zeros(T, N..., M...)
+function HopfieldRBM(g::AbstractArray{T,N}, w::AbstractArray) where {T,N}
+    @assert size(g) == size(w)[1:N]
+    m = size(w)[(N + 1):end]
+    θ = zeros(eltype(g), m)
+    γ = ones(eltype(g), m)
     return HopfieldRBM(g, θ, γ, w)
 end
 
-HopfieldRBM(N::Union{Int,TupleN{Int}}, M::Union{Int,TupleN{Int}}) = HopfieldRBM(Float64, N, M)
+function HopfieldRBM(::Type{T}, n::Union{Int,TupleN{Int}}, m::Union{Int,TupleN{Int}}) where {T}
+    g = zeros(T, n)
+    θ = zeros(T, m)
+    γ = ones(T, m)
+    w = zeros(T, n..., m...)
+    return HopfieldRBM(g, θ, γ, w)
+end
+
+HopfieldRBM(n::Union{Int,TupleN{Int}}, m::Union{Int,TupleN{Int}}) = HopfieldRBM(Float64, n, m)
