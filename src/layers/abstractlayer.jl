@@ -244,17 +244,8 @@ function ∂free_energy(layer::AbstractLayer, inputs::AbstractArray; wts = nothi
     @assert size(layer) == size(inputs)[1:ndims(layer)]
     layer_eff = effective(layer, inputs)
     ∂Feff = ∂free_energy(layer_eff)
-    if ndims(layer) == ndims(inputs)
-        wts::Nothing
-        @assert size(layer_eff) == size(layer)
-        return ∂Feff
-    else
-        return map(∂Feff) do ∂fs
-            @assert size(∂fs) == size(layer_eff)
-            ∂ω = batchmean(layer, ∂fs; wts)
-            @assert size(∂ω) == size(layer)
-            ∂ω
-        end
+    return map(∂Feff) do ∂fs
+        batchmean(layer, ∂fs; wts)
     end
 end
 
