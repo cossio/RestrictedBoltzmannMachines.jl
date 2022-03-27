@@ -57,24 +57,12 @@ function ∂free_energy(layer::ReLU)
     return (θ = -μ, γ = (ν .+ μ.^2) / 2)
 end
 
-struct ReLUStats{A<:AbstractArray}
-    xp1::A
-    xp2::A
-    function ReLUStats(layer::AbstractLayer, data::AbstractArray; wts = nothing)
-        @assert size(layer) == size(data)[1:ndims(layer)]
-        xp = max.(data, 0)
-        xp1 = batchmean(layer, xp; wts)
-        xp2 = batchmean(layer, xp.^2; wts)
-        return new{typeof(xp1)}(xp1, xp2)
-    end
-end
-
-Base.size(stats::ReLUStats) = size(stats.xp1)
+const ReLUStats = GaussStats
 suffstats(layer::ReLU, data::AbstractArray; wts = nothing) = ReLUStats(layer, data; wts)
 
 function ∂energy(layer::ReLU, stats::ReLUStats)
     @assert size(layer) == size(stats)
-    return (; θ = -stats.xp1, γ = stats.xp2 / 2)
+    return (; θ = -stats.x1, γ = stats.x2 / 2)
 end
 
 function relu_energy(θ::Real, γ::Real, x::Real)
