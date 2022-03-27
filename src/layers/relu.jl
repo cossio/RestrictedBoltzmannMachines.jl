@@ -79,11 +79,7 @@ end
 
 function relu_energy(θ::Real, γ::Real, x::Real)
     E = gauss_energy(θ, γ, x)
-    if x < 0
-        return inf(E)
-    else
-        return E
-    end
+    return x < 0 ? inf(E) : E
 end
 
 function relu_free(θ::Real, γ::Real)
