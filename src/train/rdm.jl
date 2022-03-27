@@ -7,7 +7,7 @@ See http://arxiv.org/abs/2105.13889.
 function rdm!(rbm::RBM, data::AbstractArray;
     batchsize = 1,
     epochs = 1,
-    optim = Flux.ADAM(),
+    optim = ADAM(),
     history::MVHistory = MVHistory(),
     wts = nothing,
     steps::Int = 1,

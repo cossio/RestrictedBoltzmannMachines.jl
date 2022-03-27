@@ -40,7 +40,7 @@ gradnorms(∂::AbstractArray) = norm(∂)
 gradnorms(∂::NamedTuple) = map(gradnorms, ∂)
 
 """
-    default_optimizer(nsamples, batchsize, epochs; optim = Flux.ADAM(), decay_after = 0.5)
+    default_optimizer(nsamples, batchsize, epochs; optim = ADAM(), decay_after = 0.5)
 
 The default optimizer decays the learning rate exponentially every epoch, starting after
 `decay_after` of training time, with a pre-defined schedule.
@@ -49,7 +49,7 @@ Based on defaults from https://github.com/jertubiana/PGM.
 function default_optimizer(
     nsamples::Int, batchsize::Int, epochs::Int;
     decay_final::Real = 1e-2, decay_after::Real = 0.5, clip = 1,
-    optim = Flux.ADAM(5e-3, (0.99, 0.99), 1e-3)
+    optim = ADAM(5e-3, (0.99, 0.99), 1e-3)
 )
     steps_per_epoch = minibatch_count(nsamples; batchsize = batchsize)
     nsteps = steps_per_epoch * epochs

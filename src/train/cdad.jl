@@ -7,7 +7,7 @@ Computes gradients with Zygote.
 function cdad!(rbm::RBM, data::AbstractArray;
     batchsize = 1,
     epochs = 1,
-    optim = Flux.ADAM(),
+    optim = ADAM(),
     history::MVHistory = MVHistory(),
     wts = nothing,
     steps::Int = 1,

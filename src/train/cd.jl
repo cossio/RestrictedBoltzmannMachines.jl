@@ -6,7 +6,7 @@ Trains the RBM on data using contrastive divergence.
 function cd!(rbm::RBM, data::AbstractArray;
     batchsize = 1,
     epochs = 1,
-    optim = Flux.ADAM(), # optimizer algorithm
+    optim = ADAM(), # optimizer algorithm
     history::MVHistory = MVHistory(), # stores training log
     wts = nothing, # weighted data points; named wts to avoid conflicts with RBM nomenclature
     steps::Int = 1, # Monte Carlo steps to update fantasy particles

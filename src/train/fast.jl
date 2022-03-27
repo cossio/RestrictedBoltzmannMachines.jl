@@ -7,11 +7,11 @@ See http://dl.acm.org/citation.cfm?id=1553374.1553506.
 function fpcd!(rbm::RBM, data::AbstractArray;
     batchsize::Int = 1,
     epochs::Int = 1,
-    optim = Flux.ADAM(),
+    optim = ADAM(),
     history::MVHistory = MVHistory(),
     wts = nothing,
     steps::Int = 1,
-    optimfast = Flux.ADAM(), # optimizer algorithm for fast parameters
+    optimfast = ADAM(), # optimizer algorithm for fast parameters
     decayfast::Real = 19/20  # weight decay of fast parameters
 )
     @assert size(data) == (size(visible(rbm))..., size(data)[end])

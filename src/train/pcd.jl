@@ -6,7 +6,7 @@ Trains the RBM on data using Persistent Contrastive divergence.
 function pcd!(rbm::RBM, data::AbstractArray;
     batchsize::Int = 1,
     epochs::Int = 1,
-    optim = Flux.ADAM(),
+    optim = ADAM(),
     history::MVHistory = MVHistory(),
     wts = nothing,
     steps::Int = 1,
