@@ -225,8 +225,8 @@ end
     ∂energy(layer, stats)
 
 Derivative of average energy of `data` with respect to `layer` parameters.
-In the second form, `stats` are the sufficient statistics of the layer.
-See [`suffstats`](@ref).
+In the second form, `stats` are the pre-computed sufficient statistics
+of the layer. See [`suffstats`](@ref).
 """
 function ∂energy(layer::AbstractLayer, data::AbstractArray; wts=nothing)
     stats = suffstats(layer, data; wts)
