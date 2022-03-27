@@ -14,7 +14,6 @@ end
 
 Gaussian(::Type{T}, n::Int...) where {T} = Gaussian(zeros(T, n...), ones(T, n...))
 Gaussian(n::Int...) = Gaussian(Float64, n...)
-StdGauss(n::Int...) = Gaussian(Falses(n), Trues(n))
 
 Base.repeat(l::Gaussian, n::Int...) = Gaussian(repeat(l.θ, n...), repeat(l.γ, n...))
 
