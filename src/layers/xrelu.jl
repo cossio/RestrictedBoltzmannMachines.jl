@@ -10,10 +10,10 @@ struct xReLU{N,Aθ,Aγ,AΔ,Aξ} <: AbstractLayer{N}
 end
 
 function xReLU(::Type{T}, n::Int...) where {T}
-    θ = zeros(T, n...)
-    γ = ones(T, n...)
-    Δ = zeros(T, n...)
-    ξ = zeros(T, n...)
+    θ = zeros(T, n)
+    γ = ones(T, n)
+    Δ = zeros(T, n)
+    ξ = zeros(T, n)
     return xReLU(θ, γ, Δ, ξ)
 end
 
