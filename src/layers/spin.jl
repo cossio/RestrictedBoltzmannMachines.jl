@@ -26,7 +26,7 @@ end
 free_energies(layer::Spin) = spin_free.(layer.θ)
 transfer_mode(layer::Spin) = ifelse.(layer.θ .> 0, Int8(1), Int8(-1))
 transfer_mean(layer::Spin) = tanh.(layer.θ)
-transfer_mean_abs(layer::Spin) = FillArrays.Ones{Int8}(size(layer))
+transfer_mean_abs(layer::Spin) = Ones{Int8}(size(layer))
 transfer_std(layer::Spin) = sqrt.(transfer_var(layer))
 
 function transfer_var(layer::Spin)

@@ -1,6 +1,5 @@
 module RestrictedBoltzmannMachines
 
-import FillArrays
 import Flux
 import Zygote
 import ChainRulesCore
@@ -11,7 +10,7 @@ using Statistics: mean
 using LogExpFunctions: softmax, logsumexp, log1pexp, logistic, logaddexp
 using SpecialFunctions: erf, erfcx, logerfcx
 using ValueHistories: MVHistory
-using FillArrays: Fill
+using FillArrays: Fill, Zeros, Ones, Trues, Falses
 
 include("util.jl")
 include("minibatches.jl")
