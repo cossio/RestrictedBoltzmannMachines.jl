@@ -62,3 +62,19 @@ reshape_maybe(x::Number, ::Tuple{}) = x
 reshape_maybe(x::AbstractArray, ::Tuple{}) = only(x)
 reshape_maybe(x::AbstractArray, sz::TupleN{Int}) = reshape(x, sz)
 reshape_maybe(x::Union{Number,AbstractArray}, sz::Int...) = reshape(x, sz)
+
+"""
+    repeat_size(sz, r...)
+
+Returns `size(repeat(A, r...))`, provided `size(A) == sz`.
+"""
+repeat_size(sz::NTuple{N,Int}, r::Int...) where {N} = repeat_size(sz, r)
+repeat_size(n::NTuple{N,Int}, r::NTuple{R,Int}) where {N,R} = ntuple(max(N, R)) do d
+    if d ≤ N && d ≤ R
+        n[d] * r[d]
+    elseif R < d ≤ N
+        n[d]
+    elseif N < d ≤ R
+        r[d]
+    end
+end

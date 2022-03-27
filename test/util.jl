@@ -2,6 +2,7 @@ import Statistics
 import RestrictedBoltzmannMachines as RBMs
 using Test: @test, @testset, @inferred
 using Statistics: mean, var, cov
+using RestrictedBoltzmannMachines: repeat_size
 
 @testset "two" begin
     @test RBMs.two(1) === RBMs.two(Int) === 2
@@ -68,4 +69,12 @@ end
 
     A = randn(2,2)
     @test RBMs.reshape_maybe(A, 4) == reshape(A, 4)
+end
+
+@testset "repeat_size" begin
+    ns = ((), (0,), (1,), (1,2), (2,1), (2,3))
+    rs = ((), (0,), (1,), (1,2), (2,1), (2,3))
+    for n in ns, r in rs
+        @test repeat_size(n, r...) == size(repeat(trues(n...), r...))
+    end
 end
