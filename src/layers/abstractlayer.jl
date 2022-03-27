@@ -24,7 +24,7 @@ Returns an effective layer which behaves as the original with the given `inputs`
 temperature.
 """
 function effective(layer::AbstractLayer, input::Real; β::Real = true)
-    inputs = FillArrays.Fill(input, size(layer))
+    inputs = Fill(input, size(layer))
     return effective(layer, inputs; β)
 end
 
@@ -60,7 +60,7 @@ function free_energy(layer::AbstractLayer, inputs::AbstractArray; β::Real = tru
 end
 
 function free_energy(layer::AbstractLayer, input::Real = false; β::Real = true)
-    inputs = FillArrays.Fill(input, size(layer))
+    inputs = Fill(input, size(layer))
     return free_energy(layer, inputs; β)::Number
 end
 
@@ -259,6 +259,6 @@ function ∂free_energy(layer::AbstractLayer, inputs::AbstractArray; wts = nothi
 end
 
 function ∂free_energy(layer::AbstractLayer, input::Real; wts::Nothing = nothing)
-    inputs = FillArrays.Fill(input, size(layer))
+    inputs = Fill(input, size(layer))
     return ∂free_energy(layer, inputs; wts)
 end
