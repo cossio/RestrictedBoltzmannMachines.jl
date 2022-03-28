@@ -11,55 +11,55 @@ function pcd!(
     history::MVHistory = MVHistory(),
     wts = nothing, # data weights
     steps::Int = 1, # MC steps to update fantasy chains
-
-    # optimization algorithm (computes parameter update step from gradients)
-    optim = ADAM(),
-
-    # fantasy chains
-    vm = transfer_sample(visible(rbm), falses(size(visible(rbm))..., batchsize)),
-
+    optim = ADAM(), # optimization algorithm
+    vm = fantasy_init(rbm, batchsize), # fantasy chains
     stats = suffstats(rbm, data; wts), # sufficient statistics for visible layer
 
     # regularization
     l2_fields::Real = 0, # visible fields L2 regularization
-    l1_weights::Real = 0,
-    l2_weights::Real = 0,
-    l2l1_weights::Real = 0,
+    l1_weights::Real = 0, # weights L1 regularization
+    l2_weights::Real = 0, # weights L2 regularization
+    l2l1_weights::Real = 0, # weights L2/L1 regularization
 
+    # gauge
     zerosum::Bool = true, # zerosum gauge for Potts layers
-
-    # center gradients
-    # for continuous hidden units, also scale hidden unit activities to var(h) = 1
     center::Bool = false, # center gradients
-    damp::Real = 1e-3, # damping for hidden activity stats updates
 
-    # tracks mean and variance of hidden unit activations
-    λh = mean_h_from_v(rbm, data),
-    νh = var_h_from_v(rbm, data),
-    ϵh = 1e-2 # prevent vanishing var(h)
+    # scale hidden unit activations to var(h) = 1 (requires center = true)
+    standardize_hidden::Bool = false,
+
+    hidden_damp::Real = 0.1 * batchsize / _nobs(data), # damping for hidden activity statistics tracking
+    ϵh = 1e-2, # prevent vanishing var(h)
+
+    callback = nothing # called for every batch
 )
     @assert size(data) == (size(visible(rbm))..., size(data)[end])
     @assert isnothing(wts) || _nobs(data) == _nobs(wts)
+    @assert center || !standardize_hidden
 
-    # we center visible units with their average
-    λv = batchmean(visible(rbm), data; wts)
+    # we center layers with their average activities
+    ave_v = batchmean(visible(rbm), data; wts)
+    ave_h, var_h = meanvar_from_inputs(hidden(rbm), inputs_v_to_h(rbm, data); wts)
 
     for epoch in 1:epochs
         batches = minibatches(data, wts; batchsize)
-        Δt = @elapsed for (vd, wd) in batches
+        Δt = @elapsed for (batch_idx, (vd, wd)) in enumerate(batches)
             # update fantasy chains
             vm .= sample_v_from_v(rbm, vm; steps)
 
             # contrastive divergence gradient
-            ∂d = RBMs.∂free_energy(rbm, vd; wts = wd, stats)
-            ∂m = RBMs.∂free_energy(rbm, vm)
-            ∂ = RBMs.subtract_gradients(∂d, ∂m)
+            ∂d = ∂free_energy(rbm, vd; wts = wd, stats)
+            ∂m = ∂free_energy(rbm, vm)
+            ∂ = subtract_gradients(∂d, ∂m)
             push!(history, :∂, gradnorms(∂))
 
+            λh = grad2mean(hidden(rbm), ∂d.hidden)
+            νh = grad2var(hidden(rbm), ∂d.hidden)
+            ave_h .= (1 - hidden_damp) * λh .+ hidden_damp .* ave_h
+            var_h .= (1 - hidden_damp) * νh .+ hidden_damp .* var_h
+
             if center
-                have = grad2mean(hidden(rbm), ∂d.hidden)
-                λh .= (1 - damp) * have .+ damp .* λh
-                ∂ = center_gradient(rbm, ∂, λv, λh)
+                ∂ = center_gradient(rbm, ∂, ave_v, ave_h)
             end
 
             # regularize
@@ -75,16 +75,18 @@ function pcd!(
 
             # respect gauge constraints
             zerosum && zerosum!(rbm)
-            if stdizeh
-                hvar = grad2var(hidden(rbm), ∂d.hidden)
-                νh .= (1 - damp) * hvar .+ damp .* νh
-                rescale_hidden!(rbm, νh .+ ϵh)
-            end
+            standardize_hidden && rescale_hidden!(rbm, var_h .+ ϵh)
+
+            isnothing(callback) || callback(; rbm, history, optim, epoch, batch_idx, vd, wd)
         end
         push!(history, :epoch, epoch)
         push!(history, :Δt, Δt)
         push!(history, :vm, copy(vm))
+        push!(history, :ave_h, copy(ave_h))
+        push!(history, :var_h, copy(var_h))
         @debug "epoch $epoch/$epochs ($(round(Δt, digits=2))s)"
     end
     return history
 end
+
+fantasy_init(rbm::RBM, sz) = transfer_sample(visible(rbm), falses(size(visible(rbm))..., sz))

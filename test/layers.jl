@@ -391,6 +391,18 @@ end
     @test ∂.γp + ∂.γn ≈ μ2/2
     @test RBMs.grad2mean(layer, ∂) ≈ transfer_mean(layer)
     @test RBMs.grad2var(layer, ∂) ≈ transfer_var(layer)
+
+    # check law of total variance
+    inputs = randn(size(layer)..., 1000)
+    ∂ = RBMs.∂free_energy(layer, inputs)
+    h_ave = transfer_mean(layer, inputs)
+    h_var = transfer_var(layer, inputs)
+    μ = batchmean(layer, h_ave)
+    ν_int = batchmean(layer, h_var)
+    ν_ext = batchvar(layer, h_ave; mean = μ)
+    ν = ν_int + ν_ext # law of total variance
+    @test RBMs.grad2mean(layer, ∂) ≈ μ
+    @test RBMs.grad2var(layer, ∂) ≈ ν
 end
 
 @testset "pReLU" begin
