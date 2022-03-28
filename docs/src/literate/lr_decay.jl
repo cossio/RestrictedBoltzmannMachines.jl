@@ -29,39 +29,29 @@ nothing #hide
 
 nh = 100 # number of hidden units
 epochs = 500 # epochs before lr decay
-# decay_every = 10
-# decay_count = 20 # periods with lr decay
 batchsize = 256
-#η = 0.001 # initial learning rate
+callback(; rbm, history, _...) = push!(history, :lpl, mean(log_pseudolikelihood(rbm, train_x)))
 nothing #hide
 
 #=
 Consider first an RBM that we train without decaying the learning rate.
 =#
 
-rbm_nodecay = BinaryRBM(Float, (28,28), nh)
-initialize!(rbm_nodecay, train_x)
+rbm_nodecay = initialize!(BinaryRBM(Float, (28,28), nh), train_x)
 history_nodecay = pcd!(
-    rbm_nodecay, train_x; epochs, batchsize,
-    optim = default_optimizer(nsamples, batchsize, epochs; decay_after=1),
-    callback = function(; rbm, history, _...)
-        push!(history, :lpl, mean(log_pseudolikelihood(rbm, train_x)))
-    end
+    rbm_nodecay, train_x; epochs, batchsize, callback,
+    optim = default_optimizer(nsamples, batchsize, epochs; decay_after=1)
 )
+nothing #hide
 
 #=
 Now train an RBM with lr decay after half training (this is the default
 behavior)s.
 =#
 
-rbm_decaylr = BinaryRBM(Float, (28,28), nh)
-initialize!(rbm_decaylr, train_x)
-history_decaylr = pcd!(
-    rbm_decaylr, train_x; epochs, batchsize,
-    callback = function(; rbm, history, _...)
-        push!(history, :lpl, mean(log_pseudolikelihood(rbm, train_x)))
-    end
-)
+rbm_decaylr = initialize!(BinaryRBM(Float, (28,28), nh), train_x)
+history_decaylr = pcd!(rbm_decaylr, train_x; epochs, batchsize, callback)
+nothing #hide
 
 #=
 Compare the results
@@ -117,9 +107,7 @@ Makie.band!(ax, 1:nsteps, F_decaylr_μ - F_decaylr_σ/2, F_decaylr_μ + F_decayl
 Makie.lines!(ax, 1:nsteps, F_decaylr_μ, label="decay lr")
 fig
 
-#=
-Now make the plots. Average digit shapes.
-=#
+# Now make the plots. Average digit shapes.
 
 fig = Makie.Figure(resolution=(900, 300))
 ax = Makie.Axis(fig[1,1], title="data", yreversed=true)
