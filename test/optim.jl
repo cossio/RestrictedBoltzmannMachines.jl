@@ -23,18 +23,3 @@ import RestrictedBoltzmannMachines as RBMs
 
     @test lrs ≈ lrs_expected
 end
-
-# @testset "SqrtDecay" begin
-#     Random.seed!(84)
-#     w = randn(10, 10)
-#     w_ = randn(10, 10)
-#     loss(x) = Flux.Losses.mse(w * x, w_ * x)
-#     opt = Flux.Optimiser(RBMs.SqrtDecay(; decay=5), Flux.ADAM(0.001))
-#     for t = 1:10^5
-#         θ = Zygote.Params([w_])
-#         x = rand(10)
-#         θ_ = Zygote.gradient(() -> loss(x), θ)
-#         Flux.Optimise.update!(opt, θ, θ_)
-#     end
-#     @test loss(rand(10, 10)) < 0.01
-# end

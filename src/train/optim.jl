@@ -59,27 +59,3 @@ function default_optimizer(
         Flux.ClipValue(clip), optim, Flux.ExpDecay(1, decay, steps_per_epoch, decay_final, start)
     )
 end
-
-mutable struct SqrtDecay <: Flux.Optimise.AbstractOptimiser
-    eta::Float64
-    gamma::Float64
-    step::Int64
-    clip::Float64
-    start::Int64
-    state::IdDict
-end
-
-function SqrtDecay(η = 1, γ = 0.001, step = 1000, clip = 1e-4, start = 0)
-    return SqrtDecay(η, γ, step, clip, start, IdDict())
-end
-
-function Flux.Optimise.apply!(o::SqrtDecay, x, Δ)
-    s, start = o.step, o.start
-    γ = o.gamma
-    n = get!(o.state, x, 1)
-    if n > start && n % s == 0 && count(x -> x > start && x % s == 0, values(o.state)) == 1
-        o.eta = max(o.eta / (1 + γ * (n - start)), o.clip)
-    end
-    o.state[x] = n + 1
-    return Δ .*= o.eta
-end
