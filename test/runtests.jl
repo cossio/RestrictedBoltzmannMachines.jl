@@ -11,13 +11,12 @@ using SafeTestsets: @safetestset
 @time @safetestset "cd" begin include("cd.jl") end
 @time @safetestset "pseudolikelihood" begin include("pseudolikelihood.jl") end
 @time @safetestset "minibatches" begin include("minibatches.jl") end
-@time @safetestset "zerosum" begin include("zerosum.jl") end
 @time @safetestset "initialization" begin include("initialization.jl") end
 @time @safetestset "regularize" begin include("regularize.jl") end
 @time @safetestset "truncnorm" begin include("truncnorm.jl") end
 @time @safetestset "optim" begin include("optim.jl") end
 @time @safetestset "partition" begin include("partition.jl") end
 
-if Sys.islinux()
+@time @safetestset "zerosum" begin include("gauge/zerosum.jl") end
     @time @safetestset "pgm" begin include("compare_to_pgm/pgm.jl") end
 end
