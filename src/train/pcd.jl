@@ -11,7 +11,7 @@ function pcd!(
     history::MVHistory = MVHistory(),
     wts = nothing, # data weights
     steps::Int = 1, # MC steps to update fantasy chains
-    optim = ADAM(), # optimization algorithm
+    optim = default_optimizer(_nobs(data), batchsize, epochs), # optimization algorithm
     vm = fantasy_init(rbm, batchsize), # fantasy chains
     stats = suffstats(rbm, data; wts), # sufficient statistics for visible layer
 
