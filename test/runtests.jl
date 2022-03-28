@@ -18,6 +18,7 @@ using SafeTestsets: @safetestset
 @time @safetestset "partition" begin include("partition.jl") end
 
 @time @safetestset "zerosum" begin include("gauge/zerosum.jl") end
+@time @safetestset "rescale_hidden" begin include("gauge/rescale_hidden.jl") end
 
 if Sys.islinux() # NPZ has issues on Windows
     # compare to https://github.com/jertubiana/PGM

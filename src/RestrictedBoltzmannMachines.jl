@@ -42,6 +42,8 @@ include("rbms/hopfield.jl")
 include("rbms/binary.jl")
 
 include("gauge/zerosum.jl")
+include("gauge/rescale_hidden.jl")
+
 include("pseudolikelihood.jl")
 include("partition.jl")
 include("ais.jl")
