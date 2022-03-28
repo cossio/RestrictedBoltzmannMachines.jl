@@ -30,7 +30,9 @@ nothing #hide
 nh = 100 # number of hidden units
 epochs = 500 # epochs before lr decay
 batchsize = 256
-callback(; rbm, history, _...) = push!(history, :lpl, mean(log_pseudolikelihood(rbm, train_x)))
+function callback(; rbm, history, epoch, _...)
+    epoch % 5 == 0 && push!(history, :lpl, mean(log_pseudolikelihood(rbm, train_x)))
+end
 nothing #hide
 
 #=

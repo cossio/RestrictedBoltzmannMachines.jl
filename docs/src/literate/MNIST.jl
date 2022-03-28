@@ -13,7 +13,8 @@ import RestrictedBoltzmannMachines as RBMs
 using Statistics: mean, std, var
 using Random: bitrand
 using ValueHistories: MVHistory
-using RestrictedBoltzmannMachines: visible, initialize!, BinaryRBM, log_pseudolikelihood, transfer_sample
+using RestrictedBoltzmannMachines: visible, BinaryRBM, transfer_sample
+using RestrictedBoltzmannMachines: initialize!, log_pseudolikelihood, pcd!
 nothing #hide
 
 # Useful function to plot grids of MNIST digits.
@@ -78,9 +79,8 @@ batchsize = 256
 epochs = 500
 history = pcd!(
     rbm, train_x; epochs, batchsize,
-    callback = function(; rbm, history, _...)
-        epoch % 5 == 0 || return
-        push!(history, :lpl, mean(log_pseudolikelihood(rbm, train_x)))
+    callback = function(; rbm, history, epoch, _...)
+        epoch % 5 == 0 && push!(history, :lpl, mean(log_pseudolikelihood(rbm, train_x)))
     end
 )
 nothing #hide
