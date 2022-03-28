@@ -48,11 +48,16 @@ function transfer_mean(layer::dReLU)
     lp = ReLU( layer.θp, layer.γp)
     ln = ReLU(-layer.θn, layer.γn)
 
-    Fp, Fn = free_energies(lp), free_energies(ln)
+    Fp = free_energies(lp)
+    Fn = free_energies(ln)
     F = -logaddexp.(-Fp, -Fn)
-    pp, pn = exp.(F - Fp), exp.(F - Fn)
 
-    μp, μn = transfer_mean(lp), -transfer_mean(ln)
+    pp = exp.(F - Fp)
+    pn = exp.(F - Fn)
+
+    μp =  transfer_mean(lp)
+    μn = -transfer_mean(ln)
+
     return pp .* μp + pn .* μn
 end
 
@@ -60,9 +65,11 @@ function transfer_var(layer::dReLU)
     lp = ReLU( layer.θp, layer.γp)
     ln = ReLU(-layer.θn, layer.γn)
 
-    Fp, Fn = free_energies(lp), free_energies(ln)
+    Fp = free_energies(lp)
+    Fn = free_energies(ln)
     F = -logaddexp.(-Fp, -Fn)
-    pp, pn = exp.(F - Fp), exp.(F - Fn)
+    pp = exp.(F - Fp)
+    pn = exp.(F - Fn)
 
     μp, μn = transfer_mean(lp), -transfer_mean(ln)
     νp, νn = transfer_var(lp), transfer_var(ln)
