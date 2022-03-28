@@ -12,7 +12,8 @@ import Makie
 import CairoMakie
 import Flux
 import MLDatasets
-import RestrictedBoltzmannMachines as RBMs
+using RestrictedBoltzmannMachines: BinaryRBM, initialize!, pcd!, log_pseudolikelihood
+using RestrictedBoltzmannMachines: free_energy, sample_v_from_v, mean_h_from_v, default_optimizer
 
 #=
 Load MNIST dataset. We select only 0 digits and binarize pixel intensities.
@@ -21,54 +22,46 @@ Load MNIST dataset. We select only 0 digits and binarize pixel intensities.
 Float = Float32
 train_x, train_y = MLDatasets.MNIST.traindata()
 train_x = Array{Float64}(train_x[:,:, train_y .== 0] .> 0.5)
+nsamples = size(train_x)[end]
 nothing #hide
 
 # Some hyper-parameters
 
 nh = 100 # number of hidden units
-epochs1 = 500 # epochs before lr decay
-decay_every = 10
-decay_count = 20 # periods with lr decay
+epochs = 500 # epochs before lr decay
+# decay_every = 10
+# decay_count = 20 # periods with lr decay
 batchsize = 256
-η = 0.001 # initial learning rate
+#η = 0.001 # initial learning rate
 nothing #hide
 
 #=
 Consider first an RBM that we train without decaying the learning rate.
 =#
 
-rbm_nodecay = RBMs.BinaryRBM(Float, (28,28), nh)
-RBMs.initialize!(rbm_nodecay, train_x)
-optim = Flux.ADAM(η)
-vm = bitrand(28, 28, batchsize) # fantasy chains
-history_nodecay = MVHistory()
-for epoch = 1:(epochs1 + decay_every * decay_count)
-    RBMs.pcd!(rbm_nodecay, train_x; vm, history=history_nodecay, batchsize, optim)
-    push!(history_nodecay, :lpl, mean(RBMs.log_pseudolikelihood(rbm_nodecay, train_x)))
-end
-nothing #hide
+rbm_nodecay = BinaryRBM(Float, (28,28), nh)
+initialize!(rbm_nodecay, train_x)
+history_nodecay = pcd!(
+    rbm_nodecay, train_x; epochs, batchsize,
+    optim = default_optimizer(nsamples, batchsize, epochs; decay_after=1),
+    callback = function(; rbm, history, _...)
+        push!(history, :lpl, mean(log_pseudolikelihood(rbm, train_x)))
+    end
+)
 
 #=
-Now train an RBM with some normal epochs first, followed by another group of epochs where the
-learning-rate is cut in half every 10 epochs.
+Now train an RBM with lr decay after half training (this is the default
+behavior)s.
 =#
 
-rbm_decaylr = RBMs.BinaryRBM(Float, (28,28), nh)
-RBMs.initialize!(rbm_decaylr, train_x)
-optim = Flux.ADAM(η)
-vm = bitrand(28, 28, batchsize)
-history_decaylr = MVHistory()
-for epoch = 1:epochs1 # first epochs without lr decay
-    RBMs.pcd!(rbm_decaylr, train_x; vm, history=history_decaylr, batchsize, optim)
-    push!(history_decaylr, :lpl, mean(RBMs.log_pseudolikelihood(rbm_decaylr, train_x)))
-end
-@info "*** decaying learning rate ****"
-for iter = 1:decay_count, epoch = 1:decay_every # later epochs with decaying lr
-    optim.eta = η / 2^iter
-    RBMs.pcd!(rbm_decaylr, train_x; vm, history=history_decaylr, batchsize, optim)
-    push!(history_decaylr, :lpl, mean(RBMs.log_pseudolikelihood(rbm_decaylr, train_x)))
-end
-nothing #hide
+rbm_decaylr = BinaryRBM(Float, (28,28), nh)
+initialize!(rbm_decaylr, train_x)
+history_decaylr = pcd!(
+    rbm_decaylr, train_x; epochs, batchsize,
+    callback = function(; rbm, history, _...)
+        push!(history, :lpl, mean(log_pseudolikelihood(rbm, train_x)))
+    end
+)
 
 #=
 Compare the results
@@ -92,13 +85,13 @@ F_nodecay = zeros(nsamples, nsteps)
 F_decaylr = zeros(nsamples, nsteps)
 samples_v_nodecay = bitrand(28,28,nsamples)
 samples_v_decaylr = bitrand(28,28,nsamples)
-F_nodecay[:,1] .= RBMs.free_energy(rbm_nodecay, samples_v_nodecay)
-F_decaylr[:,1] .= RBMs.free_energy(rbm_decaylr, samples_v_decaylr)
+F_nodecay[:,1] .= free_energy(rbm_nodecay, samples_v_nodecay)
+F_decaylr[:,1] .= free_energy(rbm_decaylr, samples_v_decaylr)
 @time for step in 2:nsteps
-    samples_v_nodecay .= RBMs.sample_v_from_v(rbm_nodecay, samples_v_nodecay)
-    samples_v_decaylr .= RBMs.sample_v_from_v(rbm_decaylr, samples_v_decaylr)
-    F_nodecay[:,step] .= RBMs.free_energy(rbm_nodecay, samples_v_nodecay)
-    F_decaylr[:,step] .= RBMs.free_energy(rbm_decaylr, samples_v_decaylr)
+    samples_v_nodecay .= sample_v_from_v(rbm_nodecay, samples_v_nodecay)
+    samples_v_decaylr .= sample_v_from_v(rbm_decaylr, samples_v_decaylr)
+    F_nodecay[:,step] .= free_energy(rbm_nodecay, samples_v_nodecay)
+    F_decaylr[:,step] .= free_energy(rbm_decaylr, samples_v_decaylr)
 end
 nothing #hide
 
@@ -145,10 +138,10 @@ Moment matching conditions, first row for RBM with constant learning rate,
 second row for RBM with learning rate decay.
 =#
 
-h_data_nodecay = RBMs.mean_h_from_v(rbm_nodecay, train_x)
-h_data_decaylr = RBMs.mean_h_from_v(rbm_decaylr, train_x)
-h_model_nodecay = RBMs.mean_h_from_v(rbm_nodecay, samples_v_nodecay)
-h_model_decaylr = RBMs.mean_h_from_v(rbm_decaylr, samples_v_decaylr)
+h_data_nodecay = mean_h_from_v(rbm_nodecay, train_x)
+h_data_decaylr = mean_h_from_v(rbm_decaylr, train_x)
+h_model_nodecay = mean_h_from_v(rbm_nodecay, samples_v_nodecay)
+h_model_decaylr = mean_h_from_v(rbm_decaylr, samples_v_decaylr)
 nothing #hide
 
 fig = Makie.Figure(resolution=(900, 600))

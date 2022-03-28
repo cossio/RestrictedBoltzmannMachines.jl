@@ -23,10 +23,10 @@ function pcd!(
 
     # gauge
     zerosum::Bool = true, # zerosum gauge for Potts layers
-    center::Bool = false, # center gradients
+    center::Bool = true, # center gradients
 
     # scale hidden unit activations to var(h) = 1 (requires center = true)
-    standardize_hidden::Bool = false,
+    standardize_hidden::Bool = true,
 
     hidden_damp::Real = 0.1 * batchsize / _nobs(data), # damping for hidden activity statistics tracking
     ϵh = 1e-2, # prevent vanishing var(h)
