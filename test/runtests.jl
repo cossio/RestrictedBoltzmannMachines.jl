@@ -18,5 +18,8 @@ using SafeTestsets: @safetestset
 @time @safetestset "partition" begin include("partition.jl") end
 
 @time @safetestset "zerosum" begin include("gauge/zerosum.jl") end
+
+if Sys.islinux() # NPZ has issues on Windows
+    # compare to https://github.com/jertubiana/PGM
     @time @safetestset "pgm" begin include("compare_to_pgm/pgm.jl") end
 end
