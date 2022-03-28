@@ -1,12 +1,12 @@
 """
     initialize!(rbm, [data]; ϵ = 1e-6)
 
-Initializes the RBM parameters.
+Initializes the RBM and returns it.
 If provided, matches average visible unit activities from `data`.
 
     initialize!(layer, [data]; ϵ = 1e-6)
 
-Initializes a layer.
+Initializes a layer and returns it.
 If provided, matches average unit activities from `data`.
 """
 function initialize! end
