@@ -100,7 +100,14 @@ end
     @test vec(∂c.w) ≈ Ja * ad.visible.θ + Jb * ad.hidden.θ + Jw * vec(ad.w)
 end
 
+"""
+    struct2nt(obj)
+
+Converts a struct to a NamedTuple with the same fields.
+"""
 struct2nt(s) = NamedTuple{propertynames(s)}(([getproperty(s, p) for p in propertynames(s)]...,))
+@test struct2nt(1 + 2im) == (re = 1, im = 2)
+@test struct2nt(Gaussian(ones(5), ones(5))) == (θ = ones(5), γ = ones(5))
 
 _layers = (Binary, Spin, Potts, Gaussian, ReLU, dReLU, pReLU, xReLU)
 
