@@ -48,6 +48,8 @@ include("pseudolikelihood.jl")
 include("partition.jl")
 include("ais.jl")
 
+include("centered_gradient.jl")
+
 include("train/initialization.jl")
 include("train/cd.jl")
 include("train/cdad.jl")
@@ -56,6 +58,7 @@ include("train/bnorm.jl")
 include("train/fast.jl")
 include("train/rdm.jl")
 include("train/optim.jl")
-include("train/regularize.jl")
+
+include("regularize.jl")
 
 end # module

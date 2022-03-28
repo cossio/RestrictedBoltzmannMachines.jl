@@ -163,12 +163,28 @@ end
     transfer_var(layer) ≈ @. logistic(layer.θ) * logistic(-layer.θ)
     @test free_energies(layer) ≈ -log.(sum(exp.(layer.θ .* h) for h in 0:1))
     @test sort(unique(transfer_sample(layer))) == [0, 1]
+
+    gs = Zygote.gradient(layer) do layer
+        sum(free_energies(layer))
+    end
+    ∂ = RBMs.∂free_energy(layer)
+    @test ∂.θ ≈ only(gs).θ ≈ -transfer_mean(layer)
+    @test RBMs.grad2mean(layer, ∂) ≈ transfer_mean(layer)
+    @test RBMs.grad2var(layer, ∂) ≈ transfer_var(layer)
 end
 
 @testset "Spin" begin
     layer = Spin(randn(7, 4, 5))
     @test free_energies(layer) ≈ -log.(sum(exp.(layer.θ .* h) for h in (-1, 1)))
     @test sort(unique(transfer_sample(layer))) == [-1, 1]
+
+    gs = Zygote.gradient(layer) do layer
+        sum(free_energies(layer))
+    end
+    ∂ = RBMs.∂free_energy(layer)
+    @test ∂.θ ≈ only(gs).θ ≈ -transfer_mean(layer)
+    @test RBMs.grad2mean(layer, ∂) ≈ transfer_mean(layer)
+    @test RBMs.grad2var(layer, ∂) ≈ transfer_var(layer)
 end
 
 @testset "Potts" begin
@@ -180,6 +196,14 @@ end
     # samples are proper one-hot
     @test sort(unique(transfer_sample(layer))) == [0, 1]
     @test all(sum(transfer_sample(layer); dims=1) .== 1)
+
+    gs = Zygote.gradient(layer) do layer
+        sum(free_energies(layer))
+    end
+    ∂ = RBMs.∂free_energy(layer)
+    @test ∂.θ ≈ only(gs).θ ≈ -transfer_mean(layer)
+    @test RBMs.grad2mean(layer, ∂) ≈ transfer_mean(layer)
+    @test RBMs.grad2var(layer, ∂) ≈ transfer_var(layer)
 end
 
 @testset "Gaussian" begin
@@ -208,6 +232,8 @@ end
     ∂ = RBMs.∂free_energy(layer)
     @test ∂.θ ≈ only(gs).θ ≈ -μ
     @test ∂.γ ≈ only(gs).γ ≈ μ2/2
+    @test RBMs.grad2mean(layer, ∂) ≈ transfer_mean(layer)
+    @test RBMs.grad2var(layer, ∂) ≈ transfer_var(layer)
 end
 
 @testset "ReLU" begin
@@ -235,6 +261,8 @@ end
     ∂ = RBMs.∂free_energy(layer)
     @test ∂.θ ≈ only(gs).θ ≈ -μ
     @test ∂.γ ≈ only(gs).γ ≈ μ2/2
+    @test RBMs.grad2mean(layer, ∂) ≈ transfer_mean(layer)
+    @test RBMs.grad2var(layer, ∂) ≈ transfer_var(layer)
 end
 
 @testset "pReLU / xReLU / dReLU convert" begin
@@ -316,14 +344,15 @@ end
         transfer_var(prelu) ≈ transfer_var(xrelu)
     )
 
-    # relu  = ReLU(randn(N...), rand(N...))
-    # drelu = @inferred dReLU(relu)
-    # @test energies(relu, x) ≈ energies(drelu, x)
-    # @test free_energies(relu) ≈ free_energies(drelu)
-    # @test transfer_mode(relu) ≈ transfer_mode(drelu)
-    # @test transfer_mean(relu) ≈ transfer_mean(drelu)
-    # @test transfer_mean_abs(relu)  ≈ transfer_mean_abs(drelu)
-    # @test transfer_var(relu) ≈ transfer_var(drelu)
+    drelu = dReLU(randn(1), [0.0], rand(1), [Inf])
+    relu = ReLU(drelu.θp, drelu.γp)
+    x = rand(1, 100)
+    @test energies(relu, x) ≈ energies(drelu, x)
+    @test free_energies(relu) ≈ free_energies(drelu)
+    @test transfer_mode(relu) ≈ transfer_mode(drelu)
+    #@test transfer_mean(relu) ≈ transfer_mean(drelu)
+    #@test transfer_mean_abs(relu)  ≈ transfer_mean_abs(drelu)
+    #@test transfer_var(relu) ≈ transfer_var(drelu)
 end
 
 @testset "dReLU" begin
@@ -360,6 +389,8 @@ end
     μ2 = @. ν + μ^2
     @test ∂.θp + ∂.θn ≈ -μ
     @test ∂.γp + ∂.γn ≈ μ2/2
+    @test RBMs.grad2mean(layer, ∂) ≈ transfer_mean(layer)
+    @test RBMs.grad2var(layer, ∂) ≈ transfer_var(layer)
 end
 
 @testset "pReLU" begin
@@ -373,6 +404,7 @@ end
     @test ∂.γ ≈ only(gs).γ
     @test ∂.Δ ≈ only(gs).Δ
     @test ∂.η ≈ only(gs).η
+    @test RBMs.grad2mean(layer, ∂) ≈ transfer_mean(layer)
 end
 
 @testset "xReLU" begin
@@ -386,4 +418,5 @@ end
     @test ∂.γ ≈ only(gs).γ
     @test ∂.Δ ≈ only(gs).Δ
     @test ∂.ξ ≈ only(gs).ξ
+    @test RBMs.grad2mean(layer, ∂) ≈ transfer_mean(layer)
 end
