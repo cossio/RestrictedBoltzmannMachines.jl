@@ -51,8 +51,8 @@ Clips gradients by `clip`.
 function default_optimizer(
     nsamples::Int, batchsize::Int, epochs::Int;
     decay_final::Real = 0.01, decay_after::Real = 0.5, clip = 1,
-    #optim = ADAM()
-    optim = ADAM(5e-3, (0.99, 0.99), 1e-3)
+    optim = ADAM()
+    #optim = ADAM(5e-3, (0.99, 0.99), 1e-3)
 )
     # Defaults from https://github.com/jertubiana/PGM
     steps_per_epoch = minibatch_count(nsamples; batchsize)
