@@ -57,8 +57,8 @@ end
 @testset "centered RBM" begin
     rbm = BinaryRBM(randn(3), randn(2), randn(3,2))
     rbm_c = center(rbm, randn(3), randn(2))
-    v = bitrand(3, 1000)
-    h = bitrand(2, 1000)
+    v = bitrand(3, 100)
+    h = bitrand(2, 100)
     @test energy(rbm_c, v, h) ≈ energy(rbm, v, h) .+ ΔE(rbm_c)
     @test free_energy(rbm_c, v) ≈ free_energy(rbm, v) .+ ΔE(rbm_c)
     hs = [[0,0], [0,1], [1,0], [1,1]]
@@ -77,6 +77,30 @@ end
     rbmc = center(rbm, λv, λh)
     v = bitrand(3, 1000)
 
+    # subtraction eliminates constant energy displacement
+    ∂ = subtract_gradients(∂free_energy(rbm, v), ∂free_energy(rbm, falses(3)))
+    ∂c = @inferred center_gradient(rbm, ∂, rbmc.λv, rbmc.λh)
+
+    ad, = gradient(rbmc) do rbmc
+        mean(free_energy(rbmc, v)) - free_energy(rbmc, falses(3))
+    end
+
+    # since the centering transformation is linear, we can just uncenter the gradient
+    ad_u = uncenter(ad.visible.θ, ad.hidden.θ, ad.w, λv, λh)
+
+    @test ∂c.visible.θ ≈ ad_u.visible.θ
+    @test ∂c.hidden.θ ≈ ad_u.hidden.θ
+    @test ∂c.w ≈ ad_u.w
+end
+
+@testset "centered gradient via jacobian" begin
+    rbm = BinaryRBM(randn(3), randn(2), randn(3,2))
+    λv = randn(3)
+    λh = randn(2)
+    rbmc = center(rbm, λv, λh)
+    v = bitrand(3, 1000)
+
+    # subtraction eliminates constant energy displacement
     ∂ = subtract_gradients(∂free_energy(rbm, v), ∂free_energy(rbm, falses(3)))
     ∂c = @inferred center_gradient(rbm, ∂, rbmc.λv, rbmc.λh)
 
