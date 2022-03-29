@@ -13,7 +13,8 @@ import RestrictedBoltzmannMachines as RBMs
 using Statistics: mean, std, var
 using Random: bitrand
 using ValueHistories: MVHistory
-using RestrictedBoltzmannMachines: visible, initialize!, BinaryRBM, log_pseudolikelihood, transfer_sample
+using RestrictedBoltzmannMachines: visible, BinaryRBM, transfer_sample
+using RestrictedBoltzmannMachines: initialize!, log_pseudolikelihood, pcd!
 nothing #hide
 
 # Useful function to plot grids of MNIST digits.
@@ -75,15 +76,13 @@ collecting some info during training.
 =#
 
 batchsize = 256
-optim = Flux.ADAM()
-vm = transfer_sample(visible(rbm), falses(28, 28, batchsize)) # fantasy chains
-history = MVHistory()
-@time for epoch in 1:100
-    for epoch_inner = 1:5
-        RBMs.pcd!(rbm, train_x; vm, history, batchsize, optim)
+epochs = 500
+history = pcd!(
+    rbm, train_x; epochs, batchsize,
+    callback = function(; rbm, history, epoch, _...)
+        epoch % 5 == 0 && push!(history, :lpl, mean(log_pseudolikelihood(rbm, train_x)))
     end
-    push!(history, :lpl, mean(log_pseudolikelihood(rbm, train_x))) # track pseudolikelihood
-end
+)
 nothing #hide
 
 # After training, the pseudolikelihood score of the data improves significantly.
