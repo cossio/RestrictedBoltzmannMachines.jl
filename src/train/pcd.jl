@@ -25,17 +25,17 @@ function pcd!(
     zerosum::Bool = true, # zerosum gauge for Potts layers
     center::Bool = true, # center gradients
 
-    # scale hidden unit activations to var(h) = 1 (requires center = true)
+    # scale hidden unit activations to var(h) = 1
     standardize_hidden::Bool = true,
 
-    hidden_damp::Real = 0.1 * batchsize / _nobs(data), # damping for hidden activity statistics tracking
+    # damping for hidden activity statistics tracking
+    hidden_damp::Real = batchsize / _nobs(data),
     ϵh = 1e-2, # prevent vanishing var(h)
 
     callback = nothing # called for every batch
 )
     @assert size(data) == (size(visible(rbm))..., size(data)[end])
     @assert isnothing(wts) || _nobs(data) == _nobs(wts)
-    @assert center || !standardize_hidden
 
     # we center layers with their average activities
     ave_v = batchmean(visible(rbm), data; wts)
