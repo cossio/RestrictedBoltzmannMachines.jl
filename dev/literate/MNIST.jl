@@ -64,7 +64,7 @@ nothing #hide
 Initially, the RBM assigns a poor pseudolikelihood to the data.
 =#
 
-mean(@time log_pseudolikelihood(rbm, train_x))
+println("log(PL) = ", mean(@time log_pseudolikelihood(rbm, train_x)))
 
 #=
 (Incidentally, note how long it takes to evaluate the pseudolikelihood on the full
