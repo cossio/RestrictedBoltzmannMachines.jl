@@ -69,6 +69,7 @@ Documenter.makedocs(
                 "AutoDiff" => "literate/ad.md",
             ],
             "Learning rate decay" => "literate/lr_decay.md",
+            "No centering" => "literate/center.md",
         ],
         "Reference" => "reference.md"
     ],
