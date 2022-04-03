@@ -1,31 +1,52 @@
+"""
+    center_gradient(rbm, ∂, λv, λh)
+
+Given the gradient `∂` of `rbm`, returns the gradient of the equivalent centered RBM
+with offsets `λv` and `λh`.
+"""
 function center_gradient(rbm::RBM, ∂::NamedTuple, λv::AbstractArray, λh::AbstractArray)
     @assert size(rbm.visible) == size(λv)
     @assert size(rbm.hidden) == size(λh)
     @assert size(∂.w) == size(rbm.w)
-
-    ∂wmat = reshape(∂.w, length(rbm.visible), length(rbm.hidden))
-    ∂cwmat = ∂wmat - vec(λv) * vec(∂.hidden.θ)' - vec(∂.visible.θ) * vec(λh)'
-    ∂cw = reshape(∂cwmat, size(rbm.w))
-
-    shift_v = reshape(∂cwmat  * vec(λh), size(rbm.visible))
-    shift_h = reshape(∂cwmat' * vec(λv), size(rbm.hidden))
-    ∂cv = center_gradient(rbm.visible, ∂.visible, shift_v)
-    ∂ch = center_gradient(rbm.hidden,  ∂.hidden,  shift_h)
-
-    return (visible = ∂cv, hidden = ∂ch, w = ∂cw)
+    ∂w = reshape(∂.w, length(rbm.visible), length(rbm.hidden))
+    ∂wc = ∂w - vec(λv) * vec(∂.hidden.θ)' - vec(∂.visible.θ) * vec(λh)'
+    return (visible = ∂.visible, hidden = ∂.hidden, w = reshape(∂wc, size(∂.w)))
 end
 
-function center_gradient(
+"""
+    uncenter_step(rbm, ∂, λv, λh)
+
+Given parameter update step `∂` of a centered `rbm` with offsets `λv, λh`, returns the
+corresponding gradient of the equivalent uncentered RBM.
+"""
+function uncenter_step(rbm::RBM, ∂::NamedTuple, λv::AbstractArray, λh::AbstractArray)
+    @assert size(rbm.visible) == size(λv)
+    @assert size(rbm.hidden) == size(λh)
+    @assert size(∂.w) == size(rbm.w)
+    ∂w = reshape(∂.w, length(rbm.visible), length(rbm.hidden))
+    shift_v = reshape(∂w  * vec(λh), size(rbm.visible))
+    shift_h = reshape(∂w' * vec(λv), size(rbm.hidden))
+    ∂v = uncenter_step(rbm.visible, ∂.visible, shift_v)
+    ∂h = uncenter_step(rbm.hidden,  ∂.hidden,  shift_h)
+    return (visible = ∂v, hidden = ∂h, w = ∂.w)
+end
+
+function centered_gradient(rbm::RBM, ∂::NamedTuple, λv::AbstractArray, λh::AbstractArray)
+    ∂c = center_gradient(rbm, ∂, λv, λh)
+    return uncenter_step(rbm, ∂c, λv, λh)
+end
+
+function uncenter_step(
     layer::Union{Binary,Spin,Potts,Gaussian,ReLU,pReLU,xReLU},
-    ∂::NamedTuple, λ::AbstractArray
+    ∂::NamedTuple, shift::AbstractArray
 )
-    @assert size(layer) == size(∂.θ) == size(λ)
-    return (∂..., θ = ∂.θ - λ,)
+    @assert size(layer) == size(∂.θ) == size(shift)
+    return (∂..., θ = ∂.θ - shift,)
 end
 
-function center_gradient(layer::dReLU, ∂::NamedTuple, λ::AbstractArray)
-    @assert size(layer) == size(∂.θp) == size(∂.θn) == size(λ)
-    return (θp = ∂.θp - λ, θn = ∂.θn - λ, γp = ∂.γp, γn = ∂.γn)
+function uncenter_step(layer::dReLU, ∂::NamedTuple, shift::AbstractArray)
+    @assert size(layer) == size(∂.θp) == size(∂.θn) == size(shift)
+    return (θp = ∂.θp - shift, θn = ∂.θn - shift, γp = ∂.γp, γn = ∂.γn)
 end
 
 # get moments from layer gradients, e.g. <v> = -derivative w.r.t. θ

@@ -5,7 +5,7 @@ using LinearAlgebra: dot
 using Random: bitrand, rand!
 using Zygote: gradient, jacobian
 using RestrictedBoltzmannMachines: visible, hidden, weights, free_energy, energy, interaction_energy
-using RestrictedBoltzmannMachines: RBM, BinaryRBM, center_gradient, grad2mean, subtract_gradients
+using RestrictedBoltzmannMachines: RBM, BinaryRBM, grad2mean, subtract_gradients
 using RestrictedBoltzmannMachines: Binary, Spin, Potts, Gaussian, ReLU, dReLU, pReLU, xReLU
 using RestrictedBoltzmannMachines: sample_v_from_v, sample_h_from_h, ∂free_energy
 
@@ -70,6 +70,28 @@ end
     @test rbm_u.w ≈ rbm.w
 end
 
+@testset "center_gradient" begin
+    rbm = BinaryRBM(randn(3), randn(2), randn(3,2))
+    λv = randn(3)
+    λh = randn(2)
+    rbmc = center(rbm, λv, λh)
+    v = bitrand(3, 1000)
+
+    # subtraction eliminates constant energy displacement
+    ∂, = gradient(rbm) do rbm
+        mean(free_energy(rbm, v)) - free_energy(rbm, falses(3))
+    end
+    ∂c = RBMs.center_gradient(rbm, ∂, λv, λh)
+
+    gs = gradient(rbmc) do rbmc
+        mean(free_energy(rbmc, v)) - free_energy(rbmc, falses(3))
+    end
+
+    @test ∂c.visible.θ ≈ only(gs).visible.θ
+    @test ∂c.hidden.θ ≈ only(gs).hidden.θ
+    @test ∂c.w ≈ only(gs).w
+end
+
 @testset "centered gradient" begin
     rbm = BinaryRBM(randn(3), randn(2), randn(3,2))
     λv = randn(3)
@@ -79,7 +101,7 @@ end
 
     # subtraction eliminates constant energy displacement
     ∂ = subtract_gradients(∂free_energy(rbm, v), ∂free_energy(rbm, falses(3)))
-    ∂c = @inferred center_gradient(rbm, ∂, rbmc.λv, rbmc.λh)
+    ∂c = @inferred RBMs.centered_gradient(rbm, ∂, rbmc.λv, rbmc.λh)
 
     ad, = gradient(rbmc) do rbmc
         mean(free_energy(rbmc, v)) - free_energy(rbmc, falses(3))
@@ -102,7 +124,7 @@ end
 
     # subtraction eliminates constant energy displacement
     ∂ = subtract_gradients(∂free_energy(rbm, v), ∂free_energy(rbm, falses(3)))
-    ∂c = @inferred center_gradient(rbm, ∂, rbmc.λv, rbmc.λh)
+    ∂c = @inferred RBMs.centered_gradient(rbm, ∂, rbmc.λv, rbmc.λh)
 
     ad, = gradient(rbmc) do rbmc
         mean(free_energy(rbmc, v)) - free_energy(rbmc, falses(3))
@@ -135,15 +157,15 @@ struct2nt(s) = NamedTuple{propertynames(s)}(([getproperty(s, p) for p in propert
 
 _layers = (Binary, Spin, Potts, Gaussian, ReLU, dReLU, pReLU, xReLU)
 
-@testset "centering $Layer gradients" for Layer in _layers
+@testset "shifting $Layer gradients" for Layer in _layers
     layer = Layer(5)
     ∂ = struct2nt(layer)
     λ = randn(size(layer))
-    applicable(center_gradient, layer, ∂, λ) || continue
+    applicable(RBMs.uncenter_step, layer, ∂, λ) || continue
     for p in propertynames(layer)
         rand!(getproperty(layer, p))
     end
-    ∂c = center_gradient(layer, ∂, λ)
+    ∂c = RBMs.uncenter_step(layer, ∂, λ)
     layerc = deepcopy(layer)
     for p in propertynames(layer)
         getproperty(layerc, p) .= getproperty(∂c, p)

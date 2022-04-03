@@ -51,7 +51,6 @@ function pcd!(
             ∂d = ∂free_energy(rbm, vd; wts = wd, stats)
             ∂m = ∂free_energy(rbm, vm)
             ∂ = subtract_gradients(∂d, ∂m)
-            push!(history, :∂, gradnorms(∂))
 
             λh = grad2mean(hidden(rbm), ∂d.hidden)
             νh = grad2var(hidden(rbm), ∂d.hidden)
@@ -61,6 +60,7 @@ function pcd!(
             if center
                 ∂ = center_gradient(rbm, ∂, ave_v, ave_h)
             end
+            push!(history, :∂, gradnorms(∂))
 
             # regularize
             ∂reg!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights)
@@ -68,6 +68,11 @@ function pcd!(
 
             # compute parameter update step, according to optimizer algorithm
             update!(∂, rbm, optim)
+
+            # get step in uncentered parameters
+            if center
+                ∂ = uncenter_step(rbm, ∂, ave_v, ave_h)
+            end
             push!(history, :Δ, gradnorms(∂))
 
             # update parameters with update step computed above
