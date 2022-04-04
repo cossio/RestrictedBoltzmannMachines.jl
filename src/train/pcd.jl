@@ -80,7 +80,7 @@ function pcd!(
 
             # respect gauge constraints
             zerosum && zerosum!(rbm)
-            standardize_hidden && rescale_hidden!(rbm, var_h .+ ϵh)
+            standardize_hidden && rescale_hidden!(rbm, inv.(sqrt.(var_h .+ ϵh)))
 
             isnothing(callback) || callback(; rbm, history, optim, epoch, batch_idx, vd, wd)
         end
