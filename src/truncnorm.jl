@@ -84,3 +84,24 @@ function tnvar(a::Real)
     μ = tnmean(a)
     return one(μ) - (μ - a) * μ
 end
+
+"""
+    tnmeanvar(a)
+
+Mean and variance of the standard normal distribution truncated to the interval (a, +∞).
+Equivalent to `tnmean(a), tnvar(a)` but saves some common computations.
+WARNING: `tnvar(a) can fail for very very large values of `a`.
+"""
+function tnmeanvar(a::Real)
+    μ = tnmean(a)
+    ν = one(μ) - (μ - a) * μ
+    return μ, ν
+end
+
+#= tnmeanvar.(A) produces an array of tuples, which is usually not what you want.
+So I have this method which broadcasts and returns the tuple of arrays instead. =#
+function tnmeanvar(a::AbstractArray)
+    μ = tnmean.(a)
+    ν = one.(μ) - (μ - a) .* μ
+    return μ, ν
+end

@@ -49,6 +49,15 @@ function transfer_var(layer::ReLU)
     return @. ν * tnvar(-μ / √ν)
 end
 
+function transfer_meanvar(layer::ReLU)
+    g = Gaussian(layer.θ, layer.γ)
+    μ = transfer_mean(g)
+    ν = transfer_var(g)
+    σ = sqrt.(ν)
+    tμ, tν = tnmeanvar(-μ ./ σ)
+    return μ + σ .* tμ, ν .* tν
+end
+
 transfer_std(layer::ReLU) = sqrt.(transfer_var(layer))
 
 function ∂free_energy(layer::ReLU)

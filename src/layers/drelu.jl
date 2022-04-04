@@ -47,34 +47,29 @@ transfer_std(layer::dReLU) = sqrt.(transfer_var(layer))
 function transfer_mean(layer::dReLU)
     lp = ReLU( layer.θp, layer.γp)
     ln = ReLU(-layer.θn, layer.γn)
-
     Fp = free_energies(lp)
     Fn = free_energies(ln)
     F = -logaddexp.(-Fp, -Fn)
-
     pp = exp.(F - Fp)
     pn = exp.(F - Fn)
-
-    μp =  transfer_mean(lp)
-    μn = -transfer_mean(ln)
-
-    return pp .* μp + pn .* μn
+    μp = transfer_mean(lp)
+    μn = transfer_mean(ln)
+    return pp .* μp - pn .* μn
 end
 
 function transfer_var(layer::dReLU)
     lp = ReLU( layer.θp, layer.γp)
     ln = ReLU(-layer.θn, layer.γn)
-
     Fp = free_energies(lp)
     Fn = free_energies(ln)
     F = -logaddexp.(-Fp, -Fn)
     pp = exp.(F - Fp)
     pn = exp.(F - Fn)
-
-    μp, μn = transfer_mean(lp), -transfer_mean(ln)
-    νp, νn = transfer_var(lp), transfer_var(ln)
-    μ = pp .* μp + pn .* μn
-
+    μp = transfer_mean(lp)
+    μn = transfer_mean(ln)
+    νp = transfer_var(lp)
+    νn = transfer_var(ln)
+    μ = pp .* μp - pn .* μn
     return @. pp * (νp + μp^2) + pn * (νn + μn^2) - μ^2
 end
 
@@ -93,18 +88,16 @@ end
 function ∂free_energy(layer::dReLU)
     lp = ReLU( layer.θp, layer.γp)
     ln = ReLU(-layer.θn, layer.γn)
-
-    Fp, Fn = free_energies(lp), free_energies(ln)
+    Fp = free_energies(lp)
+    Fn = free_energies(ln)
     F = -logaddexp.(-Fp, -Fn)
-    pp, pn = exp.(F - Fp), exp.(F - Fn)
-
-    μp, μn = transfer_mean(lp), -transfer_mean(ln)
-    νp, νn = transfer_var(lp), transfer_var(ln)
-
+    pp = exp.(F - Fp)
+    pn = exp.(F - Fn)
+    μp, νp = transfer_meanvar(lp)
+    μn, νn = transfer_meanvar(ln)
     μ2p = @. (νp + μp^2) / 2
     μ2n = @. (νn + μn^2) / 2
-
-    return (θp = -pp .* μp, θn = -pn .* μn, γp = pp .* μ2p, γn = pn .* μ2n)
+    return (θp = -pp .* μp, θn = pn .* μn, γp = pp .* μ2p, γn = pn .* μ2n)
 end
 
 struct dReLUStats{A}
