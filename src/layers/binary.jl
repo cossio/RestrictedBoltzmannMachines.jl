@@ -32,8 +32,8 @@ function binary_var(θ::Real)
 end
 
 function binary_std(θ::Real)
-    t = exp(-abs(θ))
-    return √t / (1 + t)
+    t = exp(-abs(θ) / 2)
+    return t / (1 + t^2)
 end
 
 binary_rand(θ::Real, u::Real) = u < logistic(θ)
