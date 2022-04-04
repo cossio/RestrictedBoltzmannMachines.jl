@@ -46,25 +46,24 @@ function ∂free_energy(layer::xReLU)
 
     lp = ReLU( drelu.θp, drelu.γp)
     ln = ReLU(-drelu.θn, drelu.γn)
-
-    Fp, Fn = free_energies(lp), free_energies(ln)
+    Fp = free_energies(lp)
+    Fn = free_energies(ln)
     F = -logaddexp.(-Fp, -Fn)
-    pp, pn = exp.(F - Fp), exp.(F - Fn)
-
-    μp, μn = transfer_mean(lp), -transfer_mean(ln)
-    νp, νn = transfer_var(lp), transfer_var(ln)
-
+    pp = exp.(F - Fp)
+    pn = exp.(F - Fn)
+    μp, νp = transfer_meanvar(lp)
+    μn, νn = transfer_meanvar(ln)
     μ2p = @. νp + μp^2
     μ2n = @. νn + μn^2
 
     η = @. layer.ξ / (1 + abs(layer.ξ))
 
-    ∂θ = @. -(pp * μp + pn * μn)
+    ∂θ = @. -(pp * μp - pn * μn)
     ∂γ = @. (pp * μ2p / (1 + η) + pn * μ2n / (1 - η)) / 2
-    ∂Δ = @. -(pp * μp / (1 + η) - pn * μn / (1 - η))
+    ∂Δ = @. -(pp * μp / (1 + η) + pn * μn / (1 - η))
     ∂ξ = @. (
         pp * (-layer.γ/2 * μ2p + layer.Δ * μp) / (1 + layer.ξ + abs(layer.ξ))^2 +
-        pn * ( layer.γ/2 * μ2n + layer.Δ * μn) / (1 - layer.ξ + abs(layer.ξ))^2
+        pn * ( layer.γ/2 * μ2n - layer.Δ * μn) / (1 - layer.ξ + abs(layer.ξ))^2
     )
     return (θ = ∂θ, γ = ∂γ, Δ = ∂Δ, ξ = ∂ξ)
 end
