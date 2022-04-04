@@ -8,8 +8,10 @@ function center_gradient(rbm::RBM, ∂::NamedTuple, λv::AbstractArray, λh::Abs
     @assert size(rbm.visible) == size(λv)
     @assert size(rbm.hidden) == size(λh)
     @assert size(∂.w) == size(rbm.w)
+    Δv = grad2mean(rbm.visible, ∂.visible)
+    Δh = grad2mean(rbm.hidden, ∂.hidden)
     ∂w = reshape(∂.w, length(rbm.visible), length(rbm.hidden))
-    ∂wc = ∂w - vec(λv) * vec(∂.hidden.θ)' - vec(∂.visible.θ) * vec(λh)'
+    ∂wc = ∂w + vec(λv) * vec(Δh)' + vec(Δv) * vec(λh)'
     return (visible = ∂.visible, hidden = ∂.hidden, w = reshape(∂wc, size(∂.w)))
 end
 
