@@ -55,11 +55,15 @@ end
 grad2mean(::Union{Binary,Spin,Potts,Gaussian,ReLU,pReLU,xReLU}, ∂::NamedTuple) = -∂.θ
 grad2mean(::dReLU, ∂::NamedTuple) = -(∂.θp + ∂.θn)
 
+grad2var(::Union{Binary,Potts}, ∂::NamedTuple) = @. -∂.θ * (1 + ∂.θ)
+grad2var(::Spin, ∂::NamedTuple) = @. (1 - ∂.θ) * (1 + ∂.θ)
 grad2var(::Union{Gaussian,ReLU}, ∂::NamedTuple) = 2∂.γ - ∂.θ.^2
 grad2var(::dReLU, ∂::NamedTuple) = 2 * (∂.γp + ∂.γn) - (∂.θp + ∂.θn).^2
-grad2var(l::Spin, ∂::NamedTuple) = 1 .- grad2mean(l, ∂).^2
 
-function grad2var(l::Union{Binary,Potts}, ∂::NamedTuple)
-    p = grad2mean(l, ∂)
-    return p .* (1 .- p)
+function grad2var(l::pReLU, ∂::NamedTuple)
+    @. 2l.η/l.γ * ((2l.Δ * ∂.Δ + l.η * ∂.η) * l.η - (∂.η + l.Δ * ∂.θ)) + 2∂.γ * (1 + l.η^2) - ∂.θ^2
+end
+
+function grad2var(l::xReLU, ∂::NamedTuple)
+    @. ((2∂.γ - ∂.θ^2) * l.γ - 2 * (∂.ξ + ∂.θ * l.Δ) * l.ξ + (4∂.γ * l.γ - ∂.θ^2 * l.γ + 4 * ∂.Δ * l.Δ) * l.ξ^2 - 4∂.ξ * l.ξ^3 + 2abs(l.ξ) * (2∂.γ * l.γ - ∂.θ^2 * l.γ - 3∂.ξ * l.ξ - ∂.θ * l.Δ * l.ξ)) / (l.γ * (1 + abs(l.ξ))^2)
 end

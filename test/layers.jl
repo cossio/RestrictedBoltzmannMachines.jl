@@ -417,6 +417,7 @@ end
     @test ∂.Δ ≈ only(gs).Δ
     @test ∂.η ≈ only(gs).η
     @test RBMs.grad2mean(layer, ∂) ≈ transfer_mean(layer)
+    @test RBMs.grad2var(layer, ∂) ≈ transfer_var(layer)
 end
 
 @testset "xReLU" begin
@@ -431,4 +432,5 @@ end
     @test ∂.Δ ≈ only(gs).Δ
     @test ∂.ξ ≈ only(gs).ξ
     @test RBMs.grad2mean(layer, ∂) ≈ transfer_mean(layer)
+    @test RBMs.grad2var(layer, ∂) ≈ transfer_var(layer)
 end
