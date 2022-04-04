@@ -68,12 +68,12 @@ function pcd!(
 
             # compute parameter update step, according to optimizer algorithm
             update!(∂, rbm, optim)
+            push!(history, :Δ, gradnorms(∂))
 
             # get step in uncentered parameters
             if center
                 ∂ = uncenter_step(rbm, ∂, ave_v, ave_h)
             end
-            push!(history, :Δ, gradnorms(∂))
 
             # update parameters with update step computed above
             update!(rbm, ∂)
