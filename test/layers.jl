@@ -400,7 +400,7 @@ end
 end
 
 @testset "pReLU" begin
-    N = (3, 5)
+    N = (3, 5, 7)
     layer = pReLU(randn(N...), rand(N...), randn(N...), 2rand(N...) .- 1)
     gs = Zygote.gradient(layer) do layer
         sum(free_energies(layer))
@@ -415,7 +415,7 @@ end
 end
 
 @testset "xReLU" begin
-    N = (3, 5)
+    N = (3, 5, 7)
     layer = xReLU(randn(N...), rand(N...), randn(N...), randn(N...))
     gs = Zygote.gradient(layer) do layer
         sum(free_energies(layer))
