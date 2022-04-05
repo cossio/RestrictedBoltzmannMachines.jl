@@ -55,13 +55,13 @@ end
 grad2mean(::Union{Binary,Spin,Potts,Gaussian,ReLU,pReLU,xReLU}, ∂::NamedTuple) = -∂.θ
 grad2mean(::dReLU, ∂::NamedTuple) = -(∂.θp + ∂.θn)
 
-grad2var(::Union{Binary,Potts}, ∂::NamedTuple) = @. -∂.θ * (1 + ∂.θ)
-grad2var(::Spin, ∂::NamedTuple) = @. (1 - ∂.θ) * (1 + ∂.θ)
+grad2var(::Union{Binary,Potts}, ∂::NamedTuple) = -∂.θ .* (1 .+ ∂.θ)
+grad2var(::Spin, ∂::NamedTuple) = (1 .- ∂.θ) .* (1 .+ ∂.θ)
 grad2var(::Union{Gaussian,ReLU}, ∂::NamedTuple) = 2∂.γ - ∂.θ.^2
 grad2var(::dReLU, ∂::NamedTuple) = 2 * (∂.γp + ∂.γn) - (∂.θp + ∂.θn).^2
 
 function grad2var(l::pReLU, ∂::NamedTuple)
-    @. 2l.η/l.γ * ((2l.Δ * ∂.Δ + l.η * ∂.η) * l.η - (∂.η + l.Δ * ∂.θ)) + 2∂.γ * (1 + l.η^2) - ∂.θ^2
+    @. 2l.η/l.γ * ((2l.Δ * ∂.Δ + l.η * ∂.η) * l.η - ∂.η - l.Δ * ∂.θ) + 2∂.γ * (1 + l.η^2) - ∂.θ^2
 end
 
 function grad2var(l::xReLU, ∂::NamedTuple)
