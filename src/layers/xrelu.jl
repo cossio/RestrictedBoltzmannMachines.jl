@@ -38,6 +38,7 @@ transfer_sample(layer::xReLU) = transfer_sample(dReLU(layer))
 transfer_mode(layer::xReLU) = transfer_mode(dReLU(layer))
 transfer_mean(layer::xReLU) = transfer_mean(dReLU(layer))
 transfer_var(layer::xReLU) = transfer_var(dReLU(layer))
+transfer_meanvar(layer::xReLU) = transfer_meanvar(dReLU(layer))
 transfer_std(layer::xReLU) = sqrt.(transfer_var(layer))
 transfer_mean_abs(layer::xReLU) = transfer_mean_abs(dReLU(layer))
 

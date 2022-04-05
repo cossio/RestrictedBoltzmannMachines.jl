@@ -34,6 +34,12 @@ function transfer_var(layer::Spin)
     return @. (1 - μ) * (1 + μ)
 end
 
+function transfer_meanvar(layer::Spin)
+    μ = transfer_mean(layer)
+    ν = @. (1 - μ) * (1 + μ)
+    return μ, ν
+end
+
 function transfer_sample(layer::Spin)
     u = rand(eltype(layer.θ), size(layer.θ))
     return spin_rand.(layer.θ, u)

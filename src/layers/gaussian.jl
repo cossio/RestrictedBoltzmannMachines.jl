@@ -34,10 +34,11 @@ function transfer_sample(layer::Gaussian)
     return μ .+ σ .* z
 end
 
-transfer_mode(layer::Gaussian) = gauss_mode.(layer.θ, layer.γ)
-transfer_mean(layer::Gaussian) = transfer_mode(layer)
-transfer_var(layer::Gaussian) = inv.(abs.(layer.γ))
-transfer_std(layer::Gaussian) = sqrt.(transfer_var(layer))
+transfer_mean(l::Gaussian) = l.θ ./ abs.(l.γ)
+transfer_var(l::Gaussian) = inv.(abs.(l.γ))
+transfer_meanvar(l::Gaussian) = transfer_mean(l), transfer_var(l)
+transfer_std(l::Gaussian) = sqrt.(transfer_var(l))
+transfer_mode(l::Gaussian) = transfer_mean(l)
 
 function transfer_mean_abs(layer::Gaussian)
     μ = transfer_mean(layer)
@@ -47,7 +48,6 @@ end
 
 gauss_energy(θ::Real, γ::Real, x::Real) = (abs(γ) * x / 2 - θ) * x
 gauss_free(θ::Real, γ::Real) = -θ^2 / abs(2γ) + log(abs(γ)/π/2) / 2
-gauss_mode(θ::Real, γ::Real) = θ / abs(γ)
 
 function ∂free_energy(layer::Gaussian)
     θ = layer.θ

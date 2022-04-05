@@ -104,6 +104,11 @@ function transfer_var(layer::AbstractLayer, inputs::Union{Real,AbstractArray}; �
     return transfer_var(layer_eff)
 end
 
+function transfer_meanvar(layer::AbstractLayer, inputs::Union{Real,AbstractArray}; β::Real=1)
+    layer_eff = effective(layer, inputs; β)
+    return transfer_meanvar(layer_eff)
+end
+
 """
     transfer_std(layer, inputs = 0; β = 1)
 

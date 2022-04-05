@@ -9,8 +9,8 @@ using LogExpFunctions: logistic
 using QuadGK: quadgk
 using RestrictedBoltzmannMachines: flatten, batch_size, batchmean, batchvar, batchcov
 using RestrictedBoltzmannMachines: Binary, Spin, Potts, Gaussian, ReLU, dReLU, xReLU, pReLU
-using RestrictedBoltzmannMachines: transfer_mean, transfer_var, transfer_std,
-    transfer_mean_abs, transfer_sample, transfer_mode
+using RestrictedBoltzmannMachines: transfer_mean, transfer_var, transfer_meanvar,
+    transfer_std, transfer_mean_abs, transfer_sample, transfer_mode
 using RestrictedBoltzmannMachines: energy, free_energy, free_energies, energies
 
 Random.seed!(2)
@@ -77,6 +77,10 @@ random_layer(::Type{pReLU}, N::Int...) = pReLU(randn(N...), rand(N...), randn(N.
         @test @inferred(transfer_var(layer, x; β=1)) ≈ transfer_var(layer, x)
         @test @inferred(transfer_std(layer, x; β)) ≈ sqrt.(transfer_var(layer, x; β))
         @test all(energy(layer, transfer_mode(layer)) .≤ energy(layer, x))
+
+        μ, ν = transfer_meanvar(layer, x; β)
+        @test μ ≈ transfer_mean(layer, x; β)
+        @test ν ≈ transfer_var(layer; β)
 
         if layer isa RBMs.Potts
             @test size(@inferred free_energies(layer, x; β)) == (1, size(x)[2:end]...)

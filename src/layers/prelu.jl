@@ -31,30 +31,13 @@ function effective(layer::pReLU, inputs::AbstractArray; β::Real = true)
     return pReLU(θ, γ, Δ, η)
 end
 
-function energies(layer::pReLU, x::AbstractArray)
-    return energies(dReLU(layer), x)
-end
-
-function free_energies(layer::pReLU)
-    return free_energies(dReLU(layer))
-end
-
-function transfer_sample(layer::pReLU)
-    return transfer_sample(dReLU(layer))
-end
-
-function transfer_mean(layer::pReLU)
-    return transfer_mean(dReLU(layer))
-end
-
-function transfer_var(layer::pReLU)
-    return transfer_var(dReLU(layer))
-end
-
-function transfer_mode(layer::pReLU)
-    return transfer_mode(dReLU(layer))
-end
-
+energies(layer::pReLU, x::AbstractArray) = energies(dReLU(layer), x)
+free_energies(layer::pReLU) = free_energies(dReLU(layer))
+transfer_sample(layer::pReLU) = transfer_sample(dReLU(layer))
+transfer_mean(layer::pReLU) = transfer_mean(dReLU(layer))
+transfer_var(layer::pReLU) = transfer_var(dReLU(layer))
+transfer_meanvar(layer::pReLU) = transfer_meanvar(dReLU(layer))
+transfer_mode(layer::pReLU) = transfer_mode(dReLU(layer))
 transfer_mean_abs(layer::pReLU) = transfer_mean_abs(dReLU(layer))
 transfer_std(layer::pReLU) = sqrt.(transfer_var(layer))
 

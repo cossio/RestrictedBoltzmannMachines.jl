@@ -73,6 +73,23 @@ function transfer_var(layer::dReLU)
     return @. pp * (νp + μp^2) + pn * (νn + μn^2) - μ^2
 end
 
+function transfer_meanvar(layer::dReLU)
+    lp = ReLU( layer.θp, layer.γp)
+    ln = ReLU(-layer.θn, layer.γn)
+    Fp = free_energies(lp)
+    Fn = free_energies(ln)
+    F = -logaddexp.(-Fp, -Fn)
+    pp = exp.(F - Fp)
+    pn = exp.(F - Fn)
+    μp = transfer_mean(lp)
+    μn = transfer_mean(ln)
+    νp = transfer_var(lp)
+    νn = transfer_var(ln)
+    μ = pp .* μp - pn .* μn
+    ν = @. pp * (νp + μp^2) + pn * (νn + μn^2) - μ^2
+    return μ, ν
+end
+
 function transfer_mean_abs(layer::dReLU)
     lp = ReLU( layer.θp, layer.γp)
     ln = ReLU(-layer.θn, layer.γn)

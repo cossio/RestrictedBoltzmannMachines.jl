@@ -21,6 +21,13 @@ transfer_mean_abs(layer::Binary) = transfer_mean(layer)
 transfer_var(layer::Binary) = binary_var.(layer.θ)
 transfer_std(layer::Binary) = binary_std.(layer.θ)
 
+function transfer_meanvar(layer::Binary)
+    t = @. exp(-abs(layer.θ))
+    μ = @. ifelse(layer.θ ≥ 0, 1 / (1 + t), t / (1 + t))
+    ν = @. t / (1 + t)^2
+    return μ, ν
+end
+
 function transfer_sample(layer::Binary)
     u = rand(eltype(layer.θ), size(layer))
     return binary_rand.(layer.θ, u)

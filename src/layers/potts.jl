@@ -33,6 +33,12 @@ function transfer_var(layer::Potts)
     return μ .* (1 .- μ)
 end
 
+function transfer_meanvar(layer::Potts)
+    μ = transfer_mean(layer)
+    ν = μ .* (1 .- μ)
+    return μ, ν
+end
+
 function transfer_sample(layer::Potts)
     c = categorical_sample_from_logits(layer.θ)
     return onehot_encode(c, 1:colors(layer))
