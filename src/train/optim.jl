@@ -8,16 +8,48 @@ Note that this does not update parameters.
 """
 function update!(∂::AbstractArray, x::AbstractArray, optim)
     ∂ .= Flux.Optimise.apply!(optim, x, ∂)
+    return ∂
 end
 
-function update!(∂::NamedTuple, x::Union{RBM,AbstractLayer}, optim)
-    for (k, g) in pairs(∂)
-        if hasproperty(x, k)
-            update!(g, getproperty(x, k), optim)
-        else
-            g .= 0
-        end
-    end
+function update!(∂::NamedTuple, rbm::RBM, optim)
+    update!(∂.visible, rbm.visible, optim)
+    update!(∂.hidden, rbm.hidden, optim)
+    update!(∂.w, rbm.w, optim)
+    return ∂
+end
+
+function update!(∂::NamedTuple, l::Union{Binary,Spin,Potts}, optim)
+    update!(∂.θ, l.θ, optim)
+    return ∂
+end
+
+function update!(∂::NamedTuple, l::Union{Gaussian,ReLU}, optim)
+    update!(∂.θ, l.θ, optim)
+    update!(∂.γ, l.γ, optim)
+    return ∂
+end
+
+function update!(∂::NamedTuple, l::dReLU, optim)
+    update!(∂.θp, l.θp, optim)
+    update!(∂.θn, l.θn, optim)
+    update!(∂.γp, l.γp, optim)
+    update!(∂.γn, l.γn, optim)
+    return ∂
+end
+
+function update!(∂::NamedTuple, l::pReLU, optim)
+    update!(∂.θ, l.θ, optim)
+    update!(∂.γ, l.γ, optim)
+    update!(∂.Δ, l.Δ, optim)
+    update!(∂.η, l.η, optim)
+    return ∂
+end
+
+function update!(∂::NamedTuple, l::xReLU, optim)
+    update!(∂.θ, l.θ, optim)
+    update!(∂.γ, l.γ, optim)
+    update!(∂.Δ, l.Δ, optim)
+    update!(∂.ξ, l.ξ, optim)
     return ∂
 end
 
@@ -26,12 +58,51 @@ end
 
 Updates parameters according to steps `∂`.
 """
-update!(x::AbstractArray, ∂::AbstractArray) = x .-= ∂
-function update!(x::Union{RBM, AbstractLayer}, ∂::NamedTuple)
-    for (k, Δ) in pairs(∂)
-        hasproperty(x, k) && update!(getproperty(x, k), Δ)
-    end
+function update!(x::AbstractArray, ∂::AbstractArray)
+    x .-= ∂
     return x
+end
+
+function update!(rbm::RBM, ∂::NamedTuple)
+    update!(rbm.visible, ∂.visible)
+    update!(rbm.hidden, ∂.hidden)
+    update!(rbm.w, ∂.w)
+    return rbm
+end
+
+function update!(l::Union{Binary,Spin,Potts}, ∂::NamedTuple)
+    update!(l.θ, ∂.θ)
+    return l
+end
+
+function update!(l::Union{Gaussian,ReLU}, ∂::NamedTuple)
+    update!(l.θ, ∂.θ)
+    update!(l.γ, ∂.γ)
+    return l
+end
+
+function update!(l::dReLU, ∂::NamedTuple)
+    update!(l.θp, ∂.θp)
+    update!(l.θn, ∂.θn)
+    update!(l.γp, ∂.γp)
+    update!(l.γn, ∂.γn)
+    return l
+end
+
+function update!(l::pReLU, ∂::NamedTuple)
+    update!(l.θ, ∂.θ)
+    update!(l.γ, ∂.γ)
+    update!(l.Δ, ∂.Δ)
+    update!(l.η, ∂.η)
+    return l
+end
+
+function update!(l::xReLU, ∂::NamedTuple)
+    update!(l.θ, ∂.θ)
+    update!(l.γ, ∂.γ)
+    update!(l.Δ, ∂.Δ)
+    update!(l.ξ, ∂.ξ)
+    return l
 end
 
 """
