@@ -30,7 +30,6 @@ include("layers/prelu.jl")
 include("layers/xrelu.jl")
 include("layers/common.jl")
 
-include("abstractrbm.jl")
 include("rbm.jl")
 
 include("rbms/hopfield.jl")

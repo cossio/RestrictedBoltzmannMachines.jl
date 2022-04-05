@@ -37,14 +37,14 @@ Contrastive divergence loss.
 `vd` is a data sample, and `vm` are samples from the model.
 """
 function contrastive_divergence(
-    rbm::AbstractRBM, vd::AbstractArray, vm::AbstractArray; wd = nothing, wm = nothing
+    rbm::RBM, vd::AbstractArray, vm::AbstractArray; wd = nothing, wm = nothing
 )
     Fd = mean_free_energy(rbm, vd; wts = wd)
     Fm = mean_free_energy(rbm, vm; wts = wm)
     return Fd - Fm
 end
 
-function mean_free_energy(rbm::AbstractRBM, v::AbstractArray; wts = nothing)::Number
+function mean_free_energy(rbm::RBM, v::AbstractArray; wts = nothing)::Number
     F = free_energy(rbm, v)
     if ndims(visible(rbm)) == ndims(v)
         wts::Nothing
@@ -55,7 +55,7 @@ function mean_free_energy(rbm::AbstractRBM, v::AbstractArray; wts = nothing)::Nu
 end
 
 function ∂contrastive_divergence(
-    rbm::AbstractRBM, vd::AbstractArray, vm::AbstractArray;
+    rbm::RBM, vd::AbstractArray, vm::AbstractArray;
     wd = nothing, wm = nothing,
     stats = suffstats(rbm, vd; wts = wd)
 )

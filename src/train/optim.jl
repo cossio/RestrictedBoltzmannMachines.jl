@@ -6,8 +6,11 @@ of parameters `x`.
 Overwrites `∂` with update step and returns it.
 Note that this does not update parameters.
 """
-update!(∂::AbstractArray, x::AbstractArray, optim) = ∂ .= Flux.Optimise.apply!(optim, x, ∂)
-function update!(∂::NamedTuple, x::Union{AbstractRBM,AbstractLayer}, optim)
+function update!(∂::AbstractArray, x::AbstractArray, optim)
+    ∂ .= Flux.Optimise.apply!(optim, x, ∂)
+end
+
+function update!(∂::NamedTuple, x::Union{RBM,AbstractLayer}, optim)
     for (k, g) in pairs(∂)
         if hasproperty(x, k)
             update!(g, getproperty(x, k), optim)
@@ -24,7 +27,7 @@ end
 Updates parameters according to steps `∂`.
 """
 update!(x::AbstractArray, ∂::AbstractArray) = x .-= ∂
-function update!(x::Union{AbstractRBM, AbstractLayer}, ∂::NamedTuple)
+function update!(x::Union{RBM, AbstractLayer}, ∂::NamedTuple)
     for (k, Δ) in pairs(∂)
         hasproperty(x, k) && update!(getproperty(x, k), Δ)
     end

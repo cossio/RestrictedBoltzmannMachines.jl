@@ -9,7 +9,7 @@ This is exponentially slow for large machines.
 If your RBM has a smaller hidden layer, mirroring the layers of the `rbm` first
 (see [`mirror`](@ref)).
 """
-function log_partition(rbm::AbstractRBM; β::Real = true)
+function log_partition(rbm::RBM; β::Real = true)
     v = ChainRulesCore.ignore_derivatives() do
         collect_states(visible(rbm))
     end
@@ -17,7 +17,7 @@ function log_partition(rbm::AbstractRBM; β::Real = true)
 end
 
 # For a Gaussian-Gaussian RBM we can use the analytical expression
-function log_partition(rbm::AbstractRBM{<:Gaussian, <:Gaussian}; β::Real = true)
+function log_partition(rbm::RBM{<:Gaussian, <:Gaussian}; β::Real = true)
     θ = β * [vec(visible(rbm).θ); vec(hidden(rbm).θ)]
     γv = β * vec(abs.(visible(rbm).γ))
     γh = β * vec(abs.(hidden(rbm).γ))
@@ -42,7 +42,7 @@ end
 Log-likelihood of `v` under `rbm`, with the partition function compued by
 extensive enumeration. For discrete layers, this is exponentially slow for large machines.
 """
-function log_likelihood(rbm::AbstractRBM, v::AbstractArray; β::Real = true)
+function log_likelihood(rbm::RBM, v::AbstractArray; β::Real = true)
     logZ = log_partition(rbm; β)
     F = free_energy(rbm, v; β)
     return -β .* F .- logZ
