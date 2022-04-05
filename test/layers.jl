@@ -80,7 +80,7 @@ random_layer(::Type{pReLU}, N::Int...) = pReLU(randn(N...), rand(N...), randn(N.
 
         μ, ν = transfer_meanvar(layer, x; β)
         @test μ ≈ transfer_mean(layer, x; β)
-        @test ν ≈ transfer_var(layer; β)
+        @test ν ≈ transfer_var(layer, x; β)
 
         if layer isa RBMs.Potts
             @test size(@inferred free_energies(layer, x; β)) == (1, size(x)[2:end]...)
