@@ -29,8 +29,8 @@ transfer_std(layer::Potts) = sqrt.(transfer_var(layer))
 transfer_mode(layer::Potts) = layer.θ .== maximum(layer.θ; dims=1)
 
 function transfer_var(layer::Potts)
-    p = transfer_mean(layer)
-    return p .* (1 .- p)
+    μ = transfer_mean(layer)
+    return μ .* (1 .- μ)
 end
 
 function transfer_sample(layer::Potts)
