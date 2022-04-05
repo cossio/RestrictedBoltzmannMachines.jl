@@ -144,7 +144,8 @@ function drelu_rand(θp::Real, θn::Real, γp::Real, γn::Real)
 end
 
 function drelu_rand(θp::T, θn::T, γp::S, γn::S) where {T<:Real, S<:Real}
-    Fp, Fn = relu_free(θp, γp), relu_free(-θn, γn)
+    Fp = relu_free(θp, γp)
+    Fn = relu_free(-θn, γn)
     F = -logaddexp(-Fp, -Fn)
     if randexp(typeof(F)) ≥ Fp - F
         return  relu_rand( θp, γp)
