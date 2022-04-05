@@ -30,11 +30,6 @@ include("layers/prelu.jl")
 include("layers/xrelu.jl")
 include("layers/common.jl")
 
-# "standardized" layers, with unit scale parameters
-include("layers/std/gauss.jl")
-include("layers/std/relu.jl")
-include("layers/std/xrelu.jl")
-
 include("abstractrbm.jl")
 include("rbm.jl")
 

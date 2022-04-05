@@ -9,7 +9,6 @@ using LogExpFunctions: logistic
 using QuadGK: quadgk
 using RestrictedBoltzmannMachines: flatten, batch_size, batchmean, batchvar, batchcov
 using RestrictedBoltzmannMachines: Binary, Spin, Potts, Gaussian, ReLU, dReLU, xReLU, pReLU
-using RestrictedBoltzmannMachines: StdGauss, StdReLU, StdXReLU
 using RestrictedBoltzmannMachines: transfer_mean, transfer_var, transfer_std,
     transfer_mean_abs, transfer_sample, transfer_mode
 using RestrictedBoltzmannMachines: energy, free_energy, free_energies, energies
@@ -24,16 +23,11 @@ _layers = (
     ReLU,
     dReLU,
     pReLU,
-    xReLU,
-    StdGauss,
-    StdReLU,
-    StdXReLU
+    xReLU
 )
 
-random_layer(::Type{<:StdGauss}, N::Int...) = StdGauss(N)
-random_layer(::Type{T}, N::Int...) where {T <: Union{Binary,Spin,Potts,StdReLU}} = T(randn(N...))
+random_layer(::Type{T}, N::Int...) where {T <: Union{Binary,Spin,Potts}} = T(randn(N...))
 random_layer(::Type{T}, N::Int...) where {T <: Union{Gaussian,ReLU}} = T(randn(N...), rand(N...))
-random_layer(::Type{StdXReLU}, N::Int...) = StdXReLU(randn(N...), randn(N...), randn(N...))
 random_layer(::Type{dReLU}, N::Int...) = dReLU(randn(N...), randn(N...), rand(N...), rand(N...))
 random_layer(::Type{xReLU}, N::Int...) = xReLU(randn(N...), rand(N...), randn(N...), randn(N...))
 random_layer(::Type{pReLU}, N::Int...) = pReLU(randn(N...), rand(N...), randn(N...), 2rand(N...) .- 1)
