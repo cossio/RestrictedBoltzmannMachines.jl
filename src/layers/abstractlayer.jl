@@ -100,8 +100,8 @@ end
 Variance of unit activations.
 """
 function transfer_var(layer::AbstractLayer, inputs::Union{Real,AbstractArray}; β::Real=1)
-    layer_ = effective(layer, inputs; β)
-    return transfer_var(layer_)
+    layer_eff = effective(layer, inputs; β)
+    return transfer_var(layer_eff)
 end
 
 """
