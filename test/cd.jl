@@ -1,8 +1,5 @@
-import Statistics
-import Random
 import Zygote
 import RestrictedBoltzmannMachines as RBMs
-
 using Test: @test, @testset
 using Random: bitrand
 using Statistics: mean
