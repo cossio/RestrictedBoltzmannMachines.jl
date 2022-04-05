@@ -128,6 +128,7 @@ function default_optimizer(
     optim = ADAM(5e-3, (0, 0.99), 1e-3)
 )
     # Defaults from https://github.com/jertubiana/PGM
+    # See also 10.1016/j.cels.2020.11.005 (search RMSprop)
     steps_per_epoch = minibatch_count(nsamples; batchsize)
     startepoch = round(Int, epochs * decay_after)
     start = startepoch * steps_per_epoch - 1
