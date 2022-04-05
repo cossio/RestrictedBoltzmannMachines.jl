@@ -241,15 +241,22 @@ These are obtained by differentiating `free_energies` with respect to the layer 
 Averages over configurations (weigthed by `wts`).
 """
 function ∂free_energy(layer::AbstractLayer, inputs::AbstractArray; wts = nothing)
-    @assert size(layer) == size(inputs)[1:ndims(layer)]
-    layer_eff = effective(layer, inputs)
-    ∂Feff = ∂free_energy(layer_eff)
-    return map(∂Feff) do ∂fs
-        batchmean(layer, ∂fs; wts)
+    ∂F = ∂free_energies(layer, inputs)
+    return map(∂F) do ∂f
+        batchmean(layer, ∂f; wts)
     end
 end
 
-function ∂free_energy(layer::AbstractLayer, input::Real; wts::Nothing = nothing)
+function ∂free_energy(layer::AbstractLayer, input::Real; wts::Nothing=nothing)
+    return ∂free_energies(layer, input)
+end
+
+function ∂free_energies(layer::AbstractLayer, inputs::AbstractArray)
+    layer_eff = effective(layer, inputs)
+    return ∂free_energy(layer_eff)
+end
+
+function ∂free_energies(layer::AbstractLayer, input::Real)
     inputs = Fill(input, size(layer))
-    return ∂free_energy(layer, inputs; wts)
+    return ∂free_energies(layer, inputs)
 end

@@ -214,9 +214,12 @@ function ∂free_energy(
     wts = nothing, stats = suffstats(rbm, v; wts)
 )
     inputs = inputs_v_to_h(rbm, v)
-    h = transfer_mean(hidden(rbm), inputs)
     ∂v = ∂energy(visible(rbm), stats)
-    ∂h = ∂free_energy(hidden(rbm), inputs; wts)
+    ∂Γ = ∂free_energies(hidden(rbm), inputs)
+    ∂h = map(∂Γ) do ∂f
+        batchmean(hidden(rbm), ∂f; wts)
+    end
+    h = grad2mean(hidden(rbm), ∂Γ)
     ∂w = ∂interaction_energy(rbm, v, h; wts)
     return (visible = ∂v, hidden = ∂h, w = ∂w)
 end
