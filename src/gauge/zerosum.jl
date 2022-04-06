@@ -1,8 +1,8 @@
 """
     zerosum!(rbm)
 
-If the `rbm` has `Potts` layers (visible or hidden), fixes zerosum gauge on the parameters.
-Otherwise, does nothing.
+Fixes zerosum gauge for `Potts` layers (visible or hidden). If the `rbm` doesn't have
+`Potts` layers, does nothing.
 """
 function zerosum!(rbm::RBM)
     zerosum_visible!(rbm)
@@ -10,28 +10,21 @@ function zerosum!(rbm::RBM)
     return rbm
 end
 
-zerosum_visible!(rbm::RBM{<:AbstractLayer, <:AbstractLayer}) = rbm
-zerosum_hidden!(rbm::RBM{<:AbstractLayer, <:AbstractLayer})  = rbm
-
-function zerosum_visible!(rbm::RBM{<:Potts, <:AbstractLayer})
+function zerosum_visible!(rbm::RBM{<:Potts, <:Any})
     zerosum!(visible(rbm))
     zerosum!(weights(rbm); dims = 1)
     return nothing
 end
 
-function zerosum_hidden!(rbm::RBM{<:AbstractLayer, <:Potts})
+zerosum_visible!(rbm::RBM) = rbm
+
+function zerosum_hidden!(rbm::RBM{<:Any, <:Potts})
     zerosum!(hidden(rbm))
     zerosum!(weights(rbm); dims = 1 + ndims(visible(rbm)))
     return nothing
 end
 
-function zerosum!(rbm::RBM{<:Potts, <:Potts})
-    zerosum!(visible(rbm))
-    zerosum!(hidden(rbm))
-    zerosum!(weights(rbm); dims = 1)
-    zerosum!(weights(rbm); dims = 1 + ndims(visible(rbm)))
-    return nothing
-end
+zerosum_hidden!(rbm::RBM) = rbm
 
 function zerosum!(layer::Potts)
     zerosum!(layer.θ; dims=1)
@@ -39,6 +32,6 @@ function zerosum!(layer::Potts)
 end
 
 function zerosum!(A::AbstractArray; dims=1)
-    A .-= mean(A; dims=dims)
+    A .-= mean(A; dims)
     return A
 end
