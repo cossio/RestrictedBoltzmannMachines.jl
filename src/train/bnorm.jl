@@ -12,7 +12,6 @@ function pcd_bnorm!(rbm::RBM{<:Binary, <:Binary}, data::AbstractArray;
     batchsize = 1,
     epochs = 1,
     optim = default_optimizer(_nobs(data), batchsize, epochs),
-    history::MVHistory = MVHistory(),
     wts = nothing,
     steps::Int = 1,
 )
@@ -31,23 +30,17 @@ function pcd_bnorm!(rbm::RBM{<:Binary, <:Binary}, data::AbstractArray;
 
     for epoch in 1:epochs
         batches = minibatches(data, wts; batchsize = batchsize)
-        Δt = @elapsed for (vd, wd) in batches
+        for (vd, wd) in batches
             # update batch norm reparameterization
             avg_inputs_new = inputs_v_to_h(rbm, avg_data)
             hidden(rbm).θ .-= avg_inputs_new .- avg_inputs
             avg_inputs = avg_inputs_new
             vm = sample_v_from_v(rbm, vm; steps = steps)
             ∂ = ∂contrastive_divergence_bnorm(rbm, vd, vm; wd, stats)
-            push!(history, :∂, gradnorms(∂))
             update!(rbm, update!(∂, rbm, optim))
-            push!(history, :Δ, gradnorms(∂))
         end
-        push!(history, :epoch, epoch)
-        push!(history, :Δt, Δt)
-        @debug "epoch $epoch/$epochs ($(round(Δt, digits=2))s)"
     end
-
-    return history
+    return rbm
 end
 
 # TODO: Implement for other layers

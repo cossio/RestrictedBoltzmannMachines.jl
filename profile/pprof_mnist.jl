@@ -34,7 +34,7 @@ println("Initial quick run to pre-compile things ...")
 println("Profiling ...")
 
 # collect profile
-history = @profile RBMs.cd!(rbm, train_x; epochs=10, batchsize=128);
+@profile RBMs.cd!(rbm, train_x; epochs=10, batchsize=128);
 
 #=
 This prints a link to a local webserver where you can inspect the profile

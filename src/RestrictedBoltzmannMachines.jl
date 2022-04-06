@@ -9,7 +9,6 @@ using LinearAlgebra: Diagonal, logdet, I, dot, norm
 using Statistics: mean
 using LogExpFunctions: softmax, logsumexp, log1pexp, logistic, logaddexp
 using SpecialFunctions: erf, erfcx, logerfcx
-using ValueHistories: MVHistory
 using FillArrays: Fill, Zeros, Ones, Trues, Falses
 using Flux: ADAM, Descent
 

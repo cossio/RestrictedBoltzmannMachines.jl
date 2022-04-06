@@ -7,27 +7,24 @@ function cd!(rbm::RBM, data::AbstractArray;
     batchsize = 1,
     epochs = 1,
     optim = ADAM(), # optimizer algorithm
-    history::MVHistory = MVHistory(), # stores training log
     wts = nothing, # weighted data points; named wts to avoid conflicts with RBM nomenclature
     steps::Int = 1, # Monte Carlo steps to update fantasy particles
-    stats = suffstats(rbm, data; wts)
+    stats = suffstats(rbm, data; wts),
+    callback = empty_callback
 )
     @assert size(data) == (size(visible(rbm))..., size(data)[end])
     @assert isnothing(wts) || _nobs(data) == _nobs(wts)
     for epoch in 1:epochs
         batches = minibatches(data, wts; batchsize = batchsize)
-        Δt = @elapsed for (vd, wd) in batches
+        for (batch_idx, (vd, wd)) in enumerate(batches)
             vm = sample_v_from_v(rbm, vd; steps = steps)
             ∂ = ∂contrastive_divergence(rbm, vd, vm; wd = wd, wm = wd, stats)
-            push!(history, :∂, gradnorms(∂))
-            update!(rbm, update!(∂, rbm, optim))
-            push!(history, :Δ, gradnorms(∂))
+            update!(∂, rbm, optim)
+            update!(rbm, ∂)
+            callback(; rbm, optim, epoch, batch_idx, vm, vd, wd)
         end
-        push!(history, :epoch, epoch)
-        push!(history, :Δt, Δt)
-        @debug "epoch $epoch/$epochs ($(round(Δt, digits=2))s)"
     end
-    return history
+    return rbm
 end
 
 """

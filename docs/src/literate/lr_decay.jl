@@ -12,7 +12,7 @@ import Makie
 import CairoMakie
 import Flux
 import MLDatasets
-using RestrictedBoltzmannMachines: BinaryRBM, initialize!, pcd!, log_pseudolikelihood
+using RestrictedBoltzmannMachines: BinaryRBM, initialize!, pcd!, log_pseudolikelihood, minibatch_count
 using RestrictedBoltzmannMachines: free_energy, sample_v_from_v, mean_h_from_v, default_optimizer
 
 #=
@@ -30,9 +30,7 @@ nothing #hide
 nh = 100 # number of hidden units
 epochs = 500 # epochs before lr decay
 batchsize = 256
-function callback(; rbm, history, epoch, _...)
-    epoch % 5 == 0 && push!(history, :lpl, mean(log_pseudolikelihood(rbm, train_x)))
-end
+batchcount = minibatch_count(train_x; batchsize)
 nothing #hide
 
 #=
@@ -40,9 +38,15 @@ Consider first an RBM that we train without decaying the learning rate.
 =#
 
 rbm_nodecay = initialize!(BinaryRBM(Float, (28,28), nh), train_x)
-history_nodecay = pcd!(
-    rbm_nodecay, train_x; epochs, batchsize, callback,
-    optim = default_optimizer(nsamples, batchsize, epochs; decay_after=1)
+history_nodecay = MVHistory()
+@time pcd!(
+    rbm_nodecay, train_x; epochs, batchsize,
+    optim = default_optimizer(nsamples, batchsize, epochs; decay_after=1),
+    callback = function callback(; rbm, epoch, batch_idx, _...)
+        if batch_idx == batchcount && epoch % 5 == 0
+            push!(history_nodecay, :lpl, mean(log_pseudolikelihood(rbm, train_x)))
+        end
+    end
 )
 nothing #hide
 
@@ -52,7 +56,15 @@ behavior)s.
 =#
 
 rbm_decaylr = initialize!(BinaryRBM(Float, (28,28), nh), train_x)
-history_decaylr = pcd!(rbm_decaylr, train_x; epochs, batchsize, callback)
+history_decaylr = MVHistory()
+@time pcd!(
+    rbm_decaylr, train_x; epochs, batchsize,
+    callback = function callback(; rbm, epoch, batch_idx, _...)
+        if batch_idx == batchcount && epoch % 5 == 0
+            push!(history_decaylr, :lpl, mean(log_pseudolikelihood(rbm, train_x)))
+        end
+    end
+)
 nothing #hide
 
 #=

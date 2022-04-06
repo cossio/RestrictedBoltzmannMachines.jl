@@ -8,7 +8,6 @@ function fpcd!(rbm::RBM, data::AbstractArray;
     batchsize::Int = 1,
     epochs::Int = 1,
     optim = ADAM(),
-    history::MVHistory = MVHistory(),
     wts = nothing,
     steps::Int = 1,
     optimfast = ADAM(), # optimizer algorithm for fast parameters
@@ -16,31 +15,22 @@ function fpcd!(rbm::RBM, data::AbstractArray;
 )
     @assert size(data) == (size(visible(rbm))..., size(data)[end])
     @assert isnothing(wts) || _nobs(data) == _nobs(wts)
-
     stats = suffstats(rbm, data; wts)
     vm = transfer_sample(visible(rbm), falses(size(visible(rbm))..., batchsize))
-
-    # store fast parameters
-    rbmfast = deepcopy(rbm)
+    rbmfast = deepcopy(rbm) # store fast parameters
     # (Actually, the parameters of rbmfast are the sums θ_regular + θ_fast)
-
     for epoch in 1:epochs
         batches = minibatches(data, wts; batchsize = batchsize)
         Δt = @elapsed for (vd, wd) in batches
             vm = sample_v_from_v(rbmfast, vm; steps = steps)
             ∂ = ∂contrastive_divergence(rbm, vd, vm; wd, stats)
-            push!(history, :∂, gradnorms(∂))
             update!(rbm, update!(∂, rbm, optim))
             # update fast parameters
             update!(rbmfast, update!(∂, rbmfast, optimfast))
             decayfast!(rbmfast, rbm; decay=decayfast)
         end
-        push!(history, :epoch, epoch)
-        push!(history, :Δt, Δt)
-        Δt_ = round(Δt, digits=2)
-        @debug "epoch $epoch/$epochs ($(Δt_)s)"
     end
-    return history
+    return rbm
 end
 
 #= Decays parameters of `rbmfast` towards those of `rbm`.

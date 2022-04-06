@@ -8,7 +8,6 @@ function pcd!(
     data::AbstractArray;
     batchsize::Int = 1,
     epochs::Int = 1,
-    history::MVHistory = MVHistory(),
     wts = nothing, # data weights
     steps::Int = 1, # MC steps to update fantasy chains
     optim = default_optimizer(_nobs(data), batchsize, epochs), # optimization algorithm
@@ -47,7 +46,7 @@ function pcd!(
 
     for epoch in 1:epochs
         batches = minibatches(data, wts; batchsize)
-        Δt = @elapsed for (batch_idx, (vd, wd)) in enumerate(batches)
+        for (batch_idx, (vd, wd)) in enumerate(batches)
             # update fantasy chains
             vm .= sample_v_from_v(rbm, vm; steps)
 
@@ -64,15 +63,12 @@ function pcd!(
             if center
                 ∂ = center_gradient(rbm, ∂, ave_v, ave_h)
             end
-            push!(history, :∂, gradnorms(∂))
 
             # regularize
             ∂reg!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights)
-            push!(history, :∂r, gradnorms(∂))
 
             # compute parameter update step, according to optimizer algorithm
             update!(∂, rbm, optim)
-            push!(history, :Δ, gradnorms(∂))
 
             # get step in uncentered parameters
             if center
@@ -86,16 +82,10 @@ function pcd!(
             zerosum && zerosum!(rbm)
             standardize_hidden && rescale_hidden!(rbm, inv.(sqrt.(var_h .+ ϵh)))
 
-            callback(; rbm, history, optim, epoch, batch_idx, vm, vd, wd)
+            callback(; rbm, optim, epoch, batch_idx, vm, vd, wd)
         end
-        push!(history, :epoch, epoch)
-        push!(history, :Δt, Δt)
-        push!(history, :vm, copy(vm))
-        push!(history, :ave_h, copy(ave_h))
-        push!(history, :var_h, copy(var_h))
-        @debug "epoch $epoch/$epochs ($(round(Δt, digits=2))s)"
     end
-    return history
+    return rbm
 end
 
 fantasy_init(rbm::RBM, sz) = transfer_sample(visible(rbm), falses(size(visible(rbm))..., sz))
