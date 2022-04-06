@@ -32,7 +32,7 @@ function pcd!(
     hidden_damp::Real = batchsize / _nobs(data),
     ϵh = 1e-2, # prevent vanishing var(h)
 
-    callback = nothing # called for every batch
+    callback = empty_callback # called for every batch
 )
     @assert size(data) == (size(visible(rbm))..., size(data)[end])
     @assert isnothing(wts) || _nobs(data) == _nobs(wts)
@@ -86,7 +86,7 @@ function pcd!(
             zerosum && zerosum!(rbm)
             standardize_hidden && rescale_hidden!(rbm, inv.(sqrt.(var_h .+ ϵh)))
 
-            isnothing(callback) || callback(; rbm, history, optim, epoch, batch_idx, vd, wd)
+            callback(; rbm, history, optim, epoch, batch_idx, vd, wd)
         end
         push!(history, :epoch, epoch)
         push!(history, :Δt, Δt)
@@ -99,3 +99,4 @@ function pcd!(
 end
 
 fantasy_init(rbm::RBM, sz) = transfer_sample(visible(rbm), falses(size(visible(rbm))..., sz))
+empty_callback(@nospecialize(args...); @nospecialize(kw...)) = nothing
