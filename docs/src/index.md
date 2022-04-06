@@ -26,12 +26,3 @@ Most of the functions have a helpful docstring.
 See [Reference](@ref) section.
 
 See also the Examples listed on the menu on the left side bar to understand how the package works as a whole.
-
-Training info is printed to the debug logger, and are hidden by default.
-To enable them, set:
-
-```julia
-ENV["JULIA_DEBUG"] = "RestrictedBoltzmannMachines"
-```
-
-See <https://docs.julialang.org/en/v1/stdlib/Logging/> for more sophisticated approaches.
