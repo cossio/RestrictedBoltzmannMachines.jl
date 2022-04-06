@@ -13,11 +13,11 @@ using ValueHistories: MVHistory
 using FillArrays: Fill, Zeros, Ones, Trues, Falses
 using Flux: ADAM, Descent
 
-include("util.jl")
-include("minibatches.jl")
-include("onehot.jl")
-include("linalg.jl")
-include("truncnorm.jl")
+include("util/util.jl")
+include("util/onehot.jl")
+include("util/linalg.jl")
+include("util/truncated_normal.jl")
+include("util/minibatches.jl")
 
 include("layers/abstractlayer.jl")
 include("layers/binary.jl")
