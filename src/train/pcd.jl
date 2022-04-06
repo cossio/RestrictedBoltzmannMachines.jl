@@ -41,6 +41,10 @@ function pcd!(
     ave_v = batchmean(visible(rbm), data; wts)
     ave_h, var_h = meanvar_from_inputs(hidden(rbm), inputs_v_to_h(rbm, data); wts)
 
+    # gauge constraints
+    zerosum && zerosum!(rbm)
+    standardize_hidden && rescale_hidden!(rbm, inv.(sqrt.(var_h .+ ϵh)))
+
     for epoch in 1:epochs
         batches = minibatches(data, wts; batchsize)
         Δt = @elapsed for (batch_idx, (vd, wd)) in enumerate(batches)
