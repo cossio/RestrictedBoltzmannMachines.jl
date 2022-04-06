@@ -86,7 +86,7 @@ function pcd!(
             zerosum && zerosum!(rbm)
             standardize_hidden && rescale_hidden!(rbm, inv.(sqrt.(var_h .+ ϵh)))
 
-            callback(; rbm, history, optim, epoch, batch_idx, vd, wd)
+            callback(; rbm, history, optim, epoch, batch_idx, vm, vd, wd)
         end
         push!(history, :epoch, epoch)
         push!(history, :Δt, Δt)
