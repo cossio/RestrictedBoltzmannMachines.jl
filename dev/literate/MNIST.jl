@@ -13,7 +13,7 @@ import RestrictedBoltzmannMachines as RBMs
 using Statistics: mean, std, var
 using Random: bitrand
 using ValueHistories: MVHistory
-using RestrictedBoltzmannMachines: visible, BinaryRBM, transfer_sample
+using RestrictedBoltzmannMachines: visible, BinaryRBM, transfer_sample, minibatch_count
 using RestrictedBoltzmannMachines: initialize!, log_pseudolikelihood, pcd!
 nothing #hide
 
@@ -76,11 +76,15 @@ collecting some info during training.
 =#
 
 batchsize = 256
+batchcount = minibatch_count(train_x; batchsize)
 epochs = 500
-history = pcd!(
+history = MVHistory()
+@time pcd!(
     rbm, train_x; epochs, batchsize,
-    callback = function(; rbm, history, epoch, _...)
-        epoch % 5 == 0 && push!(history, :lpl, mean(log_pseudolikelihood(rbm, train_x)))
+    callback = function(; rbm, epoch, batch_idx, _...)
+        if batch_idx == batchcount && epoch % 5 == 0
+            push!(history, :lpl, mean(log_pseudolikelihood(rbm, train_x)))
+        end
     end
 )
 nothing #hide
