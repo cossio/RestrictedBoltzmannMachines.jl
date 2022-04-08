@@ -29,7 +29,7 @@ nothing #hide
 
 nh = 100 # number of hidden units
 epochs = 500
-batchsize = 128
+batchsize = 256
 batchcount = minibatch_count(train_x; batchsize)
 nothing #hide
 
