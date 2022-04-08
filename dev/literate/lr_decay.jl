@@ -28,8 +28,8 @@ nothing #hide
 # Some hyper-parameters
 
 nh = 100 # number of hidden units
-epochs = 500 # epochs before lr decay
-batchsize = 256
+epochs = 500
+batchsize = 128
 batchcount = minibatch_count(train_x; batchsize)
 nothing #hide
 
