@@ -83,7 +83,7 @@ Check convergence by computing the moment-matching conditions.
 First generate MC data from the RBMs.
 =#
 
-nsteps = 5000
+nsteps = 2000
 nsamples = 5000
 F_nodecay = zeros(nsamples, nsteps)
 F_decaylr = zeros(nsamples, nsteps)
