@@ -29,7 +29,7 @@ nothing #hide
 
 nh = 100 # number of hidden units
 epochs = 500
-batchsize = 128
+batchsize = 256
 batchcount = minibatch_count(train_x; batchsize)
 nothing #hide
 
@@ -83,7 +83,7 @@ Check convergence by computing the moment-matching conditions.
 First generate MC data from the RBMs.
 =#
 
-nsteps = 5000
+nsteps = 2000
 nsamples = 5000
 F_nodecay = zeros(nsamples, nsteps)
 F_decaylr = zeros(nsamples, nsteps)
