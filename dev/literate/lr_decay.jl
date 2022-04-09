@@ -52,7 +52,7 @@ nothing #hide
 
 #=
 Now train an RBM with lr decay after half training (this is the default
-behavior)s.
+behavior).
 =#
 
 rbm_decaylr = initialize!(BinaryRBM(Float, (28,28), nh), train_x)
