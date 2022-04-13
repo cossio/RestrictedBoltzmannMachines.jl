@@ -5,7 +5,7 @@ Updates `∂` with the regularization gradient.
 Based on https://github.com/jertubiana/PGM.
 """
 function ∂reg!(
-    ∂::NamedTuple, rbm::RBM{<:Union{Binary,Spin,Gaussian,ReLU,xReLU,pReLU}};
+    ∂::NamedTuple, rbm::RBM{<:Union{Binary,Spin,Potts,Gaussian,ReLU,xReLU,pReLU}};
     l2_fields::Real = 0, l1_weights::Real = 0, l2_weights::Real = 0, l2l1_weights::Real = 0
 )
     if !iszero(l2_fields)
@@ -25,7 +25,7 @@ function ∂reg!(
 end
 
 function ∂reg_fields!(
-    ∂::NamedTuple, layer::Union{Binary,Spin,Gaussian,ReLU,xReLU,pReLU}; l2_fields::Real = 0
+    ∂::NamedTuple, layer::Union{Binary,Spin,Potts,Gaussian,ReLU,xReLU,pReLU}; l2_fields::Real = 0
 )
     if !iszero(l2_fields)
         ∂.θ .+= l2_fields * layer.θ
