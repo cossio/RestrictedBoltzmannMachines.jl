@@ -28,7 +28,7 @@ function pcd!(
     standardize_hidden::Bool = true,
 
     # damping for hidden activity statistics tracking
-    hidden_damp::Real = batchsize / _nobs(data),
+    hidden_damp::Real = 1//100, #batchsize / _nobs(data),
     ϵh = 1e-2, # prevent vanishing var(h)
 
     callback = empty_callback # called for every batch
