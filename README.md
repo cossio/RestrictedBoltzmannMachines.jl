@@ -50,7 +50,6 @@ For a Python 3 implementation see https://github.com/jertubiana/PGM, which origi
 
 Some features that should be implemented in the future:
 
-- AIS estimation of the partition function.
 - Unbiased contrastive divergence sampling algorithm.
 
 ## Compat requirements
