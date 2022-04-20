@@ -16,6 +16,7 @@ using SafeTestsets: @safetestset
 @time @safetestset "truncnorm" begin include("truncnorm.jl") end
 @time @safetestset "optim" begin include("optim.jl") end
 @time @safetestset "partition" begin include("partition.jl") end
+@time @safetestset "ais" begin include("ais.jl") end
 
 @time @safetestset "zerosum" begin include("gauge/zerosum.jl") end
 @time @safetestset "rescale_hidden" begin include("gauge/rescale_hidden.jl") end
