@@ -17,12 +17,18 @@ https://www.sciencedirect.com/science/article/pii/S0004370219301948
 =#
 
 """
-    ais(rbm; nbetas = 10000, nsamples = 100, init = visible(rbm))
+    ais(rbm; nbetas = 10000, nsamples = 1, init = visible(rbm))
 
 Estimates the log-partition function of `rbm` by Annealed Importance Sampling (AIS).
 Here `init` is an initial independent-site distribution, represented by a visible layer.
 """
-function ais(rbm::RBM; nbetas::Int = 10000, nsamples::Int = 10, init::AbstractLayer = visible(rbm))
+function ais(rbm::RBM; nbetas::Int = 10000, nsamples::Int = 1, init::AbstractLayer = visible(rbm))
+    @assert size(init) == size(visible(rbm))
+    lR = aisratios(rbm; nbetas, nsamples, init)
+    return logsumexp(lR .- log(nsamples))
+end
+
+function aisratios(rbm::RBM; nbetas::Int = 10000, nsamples::Int = 1, init::AbstractLayer = visible(rbm))
     @assert size(init) == size(visible(rbm))
     v = transfer_sample(init, Falses(size(init)..., nsamples))
     annealed_rbm = anneal(init, rbm; β = 0)
@@ -34,7 +40,7 @@ function ais(rbm::RBM; nbetas::Int = 10000, nsamples::Int = 10, init::AbstractLa
         F_curr = free_energy(annealed_rbm, v)
         lR += F_prev - F_curr
     end
-    return logsumexp(lR) - log(nsamples)
+    return lR
 end
 
 """
