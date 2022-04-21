@@ -7,7 +7,7 @@ import ChainRulesCore
 using Random: AbstractRNG, GLOBAL_RNG, randexp, randn!, shuffle!
 using LinearAlgebra: Diagonal, logdet, I, dot, norm
 using Statistics: mean, std
-using LogExpFunctions: softmax, logsumexp, log1pexp, logistic, logaddexp
+using LogExpFunctions: softmax, logsumexp, log1pexp, logistic, logaddexp, logsubexp
 using SpecialFunctions: erf, erfcx, logerfcx
 using FillArrays: Fill, Zeros, Ones, Trues, Falses
 using Flux: ADAM, Descent

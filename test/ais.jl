@@ -3,8 +3,15 @@ using Statistics: mean, std, var
 using Random: randn!
 using LogExpFunctions: logsumexp
 using RestrictedBoltzmannMachines: BinaryRBM, energy, free_energy, transfer_sample
-using RestrictedBoltzmannMachines: anneal, ais, log_partition_zero_weight
+using RestrictedBoltzmannMachines: anneal, ais, log_partition_zero_weight, logmeanexp, logvarexp
 using RestrictedBoltzmannMachines: Binary, Spin, Potts, Gaussian, ReLU, dReLU, xReLU, pReLU
+
+@testset "logmeanexp, logvarexp" begin
+    A = randn(5,3,2)
+    @test logmeanexp(A; dims=2) ≈ log.(mean(exp.(A); dims=2))
+    @test logvarexp(A; dims=2, corrected=true) ≈ log.(var(exp.(A); dims=2, corrected=true))
+    @test logvarexp(A; dims=2, corrected=false) ≈ log.(var(exp.(A); dims=2, corrected=false))
+end
 
 @testset "log_partition_zero_weight" begin
     rbm = BinaryRBM(randn(3), randn(2), zeros(3,2))
@@ -22,7 +29,8 @@ end
     lZ = logsumexp(-energy(rbm, [v1,v2,v3], [h1,h2]) for v1 in 0:1, v2 in 0:1, v3 in 0:1, h1 in 0:1, h2 in 0:1)
     @test logsumexp(-free_energy(rbm, [v1,v2,v3]) for v1 in 0:1, v2 in 0:1, v3 in 0:1) ≈ lZ
 
-    @test ais(rbm; nbetas=10000, nsamples=100) ≈ lZ  rtol=0.1
+    R = ais(rbm; nbetas=10000, nsamples=100)
+    @test logsumexp(R) - log(length(R)) ≈ lZ  rtol=0.1
 end
 
 @testset "anneal layer" begin
