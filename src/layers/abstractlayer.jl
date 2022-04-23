@@ -18,17 +18,6 @@ function flatten(layer::AbstractLayer, x::AbstractArray)
 end
 
 """
-    effective(layer, inputs)
-
-Returns an effective layer which behaves as the original with the given `inputs` and
-temperature.
-"""
-function effective(layer::AbstractLayer, input::Real)
-    inputs = Fill(input, size(layer))
-    return effective(layer, inputs)
-end
-
-"""
     energy(layer, x)
 
 Layer energy, reduced over layer dimensions.
@@ -49,94 +38,14 @@ end
 
 Cumulant generating function of layer, reduced over layer dimensions.
 """
-function free_energy(layer::AbstractLayer, inputs::AbstractArray)
+function free_energy(layer::AbstractLayer, inputs::Union{Real,AbstractArray} = 0)
     F = free_energies(layer, inputs)
-    if ndims(layer) == ndims(inputs)
+    if inputs isa Real || ndims(layer) == ndims(inputs)
         return sum(F)
     else
         f = sum(F; dims = 1:ndims(layer))
         return reshape(f, size(inputs)[(ndims(layer) + 1):end])
     end
-end
-
-function free_energy(layer::AbstractLayer, input::Real = false)
-    inputs = Fill(input, size(layer))
-    return free_energy(layer, inputs)::Number
-end
-
-"""
-    transfer_sample(layer, inputs = 0)
-
-Samples layer configurations conditioned on inputs.
-"""
-function transfer_sample(layer::AbstractLayer, inputs::Union{Real,AbstractArray})
-    layer_eff = effective(layer, inputs)
-    return transfer_sample(layer_eff)
-end
-
-"""
-    transfer_mode(layer, inputs = 0)
-
-Mode of unit activations.
-"""
-function transfer_mode(layer::AbstractLayer, inputs::Union{Real, AbstractArray})
-    layer_eff = effective(layer, inputs)
-    return transfer_mode(layer_eff)
-end
-
-"""
-    transfer_mean(layer, inputs = 0)
-
-Mean of unit activations.
-"""
-function transfer_mean(layer::AbstractLayer, inputs::Union{Real,AbstractArray})
-    layer_eff = effective(layer, inputs)
-    return transfer_mean(layer_eff)
-end
-
-"""
-    transfer_var(layer, inputs = 0)
-
-Variance of unit activations.
-"""
-function transfer_var(layer::AbstractLayer, inputs::Union{Real,AbstractArray})
-    layer_eff = effective(layer, inputs)
-    return transfer_var(layer_eff)
-end
-
-function transfer_meanvar(layer::AbstractLayer, inputs::Union{Real,AbstractArray})
-    layer_eff = effective(layer, inputs)
-    return transfer_meanvar(layer_eff)
-end
-
-"""
-    transfer_std(layer, inputs = 0)
-
-Standard deviation of unit activations.
-"""
-function transfer_std(layer::AbstractLayer, inputs::Union{Real, AbstractArray})
-    layer_eff = effective(layer, inputs)
-    return transfer_std(layer_eff)
-end
-
-"""
-    transfer_mean_abs(layer, inputs = 0)
-
-Mean of absolute value of unit activations.
-"""
-function transfer_mean_abs(layer::AbstractLayer, inputs::Union{Real,AbstractArray})
-    layer_eff = effective(layer, inputs)
-    return transfer_mean_abs(layer_eff)
-end
-
-"""
-    free_energies(layer, inputs = 0)
-
-Cumulant generating function of units in layer (not reduced over layer dimensions).
-"""
-function free_energies(layer::AbstractLayer, inputs::Union{Real,AbstractArray})
-    layer_eff = effective(layer, inputs)
-    return free_energies(layer_eff)
 end
 
 """
@@ -245,23 +154,9 @@ Unit activation moments, conjugate to layer parameters.
 These are obtained by differentiating `free_energies` with respect to the layer parameters.
 Averages over configurations (weigthed by `wts`).
 """
-function ∂free_energy(layer::AbstractLayer, inputs::AbstractArray; wts = nothing)
+function ∂free_energy(layer::AbstractLayer, inputs::Union{Real,AbstractArray} = 0; wts = nothing)
     ∂F = ∂free_energies(layer, inputs)
     return map(∂F) do ∂f
         batchmean(layer, ∂f; wts)
     end
-end
-
-function ∂free_energy(layer::AbstractLayer, input::Real; wts::Nothing=nothing)
-    return ∂free_energies(layer, input)
-end
-
-function ∂free_energies(layer::AbstractLayer, inputs::AbstractArray)
-    layer_eff = effective(layer, inputs)
-    return ∂free_energy(layer_eff)
-end
-
-function ∂free_energies(layer::AbstractLayer, input::Real)
-    inputs = Fill(input, size(layer))
-    return ∂free_energies(layer, inputs)
 end

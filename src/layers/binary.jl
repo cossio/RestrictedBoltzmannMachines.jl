@@ -9,28 +9,25 @@ end
 Binary(::Type{T}, n::Int...) where {T} = Binary(zeros(T, n...))
 Binary(n::Int...) = Binary(Float64, n...)
 
-function effective(layer::Binary, inputs::AbstractArray)
-    @assert size(layer) == size(inputs)[1:ndims(layer)]
-    return Binary(layer.θ .+ inputs)
-end
+free_energies(layer::Binary, inputs::Union{Real,AbstractArray} = 0) = -log1pexp.(layer.θ .+ inputs)
+transfer_mode(layer::Binary, inputs::Union{Real,AbstractArray} = 0) = layer.θ .+ inputs .> 0
+transfer_mean(layer::Binary, inputs::Union{Real,AbstractArray} = 0) = logistic.(layer.θ .+ inputs)
+transfer_mean_abs(layer::Binary, inputs::Union{Real,AbstractArray} = 0) = transfer_mean(layer, inputs)
+transfer_var(layer::Binary, inputs::Union{Real,AbstractArray} = 0) = binary_var.(layer.θ .+ inputs)
+transfer_std(layer::Binary, inputs::Union{Real,AbstractArray} = 0) = binary_std.(layer.θ .+ inputs)
 
-free_energies(layer::Binary) = -log1pexp.(layer.θ)
-transfer_mode(layer::Binary) = layer.θ .> 0
-transfer_mean(layer::Binary) = logistic.(layer.θ)
-transfer_mean_abs(layer::Binary) = transfer_mean(layer)
-transfer_var(layer::Binary) = binary_var.(layer.θ)
-transfer_std(layer::Binary) = binary_std.(layer.θ)
-
-function transfer_meanvar(layer::Binary)
-    t = @. exp(-abs(layer.θ))
-    μ = @. ifelse(layer.θ ≥ 0, 1 / (1 + t), t / (1 + t))
+function transfer_meanvar(layer::Binary, inputs::Union{Real,AbstractArray} = 0)
+    θ = layer.θ .+ inputs
+    t = @. exp(-abs(θ))
+    μ = @. ifelse(θ ≥ 0, 1 / (1 + t), t / (1 + t))
     ν = @. t / (1 + t)^2
     return μ, ν
 end
 
-function transfer_sample(layer::Binary)
-    u = rand(eltype(layer.θ), size(layer))
-    return binary_rand.(layer.θ, u)
+function transfer_sample(layer::Binary, inputs::Union{Real,AbstractArray} = 0)
+    θ = layer.θ .+ inputs
+    u = rand(eltype(θ), size(θ))
+    return binary_rand.(θ, u)
 end
 
 function binary_var(θ::Real)

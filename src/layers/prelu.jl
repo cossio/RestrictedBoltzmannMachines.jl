@@ -23,36 +23,28 @@ Base.repeat(l::pReLU, n::Int...) = pReLU(
     repeat(l.θ, n...), repeat(l.γ, n...), repeat(l.Δ, n...), repeat(l.η, n...)
 )
 
-function effective(layer::pReLU, inputs::AbstractArray)
-    θ = layer.θ .+ inputs
-    γ = broadlike(layer.γ, inputs)
-    Δ = broadlike(layer.Δ, inputs)
-    η = broadlike(layer.η, inputs)
-    return pReLU(θ, γ, Δ, η)
-end
-
 energies(layer::pReLU, x::AbstractArray) = energies(dReLU(layer), x)
-free_energies(layer::pReLU) = free_energies(dReLU(layer))
-transfer_sample(layer::pReLU) = transfer_sample(dReLU(layer))
-transfer_mean(layer::pReLU) = transfer_mean(dReLU(layer))
-transfer_var(layer::pReLU) = transfer_var(dReLU(layer))
-transfer_meanvar(layer::pReLU) = transfer_meanvar(dReLU(layer))
-transfer_mode(layer::pReLU) = transfer_mode(dReLU(layer))
-transfer_mean_abs(layer::pReLU) = transfer_mean_abs(dReLU(layer))
-transfer_std(layer::pReLU) = sqrt.(transfer_var(layer))
+free_energies(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = free_energies(dReLU(layer), inputs)
+transfer_sample(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = transfer_sample(dReLU(layer), inputs)
+transfer_mean(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = transfer_mean(dReLU(layer), inputs)
+transfer_var(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = transfer_var(dReLU(layer), inputs)
+transfer_meanvar(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = transfer_meanvar(dReLU(layer), inputs)
+transfer_mode(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = transfer_mode(dReLU(layer), inputs)
+transfer_mean_abs(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = transfer_mean_abs(dReLU(layer), inputs)
+transfer_std(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = sqrt.(transfer_var(layer, inputs))
 
-function ∂free_energy(layer::pReLU)
+function ∂free_energies(layer::pReLU, inputs::Union{Real,AbstractArray} = 0)
     drelu = dReLU(layer)
 
     lp = ReLU( drelu.θp, drelu.γp)
     ln = ReLU(-drelu.θn, drelu.γn)
-    Fp = free_energies(lp)
-    Fn = free_energies(ln)
+    Fp = free_energies(lp,  inputs)
+    Fn = free_energies(ln, -inputs)
     F = -logaddexp.(-Fp, -Fn)
     pp = exp.(F - Fp)
     pn = exp.(F - Fn)
-    μp, νp = transfer_meanvar(lp)
-    μn, νn = transfer_meanvar(ln)
+    μp, νp = transfer_meanvar(lp,  inputs)
+    μn, νn = transfer_meanvar(ln, -inputs)
     μ2p = @. (νp + μp^2) / 2
     μ2n = @. (νn + μn^2) / 2
 

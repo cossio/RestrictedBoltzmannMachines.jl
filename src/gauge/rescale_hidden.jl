@@ -55,7 +55,7 @@ function rescale_activations!(layer::Union{pReLU,xReLU}, λ::AbstractArray)
     return true
 end
 
-function meanvar_from_inputs(layer::AbstractLayer, inputs::AbstractArray; wts = nothing)
+function meanvar_from_inputs(layer::AbstractLayer, inputs::Union{Real,AbstractArray}; wts = nothing)
     h_ave, h_var = transfer_meanvar(layer, inputs)
     μ = batchmean(layer, h_ave; wts)
     ν_int = batchmean(layer, h_var; wts) # intrinsic noise

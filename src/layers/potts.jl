@@ -17,29 +17,27 @@ Potts(q::Int, n::Int...) = Potts(Float64, q, n...)
 
 Base.repeat(l::Potts, n::Int...) = Potts(repeat(l.θ, n...))
 
-function effective(layer::Potts, inputs::AbstractArray)
-    @assert size(layer) == size(inputs)[1:ndims(layer)]
-    return Potts(layer.θ .+ inputs)
+free_energies(layer::Potts, inputs::Union{Real,AbstractArray} = 0) = -logsumexp(layer.θ .+ inputs; dims=1)
+transfer_mean(layer::Potts, inputs::Union{Real,AbstractArray} = 0) = softmax(layer.θ .+ inputs; dims=1)
+transfer_mean_abs(layer::Potts, inputs::Union{Real,AbstractArray} = 0) = transfer_mean(layer, inputs)
+transfer_std(layer::Potts, inputs::Union{Real,AbstractArray} = 0) = sqrt.(transfer_var(layer, inputs))
+
+function transfer_mode(layer::Potts, inputs::Union{Real,AbstractArray} = 0)
+    return layer.θ .+ inputs .== maximum(layer.θ .+ inputs; dims=1)
 end
 
-free_energies(layer::Potts) = -logsumexp(layer.θ; dims=1)
-transfer_mean(layer::Potts) = softmax(layer.θ; dims=1)
-transfer_mean_abs(layer::Potts) = transfer_mean(layer)
-transfer_std(layer::Potts) = sqrt.(transfer_var(layer))
-transfer_mode(layer::Potts) = layer.θ .== maximum(layer.θ; dims=1)
-
-function transfer_var(layer::Potts)
-    μ = transfer_mean(layer)
+function transfer_var(layer::Potts, inputs::Union{Real,AbstractArray} = 0)
+    μ = transfer_mean(layer, inputs)
     return μ .* (1 .- μ)
 end
 
-function transfer_meanvar(layer::Potts)
-    μ = transfer_mean(layer)
+function transfer_meanvar(layer::Potts, inputs::Union{Real,AbstractArray} = 0)
+    μ = transfer_mean(layer, inputs)
     ν = μ .* (1 .- μ)
     return μ, ν
 end
 
-function transfer_sample(layer::Potts)
-    c = categorical_sample_from_logits(layer.θ)
+function transfer_sample(layer::Potts, inputs::Union{Real,AbstractArray} = 0)
+    c = categorical_sample_from_logits(layer.θ .+ inputs)
     return onehot_encode(c, 1:colors(layer))
 end

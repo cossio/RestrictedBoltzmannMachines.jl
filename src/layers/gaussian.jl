@@ -17,40 +17,38 @@ Gaussian(n::Int...) = Gaussian(Float64, n...)
 
 Base.repeat(l::Gaussian, n::Int...) = Gaussian(repeat(l.θ, n...), repeat(l.γ, n...))
 
-function effective(layer::Gaussian, inputs::AbstractArray)
-    @assert size(layer) == size(inputs)[1:ndims(layer)]
-    θ = layer.θ .+ inputs
-    γ = broadlike(layer.γ, inputs)
-    return Gaussian(θ, γ)
+energies(layer::Gaussian, x::AbstractArray) = gauss_energy.(layer.θ, layer.γ, x)
+
+function free_energies(l::Gaussian, inputs::Union{Real,AbstractArray} = 0)
+    return @. -(l.θ .+ inputs)^2 / abs(2l.γ) + log(abs(l.γ)/π/2) / 2
 end
 
-energies(layer::Gaussian, x::AbstractArray) = gauss_energy.(layer.θ, layer.γ, x)
-free_energies(layer::Gaussian) = gauss_free.(layer.θ, layer.γ)
-
-function transfer_sample(layer::Gaussian)
-    μ = transfer_mean(layer)
-    σ = sqrt.(transfer_var(layer))
+function transfer_sample(layer::Gaussian, inputs::Union{Real,AbstractArray} = 0)
+    μ = transfer_mean(layer, inputs)
+    σ = sqrt.(transfer_var(layer, inputs))
     z = randn(promote_type(eltype(μ), eltype(σ)), size(μ))
     return μ .+ σ .* z
 end
 
-transfer_mean(l::Gaussian) = l.θ ./ abs.(l.γ)
-transfer_var(l::Gaussian) = inv.(abs.(l.γ))
-transfer_meanvar(l::Gaussian) = transfer_mean(l), transfer_var(l)
-transfer_std(l::Gaussian) = sqrt.(transfer_var(l))
-transfer_mode(l::Gaussian) = transfer_mean(l)
+transfer_mean(l::Gaussian, inputs::Union{Real,AbstractArray} = 0) = (l.θ .+ inputs) ./ abs.(l.γ)
+transfer_var(l::Gaussian, inputs::Union{Real,AbstractArray} = 0) = inv.(abs.(l.γ .+ zero(inputs)))
+transfer_std(l::Gaussian, inputs::Union{Real,AbstractArray} = 0) = sqrt.(transfer_var(l, inputs))
+transfer_mode(l::Gaussian, inputs::Union{Real,AbstractArray} = 0) = transfer_mean(l, inputs)
 
-function transfer_mean_abs(layer::Gaussian)
-    μ = transfer_mean(layer)
-    ν = transfer_var(layer)
+function transfer_meanvar(l::Gaussian, inputs::Union{Real,AbstractArray} = 0)
+    return transfer_mean(l, inputs), transfer_var(l, inputs)
+end
+
+function transfer_mean_abs(layer::Gaussian, inputs::Union{Real,AbstractArray} = 0)
+    μ = transfer_mean(layer, inputs)
+    ν = transfer_var(layer, inputs)
     return @. √(2ν/π) * exp(-μ^2 / (2ν)) + μ * erf(μ / √(2ν))
 end
 
 gauss_energy(θ::Real, γ::Real, x::Real) = (abs(γ) * x / 2 - θ) * x
-gauss_free(θ::Real, γ::Real) = -θ^2 / abs(2γ) + log(abs(γ)/π/2) / 2
 
-function ∂free_energy(layer::Gaussian)
-    θ = layer.θ
+function ∂free_energies(layer::Gaussian, inputs::Union{Real,AbstractArray} = 0)
+    θ = layer.θ .+ inputs
     γ = abs.(layer.γ)
     return (
         θ = -θ ./ γ,

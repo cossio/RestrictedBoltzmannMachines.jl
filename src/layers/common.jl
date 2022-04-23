@@ -24,7 +24,9 @@ function energy(layer::_FieldLayers, x::AbstractArray)
     end
 end
 
-∂free_energy(layer::_FieldLayers) = (; θ = -transfer_mean(layer))
+function ∂free_energies(layer::_FieldLayers, inputs::Union{Real,AbstractArray} = 0)
+    return (; θ = -transfer_mean(layer, inputs))
+end
 
 struct FieldStats{A<:AbstractArray}
     μ::A

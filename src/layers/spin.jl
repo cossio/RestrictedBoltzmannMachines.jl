@@ -18,31 +18,27 @@ Spin(n::Int...) = Spin(Float64, n...)
 
 Base.repeat(l::Spin, n::Int...) = Spin(repeat(l.θ, n...))
 
-function effective(layer::Spin, inputs::AbstractArray)
-    @assert size(layer) == size(inputs)[1:ndims(layer)]
-    return Spin(layer.θ .+ inputs)
-end
+free_energies(layer::Spin, inputs::Union{Real,AbstractArray} = 0) = spin_free.(layer.θ .+ inputs)
+transfer_mode(layer::Spin, inputs::Union{Real,AbstractArray} = 0) = ifelse.(layer.θ .+ inputs .> 0, Int8(1), Int8(-1))
+transfer_mean(layer::Spin, inputs::Union{Real,AbstractArray} = 0) = tanh.(layer.θ .+ inputs)
+transfer_mean_abs(layer::Spin, inputs::Union{Real,AbstractArray} = 0) = Ones{Int8}(size(layer))
+transfer_std(layer::Spin, inputs::Union{Real,AbstractArray} = 0) = sqrt.(transfer_var(layer, inputs))
 
-free_energies(layer::Spin) = spin_free.(layer.θ)
-transfer_mode(layer::Spin) = ifelse.(layer.θ .> 0, Int8(1), Int8(-1))
-transfer_mean(layer::Spin) = tanh.(layer.θ)
-transfer_mean_abs(layer::Spin) = Ones{Int8}(size(layer))
-transfer_std(layer::Spin) = sqrt.(transfer_var(layer))
-
-function transfer_var(layer::Spin)
-    μ = transfer_mean(layer)
+function transfer_var(layer::Spin, inputs::Union{Real,AbstractArray} = 0)
+    μ = transfer_mean(layer, inputs)
     return @. (1 - μ) * (1 + μ)
 end
 
-function transfer_meanvar(layer::Spin)
-    μ = transfer_mean(layer)
+function transfer_meanvar(layer::Spin, inputs::Union{Real,AbstractArray} = 0)
+    μ = transfer_mean(layer, inputs)
     ν = @. (1 - μ) * (1 + μ)
     return μ, ν
 end
 
-function transfer_sample(layer::Spin)
-    u = rand(eltype(layer.θ), size(layer.θ))
-    return spin_rand.(layer.θ, u)
+function transfer_sample(layer::Spin, inputs::Union{Real,AbstractArray} = 0)
+    θ = layer.θ .+ inputs
+    u = rand(eltype(θ), size(θ))
+    return spin_rand.(θ, u)
 end
 
 function spin_free(θ::Real)

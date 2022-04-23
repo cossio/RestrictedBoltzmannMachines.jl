@@ -17,52 +17,45 @@ ReLU(sz::Int...) = ReLU(Float64, sz...)
 
 Base.repeat(l::ReLU, n::Int...) = ReLU(repeat(l.θ, n...), repeat(l.γ, n...))
 
-function effective(layer::ReLU, inputs::AbstractArray)
-    @assert size(layer) == size(inputs)[1:ndims(layer)]
-    θ = layer.θ .+ inputs
-    γ = broadlike(layer.γ, inputs)
-    return ReLU(θ, γ)
-end
-
 function energies(layer::ReLU, x::AbstractArray)
     @assert size(layer) == size(x)[1:ndims(layer)]
     return relu_energy.(layer.θ, layer.γ, x)
 end
 
-free_energies(layer::ReLU) = relu_free.(layer.θ, layer.γ)
-transfer_sample(layer::ReLU) = relu_rand.(layer.θ, layer.γ)
-transfer_mode(layer::ReLU) = max.(layer.θ ./ abs.(layer.γ), 0)
+free_energies(layer::ReLU, inputs::Union{Real,AbstractArray} = 0) = relu_free.(layer.θ .+ inputs, layer.γ)
+transfer_sample(layer::ReLU, inputs::Union{Real,AbstractArray} = 0) = relu_rand.(layer.θ .+ inputs, layer.γ)
+transfer_mode(layer::ReLU, inputs::Union{Real,AbstractArray} = 0) = max.((layer.θ .+ inputs) ./ abs.(layer.γ), 0)
 
-function transfer_mean(layer::ReLU)
+function transfer_mean(layer::ReLU, inputs::Union{Real,AbstractArray} = 0)
     g = Gaussian(layer.θ, layer.γ)
-    μ = transfer_mean(g)
-    σ = sqrt.(transfer_var(g))
+    μ = transfer_mean(g, inputs)
+    σ = sqrt.(transfer_var(g, inputs))
     return @. μ + σ * tnmean(-μ / σ)
 end
 
-transfer_mean_abs(layer::ReLU) = transfer_mean(layer)
+transfer_mean_abs(layer::ReLU, inputs::Union{Real,AbstractArray} = 0) = transfer_mean(layer, inputs)
 
-function transfer_var(layer::ReLU)
+function transfer_var(layer::ReLU, inputs::Union{Real,AbstractArray} = 0)
     g = Gaussian(layer.θ, layer.γ)
-    μ = transfer_mean(g)
-    ν = transfer_var(g)
+    μ = transfer_mean(g, inputs)
+    ν = transfer_var(g, inputs)
     return @. ν * tnvar(-μ / √ν)
 end
 
-function transfer_meanvar(layer::ReLU)
+function transfer_meanvar(layer::ReLU, inputs::Union{Real,AbstractArray} = 0)
     g = Gaussian(layer.θ, layer.γ)
-    μ = transfer_mean(g)
-    ν = transfer_var(g)
+    μ = transfer_mean(g, inputs)
+    ν = transfer_var(g, inputs)
     σ = sqrt.(ν)
     tμ, tν = tnmeanvar(-μ ./ σ)
     return μ + σ .* tμ, ν .* tν
 end
 
-transfer_std(layer::ReLU) = sqrt.(transfer_var(layer))
+transfer_std(layer::ReLU, inputs::Union{Real,AbstractArray} = 0) = sqrt.(transfer_var(layer, inputs))
 
-function ∂free_energy(layer::ReLU)
-    μ = transfer_mean(layer)
-    ν = transfer_var(layer)
+function ∂free_energies(layer::ReLU, inputs::Union{Real,AbstractArray} = 0)
+    μ = transfer_mean(layer, inputs)
+    ν = transfer_var(layer, inputs)
     return (θ = -μ, γ = (ν .+ μ.^2) / 2)
 end
 
