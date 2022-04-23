@@ -9,9 +9,9 @@ end
 Binary(::Type{T}, n::Int...) where {T} = Binary(zeros(T, n...))
 Binary(n::Int...) = Binary(Float64, n...)
 
-function effective(layer::Binary, inputs::AbstractArray; β::Real = true)
+function effective(layer::Binary, inputs::AbstractArray)
     @assert size(layer) == size(inputs)[1:ndims(layer)]
-    return Binary(β * (layer.θ .+ inputs))
+    return Binary(layer.θ .+ inputs)
 end
 
 free_energies(layer::Binary) = -log1pexp.(layer.θ)

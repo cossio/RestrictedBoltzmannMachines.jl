@@ -18,9 +18,9 @@ Spin(n::Int...) = Spin(Float64, n...)
 
 Base.repeat(l::Spin, n::Int...) = Spin(repeat(l.θ, n...))
 
-function effective(layer::Spin, inputs::AbstractArray; β::Real = true)
+function effective(layer::Spin, inputs::AbstractArray)
     @assert size(layer) == size(inputs)[1:ndims(layer)]
-    return Spin(β * (layer.θ .+ inputs))
+    return Spin(layer.θ .+ inputs)
 end
 
 free_energies(layer::Spin) = spin_free.(layer.θ)

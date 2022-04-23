@@ -50,7 +50,7 @@ random_layer(::Type{pReLU}, N::Int...) = pReLU(randn(N...), rand(N...), randn(N.
     @test size(@inferred transfer_mean(layer)) == size(layer)
     @test size(@inferred transfer_var(layer)) == size(layer)
     @test size(@inferred transfer_sample(layer)) == size(layer)
-    @test free_energies(layer, 0; β=1) ≈ free_energies(layer)
+    @test free_energies(layer, 0) ≈ free_energies(layer)
     @test transfer_std(layer) ≈ sqrt.(transfer_var(layer))
 
     if layer isa RBMs.Potts
@@ -59,33 +59,29 @@ random_layer(::Type{pReLU}, N::Int...) = pReLU(randn(N...), rand(N...), randn(N.
         @test size(@inferred free_energies(layer)) == size(layer)
     end
 
-    β = rand()
-    @test size(@inferred transfer_sample(layer, 0; β)) == size(layer)
+    @test size(@inferred transfer_sample(layer, 0)) == size(layer)
 
     for B in ((), (2,), (1,2))
         x = rand(N..., B...)
         @test (@inferred batch_size(layer, x)) == (B...,)
         @test (@inferred RBMs.batchdims(layer, x)) == (length(N) + 1):ndims(x)
         @test size(@inferred energy(layer, x)) == (B...,)
-        @test size(@inferred free_energy(layer, x; β)) == (B...,)
+        @test size(@inferred free_energy(layer, x)) == (B...,)
         @test size(@inferred energies(layer, x)) == size(x)
-        @test size(@inferred transfer_sample(layer, x; β)) == size(x)
-        @test size(@inferred transfer_mean(layer, x; β)) == size(x)
-        @test size(@inferred transfer_var(layer, x; β)) == size(x)
-        @test @inferred(free_energy(layer, x; β=1)) ≈ free_energy(layer, x)
-        @test @inferred(transfer_mean(layer, x; β=1)) ≈ transfer_mean(layer, x)
-        @test @inferred(transfer_var(layer, x; β=1)) ≈ transfer_var(layer, x)
-        @test @inferred(transfer_std(layer, x; β)) ≈ sqrt.(transfer_var(layer, x; β))
+        @test size(@inferred transfer_sample(layer, x)) == size(x)
+        @test size(@inferred transfer_mean(layer, x)) == size(x)
+        @test size(@inferred transfer_var(layer, x)) == size(x)
+        @test @inferred(transfer_std(layer, x)) ≈ sqrt.(transfer_var(layer, x))
         @test all(energy(layer, transfer_mode(layer)) .≤ energy(layer, x))
 
-        μ, ν = transfer_meanvar(layer, x; β)
-        @test μ ≈ transfer_mean(layer, x; β)
-        @test ν ≈ transfer_var(layer, x; β)
+        μ, ν = transfer_meanvar(layer, x)
+        @test μ ≈ transfer_mean(layer, x)
+        @test ν ≈ transfer_var(layer, x)
 
         if layer isa RBMs.Potts
-            @test size(@inferred free_energies(layer, x; β)) == (1, size(x)[2:end]...)
+            @test size(@inferred free_energies(layer, x)) == (1, size(x)[2:end]...)
         else
-            @test size(@inferred free_energies(layer, x; β)) == size(x)
+            @test size(@inferred free_energies(layer, x)) == size(x)
         end
 
         if B == ()

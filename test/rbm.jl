@@ -201,18 +201,15 @@ end
 end
 
 @testset "binary free energy" begin
-    β = π
     rbm = RBMs.BinaryRBM(randn(1), randn(1), randn(1,1))
     for v in [[0], [1]]
         @test -free_energy(rbm, v) ≈ logsumexp(-energy(rbm, v, h) for h in [[0], [1]])
-        @test -β * free_energy(rbm, v; β) ≈ logsumexp(-β * energy(rbm, v, h) for h in [[0], [1]])
     end
 
     rbm = RBMs.BinaryRBM(randn(7), randn(2), randn(7,2))
     v = bitrand(7)
     hs = [[0,0], [0,1], [1,0], [1,1]]
     @test -free_energy(rbm, v) ≈ logsumexp(-energy(rbm, v, h) for h in hs)
-    @test -β * free_energy(rbm, v; β) ≈ logsumexp(-β * energy(rbm, v, h) for h in hs)
 end
 
 @testset "Gaussian-Gaussian RBM, 1-dimension" begin
@@ -227,14 +224,8 @@ end
         -weights(rbm)'  hidden(rbm).γ
     ])
 
-    @test RBMs.log_partition(rbm; β = 1) ≈ RBMs.log_partition(rbm)
-
     Z, ϵ = quadgk(x -> exp(-only(free_energy(rbm, [x;;]))), -Inf, Inf)
     @test RBMs.log_partition(rbm) ≈ log(Z)
-
-    β = 1.5
-    Z, ϵ = quadgk(x -> exp(-β * only(free_energy(rbm, [x;;]; β))), -Inf, Inf)
-    @test RBMs.log_partition(rbm; β) ≈ log(Z)
 end
 
 @testset "Gaussian-Gaussian RBM, multi-dimensional" begin
@@ -267,17 +258,7 @@ end
     @test RBMs.log_partition(rbm) ≈ (
         (N + M)/2 * log(2π) + θ' * inv(A) * θ / 2 - logdet(A)/2
     )
-    @test RBMs.log_partition(rbm; β = 1) ≈ RBMs.log_partition(rbm)
-
-    β = rand()
-    @test RBMs.log_partition(rbm; β) ≈ (
-        (N + M)/2 * log(2π) + β * θ' * inv(A) * θ / 2 - logdet(β*A)/2
-    ) rtol=1e-6
-
-    @test RBMs.log_likelihood(rbm, v; β = 1) ≈ RBMs.log_likelihood(rbm, v)
-    @test RBMs.log_likelihood(rbm, v; β) ≈ (
-        -β * free_energy(rbm, v; β) .- RBMs.log_partition(rbm; β)
-    )
+    @test RBMs.log_likelihood(rbm, v) ≈ -free_energy(rbm, v) .- RBMs.log_partition(rbm)
 
     Ev = sum(visible(rbm).γ .* v.^2 ./ 2 - visible(rbm).θ .* v)
     Fv = sum(-(hidden(rbm).θ .+ inputs_v_to_h(rbm, v)).^2 ./ 2hidden(rbm).γ)

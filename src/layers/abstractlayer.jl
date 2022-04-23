@@ -18,14 +18,14 @@ function flatten(layer::AbstractLayer, x::AbstractArray)
 end
 
 """
-    effective(layer, inputs; β = 1)
+    effective(layer, inputs)
 
 Returns an effective layer which behaves as the original with the given `inputs` and
 temperature.
 """
-function effective(layer::AbstractLayer, input::Real; β::Real = true)
+function effective(layer::AbstractLayer, input::Real)
     inputs = Fill(input, size(layer))
-    return effective(layer, inputs; β)
+    return effective(layer, inputs)
 end
 
 """
@@ -45,12 +45,12 @@ function energy(layer::AbstractLayer, x::AbstractArray)
 end
 
 """
-    free_energy(layer, inputs = 0; β = 1)
+    free_energy(layer, inputs = 0)
 
 Cumulant generating function of layer, reduced over layer dimensions.
 """
-function free_energy(layer::AbstractLayer, inputs::AbstractArray; β::Real = true)
-    F = free_energies(layer, inputs; β)
+function free_energy(layer::AbstractLayer, inputs::AbstractArray)
+    F = free_energies(layer, inputs)
     if ndims(layer) == ndims(inputs)
         return sum(F)
     else
@@ -59,18 +59,18 @@ function free_energy(layer::AbstractLayer, inputs::AbstractArray; β::Real = tru
     end
 end
 
-function free_energy(layer::AbstractLayer, input::Real = false; β::Real = true)
+function free_energy(layer::AbstractLayer, input::Real = false)
     inputs = Fill(input, size(layer))
-    return free_energy(layer, inputs; β)::Number
+    return free_energy(layer, inputs)::Number
 end
 
 """
-    transfer_sample(layer, inputs = 0; β = 1)
+    transfer_sample(layer, inputs = 0)
 
 Samples layer configurations conditioned on inputs.
 """
-function transfer_sample(layer::AbstractLayer, inputs::Union{Real,AbstractArray}; β::Real=1)
-    layer_eff = effective(layer, inputs; β)
+function transfer_sample(layer::AbstractLayer, inputs::Union{Real,AbstractArray})
+    layer_eff = effective(layer, inputs)
     return transfer_sample(layer_eff)
 end
 
@@ -85,58 +85,58 @@ function transfer_mode(layer::AbstractLayer, inputs::Union{Real, AbstractArray})
 end
 
 """
-    transfer_mean(layer, inputs = 0; β = 1)
+    transfer_mean(layer, inputs = 0)
 
 Mean of unit activations.
 """
-function transfer_mean(layer::AbstractLayer, inputs::Union{Real,AbstractArray}; β::Real=1)
-    layer_eff = effective(layer, inputs; β)
+function transfer_mean(layer::AbstractLayer, inputs::Union{Real,AbstractArray})
+    layer_eff = effective(layer, inputs)
     return transfer_mean(layer_eff)
 end
 
 """
-    transfer_var(layer, inputs = 0; β = 1)
+    transfer_var(layer, inputs = 0)
 
 Variance of unit activations.
 """
-function transfer_var(layer::AbstractLayer, inputs::Union{Real,AbstractArray}; β::Real=1)
-    layer_eff = effective(layer, inputs; β)
+function transfer_var(layer::AbstractLayer, inputs::Union{Real,AbstractArray})
+    layer_eff = effective(layer, inputs)
     return transfer_var(layer_eff)
 end
 
-function transfer_meanvar(layer::AbstractLayer, inputs::Union{Real,AbstractArray}; β::Real=1)
-    layer_eff = effective(layer, inputs; β)
+function transfer_meanvar(layer::AbstractLayer, inputs::Union{Real,AbstractArray})
+    layer_eff = effective(layer, inputs)
     return transfer_meanvar(layer_eff)
 end
 
 """
-    transfer_std(layer, inputs = 0; β = 1)
+    transfer_std(layer, inputs = 0)
 
 Standard deviation of unit activations.
 """
-function transfer_std(layer::AbstractLayer, inputs::Union{Real, AbstractArray}; β::Real=1)
-    layer_eff = effective(layer, inputs; β)
+function transfer_std(layer::AbstractLayer, inputs::Union{Real, AbstractArray})
+    layer_eff = effective(layer, inputs)
     return transfer_std(layer_eff)
 end
 
 """
-    transfer_mean_abs(layer, inputs = 0; β = 1)
+    transfer_mean_abs(layer, inputs = 0)
 
 Mean of absolute value of unit activations.
 """
-function transfer_mean_abs(layer::AbstractLayer, inputs::Union{Real,AbstractArray}; β::Real=1)
-    layer_eff = effective(layer, inputs; β)
+function transfer_mean_abs(layer::AbstractLayer, inputs::Union{Real,AbstractArray})
+    layer_eff = effective(layer, inputs)
     return transfer_mean_abs(layer_eff)
 end
 
 """
-    free_energies(layer, inputs = 0; β = 1)
+    free_energies(layer, inputs = 0)
 
 Cumulant generating function of units in layer (not reduced over layer dimensions).
 """
-function free_energies(layer::AbstractLayer, inputs::Union{Real,AbstractArray}; β::Real=1)
-    layer_eff = effective(layer, inputs; β)
-    return free_energies(layer_eff) / β
+function free_energies(layer::AbstractLayer, inputs::Union{Real,AbstractArray})
+    layer_eff = effective(layer, inputs)
+    return free_energies(layer_eff)
 end
 
 """

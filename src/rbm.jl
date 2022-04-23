@@ -50,14 +50,14 @@ function inputs_h_to_v(rbm::RBM, h::AbstractArray)
 end
 
 """
-    free_energy(rbm, v; β = 1)
+    free_energy(rbm, v)
 
 Free energy of visible configuration (after marginalizing hidden configurations).
 """
-function free_energy(rbm::RBM, v::AbstractArray; β::Real = true)
+function free_energy(rbm::RBM, v::AbstractArray)
     E = energy(visible(rbm), v)
     inputs = inputs_v_to_h(rbm, v)
-    F = free_energy(hidden(rbm), inputs; β)
+    F = free_energy(hidden(rbm), inputs)
     return E + F
 end
 
@@ -93,103 +93,103 @@ function interaction_energy(rbm::RBM, v::AbstractArray, h::AbstractArray)
 end
 
 """
-    sample_h_from_v(rbm, v; β = 1)
+    sample_h_from_v(rbm, v)
 
 Samples a hidden configuration conditional on the visible configuration `v`.
 """
-function sample_h_from_v(rbm::RBM, v::AbstractArray; β::Real = true)
+function sample_h_from_v(rbm::RBM, v::AbstractArray)
     inputs = inputs_v_to_h(rbm, v)
-    return transfer_sample(hidden(rbm), inputs; β)
+    return transfer_sample(hidden(rbm), inputs)
 end
 
 """
-    sample_v_from_h(rbm, h; β = 1)
+    sample_v_from_h(rbm, h)
 
 Samples a visible configuration conditional on the hidden configuration `h`.
 """
-function sample_v_from_h(rbm::RBM, h::AbstractArray; β::Real = true)
+function sample_v_from_h(rbm::RBM, h::AbstractArray)
     inputs = inputs_h_to_v(rbm, h)
-    return transfer_sample(visible(rbm), inputs; β)
+    return transfer_sample(visible(rbm), inputs)
 end
 
 """
-    sample_v_from_v(rbm, v; β = 1, steps = 1)
+    sample_v_from_v(rbm, v; steps = 1)
 
 Samples a visible configuration conditional on another visible configuration `v`.
 Ensures type stability by requiring that the returned array is of the same type as `v`.
 """
-function sample_v_from_v(rbm::RBM, v::AbstractArray; β::Real = true, steps::Int = 1)
+function sample_v_from_v(rbm::RBM, v::AbstractArray; steps::Int = 1)
     @assert size(visible(rbm)) == size(v)[1:ndims(visible(rbm))]
     for _ in 1:steps
-        v = oftype(v, sample_v_from_v_once(rbm, v; β))
+        v = oftype(v, sample_v_from_v_once(rbm, v))
     end
     return v
 end
 
 """
-    sample_h_from_h(rbm, h; β = 1, steps = 1)
+    sample_h_from_h(rbm, h; steps = 1)
 
 Samples a hidden configuration conditional on another hidden configuration `h`.
 Ensures type stability by requiring that the returned array is of the same type as `h`.
 """
-function sample_h_from_h(rbm::RBM, h::AbstractArray; β::Real = true, steps::Int = 1)
+function sample_h_from_h(rbm::RBM, h::AbstractArray; steps::Int = 1)
     @assert size(hidden(rbm)) == size(h)[1:ndims(hidden(rbm))]
     for _ in 1:steps
-        h = oftype(h, sample_h_from_h_once(rbm, h; β))
+        h = oftype(h, sample_h_from_h_once(rbm, h))
     end
     return h
 end
 
-function sample_v_from_v_once(rbm::RBM, v::AbstractArray; β::Real = true)
-    h = sample_h_from_v(rbm, v; β)
-    v = sample_v_from_h(rbm, h; β)
+function sample_v_from_v_once(rbm::RBM, v::AbstractArray)
+    h = sample_h_from_v(rbm, v)
+    v = sample_v_from_h(rbm, h)
     return v
 end
 
-function sample_h_from_h_once(rbm::RBM, h::AbstractArray; β::Real = true)
-    v = sample_v_from_h(rbm, h; β)
-    h = sample_h_from_v(rbm, v; β)
+function sample_h_from_h_once(rbm::RBM, h::AbstractArray)
+    v = sample_v_from_h(rbm, h)
+    h = sample_h_from_v(rbm, v)
     return h
 end
 
 """
-    mean_h_from_v(rbm, v; β = 1)
+    mean_h_from_v(rbm, v)
 
 Mean unit activation values, conditioned on the other layer, <h | v>.
 """
-function mean_h_from_v(rbm::RBM, v::AbstractArray; β::Real = true)
+function mean_h_from_v(rbm::RBM, v::AbstractArray)
     inputs = inputs_v_to_h(rbm, v)
-    return transfer_mean(hidden(rbm), inputs; β)
+    return transfer_mean(hidden(rbm), inputs)
 end
 
 """
-    mean_v_from_h(rbm, v; β = 1)
+    mean_v_from_h(rbm, v)
 
 Mean unit activation values, conditioned on the other layer, <v | h>.
 """
-function mean_v_from_h(rbm::RBM, h::AbstractArray; β::Real = true)
+function mean_v_from_h(rbm::RBM, h::AbstractArray)
     inputs = inputs_h_to_v(rbm, h)
-    return transfer_mean(visible(rbm), inputs; β)
+    return transfer_mean(visible(rbm), inputs)
 end
 
 """
-    var_v_from_h(rbm, v; β = 1)
+    var_v_from_h(rbm, v)
 
 Variance of unit activation values, conditioned on the other layer, var(v | h).
 """
-function var_v_from_h(rbm::RBM, h::AbstractArray; β::Real = true)
+function var_v_from_h(rbm::RBM, h::AbstractArray)
     inputs = inputs_h_to_v(rbm, h)
-    return transfer_var(visible(rbm), inputs; β)
+    return transfer_var(visible(rbm), inputs)
 end
 
 """
-    var_h_from_v(rbm, v; β = 1)
+    var_h_from_v(rbm, v)
 
 Variance of unit activation values, conditioned on the other layer, var(h | v).
 """
-function var_h_from_v(rbm::RBM, v::AbstractArray; β::Real = true)
+function var_h_from_v(rbm::RBM, v::AbstractArray)
     inputs = inputs_v_to_h(rbm, v)
-    return transfer_var(hidden(rbm), inputs; β)
+    return transfer_var(hidden(rbm), inputs)
 end
 
 """
@@ -246,13 +246,13 @@ function join_batch_size(bsz_1::Tuple{Int,Vararg{Int}}, bsz_2::Tuple{Int,Vararg{
 end
 
 """
-    reconstruction_error(rbm, v; β = 1, steps = 1)
+    reconstruction_error(rbm, v; steps = 1)
 
 Stochastic reconstruction error of `v`.
 """
-function reconstruction_error(rbm::RBM, v::AbstractArray; β::Real=true, steps::Int=1)
+function reconstruction_error(rbm::RBM, v::AbstractArray; steps::Int=1)
     @assert size(visible(rbm)) == size(v)[1:ndims(visible(rbm))]
-    v1 = sample_v_from_v(rbm, v; β, steps)
+    v1 = sample_v_from_v(rbm, v; steps)
     ϵ = mean(abs.(v .- v1); dims = 1:ndims(visible(rbm)))
     if ndims(v) == ndims(visible(rbm))
         return only(ϵ)

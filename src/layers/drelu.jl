@@ -26,11 +26,11 @@ Base.repeat(l::dReLU, n::Int...) = dReLU(
     repeat(l.θp, n...), repeat(l.θn, n...), repeat(l.γp, n...), repeat(l.γn, n...)
 )
 
-function effective(layer::dReLU, inputs::AbstractArray; β::Real = true)
-    θp = β * (layer.θp .+ inputs)
-    θn = β * (layer.θn .+ inputs)
-    γp = β * broadlike(layer.γp, θp)
-    γn = β * broadlike(layer.γn, θn)
+function effective(layer::dReLU, inputs::AbstractArray)
+    θp = layer.θp .+ inputs
+    θn = layer.θn .+ inputs
+    γp = broadlike(layer.γp, θp)
+    γn = broadlike(layer.γn, θn)
     return dReLU(θp, θn, γp, γn)
 end
 

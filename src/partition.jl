@@ -1,27 +1,26 @@
 """
-    log_partition(rbm; β = 1)
+    log_partition(rbm)
 
-Log-partition of the `rbm` at inverse temperature `β`, computed by extensive
-enumeration of visible states
+Log-partition of `rbm`, computed by extensive enumeration of visible states
 (except for particular cases such as Gaussian-Gaussian RBM).
 This is exponentially slow for large machines.
 
 If your RBM has a smaller hidden layer, mirroring the layers of the `rbm` first
 (see [`mirror`](@ref)).
 """
-function log_partition(rbm::RBM; β::Real = true)
+function log_partition(rbm::RBM)
     v = ChainRulesCore.ignore_derivatives() do
         collect_states(visible(rbm))
     end
-    return logsumexp(-β * free_energy(rbm, v; β))
+    return logsumexp(-free_energy(rbm, v))
 end
 
 # For a Gaussian-Gaussian RBM we can use the analytical expression
-function log_partition(rbm::RBM{<:Gaussian, <:Gaussian}; β::Real = true)
-    θ = β * [vec(visible(rbm).θ); vec(hidden(rbm).θ)]
-    γv = β * vec(abs.(visible(rbm).γ))
-    γh = β * vec(abs.(hidden(rbm).γ))
-    w = β * flat_w(rbm)
+function log_partition(rbm::RBM{<:Gaussian, <:Gaussian})
+    θ = [vec(visible(rbm).θ); vec(hidden(rbm).θ)]
+    γv = vec(abs.(visible(rbm).γ))
+    γh = vec(abs.(hidden(rbm).γ))
+    w = flat_w(rbm)
 
     lA = block_matrix_logdet(
         Diagonal(γv), -w,
@@ -37,15 +36,15 @@ function log_partition(rbm::RBM{<:Gaussian, <:Gaussian}; β::Real = true)
 end
 
 """
-    log_likelihood(rbm, v; β = 1)
+    log_likelihood(rbm, v)
 
 Log-likelihood of `v` under `rbm`, with the partition function compued by
 extensive enumeration. For discrete layers, this is exponentially slow for large machines.
 """
-function log_likelihood(rbm::RBM, v::AbstractArray; β::Real = true)
-    logZ = log_partition(rbm; β)
-    F = free_energy(rbm, v; β)
-    return -β .* F .- logZ
+function log_likelihood(rbm::RBM, v::AbstractArray)
+    logZ = log_partition(rbm)
+    F = free_energy(rbm, v)
+    return -F .- logZ
 end
 
 function iterate_states(layer::Binary)

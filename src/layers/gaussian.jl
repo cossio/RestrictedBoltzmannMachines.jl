@@ -17,10 +17,10 @@ Gaussian(n::Int...) = Gaussian(Float64, n...)
 
 Base.repeat(l::Gaussian, n::Int...) = Gaussian(repeat(l.θ, n...), repeat(l.γ, n...))
 
-function effective(layer::Gaussian, inputs::AbstractArray; β::Real = true)
+function effective(layer::Gaussian, inputs::AbstractArray)
     @assert size(layer) == size(inputs)[1:ndims(layer)]
-    θ = β * (layer.θ .+ inputs)
-    γ = β * broadlike(layer.γ, inputs)
+    θ = layer.θ .+ inputs
+    γ = broadlike(layer.γ, inputs)
     return Gaussian(θ, γ)
 end
 

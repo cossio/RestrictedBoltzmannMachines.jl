@@ -17,9 +17,9 @@ Potts(q::Int, n::Int...) = Potts(Float64, q, n...)
 
 Base.repeat(l::Potts, n::Int...) = Potts(repeat(l.θ, n...))
 
-function effective(layer::Potts, inputs::AbstractArray; β::Real = true)
+function effective(layer::Potts, inputs::AbstractArray)
     @assert size(layer) == size(inputs)[1:ndims(layer)]
-    return Potts(β * (layer.θ .+ inputs))
+    return Potts(layer.θ .+ inputs)
 end
 
 free_energies(layer::Potts) = -logsumexp(layer.θ; dims=1)

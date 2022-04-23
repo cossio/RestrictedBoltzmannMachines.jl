@@ -17,10 +17,10 @@ ReLU(sz::Int...) = ReLU(Float64, sz...)
 
 Base.repeat(l::ReLU, n::Int...) = ReLU(repeat(l.θ, n...), repeat(l.γ, n...))
 
-function effective(layer::ReLU, inputs::AbstractArray; β::Real = true)
+function effective(layer::ReLU, inputs::AbstractArray)
     @assert size(layer) == size(inputs)[1:ndims(layer)]
-    θ = β * (layer.θ .+ inputs)
-    γ = β * broadlike(layer.γ, inputs)
+    θ = layer.θ .+ inputs
+    γ = broadlike(layer.γ, inputs)
     return ReLU(θ, γ)
 end
 
