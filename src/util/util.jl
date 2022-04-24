@@ -10,25 +10,28 @@ two(::Union{Type{T}, T}) where {T<:Number} = convert(T, 2)
 Weighted mean of `A` along dimensions `dims`, weighted by `wts`.
 
 ```math
-\frac{1}{N}\sum_i A_i w_i}
+\frac{\sum_i A_i w_i}{\sum_i w_i}
 ```
-
-Note that the weights are not normalized.
 """
 function wmean(A::AbstractArray; wts::Union{AbstractArray,Nothing} = nothing, dims = :)
     if isnothing(wts)
-        w = true
-    elseif dims === (:)
+        # if no weights are given, fallback to unweighted mean
+        return mean(A; dims)
+    end
+
+    if dims === (:)
         @assert size(wts) == size(A)
         w = wts
     else
+        # insert singleton dimensions in weights, corresponding to reduced dimensions of `A`
         @assert size(wts) == size.(Ref(A), dims)
         wsz = ntuple(ndims(A)) do i
             i ∈ dims ? size(A, i) : 1
         end
         w = reshape(wts, wsz)
     end
-    return mean(A .* w; dims)
+
+    return mean(A .* w; dims) ./ mean(wts)
 end
 
 """

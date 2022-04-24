@@ -46,10 +46,10 @@ end
     @test mean(A; dims=(2,4)) ≈ @inferred RBMs.wmean(A; dims=(2,4))
 
     wts = rand(size(A)...)
-    @test mean(A .* wts) ≈ @inferred RBMs.wmean(A; wts)
+    @test sum(A .* wts) ./ sum(wts) ≈ @inferred RBMs.wmean(A; wts)
 
     wts = rand(3,2)
-    @test mean(reshape(wts,1,3,1,2) .* A; dims=(2,4)) ≈ @inferred RBMs.wmean(A; dims=(2,4), wts)
+    @test sum(reshape(wts,1,3,1,2) .* A; dims=(2,4)) ./ sum(wts) ≈ @inferred RBMs.wmean(A; dims=(2,4), wts)
 end
 
 @testset "reshape_maybe" begin

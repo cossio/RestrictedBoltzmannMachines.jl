@@ -125,12 +125,12 @@ function batchcov(
     @assert size(layer) == size(x)[1:ndims(layer)] == size(mean)
     ξ = flatten(layer, x .- mean)
     if isnothing(wts)
-        w = I
+        C = ξ * ξ' / size(ξ, 2)
     else
         @assert size(wts) == batch_size(layer, x)
         w = Diagonal(vec(wts))
+        C = ξ * w * ξ' / sum(w)
     end
-    C = ξ * w * ξ' / size(ξ, 2)
     return reshape(C, size(layer)..., size(layer)...)
 end
 
