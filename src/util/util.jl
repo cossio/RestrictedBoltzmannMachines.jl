@@ -23,8 +23,8 @@ function wmean(A::AbstractArray; wts::Union{AbstractArray,Nothing} = nothing, di
         @assert size(wts) == size(A)
         w = wts
     else
+        @assert size(wts) == ntuple(d -> size(A, dims[d]), length(dims))
         # insert singleton dimensions in weights, corresponding to reduced dimensions of `A`
-        @assert size(wts) == size.(Ref(A), dims)
         wsz = ntuple(ndims(A)) do i
             i ∈ dims ? size(A, i) : 1
         end

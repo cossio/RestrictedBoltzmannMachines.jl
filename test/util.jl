@@ -47,9 +47,13 @@ end
 
     wts = rand(size(A)...)
     @test sum(A .* wts) ./ sum(wts) ≈ @inferred RBMs.wmean(A; wts)
+    @test sum(A .* wts) ./ sum(wts) ≈ @inferred RBMs.wmean(A; wts, dims=:)
 
     wts = rand(3,2)
     @test sum(reshape(wts,1,3,1,2) .* A; dims=(2,4)) ./ sum(wts) ≈ @inferred RBMs.wmean(A; dims=(2,4), wts)
+
+    wts = rand(2)
+    @test sum(reshape(wts,1,1,1,2) .* A; dims=4) ./ sum(wts) ≈ @inferred RBMs.wmean(A; dims=4, wts)
 end
 
 @testset "reshape_maybe" begin
