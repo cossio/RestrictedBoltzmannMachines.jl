@@ -38,17 +38,7 @@ Other packages implementing Restricted Boltzmann Machines in Julia:
 - https://github.com/dfdx/Boltzmann.jl
 - https://github.com/stefan-m-lenz/BoltzmannMachines.jl
 
-Here are some differences:
-
-- **Genericity:** In contrast to those packages, here we adopt a generic approach that allows defining any kind of unit potentials (such as ReLU or dReLU units, which are not included in those two packages), and use them as visible or hidden layers of the RBM.
-- **Easily extensible:** This also means the package is easily extensible to other layer types, or to modified training procedures. See `src/train/` directory for exploration of training schemes (CD, PCD, centering, etc.). Other packages tend to support only CD or PCD.
-- **Shallow**: On the other hand, those two repos support deep Boltzmann machines, which we do not.
-
-For a Python 3 implementation see https://github.com/jertubiana/PGM, which originates the `dReLU` layer and showcases applications to protein and neural data.
-
 ## ToDo
-
-Some features that should be implemented in the future:
 
 - Unbiased contrastive divergence sampling algorithm.
 
