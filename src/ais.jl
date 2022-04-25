@@ -3,17 +3,19 @@ Annealed importance sampling (AIS) to estimate the partition function (and hence
 the log-likelihood).
 A nice explanation of AIS in general can be found in Goodfellow et al Deep Learning book.
 Salakhutdinov et al (10.1145/1390156.1390266, http://www.cs.utoronto.ca/~rsalakhu/papers/bm.pdf)
-discuss AIS for RBMs specifically.
+discusses AIS for RBMs specifically.
 
-AIS tends to ovestimate likelihoods.
-In contrast, the Reverse AIS estimator (RAISE) tends to give underestimates.
-Combining the two we obtain stochastic "sandwiches" containing the true value.
-RAISE is introduced here: http://proceedings.mlr.press/v38/burda15.html
-Using both, we have an interval where true log-likelihood lies.
+AIS tends to understimate the log of the partition function (in probability).
+In contrast, Reverse AIS estimator (RAISE) can be used to obtain a stochastic upper bound.
+See http://proceedings.mlr.press/v38/burda15.html.
+Combining the two we can "sandwiches" the true value to have an idea if the Monte Carlo
+chains have converged.
 
-Bonus: A discussion of estimating partition function in RBMs comparing several algorithms:
+Bonus: A discussion of estimating partition function in RBMs, comparing several algorithms:
 
 https://www.sciencedirect.com/science/article/pii/S0004370219301948
+
+For a variant or RAISE: https://arxiv.org/abs/1511.02543
 =#
 
 """
