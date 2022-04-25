@@ -26,6 +26,15 @@ end
     @test ∂F.visible.θ ≈ only(gs).visible.θ
     @test ∂F.hidden.θ ≈ only(gs).hidden.θ
     @test ∂F.w ≈ only(gs).w
+
+    wts = rand(7)
+    gs = Zygote.gradient(rbm) do rbm
+        RBMs.wmean(RBMs.free_energy(rbm, v); wts)
+    end
+    ∂F = RBMs.∂free_energy(rbm, v; wts)
+    @test ∂F.visible.θ ≈ only(gs).visible.θ
+    @test ∂F.hidden.θ ≈ only(gs).hidden.θ
+    @test ∂F.w ≈ only(gs).w
 end
 
 @testset "∂contrastive_divergence" begin
