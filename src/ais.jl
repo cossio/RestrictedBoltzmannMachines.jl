@@ -53,6 +53,24 @@ function log_partition_ais_err(rbm::RBM; width::Real = 1, kwargs...)
     return (lZ, lo, hi)
 end
 
+function raise(rbm::RBM, v::AbstractArray; nbetas::Int, init::AbstractLayer = visible(rbm))
+    nsamples = size(v)[end]
+    @assert size(v) == (size(visible(rbm))..., nsamples)
+    @assert size(init) == size(visible(rbm))
+    # init with -log(Z(β = 0))
+    R = fill(-log_partition_zero_weight(anneal(init, rbm; β = 0)), nsamples)
+    prev_rbm = rbm # rbm at temperature β[k + 1]
+    for β in reverse((0:(nbetas - 1)) ./ nbetas)
+        curr_rbm = anneal(init, rbm; β) # rbm at temperature β[k]
+        v = sample_v_from_v(curr_rbm, v)
+        F_prev = free_energy(prev_rbm, v) # p(v; β[k + 1])
+        F_curr = free_energy(curr_rbm, v) # p(v; β[k])
+        prev_rbm = curr_rbm
+        R += F_prev - F_curr # accumulate log(p(v; β[k]) / p(v; β[k + 1]))
+    end
+    return R # -logmeanexp(R) to get estimate of Z
+end
+
 """
     anneal(visible_init, rbm_final; β)
 

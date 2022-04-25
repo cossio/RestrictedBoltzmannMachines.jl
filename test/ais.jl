@@ -1,9 +1,9 @@
 using Test: @test, @testset, @inferred
 using Statistics: mean, std, var
-using Random: randn!
+using Random: randn!, bitrand
 using LogExpFunctions: logsumexp
 using RestrictedBoltzmannMachines: BinaryRBM, energy, free_energy, transfer_sample, visible, hidden
-using RestrictedBoltzmannMachines: anneal, ais, log_partition_zero_weight, logmeanexp, logvarexp
+using RestrictedBoltzmannMachines: anneal, ais, raise, log_partition_zero_weight, logmeanexp, logvarexp
 using RestrictedBoltzmannMachines: Binary, Spin, Potts, Gaussian, ReLU, dReLU, xReLU, pReLU
 
 @testset "logmeanexp, logvarexp" begin
@@ -34,6 +34,9 @@ end
 
     R = ais(rbm; nbetas=10000, nsamples=100)
     @test logmeanexp(R) ≈ lZ  rtol=0.1
+
+    R = raise(rbm, bitrand(3,100); nbetas=10000)
+    @test -logmeanexp(R) ≈ lZ rtol=0.1
 end
 
 @testset "anneal layer" begin
