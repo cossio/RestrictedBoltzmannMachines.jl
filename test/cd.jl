@@ -3,6 +3,7 @@ import RestrictedBoltzmannMachines as RBMs
 using Test: @test, @testset
 using Random: bitrand
 using Statistics: mean
+using LinearAlgebra: norm
 
 @testset "subtract_gradients" begin
     nt1 = (x = [2], y = [3])
@@ -26,6 +27,11 @@ end
     @test ∂F.visible.θ ≈ only(gs).visible.θ
     @test ∂F.hidden.θ ≈ only(gs).hidden.θ
     @test ∂F.w ≈ only(gs).w
+
+    gnorms = RBMs.gradnorms(∂F)
+    @test gnorms.visible.θ ≈ norm(∂F.visible.θ)
+    @test gnorms.hidden.θ ≈ norm(∂F.hidden.θ)
+    @test gnorms.w ≈ norm(∂F.w)
 
     wts = rand(7)
     gs = Zygote.gradient(rbm) do rbm
