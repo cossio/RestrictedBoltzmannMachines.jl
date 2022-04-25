@@ -70,6 +70,7 @@ Documenter.makedocs(
             ],
             "Learning rate decay" => "literate/lr_decay.md",
             "No centering" => "literate/center.md",
+            "AIS" => "literate/ais.md",
         ],
         "Reference" => "reference.md"
     ],
