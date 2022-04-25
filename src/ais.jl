@@ -34,7 +34,7 @@ function ais(rbm::RBM; nbetas::Int = 1000, nsamples::Int = 1, init::AbstractLaye
     v = transfer_sample(init, Falses(size(init)..., nsamples))
     annealed_rbm = anneal(init, rbm; β = 0)
     R = fill(log_partition_zero_weight(annealed_rbm), nsamples)
-    for β in ((1:nbetas) .// nbetas)
+    for β in ((1:nbetas) ./ nbetas)
         v = sample_v_from_v(annealed_rbm, v)
         F_prev = free_energy(annealed_rbm, v)
         annealed_rbm = anneal(init, rbm; β)

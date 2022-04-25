@@ -33,7 +33,7 @@ end
     @test logsumexp(-free_energy(rbm, [v1,v2,v3]) for v1 in 0:1, v2 in 0:1, v3 in 0:1) ≈ lZ
 
     R = ais(rbm; nbetas=10000, nsamples=100)
-    @test logsumexp(R) - log(length(R)) ≈ lZ  rtol=0.1
+    @test logmeanexp(R) ≈ lZ  rtol=0.1
 end
 
 @testset "anneal layer" begin
