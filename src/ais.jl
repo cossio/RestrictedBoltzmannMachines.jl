@@ -66,39 +66,66 @@ given by:
 function anneal(init::AbstractLayer, final::RBM; β::Real)
     vis = anneal(init, visible(final); β)
     hid = anneal(hidden(final); β)
-    return RBM(vis, hid, β * weights(final))
+    w = oftype(weights(final), β * weights(final))
+    return RBM(vis, hid, w)
     #return RBM(vis, hidden(final), β * weights(final))
 end
 
-anneal(layer::Binary; β::Real) = Binary(β * layer.θ)
-anneal(layer::Spin; β::Real) = Spin(β * layer.θ)
-anneal(layer::Potts; β::Real) = Potts(β * layer.θ)
-anneal(layer::Gaussian; β::Real) = Gaussian(β * layer.θ, layer.γ)
-anneal(layer::ReLU; β::Real) = ReLU(β * layer.θ, layer.γ)
-anneal(layer::dReLU; β::Real) = dReLU(β * layer.θp, β * layer.θn, layer.γp, layer.γn)
-anneal(layer::pReLU; β::Real) = pReLU(β * layer.θ, layer.γ, β * layer.Δ, layer.η)
-anneal(layer::xReLU; β::Real) = xReLU(β * layer.θ, layer.γ, β * layer.Δ, layer.ξ)
-
-anneal(init::Binary, final::Binary; β::Real) = Binary((1 - β) * init.θ + β * final.θ)
-anneal(init::Spin, final::Spin; β::Real) = Spin((1 - β) * init.θ + β * final.θ)
-anneal(init::Potts, final::Potts; β::Real) = Potts((1 - β) * init.θ + β * final.θ)
-anneal(init::Gaussian, final::Gaussian; β::Real) = Gaussian((1 - β) * init.θ + β * final.θ, final.γ)
-anneal(init::ReLU, final::ReLU; β::Real) = ReLU((1 - β) * init.θ + β * final.θ, final.γ)
-
+anneal(layer::Binary; β::Real) = Binary(
+    oftype(layer.θ, β * layer.θ)
+)
+anneal(layer::Spin; β::Real) = Spin(
+    oftype(layer.θ, β * layer.θ)
+)
+anneal(layer::Potts; β::Real) = Potts(
+    oftype(layer.θ, β * layer.θ)
+)
+anneal(layer::Gaussian; β::Real) = Gaussian(
+    oftype(layer.θ, β * layer.θ), layer.γ
+)
+anneal(l::ReLU; β::Real) = ReLU(
+    oftype(l.θ, β * l.θ), l.γ
+)
+anneal(layer::dReLU; β::Real) = dReLU(
+    oftype(layer.θp, β * layer.θp),
+    oftype(layer.θn, β * layer.θn),
+    layer.γp, layer.γn
+)
+anneal(layer::pReLU; β::Real) = pReLU(
+    oftype(layer.θ, β * layer.θ), layer.γ,
+    oftype(layer.Δ, β * layer.Δ), layer.η
+)
+anneal(layer::xReLU; β::Real) = xReLU(
+    oftype(layer.θ, β * layer.θ), layer.γ,
+    oftype(layer.Δ, β * layer.Δ), layer.ξ
+)
+anneal(init::Binary, final::Binary; β::Real) = Binary(
+    oftype(final.θ, (1 - β) * init.θ + β * final.θ)
+)
+anneal(init::Spin, final::Spin; β::Real) = Spin(
+    oftype(final.θ, (1 - β) * init.θ + β * final.θ)
+)
+anneal(init::Potts, final::Potts; β::Real) = Potts(
+    oftype(final.θ, (1 - β) * init.θ + β * final.θ)
+)
+anneal(init::Gaussian, final::Gaussian; β::Real) = Gaussian(
+    oftype(final.θ, (1 - β) * init.θ + β * final.θ), final.γ
+)
+anneal(init::ReLU, final::ReLU; β::Real) = ReLU(
+    oftype(final.θ, (1 - β) * init.θ + β * final.θ), final.γ
+)
 anneal(init::dReLU, final::dReLU; β::Real) = dReLU(
-    (1 - β) * init.θp + β * final.θp,
-    (1 - β) * init.θn + β * final.θn,
+    oftype(final.θp, (1 - β) * init.θp + β * final.θp),
+    oftype(final.θn, (1 - β) * init.θn + β * final.θn),
     final.γp, final.γn
 )
-
 anneal(init::pReLU, final::pReLU; β::Real) = pReLU(
-    (1 - β) * init.θ + β * final.θ, final.γ,
-    (1 - β) * init.Δ + β * final.Δ, final.η
+    oftype(final.θ, (1 - β) * init.θ + β * final.θ), final.γ,
+    oftype(final.Δ, (1 - β) * init.Δ + β * final.Δ), final.η
 )
-
 anneal(init::xReLU, final::xReLU; β::Real) = xReLU(
-    (1 - β) * init.θ + β * final.θ, final.γ,
-    (1 - β) * init.Δ + β * final.Δ, final.ξ
+    oftype(final.θ, (1 - β) * init.θ + β * final.θ), final.γ,
+    oftype(final.Δ, (1 - β) * init.Δ + β * final.Δ), final.ξ
 )
 
 """
