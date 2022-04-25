@@ -2,7 +2,7 @@ using Test: @test, @testset, @inferred
 using Statistics: mean, std, var
 using Random: randn!
 using LogExpFunctions: logsumexp
-using RestrictedBoltzmannMachines: BinaryRBM, energy, free_energy, transfer_sample
+using RestrictedBoltzmannMachines: BinaryRBM, energy, free_energy, transfer_sample, visible, hidden
 using RestrictedBoltzmannMachines: anneal, ais, log_partition_zero_weight, logmeanexp, logvarexp
 using RestrictedBoltzmannMachines: Binary, Spin, Potts, Gaussian, ReLU, dReLU, xReLU, pReLU
 
@@ -16,8 +16,11 @@ end
 @testset "log_partition_zero_weight" begin
     rbm = BinaryRBM(randn(3), randn(2), zeros(3,2))
     lZ = logsumexp(-energy(rbm, [v1,v2,v3], [h1,h2]) for v1 in 0:1, v2 in 0:1, v3 in 0:1, h1 in 0:1, h2 in 0:1)
+    @test log_partition_zero_weight(rbm) ≈ lZ
     randn!(rbm.w)
     @test log_partition_zero_weight(rbm) ≈ lZ
+    @test log_partition_zero_weight(anneal(visible(rbm), rbm; β = 0)) ≈ log(4) - free_energy(visible(rbm))
+    @test log_partition_zero_weight(anneal(visible(rbm), rbm; β = 1)) ≈ lZ
 end
 
 @testset "AIS for binary RBM" begin
