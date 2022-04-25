@@ -3,7 +3,7 @@ using Statistics: mean, std, var
 using Random: randn!, bitrand
 using LogExpFunctions: logsumexp
 using RestrictedBoltzmannMachines: BinaryRBM, energy, free_energy, transfer_sample, visible, hidden
-using RestrictedBoltzmannMachines: anneal, ais, raise, log_partition_zero_weight, logmeanexp, logvarexp
+using RestrictedBoltzmannMachines: anneal, ais, raise, log_partition_zero_weight, logmeanexp, logvarexp, logstdexp
 using RestrictedBoltzmannMachines: Binary, Spin, Potts, Gaussian, ReLU, dReLU, xReLU, pReLU
 
 @testset "logmeanexp, logvarexp" begin
@@ -11,6 +11,7 @@ using RestrictedBoltzmannMachines: Binary, Spin, Potts, Gaussian, ReLU, dReLU, x
     @test logmeanexp(A; dims=2) ≈ log.(mean(exp.(A); dims=2))
     @test logvarexp(A; dims=2, corrected=true) ≈ log.(var(exp.(A); dims=2, corrected=true))
     @test logvarexp(A; dims=2, corrected=false) ≈ log.(var(exp.(A); dims=2, corrected=false))
+    @test logstdexp(A; dims=2, corrected=false) ≈ log.(var(exp.(A); dims=2, corrected=false)) ./ 2
 end
 
 @testset "log_partition_zero_weight" begin

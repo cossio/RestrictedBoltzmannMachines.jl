@@ -165,11 +165,20 @@ logmeanexp(A; dims=:) = logsumexp(A; dims) .- log(prod(size(A)[dims]))
 
 Computes `log.(var(exp.(A); dims))`, in a numerically stable way.
 """
-function logvarexp(A; dims=:, corrected::Bool=true, logμ = logmeanexp(A; dims))
+function logvarexp(A; dims=:, corrected::Bool=true, logmean = logmeanexp(A; dims))
 	if corrected
 		N = prod(size(A)[dims]) - 1
     else
         N = prod(size(A)[dims])
     end
-	return logsumexp(2logsubexp.(A, logμ); dims) .- log(N)
+	return logsumexp(2logsubexp.(A, logmean); dims) .- log(N)
+end
+
+"""
+    logstdexp(A; dims=:)
+
+Computes `log.(std(exp.(A); dims))`, in a numerically stable way.
+"""
+function logstdexp(A; dims=:, corrected::Bool = true, logmean = logmeanexp(A; dims))
+    return logvarexp(A; dims, corrected, logmean) ./ 2
 end
