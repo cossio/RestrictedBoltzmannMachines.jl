@@ -31,43 +31,40 @@ log-partition function. `std(R)` is a measure of the error in the estimate.
 """
 function ais(rbm::RBM; nbetas::Int = 1000, nsamples::Int = 1, init::AbstractLayer = visible(rbm))
     @assert size(init) == size(visible(rbm))
-    v = transfer_sample(init, Falses(size(init)..., nsamples))
-    annealed_rbm = anneal(init, rbm; β = 0)
-    R = fill(log_partition_zero_weight(annealed_rbm), nsamples)
-    for β in ((1:nbetas) ./ nbetas)
-        v = sample_v_from_v(annealed_rbm, v)
-        F_prev = free_energy(annealed_rbm, v)
-        annealed_rbm = anneal(init, rbm; β)
-        F_curr = free_energy(annealed_rbm, v)
-        R += F_prev - F_curr
+    v = transfer_sample(init, Falses(size(init)..., nsamples)) # v[0]
+    F_curr = free_energy(anneal(init, rbm; β = 0), v) # F[0](v[0])
+    annealed_rbm = anneal(init, rbm; β = 1 / nbetas) # β[0] -> β[1]
+    F_next = free_energy(annealed_rbm, v) # F[k](v[k - 1])
+    R = F_curr - F_next
+    for β in (2:nbetas) / nbetas
+        v = sample_v_from_v(annealed_rbm, v) # v[k-1] -> v[k]
+        F_curr = free_energy(annealed_rbm, v) # F[k](v[k])
+        annealed_rbm = anneal(init, rbm; β) # β[k] -> β[k + 1]
+        F_next = free_energy(annealed_rbm, v) # F[k + 1](v[k])
+        R += F_curr - F_next
     end
-    return R # logmeanexp(R) to get estimate
+    R .+= log_partition_zero_weight(anneal(init, rbm; β = 0))
+    return R # return vector of samples; use logmeanexp(R) to get a single estimate
 end
 
-function log_partition_ais_err(rbm::RBM; width::Real = 1, kwargs...)
-    R = ais(rbm; kwargs...)
-    lZ = logmeanexp(R)
-    lσ = logstdexp(R)
-    hi = logaddexp(lZ, lσ + log(width))
-    lo = logsubexp(lZ, lσ + log(width))
-    return (lZ, lo, hi)
-end
-
-function raise(rbm::RBM, v::AbstractArray; nbetas::Int, init::AbstractLayer = visible(rbm))
+function rais(rbm::RBM, v::AbstractArray; nbetas::Int, init::AbstractLayer = visible(rbm))
     nsamples = size(v)[end]
     @assert size(v) == (size(visible(rbm))..., nsamples)
     @assert size(init) == size(visible(rbm))
-    # init with -log(Z(β = 0))
-    R = fill(-log_partition_zero_weight(anneal(init, rbm; β = 0)), nsamples)
-    prev_rbm = rbm # rbm at temperature β[k + 1]
-    for β in reverse((0:(nbetas - 1)) ./ nbetas)
-        curr_rbm = anneal(init, rbm; β) # rbm at temperature β[k]
-        v = sample_v_from_v(curr_rbm, v)
-        F_prev = free_energy(prev_rbm, v) # p(v; β[k + 1])
-        F_curr = free_energy(curr_rbm, v) # p(v; β[k])
-        prev_rbm = curr_rbm
-        R += F_prev - F_curr # accumulate log(p(v; β[k]) / p(v; β[k + 1]))
+
+    F_curr = free_energy(rbm, v) # F(v[0])
+    annealed_rbm = anneal(init, rbm; β = (nbetas - 1) / nbetas) # β[K] -> β[K - 1]
+    F_next = free_energy(annealed_rbm, v) # F(v[1])
+    R = F_curr - F_next
+
+    for β in reverse((1:(nbetas - 2)) / nbetas)
+        v = sample_v_from_v(annealed_rbm, v) # v[k + 1] -> v[k]
+        F_curr = free_energy(annealed_rbm, v) # F[k+1](v[k])
+        annealed_rbm = anneal(init, rbm; β) # β[k + 1] -> β[k]
+        F_next = free_energy(annealed_rbm, v) # F[k](v[k])
+        R += F_curr - F_next
     end
+    R .-= log_partition_zero_weight(anneal(init, rbm; β = 0))
     return R # -logmeanexp(R) to get estimate of Z
 end
 
