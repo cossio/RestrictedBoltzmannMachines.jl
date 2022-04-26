@@ -189,5 +189,5 @@ Computes `log.(std(exp.(A); dims))`, in a numerically stable way.
 function logstdexp(
     A::AbstractArray; dims=:, corrected::Bool=true, logmean=logmeanexp(A; dims)
 )
-    return logvarexp(A; dims, corrected, logmean) ./ 2
+    return logvarexp(A; dims, corrected, logmean) / 2
 end
