@@ -47,7 +47,7 @@ end
 function log_partition_ais_err(rbm::RBM; width::Real = 1, kwargs...)
     R = ais(rbm; kwargs...)
     lZ = logmeanexp(R)
-    lσ = logvarexp(R) / 2
+    lσ = logstdexp(R)
     hi = logaddexp(lZ, lσ + log(width))
     lo = logsubexp(lZ, lσ + log(width))
     return (lZ, lo, hi)
