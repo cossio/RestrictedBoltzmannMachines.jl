@@ -158,20 +158,27 @@ log_partition_zero_weight(rbm::RBM) = -free_energy(visible(rbm)) - free_energy(h
 
 Computes `log.(mean(exp.(A); dims))`, in a numerically stable way.
 """
-logmeanexp(A; dims=:) = logsumexp(A; dims) .- log(prod(size(A)[dims]))
+function logmeanexp(A::AbstractArray; dims=:)
+    R = logsumexp(A; dims)
+    N = length(A) ÷ length(R)
+    return R .- log(N)
+end
 
 """
     logvarexp(A; dims=:)
 
 Computes `log.(var(exp.(A); dims))`, in a numerically stable way.
 """
-function logvarexp(A; dims=:, corrected::Bool=true, logmean = logmeanexp(A; dims))
+function logvarexp(
+    A::AbstractArray; dims=:, corrected::Bool=true, logmean=logmeanexp(A; dims)
+)
+    R = logsumexp(2logsubexp.(A, logmean); dims)
+    N = length(A) ÷ length(R)
 	if corrected
-		N = prod(size(A)[dims]) - 1
+		return R .- log(N - 1)
     else
-        N = prod(size(A)[dims])
+        return R .- log(N)
     end
-	return logsumexp(2logsubexp.(A, logmean); dims) .- log(N)
 end
 
 """
@@ -179,6 +186,8 @@ end
 
 Computes `log.(std(exp.(A); dims))`, in a numerically stable way.
 """
-function logstdexp(A; dims=:, corrected::Bool = true, logmean = logmeanexp(A; dims))
+function logstdexp(
+    A::AbstractArray; dims=:, corrected::Bool=true, logmean=logmeanexp(A; dims)
+)
     return logvarexp(A; dims, corrected, logmean) ./ 2
 end

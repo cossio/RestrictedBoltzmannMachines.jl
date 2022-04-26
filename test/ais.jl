@@ -8,10 +8,18 @@ using RestrictedBoltzmannMachines: Binary, Spin, Potts, Gaussian, ReLU, dReLU, x
 
 @testset "logmeanexp, logvarexp" begin
     A = randn(5,3,2)
-    @test logmeanexp(A; dims=2) ≈ log.(mean(exp.(A); dims=2))
-    @test logvarexp(A; dims=2, corrected=true) ≈ log.(var(exp.(A); dims=2, corrected=true))
-    @test logvarexp(A; dims=2, corrected=false) ≈ log.(var(exp.(A); dims=2, corrected=false))
-    @test logstdexp(A; dims=2, corrected=false) ≈ log.(var(exp.(A); dims=2, corrected=false)) ./ 2
+    for dims in (2, (1,2), :)
+        @test logmeanexp(A; dims) ≈ log.(mean(exp.(A); dims))
+        for corrected in (true, false)
+            @test logvarexp(A; dims, corrected) ≈ log.(var(exp.(A); dims, corrected))
+            @test logstdexp(A; dims, corrected) ≈ log.(std(exp.(A); dims, corrected))
+        end
+    end
+    @test logvarexp(A; dims=2) ≈ log.(var(exp.(A); dims=2))
+    @test logstdexp(A; dims=2) ≈ log.(std(exp.(A); dims=2))
+    @test logmeanexp(A) ≈ log.(mean(exp.(A)))
+    @test logvarexp(A) ≈ log.(var(exp.(A)))
+    @test logstdexp(A) ≈ log.(std(exp.(A)))
 end
 
 @testset "log_partition_zero_weight" begin
