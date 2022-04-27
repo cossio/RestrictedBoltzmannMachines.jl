@@ -30,7 +30,7 @@ nothing #hide
 # Estimate Z with AIS and reverse AIS.
 
 nsamples=100
-ndists = [10, 100, 1000, 10000]
+ndists = [10, 100, 1000, 10000, 100000]
 R_ais = Vector{Float64}[]
 R_rev = Vector{Float64}[]
 for nbetas in ndists
