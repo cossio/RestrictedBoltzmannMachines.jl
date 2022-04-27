@@ -48,9 +48,9 @@ fig = Makie.Figure()
 ax = Makie.Axis(
     fig[1,1], width=700, height=400, xscale=log10, xlabel="interpolating distributions", ylabel="log(Z)"
 )
-Makie.errorbars!(ax, ndists, logmeanexp.(R_ais), logstdexp.(R_ais); color=:blue)
+#Makie.errorbars!(ax, ndists, logmeanexp.(R_ais), logstdexp.(R_ais); color=:blue)
 Makie.lines!(ax, ndists, logmeanexp.(R_ais); color=:blue, label="AIS")
-Makie.errorbars!(ax, ndists, -logmeanexp.(R_raise), logstdexp.(R_raise); color=:black)
+#Makie.errorbars!(ax, ndists, -logmeanexp.(R_raise), logstdexp.(R_raise); color=:black)
 Makie.lines!(ax, ndists, -logmeanexp.(R_raise); color=:black, label="RAISE")
 Makie.axislegend(ax, position=:rt)
 Makie.resize_to_layout!(fig)
