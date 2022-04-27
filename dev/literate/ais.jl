@@ -10,7 +10,7 @@ import Makie
 import CairoMakie
 import RestrictedBoltzmannMachines as RBMs
 using ValueHistories: MVHistory
-using RestrictedBoltzmannMachines: Binary, BinaryRBM, initialize!, pcd!, ais, raise, logmeanexp, logstdexp
+using RestrictedBoltzmannMachines: Binary, BinaryRBM, initialize!, pcd!, ais, rais, logmeanexp, logstdexp
 
 # Load MNIST (0 digit only).
 
@@ -38,7 +38,7 @@ for nbetas in ndists
     )
     v = train_x[:, :, rand(1:size(train_x, 3), nsamples)]
     push!(R_raise,
-        raise(rbm, v; nbetas, init=initialize!(Binary(zero(rbm.visible.θ)), train_x))
+        rais(rbm, v; nbetas, init=initialize!(Binary(zero(rbm.visible.θ)), train_x))
     )
 end
 
