@@ -30,8 +30,11 @@ Here `init` is an initial independent-site distribution, represented by a visibl
 Returns `nsamples` variates, which can be averaged.
 
 If `R = ais(rbm)`, then `mean(exp.(R))` is an unbiased estimator of the partition function.
-Therefore `logmeanexp(R)` (defined in this package) can be used to estimate the
-log-partition function. `std(R)` is a measure of the error in the estimate.
+One can use `mean(R)` or `logmeanexp(R)` to estimate the log-partition function, and these
+estimators have different properties.
+`std(R)` or `logstdexp(R)` can be used to get (rough) estimates of the sampling error, but
+do not trust these because the estimator is biased for any number of finite interpolating
+temperatures!
 """
 function ais(rbm::RBM; nbetas::Int = 1000, nsamples::Int = 1, init::AbstractLayer = visible(rbm))
     @assert size(init) == size(visible(rbm))
@@ -48,9 +51,28 @@ function ais(rbm::RBM; nbetas::Int = 1000, nsamples::Int = 1, init::AbstractLaye
         R += F_curr - F_next
     end
     R .+= log_partition_zero_weight(anneal(init, rbm; β = 0))
-    return R # return vector of samples; use logmeanexp(R) to get a single estimate
+    return R # returns a vector of samples; use logmeanexp(R) to get a single estimate
 end
 
+"""
+    rais(rbm, v; nbetas = 10000, nsamples = 10, init = visible(rbm))
+
+Estimates the log-partition function of `rbm` by reverse Annealed Importance Sampling (AIS).
+These requires a set of samples `v` from the `rbm`. In pratice, we can use data points,
+assuming the `rbm` has been well-trained and approximates well the empirical distribution.
+As in [`ais`](@ref), `init` is an initial independent-site distribution, represented
+by a visible layer. It is recommended to select `init` to match the independent-site
+statistics of the data (so try to not use the default value `visible(rbm)`!).
+Returns `nsamples` variates, which can be averaged.
+
+If `R = rais(rbm)`, then `mean(exp.(-R))` is an unbiased estimator of `1/Z`, the inverse of
+the partition function.
+In practice, one can use `mean(R)` or `logmeanexp(R)` to estimate the log-partition function,
+but note that these estimators have different properties.
+`std(R)` or `logstdexp(R)` can be used to get (rough) estimates of the sampling error, but
+do not trust these because the estimator is biased for any number of finite interpolating
+temperatures!
+"""
 function rais(rbm::RBM, v::AbstractArray; nbetas::Int, init::AbstractLayer = visible(rbm))
     nsamples = size(v)[end]
     @assert size(v) == (size(visible(rbm))..., nsamples)
@@ -59,17 +81,17 @@ function rais(rbm::RBM, v::AbstractArray; nbetas::Int, init::AbstractLayer = vis
     F_curr = free_energy(rbm, v) # F(v[0])
     annealed_rbm = anneal(init, rbm; β = (nbetas - 1) / nbetas) # β[K] -> β[K - 1]
     F_next = free_energy(annealed_rbm, v) # F(v[1])
-    R = F_curr - F_next
+    R = F_next - F_curr
 
     for β in reverse((1:(nbetas - 2)) / nbetas)
         v = sample_v_from_v(annealed_rbm, v) # v[k + 1] -> v[k]
         F_curr = free_energy(annealed_rbm, v) # F[k+1](v[k])
         annealed_rbm = anneal(init, rbm; β) # β[k + 1] -> β[k]
         F_next = free_energy(annealed_rbm, v) # F[k](v[k])
-        R += F_curr - F_next
+        R += F_next - F_curr
     end
-    R .-= log_partition_zero_weight(anneal(init, rbm; β = 0))
-    return R # -logmeanexp(R) to get estimate of Z
+    R .+= log_partition_zero_weight(anneal(init, rbm; β = 0))
+    return R # mean(R) or -logmeanexp(-R) to get an estimate of Z
 end
 
 """

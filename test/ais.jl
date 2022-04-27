@@ -46,7 +46,7 @@ end
     @test logmeanexp(R) ≈ lZ  rtol=0.1
 
     R = rais(rbm, bitrand(3,100); nbetas=10000)
-    @test -logmeanexp(R) ≈ lZ rtol=0.1
+    @test -logmeanexp(-R) ≈ lZ rtol=0.1
 end
 
 @testset "anneal layer" begin

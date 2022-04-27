@@ -9,6 +9,7 @@ import MLDatasets
 import Makie
 import CairoMakie
 import RestrictedBoltzmannMachines as RBMs
+using Statistics: mean, std
 using ValueHistories: MVHistory
 using RestrictedBoltzmannMachines: Binary, BinaryRBM, initialize!, pcd!, ais, rais, logmeanexp, logstdexp
 
@@ -23,7 +24,7 @@ nothing #hide
 
 rbm = BinaryRBM(Float, (28,28), 128)
 initialize!(rbm, train_x)
-@time pcd!(rbm, train_x; epochs=50, batchsize=128)
+@time pcd!(rbm, train_x; epochs=100, batchsize=128)
 nothing #hide
 
 # Estimate Z with AIS and reverse AIS.
@@ -50,18 +51,18 @@ ax = Makie.Axis(
 )
 Makie.band!(
     ax, ndists,
-    logmeanexp.(R_ais) - std.(R_ais),
-    logmeanexp.(R_ais) + std.(R_ais);
+    mean.(R_ais) - std.(R_ais),
+    mean.(R_ais) + std.(R_ais);
     color=(:blue, 0.25)
 )
-Makie.lines!(ax, ndists, logmeanexp.(R_ais); color=:blue, label="AIS")
+Makie.lines!(ax, ndists, mean.(R_ais); color=:blue, label="AIS")
 Makie.band!(
     ax, ndists,
-    -logmeanexp.(R_rev) - std.(R_rev),
-    -logmeanexp.(R_rev) + std.(R_rev);
+    mean.(R_rev) - std.(R_rev),
+    mean.(R_rev) + std.(R_rev);
     color=(:black, 0.25)
 )
-Makie.lines!(ax, ndists, -logmeanexp.(R_rev); color=:black, label="reverse AIS")
+Makie.lines!(ax, ndists, mean.(R_rev); color=:black, label="reverse AIS")
 Makie.axislegend(ax, position=:rb)
 Makie.resize_to_layout!(fig)
 fig
