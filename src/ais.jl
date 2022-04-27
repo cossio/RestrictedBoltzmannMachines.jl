@@ -11,6 +11,10 @@ See http://proceedings.mlr.press/v38/burda15.html.
 Combining the two we can "sandwiches" the true value to have an idea if the Monte Carlo
 chains have converged.
 
+Addendum: I think Burda's paper has a typo. The correct expression for the weights In
+reverse AIS (which I use here) can be found in Upadhya et al 2015, Equation 10
+(https://link.springer.com/chapter/10.1007/978-3-319-26535-3_62).
+
 Bonus: A discussion of estimating partition function in RBMs, comparing several algorithms:
 
 https://www.sciencedirect.com/science/article/pii/S0004370219301948
