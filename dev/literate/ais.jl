@@ -9,7 +9,7 @@ import MLDatasets
 import Makie
 import CairoMakie
 import RestrictedBoltzmannMachines as RBMs
-using Statistics: mean, std
+using Statistics: mean, std, middle
 using ValueHistories: MVHistory
 using RestrictedBoltzmannMachines: Binary, BinaryRBM, initialize!, pcd!, ais, rais, logmeanexp, logstdexp
 
@@ -63,6 +63,8 @@ Makie.band!(
     color=(:black, 0.25)
 )
 Makie.lines!(ax, ndists, mean.(R_rev); color=:black, label="reverse AIS")
+Makie.hlines!(ax, middle(mean(R_ais[end]), mean(R_rev[end])), linestyle=:dash, color=:red, label="limiting estimate")
+Makie.xlims!(extrema(ndists)...)
 Makie.axislegend(ax, position=:rb)
 Makie.resize_to_layout!(fig)
 fig
