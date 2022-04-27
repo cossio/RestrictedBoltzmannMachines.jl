@@ -9,6 +9,7 @@ import MLDatasets
 import Makie
 import CairoMakie
 import RestrictedBoltzmannMachines as RBMs
+using Statistics: mean, std
 using ValueHistories: MVHistory
 using RestrictedBoltzmannMachines: Binary, BinaryRBM, initialize!, pcd!, ais, rais, logmeanexp, logstdexp
 
@@ -23,22 +24,22 @@ nothing #hide
 
 rbm = BinaryRBM(Float, (28,28), 128)
 initialize!(rbm, train_x)
-@time pcd!(rbm, train_x; epochs=50, batchsize=128)
+@time pcd!(rbm, train_x; epochs=100, batchsize=128)
 nothing #hide
 
-# Estimate Z with AIS and reverse AIS (RAISE).
+# Estimate Z with AIS and reverse AIS.
 
 nsamples=100
 ndists = [10, 100, 1000, 10000]
 R_ais = Vector{Float64}[]
-R_raise = Vector{Float64}[]
+R_rev = Vector{Float64}[]
 for nbetas in ndists
     push!(R_ais,
-        ais(rbm; nbetas, nsamples, init=initialize!(Binary(zero(rbm.visible.θ)), train_x))
+        @time ais(rbm; nbetas, nsamples, init=initialize!(Binary(zero(rbm.visible.θ)), train_x))
     )
     v = train_x[:, :, rand(1:size(train_x, 3), nsamples)]
-    push!(R_raise,
-        rais(rbm, v; nbetas, init=initialize!(Binary(zero(rbm.visible.θ)), train_x))
+    push!(R_rev,
+        @time rais(rbm, v; nbetas, init=initialize!(Binary(zero(rbm.visible.θ)), train_x))
     )
 end
 
@@ -48,10 +49,20 @@ fig = Makie.Figure()
 ax = Makie.Axis(
     fig[1,1], width=700, height=400, xscale=log10, xlabel="interpolating distributions", ylabel="log(Z)"
 )
-#Makie.errorbars!(ax, ndists, logmeanexp.(R_ais), logstdexp.(R_ais); color=:blue)
-Makie.lines!(ax, ndists, logmeanexp.(R_ais); color=:blue, label="AIS")
-#Makie.errorbars!(ax, ndists, -logmeanexp.(R_raise), logstdexp.(R_raise); color=:black)
-Makie.lines!(ax, ndists, -logmeanexp.(R_raise); color=:black, label="RAISE")
-Makie.axislegend(ax, position=:rt)
+Makie.band!(
+    ax, ndists,
+    mean.(R_ais) - std.(R_ais),
+    mean.(R_ais) + std.(R_ais);
+    color=(:blue, 0.25)
+)
+Makie.lines!(ax, ndists, mean.(R_ais); color=:blue, label="AIS")
+Makie.band!(
+    ax, ndists,
+    mean.(R_rev) - std.(R_rev),
+    mean.(R_rev) + std.(R_rev);
+    color=(:black, 0.25)
+)
+Makie.lines!(ax, ndists, mean.(R_rev); color=:black, label="reverse AIS")
+Makie.axislegend(ax, position=:rb)
 Makie.resize_to_layout!(fig)
 fig
