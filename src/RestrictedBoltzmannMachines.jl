@@ -54,4 +54,6 @@ include("train/optim.jl")
 
 include("regularize.jl")
 
+include("metropolis.jl")
+
 end # module
