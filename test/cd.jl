@@ -33,6 +33,11 @@ end
     @test gnorms.hidden.θ ≈ norm(∂F.hidden.θ)
     @test gnorms.w ≈ norm(∂F.w)
 
+    gλ = RBMs.gradmult(∂F, 2.3)
+    @test gλ.visible.θ ≈ ∂F.visible.θ * 2.3
+    @test gλ.hidden.θ ≈ ∂F.hidden.θ * 2.3
+    @test gλ.w ≈ ∂F.w * 2.3
+
     wts = rand(7)
     gs = Zygote.gradient(rbm) do rbm
         RBMs.wmean(RBMs.free_energy(rbm, v); wts)

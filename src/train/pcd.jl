@@ -44,6 +44,8 @@ function pcd!(
     zerosum && zerosum!(rbm)
     standardize_hidden && rescale_hidden!(rbm, inv.(sqrt.(var_h .+ ϵh)))
 
+    wts_mean = mean_maybe(wts)
+
     for epoch in 1:epochs
         batches = minibatches(data, wts; batchsize)
         for (batch_idx, (vd, wd)) in enumerate(batches)
@@ -53,6 +55,10 @@ function pcd!(
             # contrastive divergence gradient
             ∂d = ∂free_energy(rbm, vd; wts = wd, stats)
             ∂m = ∂free_energy(rbm, vm)
+
+            # correct minibatch weight bias
+            ∂d = gradmult(∂d, mean_maybe(wd) / wts_mean)
+
             ∂ = subtract_gradients(∂d, ∂m)
 
             λh = grad2mean(hidden(rbm), ∂d.hidden)
@@ -90,3 +96,20 @@ end
 
 fantasy_init(rbm::RBM, sz) = transfer_sample(visible(rbm), falses(size(visible(rbm))..., sz))
 empty_callback(@nospecialize(args...); @nospecialize(kw...)) = nothing
+
+mean_maybe(x::AbstractArray) = mean(x)
+mean_maybe(::Nothing) = 1
+
+"""
+    gradmult(∂, λ)
+
+Multiplies gradients by a scalar `λ`.
+"""
+gradmult(∂::AbstractArray, λ::Real) = gradmult(λ)(∂)
+gradmult(∂::NamedTuple, λ::Real) = map(gradmult(λ), ∂)
+
+function gradmult(λ::Real)
+    f(∂::AbstractArray) = ∂ * λ
+    f(∂::NamedTuple) = map(f, ∂)
+    return f
+end
