@@ -1,6 +1,6 @@
 #= Github Actions uses Intel CPUs, so it is faster to use MKL than OpenBLAS.
 It is recommended to load MKL before ANY other package.=#
-import MKL
+#import MKL
 using SafeTestsets: @safetestset
 
 @time @safetestset "util" begin include("util.jl") end
