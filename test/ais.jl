@@ -3,7 +3,8 @@ using Statistics: mean, std, var
 using Random: randn!, bitrand
 using LogExpFunctions: logsumexp
 using RestrictedBoltzmannMachines: BinaryRBM, energy, free_energy, transfer_sample, visible, hidden
-using RestrictedBoltzmannMachines: anneal, ais, rais, log_partition_zero_weight, logmeanexp, logvarexp, logstdexp
+using RestrictedBoltzmannMachines: anneal, ais, rais, ais!, rais!, log_partition_zero_weight
+using RestrictedBoltzmannMachines: logmeanexp, logvarexp, logstdexp
 using RestrictedBoltzmannMachines: Binary, Spin, Potts, Gaussian, ReLU, dReLU, xReLU, pReLU
 
 @testset "logmeanexp, logvarexp" begin
@@ -43,9 +44,21 @@ end
     @test logsumexp(-free_energy(rbm, [v1,v2,v3]) for v1 in 0:1, v2 in 0:1, v3 in 0:1) ≈ lZ
 
     R = ais(rbm; nbetas=10000, nsamples=100)
+    @test mean(R) ≈ lZ  rtol=0.1
     @test logmeanexp(R) ≈ lZ  rtol=0.1
 
     R = rais(rbm, bitrand(3,100); nbetas=10000)
+    @test mean(R) ≈ lZ  rtol=0.1
+    @test -logmeanexp(-R) ≈ lZ rtol=0.1
+
+    traj = bitrand(3, 100, 10000)
+    R = ais!(traj, rbm)
+    @test mean(R) ≈ lZ  rtol=0.1
+    @test -logmeanexp(-R) ≈ lZ rtol=0.1
+
+    traj = bitrand(3, 100, 10000)
+    R = rais!(traj, bitrand(3,100), rbm)
+    @test mean(R) ≈ lZ  rtol=0.1
     @test -logmeanexp(-R) ≈ lZ rtol=0.1
 end
 

@@ -22,6 +22,14 @@ https://www.sciencedirect.com/science/article/pii/S0004370219301948
 For a variant or RAISE: https://arxiv.org/abs/1511.02543
 =#
 
+function ais_step(rbm::RBM, init::AbstractLayer, annealed_rbm::RBM, v::AbstractArray; β::Real)
+    v = oftype(v, sample_v_from_v(annealed_rbm, v)) # v[k-1] -> v[k]
+    F_curr = free_energy(annealed_rbm, v) # F[k](v[k])
+    annealed_rbm = oftype(annealed_rbm, anneal(init, rbm; β)) # β[k] -> β[k + 1]
+    F_next = free_energy(annealed_rbm, v) # F[k + 1](v[k])
+    return annealed_rbm, v, F_next - F_curr
+end
+
 """
     ais(rbm; nbetas = 10000, nsamples = 10, init = visible(rbm))
 
@@ -39,18 +47,12 @@ temperatures!
 function ais(rbm::RBM; nbetas::Int = 1000, nsamples::Int = 1, init::AbstractLayer = visible(rbm))
     @assert size(init) == size(visible(rbm))
     v = transfer_sample(init, Falses(size(init)..., nsamples)) # v[0]
-    F_curr = free_energy(anneal(init, rbm; β = 0), v) # F[0](v[0])
-    annealed_rbm = anneal(init, rbm; β = 1 / nbetas) # β[0] -> β[1]
-    F_next = free_energy(annealed_rbm, v) # F[k](v[k - 1])
-    R = F_curr - F_next
-    for β in (2:nbetas) / nbetas
-        v = sample_v_from_v(annealed_rbm, v) # v[k-1] -> v[k]
-        F_curr = free_energy(annealed_rbm, v) # F[k](v[k])
-        annealed_rbm = anneal(init, rbm; β) # β[k] -> β[k + 1]
-        F_next = free_energy(annealed_rbm, v) # F[k + 1](v[k])
-        R += F_curr - F_next
+    annealed_rbm = anneal(init, rbm; β = 0 / nbetas) # β[0] -> β[1]
+    R = fill(log_partition_zero_weight(annealed_rbm), nsamples)
+    for t in 1:nbetas
+        annealed_rbm, v, ΔF = ais_step(rbm, init, annealed_rbm, v; β = t / nbetas)
+        R -= ΔF
     end
-    R .+= log_partition_zero_weight(anneal(init, rbm; β = 0))
     return R # returns a vector of samples; use logmeanexp(R) to get a single estimate
 end
 
@@ -74,24 +76,50 @@ do not trust these because the estimator is biased for any number of finite inte
 temperatures!
 """
 function rais(rbm::RBM, v::AbstractArray; nbetas::Int, init::AbstractLayer = visible(rbm))
-    nsamples = size(v)[end]
+    nsamples = size(v, ndims(v))
     @assert size(v) == (size(visible(rbm))..., nsamples)
     @assert size(init) == size(visible(rbm))
-
-    F_curr = free_energy(rbm, v) # F(v[0])
-    annealed_rbm = anneal(init, rbm; β = (nbetas - 1) / nbetas) # β[K] -> β[K - 1]
-    F_next = free_energy(annealed_rbm, v) # F(v[1])
-    R = F_next - F_curr
-
-    for β in reverse((1:(nbetas - 2)) / nbetas)
-        v = sample_v_from_v(annealed_rbm, v) # v[k + 1] -> v[k]
-        F_curr = free_energy(annealed_rbm, v) # F[k+1](v[k])
-        annealed_rbm = anneal(init, rbm; β) # β[k + 1] -> β[k]
-        F_next = free_energy(annealed_rbm, v) # F[k](v[k])
-        R += F_next - F_curr
+    annealed_rbm = anneal(init, rbm; β = nbetas / nbetas)
+    R = fill(log_partition_zero_weight(anneal(init, rbm; β = 0 / nbetas)), nsamples)
+    for t in reverse(1:(nbetas - 1))
+        annealed_rbm, v, ΔF = ais_step(rbm, init, annealed_rbm, v; β = t / nbetas)
+        R += ΔF
     end
-    R .+= log_partition_zero_weight(anneal(init, rbm; β = 0))
     return R # mean(R) or -logmeanexp(-R) to get an estimate of Z
+end
+
+#= in-place versions, useful for visualization =#
+
+function ais!(traj::AbstractArray, rbm::RBM; init::AbstractLayer = visible(rbm))
+    nsamples = size(traj, ndims(traj) - 1)
+    nbetas = size(traj, ndims(traj))
+    @assert size(traj) == (size(visible(rbm))..., nsamples, nbetas)
+    @assert size(init) == size(visible(rbm))
+    v = transfer_sample(init, Falses(size(init)..., nsamples)) # v[0]
+    annealed_rbm = anneal(init, rbm; β = 0 / nbetas) # β[0] -> β[1]
+    R = fill(log_partition_zero_weight(annealed_rbm), nsamples)
+    for t in 1:nbetas
+        annealed_rbm, v, ΔF = ais_step(rbm, init, annealed_rbm, v; β = t / nbetas)
+        R -= ΔF
+        selectdim(traj, ndims(traj), t) .= v
+    end
+    return R # returns a vector of samples; use logmeanexp(R) to get a single estimate
+end
+
+function rais!(traj::AbstractArray, v::AbstractArray, rbm::RBM; init::AbstractLayer = visible(rbm))
+    nsamples = size(traj, ndims(traj) - 1)
+    nbetas = size(traj, ndims(traj))
+    @assert size(traj) == (size(visible(rbm))..., nsamples, nbetas)
+    @assert size(init) == size(visible(rbm))
+    selectdim(traj, ndims(traj), nbetas) .= v
+    annealed_rbm = anneal(init, rbm; β = nbetas / nbetas)
+    R = fill(log_partition_zero_weight(anneal(init, rbm; β = 0 / nbetas)), nsamples)
+    for t in reverse(1:(nbetas - 1))
+        annealed_rbm, v, ΔF = ais_step(rbm, init, annealed_rbm, v; β = t / nbetas)
+        R += ΔF
+        selectdim(traj, ndims(traj), t) .= v
+    end
+    return R # returns a vector of samples; use logmeanexp(R) to get a single estimate
 end
 
 """
