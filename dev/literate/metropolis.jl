@@ -10,13 +10,13 @@ M = 2
 rbm = BinaryRBM(randn(N), randn(M), randn(N, M) / √N);
 
 β = 0.5
-T = 10000
-B = 100
-v = bitrand(N, B, T)
+nsteps = 10000
+nchains = 100
+v = bitrand(N, nchains, nsteps)
 metropolis!(v, rbm; β);
 
 counts = Dict{BitVector, Int}()
-for t in 1000:T, n in 1:B
+for t in 1000:nsteps, n in 1:nchains
     counts[v[:,n,t]] = get(counts, v[:,n,t], 0) + 1
 end
 freqs = Dict(v => c / sum(values(counts)) for (v,c) in counts);
