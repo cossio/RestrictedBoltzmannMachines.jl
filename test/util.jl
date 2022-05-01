@@ -2,6 +2,7 @@ import Statistics
 import RestrictedBoltzmannMachines as RBMs
 using Test: @test, @testset, @inferred
 using Statistics: mean, var, cov
+using LinearAlgebra: dot
 using RestrictedBoltzmannMachines: repeat_size
 
 @testset "two" begin
@@ -41,6 +42,10 @@ end
 end
 
 @testset "wmean" begin
+    A = randn(5)
+    w = rand(5)
+    @test dot(A, w) / sum(w) ≈ @inferred RBMs.wmean(A; wts=w)
+
     A = randn(4,3,5,2)
     @test mean(A) ≈ @inferred RBMs.wmean(A)
     @test mean(A; dims=(2,4)) ≈ @inferred RBMs.wmean(A; dims=(2,4))
