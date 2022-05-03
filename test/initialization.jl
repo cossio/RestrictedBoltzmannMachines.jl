@@ -1,4 +1,3 @@
-import Statistics
 import RestrictedBoltzmannMachines as RBMs
 using Test: @test, @testset
 using Statistics: mean
