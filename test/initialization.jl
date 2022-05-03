@@ -10,7 +10,7 @@ using Statistics: mean
 end
 
 @testset "initialization Spin" begin
-    data = sign.(rand(2, 3, 10^6) .- 1/4)
+    data = Int8.(sign.(rand(2, 3, 10^6) .- 1/4))
     rbm = RBMs.RBM(RBMs.Spin(2,3), RBMs.Binary(0), randn(2,3,0))
     RBMs.initialize!(rbm, data)
     @test RBMs.transfer_mean(rbm.visible) ≈ reshape(mean(data; dims=3), size(rbm.visible)) rtol=0.01

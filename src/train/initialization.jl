@@ -106,11 +106,11 @@ function initialize_w!(
 )
     @assert size(data) == (size(visible(rbm))..., size(data)[end])
     if isnothing(wts)
-        d = dot(data, data) / size(data, ndims(data))
+        d = dot(data, data / size(data, ndims(data)))
     else
         @assert length(wts) == size(data)[end]
         x = reshape(data, length(visible(rbm)), size(data)[end])
-        d = dot(x * Diagonal(wts), x) / sum(wts)
+        d = dot(x * Diagonal(wts), x / sum(wts))
     end
     randn!(weights(rbm))
     weights(rbm) .*= λ / √(d + ϵ)
