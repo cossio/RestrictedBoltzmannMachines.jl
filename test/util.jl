@@ -3,7 +3,7 @@ import RestrictedBoltzmannMachines as RBMs
 using Test: @test, @testset, @inferred
 using Statistics: mean, var, cov
 using LinearAlgebra: dot
-using RestrictedBoltzmannMachines: repeat_size
+using RestrictedBoltzmannMachines: repeat_size, sizedims
 
 @testset "two" begin
     @test RBMs.two(1) === RBMs.two(Int) === 2
@@ -86,4 +86,14 @@ end
     for n in ns, r in rs
         @test repeat_size(n, r...) == size(repeat(trues(n...), r...))
     end
+end
+
+@testset "sizedims" begin
+    A = randn(7,4,3,2)
+    @test @inferred(sizedims(A)) == ()
+    @test @inferred(sizedims(A, 2)) == (4,)
+    @test @inferred(sizedims(A, :)) == (7,4,3,2)
+    @test @inferred(sizedims(A, (2,))) == (4,)
+    @test @inferred(sizedims(A, (2,3))) == (4,3)
+    @test @inferred(sizedims(A, 2, 3)) == (4,3)
 end

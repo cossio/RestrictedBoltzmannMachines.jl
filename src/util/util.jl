@@ -81,3 +81,7 @@ repeat_size(n::NTuple{N,Int}, r::NTuple{R,Int}) where {N,R} = ntuple(max(N, R)) 
         r[d]
     end
 end
+
+sizedims(A::AbstractArray, dims::Int...) = sizedims(A, dims)
+sizedims(A::AbstractArray, dims::Tuple{Vararg{Int}}) = map(d -> size(A, d), dims)
+sizedims(A::AbstractArray, ::Colon) = size(A)
