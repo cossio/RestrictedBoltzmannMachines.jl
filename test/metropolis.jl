@@ -1,7 +1,7 @@
 using Test: @test, @testset, @inferred
 using Statistics: mean, std, var, cor
 using Random: randn!, bitrand
-using LogExpFunctions: logsumexp
+using LogExpFunctions: softmax
 using RestrictedBoltzmannMachines: BinaryRBM, energy, free_energy, metropolis, metropolis!
 import RestrictedBoltzmannMachines as RBMs
 
@@ -25,9 +25,8 @@ import RestrictedBoltzmannMachines as RBMs
     freqs = Dict(v => c / sum(values(counts)) for (v,c) in counts)
 
     𝒱 = [BitVector(digits(Bool, x; base=2, pad=N)) for x in 0:(2^N - 1)]
-    ℱ = free_energy.(Ref(rbm), 𝒱)
 
-    @test cor([get(freqs, v, 0.0) for v in 𝒱], exp.(-β * ℱ .- logsumexp(-β * ℱ))) > 0.99
+    @test cor([get(freqs, v, 0.0) for v in 𝒱], softmax(-β * free_energy.(Ref(rbm), 𝒱))) > 0.99
 end
 
 @testset "metropolis!" begin
@@ -48,7 +47,6 @@ end
     freqs = Dict(v => c / sum(values(counts)) for (v,c) in counts)
 
     𝒱 = [BitVector(digits(Bool, x; base=2, pad=N)) for x in 0:(2^N - 1)]
-    ℱ = free_energy.(Ref(rbm), 𝒱)
 
-    @test cor([get(freqs, v, 0.0) for v in 𝒱], exp.(-β * ℱ .- logsumexp(-β * ℱ))) > 0.99
+    @test cor([get(freqs, v, 0.0) for v in 𝒱], softmax(-β * free_energy.(Ref(rbm), 𝒱))) > 0.99
 end
