@@ -25,4 +25,10 @@ end
     @test length(batches) == RBMs.minibatch_count(X, Y, Z; batchsize=2)
     @test batches[1] == (X[:,1:2], nothing, Z[:,1:2])
     @test batches[2] == (X[:,3:4], nothing, Z[:,3:4])
+
+    X = randn(7, 100)
+    batches = RBMs.minibatches(X, X; batchsize=3, shuffle=true)
+    for (x1, x2) in batches
+        @test x1 == x2
+    end
 end
