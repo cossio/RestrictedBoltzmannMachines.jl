@@ -26,9 +26,10 @@ end
     @test batches[1] == (X[:,1:2], nothing, Z[:,1:2])
     @test batches[2] == (X[:,3:4], nothing, Z[:,3:4])
 
-    X = randn(7, 100)
+    X = randn(7, 10)
     batches = RBMs.minibatches(X, X; batchsize=3, shuffle=true)
     for (x1, x2) in batches
+        @test size(x1) == (7, 3)
         @test x1 == x2
     end
 end
