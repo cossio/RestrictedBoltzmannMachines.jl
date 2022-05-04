@@ -71,7 +71,7 @@ function pcd!(
             end
 
             # regularize
-            ∂reg!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights)
+            ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights)
 
             # compute parameter update step, according to optimizer algorithm
             update!(∂, rbm, optim)

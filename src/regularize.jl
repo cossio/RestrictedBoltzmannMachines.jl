@@ -4,12 +4,12 @@
 Updates `∂` with the regularization gradient.
 Based on https://github.com/jertubiana/PGM.
 """
-function ∂reg!(
+function ∂regularize!(
     ∂::NamedTuple, rbm::RBM{<:Union{Binary,Spin,Potts,Gaussian,ReLU,xReLU,pReLU}};
     l2_fields::Real = 0, l1_weights::Real = 0, l2_weights::Real = 0, l2l1_weights::Real = 0
 )
     if !iszero(l2_fields)
-        ∂reg_fields!(∂.visible, visible(rbm); l2_fields)
+        ∂regularize_fields!(∂.visible, visible(rbm); l2_fields)
     end
     if !iszero(l1_weights)
         ∂.w .+= l1_weights * sign.(weights(rbm))
@@ -24,7 +24,7 @@ function ∂reg!(
     return ∂
 end
 
-function ∂reg_fields!(
+function ∂regularize_fields!(
     ∂::NamedTuple, layer::Union{Binary,Spin,Potts,Gaussian,ReLU,xReLU,pReLU}; l2_fields::Real = 0
 )
     if !iszero(l2_fields)
@@ -33,7 +33,7 @@ function ∂reg_fields!(
     return ∂
 end
 
-function ∂reg_fields!(∂::NamedTuple, layer::dReLU; l2_fields::Real = 0)
+function ∂regularize_fields!(∂::NamedTuple, layer::dReLU; l2_fields::Real = 0)
     if !iszero(l2_fields)
         ∂.θp .+= l2_fields * layer.θp
         ∂.θn .+= l2_fields * layer.θn
