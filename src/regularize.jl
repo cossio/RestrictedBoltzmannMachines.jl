@@ -1,5 +1,5 @@
 """
-    ∂reg!(∂, rbm; l2_fields = 0, l1_weights = 0, l2_weights = 0, l2l1_weights = 0)
+    ∂regularize!(∂, rbm; l2_fields = 0, l1_weights = 0, l2_weights = 0, l2l1_weights = 0)
 
 Updates RBM gradients `∂`, with the regularization gradient.
 """

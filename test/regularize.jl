@@ -4,7 +4,7 @@ using Test: @test, @testset
 using Statistics: mean
 using Random: bitrand
 using RestrictedBoltzmannMachines: BinaryRBM, visible, hidden, weights
-using RestrictedBoltzmannMachines: free_energy, ∂free_energy, ∂reg!
+using RestrictedBoltzmannMachines: free_energy, ∂free_energy, ∂regularize!
 
 @testset "regularization" begin
     rbm = BinaryRBM(randn(3,5), randn(3,2), randn(3,5,3,2))
@@ -31,7 +31,7 @@ using RestrictedBoltzmannMachines: free_energy, ∂free_energy, ∂reg!
     end
 
     ∂ = ∂free_energy(rbm, v)
-    ∂reg!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights)
+    ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights)
 
     @test only(gs).visible.θ ≈ ∂.visible.θ
     @test only(gs).hidden.θ ≈ ∂.hidden.θ
