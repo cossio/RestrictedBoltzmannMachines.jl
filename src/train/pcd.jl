@@ -56,17 +56,23 @@ function pcd!(
             ∂d = ∂free_energy(rbm, vd; wts = wd, stats)
             ∂m = ∂free_energy(rbm, vm)
             ∂ = subtract_gradients(∂d, ∂m)
+
             # correct minibatch weight bias
-            ∂ = gradmult(∂, mean_maybe(wd) / wts_mean)
+            batch_weight = mean_maybe(wd) / wts_mean
+            ∂ = gradmult(∂, batch_weight)
 
             # update hidden centering and scaling statistics
             λh = grad2mean(hidden(rbm), ∂d.hidden) # extract mean from gradient
             νh = grad2var(hidden(rbm), ∂d.hidden)
-            # exponential moving average of mean and variance of hidden unit activations
-            ave_h .= (1 - hidden_damp) * λh .+ hidden_damp .* ave_h
-            var_h .= (1 - hidden_damp) * νh .+ hidden_damp .* var_h
 
-            if center # use centered gradients (Melchior et al 2016)
+            #= Exponential moving average of mean and variance of hidden unit activations.
+            The batchweight can be interpreted as an "effective number of updates". =#
+            damp = hidden_damp ^ batch_weight
+            ave_h .= (1 - damp) * λh .+ damp * ave_h
+            var_h .= (1 - damp) * νh .+ damp * var_h
+
+            # use centered gradients (Melchior et al 2016)
+            if center
                 ∂ = center_gradient(rbm, ∂, ave_v, ave_h)
             end
 
