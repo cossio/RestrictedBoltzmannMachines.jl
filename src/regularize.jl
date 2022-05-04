@@ -1,12 +1,15 @@
 """
     ∂reg!(∂, rbm; l2_fields = 0, l1_weights = 0, l2_weights = 0, l2l1_weights = 0)
 
-Updates `∂` with the regularization gradient.
-Based on https://github.com/jertubiana/PGM.
+Updates RBM gradients `∂`, with the regularization gradient.
 """
 function ∂regularize!(
-    ∂::NamedTuple, rbm::RBM{<:Union{Binary,Spin,Potts,Gaussian,ReLU,xReLU,pReLU}};
-    l2_fields::Real = 0, l1_weights::Real = 0, l2_weights::Real = 0, l2l1_weights::Real = 0
+    ∂::NamedTuple, # unregularized gradient
+    rbm::RBM{<:Union{Binary,Spin,Potts,Gaussian,ReLU,xReLU,pReLU}};
+    l2_fields::Real = 0, # L2 regularization of visible unit fields
+    l1_weights::Real = 0, # L1 regularization of weights
+    l2_weights::Real = 0, # L2 regularization of weights
+    l2l1_weights::Real = 0 # L2/L1 regularziation of weights (10.7554/eLife.39397, Eq. 8)
 )
     if !iszero(l2_fields)
         ∂regularize_fields!(∂.visible, visible(rbm); l2_fields)
