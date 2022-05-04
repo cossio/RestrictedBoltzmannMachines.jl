@@ -56,10 +56,10 @@ function pcd!(
             ∂d = ∂free_energy(rbm, vd; wts = wd, stats)
             ∂m = ∂free_energy(rbm, vm)
 
-            # correct minibatch weight bias
-            ∂d = gradmult(∂d, mean_maybe(wd) / wts_mean)
-
             ∂ = subtract_gradients(∂d, ∂m)
+
+            # correct minibatch weight bias
+            ∂ = gradmult(∂, mean_maybe(wd) / wts_mean)
 
             λh = grad2mean(hidden(rbm), ∂d.hidden)
             νh = grad2var(hidden(rbm), ∂d.hidden)
