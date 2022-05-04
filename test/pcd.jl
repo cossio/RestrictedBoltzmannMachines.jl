@@ -2,7 +2,7 @@ using Test: @test, @testset
 using Statistics: mean, cor
 using Random: bitrand
 using LogExpFunctions: softmax
-using RestrictedBoltzmannMachines: RBM, Spin, sample_v_from_v, initialize!, pcd!, free_energy
+using RestrictedBoltzmannMachines: RBM, Spin, sample_v_from_h, initialize!, pcd!, free_energy
 
 function train_nepochs(;
     nsamples::Int, # number observations in the data
@@ -18,7 +18,7 @@ nupdates = 50000
 
 @testset "pcd -- teacher/student" begin
     teacher = RBM(Spin(N), Spin(1), randn(N,1))
-    data = sample_v_from_v(teacher, rand(Int8[-1,1], N, 10000); steps=100)
+    data = sample_v_from_h(teacher, repeat(Int8[1 -1], 1, 10000))
     student = RBM(Spin(N), Spin(1), zeros(N,1))
     nsamples = size(data)[end]
     epochs = train_nepochs(; nsamples, batchsize, nupdates)
