@@ -105,11 +105,7 @@ mean_maybe(::Nothing) = 1
 
 Multiplies gradients by a scalar `λ`.
 """
-gradmult(∂::AbstractArray, λ::Real) = gradmult(λ)(∂)
-gradmult(∂::NamedTuple, λ::Real) = map(gradmult(λ), ∂)
-
-function gradmult(λ::Real)
-    f(∂::AbstractArray) = ∂ * λ
-    f(∂::NamedTuple) = map(f, ∂)
-    return f
+gradmult(∂::AbstractArray, λ::Real) = λ * ∂
+gradmult(∂::NamedTuple, λ::Real) = map(∂) do x
+    gradmult(x, λ)
 end
