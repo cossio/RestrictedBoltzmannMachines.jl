@@ -24,7 +24,7 @@ nupdates = 50000
     epochs = train_nepochs(; nsamples, batchsize, nupdates)
     initialize!(student, data)
     pcd!(student, data; epochs, batchsize, center=false)
-    @test cor(free_energy(teacher, data), free_energy(student, data)) > 0.95
+    @test cor(free_energy(teacher, data), free_energy(student, data)) > 0.9
 end
 
 @testset "pcd -- teacher/student, with weights" begin
