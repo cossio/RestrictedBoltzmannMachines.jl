@@ -49,24 +49,24 @@ function pcd!(
     for epoch in 1:epochs
         batches = minibatches(data, wts; batchsize)
         for (batch_idx, (vd, wd)) in enumerate(batches)
-            # update fantasy chains
+            # update persistent fantasy chains
             vm .= sample_v_from_v(rbm, vm; steps)
 
             # contrastive divergence gradient
             ∂d = ∂free_energy(rbm, vd; wts = wd, stats)
             ∂m = ∂free_energy(rbm, vm)
-
             ∂ = subtract_gradients(∂d, ∂m)
-
             # correct minibatch weight bias
             ∂ = gradmult(∂, mean_maybe(wd) / wts_mean)
 
-            λh = grad2mean(hidden(rbm), ∂d.hidden)
+            # update hidden centering and scaling statistics
+            λh = grad2mean(hidden(rbm), ∂d.hidden) # extract mean from gradient
             νh = grad2var(hidden(rbm), ∂d.hidden)
+            # exponential moving average of mean and variance of hidden unit activations
             ave_h .= (1 - hidden_damp) * λh .+ hidden_damp .* ave_h
             var_h .= (1 - hidden_damp) * νh .+ hidden_damp .* var_h
 
-            if center
+            if center # use centered gradients (Melchior et al 2016)
                 ∂ = center_gradient(rbm, ∂, ave_v, ave_h)
             end
 
