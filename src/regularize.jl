@@ -18,8 +18,8 @@ function ∂reg!(
         ∂.w .+= l2_weights * weights(rbm)
     end
     if !iszero(l2l1_weights)
-        vdims = ntuple(identity, ndims(visible(rbm)))
-        ∂.w .+= l2l1_weights * sign.(weights(rbm)) .* mean(abs, weights(rbm); dims=vdims)
+        dims = ntuple(identity, ndims(visible(rbm)))
+        ∂.w .+= l2l1_weights * sign.(weights(rbm)) .* mean(abs, weights(rbm); dims)
     end
     return ∂
 end
