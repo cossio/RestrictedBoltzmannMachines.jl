@@ -23,7 +23,7 @@ nupdates = 50000
     nsamples = size(data)[end]
     epochs = train_nepochs(; nsamples, batchsize, nupdates)
     initialize!(student, data)
-    pcd!(student, data; epochs, batchsize, center=false)
+    pcd!(student, data; epochs, batchsize)
     @test cor(free_energy(teacher, data), free_energy(student, data)) > 0.9
 end
 
@@ -36,6 +36,6 @@ end
     epochs = train_nepochs(; nsamples, batchsize, nupdates)
     student = RBM(Spin(N), Spin(1), zeros(N,1))
     initialize!(student, data; wts)
-    pcd!(student, data; wts, epochs, batchsize, center=false)
+    pcd!(student, data; wts, epochs, batchsize)
     @test cor(free_energy(teacher, data), free_energy(student, data)) > 0.95
 end
