@@ -5,12 +5,6 @@ using RestrictedBoltzmannMachines: zerosum!, Potts, RBM
 @testset "zerosum" begin
     q = 3
     N = (5,2,3)
-
-    layer = Potts(randn(q, N...) .+ 1)
-    @assert norm(sum(layer.θ; dims=1)) > 1
-    zerosum!(layer)
-    @test norm(sum(layer.θ; dims=1)) < 1e-10
-
     M = (4,3,2)
     B = (3,1)
 
