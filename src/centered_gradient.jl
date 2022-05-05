@@ -43,7 +43,7 @@ function uncenter_step(
     ∂::NamedTuple, shift::AbstractArray
 )
     @assert size(layer) == size(∂.θ) == size(shift)
-    return (∂..., θ = ∂.θ - shift,)
+    return (; ∂..., θ = ∂.θ - shift,)
 end
 
 function uncenter_step(layer::dReLU, ∂::NamedTuple, shift::AbstractArray)
