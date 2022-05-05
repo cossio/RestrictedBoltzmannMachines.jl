@@ -34,6 +34,23 @@ function wmean(A::AbstractArray; wts::Union{AbstractArray,Nothing} = nothing, di
     return mean(A .* w; dims) ./ mean(wts)
 end
 
+@doc raw"""
+    wsum(A; wts = nothing, dims = :)
+
+Weighted sum of `A` along dimensions `dims`, weighted by `wts`.
+
+```math
+\frac{\sum_i A_i w_i}
+```
+"""
+function wsum(A::AbstractArray; wts::Union{AbstractArray,Nothing} = nothing, dims = :)
+    if isnothing(wts)
+        return sum(A; dims)
+    else
+        return wmean(A; wts, dims) * sum(wts)
+    end
+end
+
 """
     generate_sequences(n, A = 0:1)
 

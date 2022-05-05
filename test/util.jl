@@ -61,6 +61,26 @@ end
     @test sum(reshape(wts,1,1,1,2) .* A; dims=4) ./ sum(wts) ≈ @inferred RBMs.wmean(A; dims=4, wts)
 end
 
+@testset "wsum" begin
+    A = randn(5)
+    w = rand(5)
+    @test dot(A, w) ≈ @inferred RBMs.wsum(A; wts=w)
+
+    A = randn(4,3,5,2)
+    @test sum(A) ≈ @inferred RBMs.wsum(A)
+    @test sum(A; dims=(2,4)) ≈ @inferred RBMs.wsum(A; dims=(2,4))
+
+    wts = rand(size(A)...)
+    @test sum(A .* wts) ≈ @inferred RBMs.wsum(A; wts)
+    @test sum(A .* wts) ≈ @inferred RBMs.wsum(A; wts, dims=:)
+
+    wts = rand(3,2)
+    @test sum(reshape(wts,1,3,1,2) .* A; dims=(2,4)) ≈ @inferred RBMs.wsum(A; dims=(2,4), wts)
+
+    wts = rand(2)
+    @test sum(reshape(wts,1,1,1,2) .* A; dims=4) ≈ @inferred RBMs.wsum(A; dims=4, wts)
+end
+
 @testset "reshape_maybe" begin
     @test RBMs.reshape_maybe(1, ()) == 1
     @test_throws Exception RBMs.reshape_maybe(1, 1)
