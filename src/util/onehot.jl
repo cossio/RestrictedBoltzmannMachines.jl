@@ -58,8 +58,8 @@ categorical distribution `P[:,i]`.
 You must ensure that `P` defines a proper probability distribution.
 """
 function categorical_sample(P::AbstractArray)
-    idx = CartesianIndices(Base.tail(size(P)))
-    C = Array{Int}(undef, Base.tail(size(P)))
+    idx = CartesianIndices(tail(size(P)))
+    C = Array{Int}(undef, tail(size(P)))
     @inbounds for i in idx
         ps = @view P[:,i]
         C[i] = categorical_rand(ps)
