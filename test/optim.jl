@@ -1,4 +1,4 @@
-using Test: @test, @testset
+using Test: @test, @testset, @inferred
 import Flux
 import RestrictedBoltzmannMachines as RBMs
 using Random: bitrand
@@ -89,4 +89,17 @@ end
     @test layer0.γ - layer.γ ≈ Δ.γ ≈ ∂.γ * opt.eta
     @test layer0.Δ - layer.Δ ≈ Δ.Δ ≈ ∂.Δ * opt.eta
     @test layer0.ξ - layer.ξ ≈ Δ.ξ ≈ ∂.ξ * opt.eta
+end
+
+
+@testset "subtract_gradients" begin
+    nt1 = (x = [2], y = [3])
+    nt2 = (x = [1], y = [-1])
+    @test @inferred(RBMs.subtract_gradients(nt1, nt2)) == (x = [1], y = [4])
+
+    nt1 = (x = [2], y = [3], t = (a = [1], b = [2]))
+    nt2 = (x = [1], y = [-1], t = (a = [2], b = [0]))
+    @test @inferred(RBMs.subtract_gradients(nt1, nt2)) == (
+        x = [1], y = [4], t = (a = [-1], b = [2])
+    )
 end

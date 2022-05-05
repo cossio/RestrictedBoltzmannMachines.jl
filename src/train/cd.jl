@@ -60,6 +60,3 @@ function ∂contrastive_divergence(
     ∂m = ∂free_energy(rbm, vm; wts = wm)
     return subtract_gradients(∂d, ∂m)
 end
-
-subtract_gradients(∂1::NamedTuple, ∂2::NamedTuple) = map(subtract_gradients, ∂1, ∂2)
-subtract_gradients(∂1::AbstractArray, ∂2::AbstractArray) where {N} = ∂1 - ∂2

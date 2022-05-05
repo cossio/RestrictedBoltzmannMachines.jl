@@ -139,3 +139,7 @@ function default_optimizer(
         Flux.ExpDecay(1, decay, steps_per_epoch, decay_final, start)
     )
 end
+
+subtract_gradients(∂1::NamedTuple, ∂2::NamedTuple) = map(subtract_gradients, ∂1, ∂2)
+subtract_gradients(∂1::AbstractArray, ∂2::AbstractArray) = ∂1 - ∂2
+
