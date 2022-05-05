@@ -8,7 +8,7 @@ function pcd!(
     data::AbstractArray;
     batchsize::Int = 1,
     epochs::Int = 1,
-    wts = nothing, # data weights
+    wts::Union{AbstractVector, Nothing} = nothing, # data weights
     steps::Int = 1, # MC steps to update fantasy chains
     optim = default_optimizer(_nobs(data), batchsize, epochs), # optimization algorithm
     vm = fantasy_init(rbm, batchsize), # fantasy chains
@@ -34,7 +34,7 @@ function pcd!(
     callback = empty_callback # called for every batch
 )
     @assert size(data) == (size(visible(rbm))..., size(data)[end])
-    @assert isnothing(wts) || _nobs(data) == _nobs(wts)
+    @assert isnothing(wts) || size(data)[end] == length(wts)
 
     # we center layers with their average activities
     ave_v = batchmean(visible(rbm), data; wts)
