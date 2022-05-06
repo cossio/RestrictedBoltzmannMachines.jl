@@ -1,41 +1,43 @@
 """
     center_gradient(rbm, ∂, λv, λh)
 
-Given the gradient `∂` of `rbm`, returns the gradient of the equivalent centered RBM
-with offsets `λv` and `λh`.
+Given a gradient `∂` of `rbm`, returns the gradient of the equivalent centered RBM
+with `offset_v` and `offset_h`.
 """
-function center_gradient(rbm::RBM, ∂::NamedTuple, λv::AbstractArray, λh::AbstractArray)
-    @assert size(rbm.visible) == size(λv)
-    @assert size(rbm.hidden) == size(λh)
+function center_gradient(rbm::RBM, ∂::NamedTuple, offset_v::AbstractArray, offset_h::AbstractArray)
+    @assert size(rbm.visible) == size(offset_v)
+    @assert size(rbm.hidden) == size(offset_h)
     @assert size(∂.w) == size(rbm.w)
     Δv = grad2mean(rbm.visible, ∂.visible)
     Δh = grad2mean(rbm.hidden, ∂.hidden)
     ∂w = reshape(∂.w, length(rbm.visible), length(rbm.hidden))
-    ∂wc = ∂w + vec(λv) * vec(Δh)' + vec(Δv) * vec(λh)'
-    return (visible = ∂.visible, hidden = ∂.hidden, w = reshape(∂wc, size(∂.w)))
+    ∂wc = ∂w + vec(offset_v) * vec(Δh)' + vec(Δv) * vec(offset_h)'
+    return (; ∂.visible, ∂.hidden, w = oftype(∂.w, reshape(∂wc, size(∂.w))))
 end
 
 """
     uncenter_step(rbm, ∂, λv, λh)
 
-Given parameter update step `∂` of a centered `rbm` with offsets `λv, λh`, returns the
-corresponding gradient of the equivalent uncentered RBM.
+Given parameter update step `∂` of a centered `rbm` with `offset_v` and `offset_h`, returns
+the corresponding gradient of the equivalent uncentered RBM.
 """
-function uncenter_step(rbm::RBM, ∂::NamedTuple, λv::AbstractArray, λh::AbstractArray)
-    @assert size(rbm.visible) == size(λv)
-    @assert size(rbm.hidden) == size(λh)
+function uncenter_step(rbm::RBM, ∂::NamedTuple, offset_v::AbstractArray, offset_h::AbstractArray)
+    @assert size(rbm.visible) == size(offset_v)
+    @assert size(rbm.hidden) == size(offset_h)
     @assert size(∂.w) == size(rbm.w)
     ∂w = reshape(∂.w, length(rbm.visible), length(rbm.hidden))
-    shift_v = reshape(∂w  * vec(λh), size(rbm.visible))
-    shift_h = reshape(∂w' * vec(λv), size(rbm.hidden))
+    shift_v = reshape(∂w  * vec(offset_h), size(rbm.visible))
+    shift_h = reshape(∂w' * vec(offset_v), size(rbm.hidden))
     ∂v = uncenter_step(rbm.visible, ∂.visible, shift_v)
     ∂h = uncenter_step(rbm.hidden,  ∂.hidden,  shift_h)
-    return (visible = ∂v, hidden = ∂h, w = ∂.w)
+    return (visible = oftype(∂.visible, ∂v), hidden = oftype(∂.hidden, ∂h), w = ∂.w)
 end
 
-function centered_gradient(rbm::RBM, ∂::NamedTuple, λv::AbstractArray, λh::AbstractArray)
-    ∂c = center_gradient(rbm, ∂, λv, λh)
-    return uncenter_step(rbm, ∂c, λv, λh)
+function centered_gradient(
+    rbm::RBM, ∂::NamedTuple, offset_v::AbstractArray, offset_h::AbstractArray
+)
+    ∂c = center_gradient(rbm, ∂, offset_v, offset_h)
+    return uncenter_step(rbm, ∂c, offset_v, offset_h)
 end
 
 function uncenter_step(
