@@ -91,7 +91,6 @@ end
     @test layer0.ξ - layer.ξ ≈ Δ.ξ ≈ ∂.ξ * opt.eta
 end
 
-
 @testset "subtract_gradients" begin
     nt1 = (x = [2], y = [3])
     nt2 = (x = [1], y = [-1])
