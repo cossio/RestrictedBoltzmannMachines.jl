@@ -12,17 +12,17 @@ function ∂regularize!(
     l2l1_weights::Real = 0 # L2/L1 regularziation of weights (10.7554/eLife.39397, Eq. 8)
 )
     if !iszero(l2_fields)
-        ∂regularize_fields!(∂.visible, visible(rbm); l2_fields)
+        ∂regularize_fields!(∂.visible, rbm.visible; l2_fields)
     end
     if !iszero(l1_weights)
-        ∂.w .+= l1_weights * sign.(weights(rbm))
+        ∂.w .+= l1_weights * sign.(rbm.w)
     end
     if !iszero(l2_weights)
-        ∂.w .+= l2_weights * weights(rbm)
+        ∂.w .+= l2_weights * rbm.w
     end
     if !iszero(l2l1_weights)
-        dims = ntuple(identity, ndims(visible(rbm)))
-        ∂.w .+= l2l1_weights * sign.(weights(rbm)) .* mean(abs, weights(rbm); dims)
+        dims = ntuple(identity, ndims(rbm.visible))
+        ∂.w .+= l2l1_weights * sign.(rbm.w) .* mean(abs, rbm.w; dims)
     end
     return ∂
 end
