@@ -146,6 +146,9 @@ subtract_gradients(∂1::AbstractArray, ∂2::AbstractArray) = ∂1 - ∂2
 add_gradients(∂s::NamedTuple...) = map(add_gradients, ∂s...)
 add_gradients(∂s::AbstractArray...) = +(∂s...)
 
+accum_gradients!(∂::NamedTuple, ∂s::NamedTuple...) = map(accum_gradients!, ∂, ∂s...)
+accum_gradients!(∂::AbstractArray, ∂s::AbstractArray...) = ∂ .= ((+).(∂, ∂s...))
+
 function combine_gradients(op, ∂1::NamedTuple, ∂2::NamedTuple)
     _op(∂1::NamedTuple, ∂2::NamedTuple) = map(_op, ∂1, ∂2)
     _op(∂1::AbstractArray, ∂2::AbstractArray) = op(∂1, ∂2)

@@ -115,6 +115,20 @@ end
     )
 end
 
+@testset "accum_gradients!" begin
+    nt1 = (x = [2], y = [3])
+    nt2 = (x = [1], y = [-1])
+    nt = deepcopy(nt1)
+    @test RBMs.add_gradients(nt1, nt2) == @inferred RBMs.accum_gradients!(nt, nt2)
+    @test nt == RBMs.add_gradients(nt1, nt2)
+
+    nt1 = (x = [2], y = [3], t = (a = [1], b = [2]))
+    nt2 = (x = [-1], y = [1], t = (a = [-2], b = [0]))
+    nt = deepcopy(nt1)
+    @test RBMs.add_gradients(nt1, nt2) == @inferred RBMs.accum_gradients!(nt, nt2)
+    @test nt == RBMs.add_gradients(nt1, nt2)
+end
+
 @testset "combine_gradients" begin
     nt1 = (x = [2], y = [3])
     nt2 = (x = [1], y = [-1])
