@@ -103,3 +103,35 @@ end
         x = [1], y = [4], t = (a = [-1], b = [2])
     )
 end
+
+@testset "add_gradients" begin
+    nt1 = (x = [2], y = [3])
+    nt2 = (x = [1], y = [-1])
+    @test @inferred(RBMs.add_gradients(nt1, nt2)) == (x = [3], y = [2])
+
+    nt1 = (x = [2], y = [3], t = (a = [1], b = [2]))
+    nt2 = (x = [-1], y = [1], t = (a = [-2], b = [0]))
+    @test @inferred(RBMs.add_gradients(nt1, nt2)) == (
+        x = [1], y = [4], t = (a = [-1], b = [2])
+    )
+end
+
+@testset "combine_gradients" begin
+    nt1 = (x = [2], y = [3])
+    nt2 = (x = [1], y = [-1])
+    @test RBMs.combine_gradients(-, nt1, nt2) == (x = [1], y = [4])
+    @test RBMs.combine_gradients(-, nt1, nt2) == RBMs.subtract_gradients(nt1, nt2)
+
+    nt1 = (x = [2], y = [3])
+    nt2 = (x = [1], y = [-1])
+    @test RBMs.combine_gradients(+, nt1, nt2) == (x = [3], y = [2])
+    @test RBMs.combine_gradients(+, nt1, nt2) == RBMs.add_gradients(nt1, nt2)
+
+    nt1 = (x = [2], y = [3], t = (a = [1], b = [2]))
+    nt2 = (x = [1], y = [-1], t = (a = [2], b = [0]))
+    @test RBMs.combine_gradients(-, nt1, nt2) == (
+        x = [1], y = [4], t = (a = [-1], b = [2])
+    )
+    @test RBMs.combine_gradients(+, nt1, nt2) == RBMs.add_gradients(nt1, nt2)
+    @test RBMs.combine_gradients(-, nt1, nt2) == RBMs.subtract_gradients(nt1, nt2)
+end
