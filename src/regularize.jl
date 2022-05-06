@@ -5,7 +5,7 @@ Updates RBM gradients `∂`, with the regularization gradient.
 """
 function ∂regularize!(
     ∂::NamedTuple, # unregularized gradient
-    rbm::RBM{<:Union{Binary,Spin,Potts,Gaussian,ReLU,xReLU,pReLU}};
+    rbm::RBM;
     l2_fields::Real = 0, # L2 regularization of visible unit fields
     l1_weights::Real = 0, # L1 regularization of weights
     l2_weights::Real = 0, # L2 regularization of weights
