@@ -23,10 +23,10 @@ For a variant or RAISE: https://arxiv.org/abs/1511.02543
 =#
 
 function ais_step(rbm::RBM, init::AbstractLayer, annealed_rbm::RBM, v::AbstractArray; β::Real)
-    v = oftype(v, sample_v_from_v(annealed_rbm, v)) # v[k-1] -> v[k]
+    v = oftype(v, sample_v_from_v(annealed_rbm, v)) # v[k ∓ 1] -> v[k]
     F_curr = free_energy(annealed_rbm, v) # F[k](v[k])
-    annealed_rbm = oftype(annealed_rbm, anneal(init, rbm; β)) # β[k] -> β[k + 1]
-    F_next = free_energy(annealed_rbm, v) # F[k + 1](v[k])
+    annealed_rbm = oftype(annealed_rbm, anneal(init, rbm; β)) # β[k] -> β[k ± 1]
+    F_next = free_energy(annealed_rbm, v) # F[k ± 1](v[k])
     return annealed_rbm, v, F_next - F_curr
 end
 
