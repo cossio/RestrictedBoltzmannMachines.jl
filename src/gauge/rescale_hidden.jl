@@ -10,8 +10,7 @@ original one.
 function rescale_hidden!(rbm::RBM, λ::AbstractArray)
     @assert size(rbm.hidden) == size(λ)
     if rescale_activations!(rbm.hidden, λ)
-        λ_sz = (map(one, size(rbm.visible))..., size(rbm.hidden)...)
-        rbm.w .*= reshape(λ, λ_sz)
+        rbm.w .*= reshape(λ, map(one, size(rbm.visible))..., size(rbm.hidden)...)
     end
     return rbm
 end
