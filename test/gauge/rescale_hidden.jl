@@ -23,8 +23,8 @@ Random.seed!(23)
         μ = transfer_mean(layer)
         ν = transfer_var(layer)
         rescale_activations!(layer, λ)
-        @test transfer_mean(layer) ≈ μ .* λ
-        @test transfer_var(layer) ≈ ν .* λ.^2
+        @test transfer_mean(layer) ≈ μ ./ λ
+        @test transfer_var(layer) ≈ ν ./ λ.^2
     end
 end
 
@@ -46,13 +46,13 @@ end
     λ = [1 + rand()]
     rescale_hidden!(rbm, λ)
 
-    @test free_energy(rbm, v) ≈ F .- sum(log, λ)
+    @test free_energy(rbm, v) ≈ F .+ sum(log, λ)
 
     v = sample_v_from_v(rbm, bitrand(size(visible(rbm))..., 20000); steps=100)
     h = sample_h_from_h(rbm, rand(size(hidden(rbm))..., 20000); steps=100)
 
     @test mean(v; dims=2) ≈ ave_v rtol=0.1
-    @test mean(h; dims=2) ≈ ave_h .* λ rtol=0.1
+    @test mean(h; dims=2) ≈ ave_h ./ λ rtol=0.1
     @test var(v; dims=2) ≈ var_v rtol=0.1
-    @test var(h; dims=2) ≈ var_h .* λ.^2 rtol=0.1
+    @test var(h; dims=2) ≈ var_h ./ λ.^2 rtol=0.1
 end

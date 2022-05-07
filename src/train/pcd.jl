@@ -42,7 +42,7 @@ function pcd!(
 
     # gauge constraints
     zerosum && zerosum!(rbm)
-    standardize_hidden && rescale_hidden!(rbm, inv.(sqrt.(var_h .+ ϵh)))
+    standardize_hidden && rescale_hidden!(rbm, sqrt.(var_h .+ ϵh))
 
     wts_mean = mean_maybe(wts)
 
@@ -92,7 +92,7 @@ function pcd!(
 
             # respect gauge constraints
             zerosum && zerosum!(rbm)
-            standardize_hidden && rescale_hidden!(rbm, inv.(sqrt.(var_h .+ ϵh)))
+            standardize_hidden && rescale_hidden!(rbm, sqrt.(var_h .+ ϵh))
 
             callback(; rbm, optim, epoch, batch_idx, vm, vd, wd)
         end
