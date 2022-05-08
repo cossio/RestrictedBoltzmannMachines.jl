@@ -163,7 +163,7 @@ end
     end
     ∂ = RBMs.∂free_energy(layer)
     @test ∂.θ ≈ only(gs).θ ≈ -transfer_mean(layer)
-    @test RBMs.grad2mean(layer, ∂) ≈ transfer_mean(layer)
+    @test RBMs.grad2ave(layer, ∂) ≈ transfer_mean(layer)
     @test RBMs.grad2var(layer, ∂) ≈ transfer_var(layer)
 end
 
@@ -177,7 +177,7 @@ end
     end
     ∂ = RBMs.∂free_energy(layer)
     @test ∂.θ ≈ only(gs).θ ≈ -transfer_mean(layer)
-    @test RBMs.grad2mean(layer, ∂) ≈ transfer_mean(layer)
+    @test RBMs.grad2ave(layer, ∂) ≈ transfer_mean(layer)
     @test RBMs.grad2var(layer, ∂) ≈ transfer_var(layer)
 end
 
@@ -196,7 +196,7 @@ end
     end
     ∂ = RBMs.∂free_energy(layer)
     @test ∂.θ ≈ only(gs).θ ≈ -transfer_mean(layer)
-    @test RBMs.grad2mean(layer, ∂) ≈ transfer_mean(layer)
+    @test RBMs.grad2ave(layer, ∂) ≈ transfer_mean(layer)
     @test RBMs.grad2var(layer, ∂) ≈ transfer_var(layer)
 end
 
@@ -226,7 +226,7 @@ end
     ∂ = RBMs.∂free_energy(layer)
     @test ∂.θ ≈ only(gs).θ ≈ -μ
     @test ∂.γ ≈ only(gs).γ ≈ μ2/2
-    @test RBMs.grad2mean(layer, ∂) ≈ transfer_mean(layer)
+    @test RBMs.grad2ave(layer, ∂) ≈ transfer_mean(layer)
     @test RBMs.grad2var(layer, ∂) ≈ transfer_var(layer)
 end
 
@@ -255,7 +255,7 @@ end
     ∂ = RBMs.∂free_energy(layer)
     @test ∂.θ ≈ only(gs).θ ≈ -μ
     @test ∂.γ ≈ only(gs).γ ≈ μ2/2
-    @test RBMs.grad2mean(layer, ∂) ≈ transfer_mean(layer)
+    @test RBMs.grad2ave(layer, ∂) ≈ transfer_mean(layer)
     @test RBMs.grad2var(layer, ∂) ≈ transfer_var(layer)
 end
 
@@ -383,7 +383,7 @@ end
     μ2 = @. ν + μ^2
     @test ∂.θp + ∂.θn ≈ -μ
     @test ∂.γp + ∂.γn ≈ μ2/2
-    @test RBMs.grad2mean(layer, ∂) ≈ transfer_mean(layer)
+    @test RBMs.grad2ave(layer, ∂) ≈ transfer_mean(layer)
     @test RBMs.grad2var(layer, ∂) ≈ transfer_var(layer)
 
     # check law of total variance
@@ -395,7 +395,7 @@ end
     ν_int = batchmean(layer, h_var)
     ν_ext = batchvar(layer, h_ave; mean = μ)
     ν = ν_int + ν_ext # law of total variance
-    @test RBMs.grad2mean(layer, ∂) ≈ μ
+    @test RBMs.grad2ave(layer, ∂) ≈ μ
     @test RBMs.grad2var(layer, ∂) ≈ ν
     μ1, ν1 = RBMs.meanvar_from_inputs(layer, inputs)
     @test μ1 ≈ μ
@@ -413,7 +413,7 @@ end
     @test ∂.γ ≈ only(gs).γ
     @test ∂.Δ ≈ only(gs).Δ
     @test ∂.η ≈ only(gs).η
-    @test RBMs.grad2mean(layer, ∂) ≈ transfer_mean(layer)
+    @test RBMs.grad2ave(layer, ∂) ≈ transfer_mean(layer)
     @test RBMs.grad2var(layer, ∂) ≈ transfer_var(layer)
 end
 
@@ -428,6 +428,6 @@ end
     @test ∂.γ ≈ only(gs).γ
     @test ∂.Δ ≈ only(gs).Δ
     @test ∂.ξ ≈ only(gs).ξ
-    @test RBMs.grad2mean(layer, ∂) ≈ transfer_mean(layer)
+    @test RBMs.grad2ave(layer, ∂) ≈ transfer_mean(layer)
     @test RBMs.grad2var(layer, ∂) ≈ transfer_var(layer)
 end
