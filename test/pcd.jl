@@ -20,7 +20,7 @@ end
     @test extensive_sample(Binary(2)) == reduce(hcat, [σ1,σ2] for σ1 in 0:1, σ2 in 0:1)
     @test extensive_sample(Spin(1)) == Int8[-1 1]
     @test extensive_sample(Spin(2)) == reduce(hcat, [s1,s2] for s1 in (-1,1), s2 in (-1,1))
-    @test extensive_sample(Potts(2,1)) == [1;0;;;0;1]
+    @test extensive_sample(Potts(2,1)) == reshape([1,0,0,1], 2,1,2)
     @test all(sum(extensive_sample(Potts(3,4)); dims=1) .== 1)
 end
 
