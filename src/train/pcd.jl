@@ -105,13 +105,3 @@ empty_callback(@nospecialize(args...); @nospecialize(kw...)) = nothing
 
 mean_maybe(x::AbstractArray) = mean(x)
 mean_maybe(::Nothing) = 1
-
-"""
-    gradmult(∂, λ)
-
-Multiplies gradients by a scalar `λ`.
-"""
-gradmult(∂::AbstractArray, λ::Real) = λ * ∂
-gradmult(∂::NamedTuple, λ::Real) = map(∂) do x
-    gradmult(x, λ)
-end

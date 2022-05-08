@@ -105,6 +105,8 @@ function update!(l::xReLU, ∂::NamedTuple)
     return l
 end
 
+update!(x::Any, ::Nothing) = x
+
 """
     gradnorms(∂)
 
@@ -112,6 +114,7 @@ Computes gradient norms.
 """
 gradnorms(∂::AbstractArray) = norm(∂)
 gradnorms(∂::NamedTuple) = map(gradnorms, ∂)
+gradnorms(::Nothing) = false
 
 """
     default_optimizer(nsamples, batchsize, epochs; decay_after, decay_final, clip, optim)
@@ -153,4 +156,14 @@ function combine_gradients(op, ∂1::NamedTuple, ∂2::NamedTuple)
     _op(∂1::NamedTuple, ∂2::NamedTuple) = map(_op, ∂1, ∂2)
     _op(∂1::AbstractArray, ∂2::AbstractArray) = op(∂1, ∂2)
     return map(_op, ∂1, ∂2)
+end
+
+"""
+    gradmult(∂, λ)
+
+Multiplies gradients by a scalar `λ`.
+"""
+gradmult(∂::AbstractArray, λ::Real) = oftype(∂, λ * ∂)
+gradmult(∂::NamedTuple, λ::Real) = map(∂) do x
+    gradmult(x, λ)
 end
