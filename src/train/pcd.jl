@@ -44,7 +44,8 @@ function pcd!(
     zerosum && zerosum!(rbm)
     standardize_hidden && rescale_hidden!(rbm, sqrt.(var_h .+ ϵh))
 
-    wts_mean = mean_maybe(wts)
+    # store average weight of each data point
+    wts_mean = isnothing(wts) ? 1 : mean(wts)
 
     for epoch in 1:epochs
         batches = minibatches(data, wts; batchsize)
@@ -57,8 +58,8 @@ function pcd!(
             ∂m = ∂free_energy(rbm, vm)
             ∂ = subtract_gradients(∂d, ∂m)
 
-            # correct minibatch weight bias
-            batch_weight = mean_maybe(wd) / wts_mean
+            # correct weighted minibatch bias
+            batch_weight = isnothing(wts) ? 1 : mean(wd) / wts_mean
             ∂ = gradmult(∂, batch_weight)
 
             # update hidden centering and scaling statistics
@@ -100,8 +101,40 @@ function pcd!(
     return rbm
 end
 
-fantasy_init(rbm::RBM, sz) = transfer_sample(visible(rbm), falses(size(visible(rbm))..., sz))
+# init fantasy chains
+fantasy_init(rbm::RBM; batchsize::Int, mode::Symbol = :pcd) = fantasy_init(rbm.visible; batchsize, mode)
+
+function fantasy_init(l::AbstractLayer; batchsize::Int, mode::Symbol = :pcd)
+    @assert mode ∈ (:pcd, :cd, :exact)
+    if mode === :pcd || mode === :cd
+        return transfer_sample(l, falses(size(l)..., batchsize))
+    elseif mode === :exact
+        @warn "Running extensive sampling; this can take a lot of RAM and time"
+        return extensive_sample(l)
+    end
+end
+
 empty_callback(@nospecialize(args...); @nospecialize(kw...)) = nothing
 
 mean_maybe(x::AbstractArray) = mean(x)
 mean_maybe(::Nothing) = 1
+function extensive_sample(layer::Binary; maxlen::Int = 12)
+    @assert length(layer) ≤ maxlen
+    N = length(layer)
+    v = reduce(hcat, digits.(Bool, 0:(2^N - 1), base=2, pad=N))
+    return reshape(v, size(layer)..., :)
+end
+
+function extensive_sample(layer::Spin; maxlen::Int = 12)
+    σ = extensive_sample(Binary(layer.θ); maxlen)
+    return Int8(2) * σ .- Int8(1)
+end
+
+function extensive_sample(layer::Potts; maxlen::Int = 12)
+    q = size(layer, 1)
+    N = prod(tail(size(layer)))
+    @assert N * log2(q) ≤ maxlen && q < typemax(Int8)
+    potts = reduce(hcat, digits.(Int8, 0:(q^N - 1), base=q, pad=N))
+    onehot = reshape(potts, 1, :) .== 0:(q - 1)
+    return reshape(onehot, size(layer)..., :)
+end
