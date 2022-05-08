@@ -59,7 +59,7 @@ epochs = 500
 history = MVHistory()
 time_0 = time()
 @time pcd!(
-    rbm, train_x; epochs, batchsize, center=false, standardize_hidden=false,
+    rbm, train_x; epochs, batchsize, center=false,
     callback = function(; epoch, batch_idx, _...)
         push!(history, :t, time() - time_0)
         if batch_idx == batchcount && epoch % 5 == 0
