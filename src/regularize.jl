@@ -11,19 +11,18 @@ function ∂regularize!(
     l2_weights::Real = 0, # L2 regularization of weights
     l2l1_weights::Real = 0 # L2/L1 regularziation of weights (10.7554/eLife.39397, Eq. 8)
 )
-    w = zerosum_weights(rbm.w, rbm)
     if !iszero(l2_fields)
         ∂regularize_fields!(∂.visible, rbm.visible; l2_fields)
     end
     if !iszero(l1_weights)
-        ∂.w .+= l1_weights * zerosum_weights(sign.(w), rbm)
+        ∂.w .+= l1_weights * sign.(rbm.w)
     end
     if !iszero(l2_weights)
-        ∂.w .+= l2_weights * w
+        ∂.w .+= l2_weights * rbm.w
     end
     if !iszero(l2l1_weights)
         dims = ntuple(identity, ndims(rbm.visible))
-        ∂.w .+= l2l1_weights * zerosum_weights(sign.(w) .* mean(abs, w; dims), rbm)
+        ∂.w .+= l2l1_weights * sign.(rbm.w) .* mean(abs, rbm.w; dims)
     end
     return ∂
 end
