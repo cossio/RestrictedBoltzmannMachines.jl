@@ -5,7 +5,7 @@ import Zygote
 import ChainRulesCore
 
 using Base: front, tail
-using Random: AbstractRNG, GLOBAL_RNG, randexp, randn!, shuffle!
+using Random: AbstractRNG, GLOBAL_RNG, randexp, randn!, rand!, shuffle!
 using LinearAlgebra: Diagonal, logdet, I, dot, norm
 using Statistics: mean, std
 using LogExpFunctions: softmax, logsumexp, log1pexp, logistic, logaddexp, logsubexp
