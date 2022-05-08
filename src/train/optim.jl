@@ -146,11 +146,14 @@ end
 subtract_gradients(∂1::NamedTuple, ∂2::NamedTuple) = map(subtract_gradients, ∂1, ∂2)
 subtract_gradients(∂1::AbstractArray, ∂2::AbstractArray) = ∂1 - ∂2
 
-add_gradients(∂s::NamedTuple...) = map(add_gradients, ∂s...)
-add_gradients(∂s::AbstractArray...) = +(∂s...)
+add_gradients(∂1::NamedTuple, ∂2::NamedTuple) = map(add_gradients, ∂1, ∂2)
+add_gradients(∂1::AbstractArray, ∂2::AbstractArray) = ∂1 + ∂2
+add_gradients(∂1::Union{NamedTuple,AbstractArray}, ::Nothing) = ∂1
+add_gradients(::Nothing, ∂2::Union{NamedTuple,AbstractArray}) = ∂2
 
-accum_gradients!(∂::NamedTuple, ∂s::NamedTuple...) = map(accum_gradients!, ∂, ∂s...)
-accum_gradients!(∂::AbstractArray, ∂s::AbstractArray...) = ∂ .= ((+).(∂, ∂s...))
+accum_gradients!(∂::NamedTuple, ∂other::NamedTuple) = map(accum_gradients!, ∂, ∂other)
+accum_gradients!(∂::AbstractArray, ∂other::AbstractArray) = ∂ .+= ∂other
+accum_gradients!(∂::Union{AbstractArray,Nothing}, ::Nothing) = ∂
 
 function combine_gradients(op, ∂1::NamedTuple, ∂2::NamedTuple)
     _op(∂1::NamedTuple, ∂2::NamedTuple) = map(_op, ∂1, ∂2)
@@ -164,6 +167,7 @@ end
 Multiplies gradients by a scalar `λ`.
 """
 gradmult(∂::AbstractArray, λ::Real) = oftype(∂, λ * ∂)
+gradmult(∂::Nothing, ::Real) = ∂
 gradmult(∂::NamedTuple, λ::Real) = map(∂) do x
     gradmult(x, λ)
 end
