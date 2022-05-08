@@ -26,7 +26,7 @@ end
 function transfer_sample(layer::Gaussian, inputs::Union{Real,AbstractArray} = 0)
     μ = transfer_mean(layer, inputs)
     σ = sqrt.(transfer_var(layer, inputs))
-    z = randn(promote_type(eltype(μ), eltype(σ)), size(μ))
+    z = randn!(similar(μ))
     return μ .+ σ .* z
 end
 

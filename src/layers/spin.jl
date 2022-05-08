@@ -37,7 +37,7 @@ end
 
 function transfer_sample(layer::Spin, inputs::Union{Real,AbstractArray} = 0)
     θ = layer.θ .+ inputs
-    u = rand(eltype(θ), size(θ))
+    u = rand!(similar(θ))
     return spin_rand.(θ, u)
 end
 
