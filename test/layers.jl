@@ -397,6 +397,9 @@ end
     ν = ν_int + ν_ext # law of total variance
     @test RBMs.grad2mean(layer, ∂) ≈ μ
     @test RBMs.grad2var(layer, ∂) ≈ ν
+    μ1, ν1 = RBMs.meanvar_from_inputs(layer, inputs)
+    @test μ1 ≈ μ
+    @test ν1 ≈ ν
 end
 
 @testset "pReLU" begin
