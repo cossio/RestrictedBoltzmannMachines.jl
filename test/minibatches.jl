@@ -27,9 +27,13 @@ end
     @test batches[2] == (X[:,3:4], nothing, Z[:,3:4])
 
     X = randn(7, 10)
-    batches = RBMs.minibatches(X, X; batchsize=3, shuffle=true)
-    for (x1, x2) in batches
+    batches = RBMs.minibatches(X, X, copy(X); batchsize=3, shuffle=true)
+    for (x1, x2, x3) in batches
         @test size(x1) == (7, 3)
-        @test x1 == x2
+        @test x1 == x2 == x3
     end
+
+    batch = only(RBMs.minibatches([1,2,3], [1,2,3]'; batchsize=3))
+    p = sortperm(batch[1])
+    @test batch[1][p] == batch[2]'[p] == [1,2,3]
 end
