@@ -58,7 +58,7 @@ end
     initialize!(student, data; wts)
     student.w .= cos.(1:N)
     @test transfer_mean(student.visible) ≈ wmean(data; wts, dims=2)
-    pcd!(student, data; wts, epochs, batchsize, mode=:exact, shuffle=false, optim=Flux.AdaBelief())
+    pcd!(student, data; wts, epochs, batchsize, mode=:exact, shuffle=false, optim=Flux.RADAM())
     @info @test cor(free_energy(teacher, data), free_energy(student, data)) > 0.9999
 end
 

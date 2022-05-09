@@ -81,14 +81,19 @@ function pcd!(
             var_h .= (1 - damp_eff) * var_h_batch .+ damp_eff * var_h
             @assert all(var_h .> 0)
 
-            # gradient of the centered RBM (Melchior et al 2016)
             if center
+                # gradient of the centered RBM (Melchior et al 2016)
                 ∂ = center_gradient(rbm, ∂, ave_v, ave_h)
-                ∂ = uncenter_step(rbm, ∂, ave_v, ave_h)
             end
 
             # compute parameter update step, according to optimizer algorithm
             update!(∂, rbm, optim)
+
+            if center
+                # transform step in centered coordinates to uncentered coordinates
+                ∂ = uncenter_step(rbm, ∂, ave_v, ave_h)
+            end
+
             # update parameters with update step computed above
             update!(rbm, ∂)
 
