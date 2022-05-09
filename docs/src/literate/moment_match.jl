@@ -52,7 +52,7 @@ nsteps = 2000
 nsamples = 1000
 v_model = falses(28, 28, nsamples, nsteps);
 v_model[:,:,:,1] .= transfer_sample(rbm.visible, falses(28,28,nsamples));
-@showprogress for t in 2:nsteps
+for t in 2:nsteps
     v_model[:, :, :, t] .= sample_v_from_v(rbm, v_model[:, :, :, t - 1])
 end
 h_data = sample_h_from_v(rbm, train_x);
