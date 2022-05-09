@@ -5,7 +5,7 @@ using LinearAlgebra: dot
 using Random: bitrand, rand!
 using Zygote: gradient, jacobian
 using RestrictedBoltzmannMachines: visible, hidden, weights, free_energy, energy, interaction_energy
-using RestrictedBoltzmannMachines: RBM, BinaryRBM, grad2ave, subtract_gradients
+using RestrictedBoltzmannMachines: RBM, BinaryRBM, grad2mean, subtract_gradients
 using RestrictedBoltzmannMachines: Binary, Spin, Potts, Gaussian, ReLU, dReLU, pReLU, xReLU
 using RestrictedBoltzmannMachines: sample_v_from_v, sample_h_from_h, ∂free_energy
 
@@ -174,10 +174,10 @@ _layers = (Binary, Spin, Potts, Gaussian, ReLU, dReLU, pReLU, xReLU)
     @test energy(layer, x) ≈ energy(layerc, x) - x' * λ
 end
 
-@testset "grad2ave $Layer" for Layer in _layers
+@testset "grad2mean $Layer" for Layer in _layers
     layer = Layer(5)
     rbm = RBM(layer, Binary(randn(3)), randn(5,3))
     v = sample_v_from_v(rbm, randn(5,100); steps=100)
     ∂ = ∂free_energy(rbm, v)
-    @test grad2ave(visible(rbm), ∂.visible) ≈ dropdims(mean(v; dims=2); dims=2)
+    @test grad2mean(visible(rbm), ∂.visible) ≈ dropdims(mean(v; dims=2); dims=2)
 end

@@ -288,7 +288,7 @@ function ∂free_energy(
     ∂h = map(∂Γ) do ∂f
         batchmean(hidden(rbm), ∂f; wts)
     end
-    h = grad2ave(hidden(rbm), ∂Γ)
+    h = grad2mean(hidden(rbm), ∂Γ)
     ∂w = ∂interaction_energy(rbm, v, h; wts)
     return (visible = ∂v, hidden = ∂h, w = ∂w)
 end
