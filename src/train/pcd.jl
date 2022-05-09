@@ -67,9 +67,6 @@ function pcd!(
             batch_weight = isnothing(wts) ? 1 : mean(wd) / wts_mean
             ∂ = gradmult(∂, batch_weight)
 
-            # regularize
-            ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights)
-
             # extract hidden unit statistics from gradient
             ave_h_batch = grad2ave(rbm.hidden, ∂d.hidden)
             var_h_batch = grad2var(rbm.hidden, ∂d.hidden) .+ ϵh
@@ -86,7 +83,7 @@ function pcd!(
                 ∂ = center_gradient(rbm, ∂, ave_v, ave_h)
             end
 
-            # compute parameter update step, according to optimizer algorithm
+            # compute parameter update step from gradient, according to optimizer algorithm
             update!(∂, rbm, optim)
 
             if center
@@ -94,10 +91,13 @@ function pcd!(
                 ∂ = uncenter_step(rbm, ∂, ave_v, ave_h)
             end
 
+            # weight decay
+            ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights)
+
             # update parameters with update step computed above
             update!(rbm, ∂)
 
-            # respect gauge constraints
+            # reset gauge
             zerosum && zerosum!(rbm)
             rescale && rescale_hidden!(rbm, sqrt.(var_h .+ ϵh))
 
