@@ -41,8 +41,7 @@ function pcd!(
     # we center layers with their average activities
     ave_v = batchmean(visible(rbm), data; wts)
     ave_h, var_h = meanvar_from_inputs(hidden(rbm), inputs_v_to_h(rbm, data); wts)
-    var_h .+= ϵh
-    @assert all(var_h .> 0)
+    @assert all(var_h .+ ϵh .> 0)
 
     # gauge constraints
     zerosum && zerosum!(rbm)
@@ -69,14 +68,14 @@ function pcd!(
 
             # extract hidden unit statistics from gradient
             ave_h_batch = grad2mean(rbm.hidden, ∂d.hidden)
-            var_h_batch = grad2var(rbm.hidden, ∂d.hidden) .+ ϵh
+            var_h_batch = grad2var(rbm.hidden, ∂d.hidden)
 
             #= Exponential moving average of mean and variance of hidden unit activations.
             The batchweight can be interpreted as an "effective number of updates". =#
             damp_eff = damp ^ batch_weight # effective damp after 'batch_weight' updates
             ave_h .= (1 - damp_eff) * ave_h_batch .+ damp_eff * ave_h
             var_h .= (1 - damp_eff) * var_h_batch .+ damp_eff * var_h
-            @assert all(var_h .> 0)
+            @assert all(var_h .+ ϵh .> 0)
 
             # weight decay
             ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights)
