@@ -78,6 +78,9 @@ function pcd!(
             var_h .= (1 - damp_eff) * var_h_batch .+ damp_eff * var_h
             @assert all(var_h .> 0)
 
+            # weight decay
+            ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights)
+
             if center
                 # gradient of the centered RBM (Melchior et al 2016)
                 ∂ = center_gradient(rbm, ∂, ave_v, ave_h)
@@ -90,10 +93,6 @@ function pcd!(
                 # transform step in centered coordinates to uncentered coordinates
                 ∂ = uncenter_step(rbm, ∂, ave_v, ave_h)
             end
-
-            # weight decay
-            ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights)
-
             # update parameters with update step computed above
             update!(rbm, ∂)
 
