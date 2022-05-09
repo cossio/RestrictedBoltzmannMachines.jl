@@ -30,6 +30,19 @@ using RestrictedBoltzmannMachines: Binary, Spin, Potts, Gaussian, ReLU, dReLU, p
     @test lr_expected[end] ≈ decay_final
     lr_expected = [lr_expected[2:end]; max(decay_final, decay_gamma * decay_final)]
     @test lr ≈ lr_expected
+
+    @testset "no decay" begin
+        decay_after = 2
+        startepoch = round(Int, epochs * decay_after)
+
+        o = default_optimizer(
+            nsamples, batchsize, epochs;
+            optim=Flux.Descent(1), decay_final, decay_after, clip=Inf,
+        )
+        p = [0.0]
+        lr = [only(Flux.Optimise.apply!(o, p, [1.0])) for b in minibatches(nsamples; batchsize) for epoch in 1:epochs]
+        @test all(lr .≈ 1)
+    end
 end
 
 @testset "update!" begin
