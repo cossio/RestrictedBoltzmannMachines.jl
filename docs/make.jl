@@ -68,6 +68,7 @@ Documenter.makedocs(
                 "Float32 vs. Float64" => "literate/float32.md",
                 "AutoDiff" => "literate/ad.md",
             ],
+            "Moment-matching" => "literate/moment_match.md",
             "Learning rate decay" => "literate/lr_decay.md",
             "No centering" => "literate/center.md",
             "AIS" => "literate/ais.md",
