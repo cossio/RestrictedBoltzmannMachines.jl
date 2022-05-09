@@ -36,10 +36,12 @@ function pcd!(
 )
     @assert size(data) == (size(visible(rbm))..., size(data)[end])
     @assert isnothing(wts) || size(data)[end] == length(wts)
+    @assert ϵh ≥ 0
 
     # we center layers with their average activities
     ave_v = batchmean(visible(rbm), data; wts)
     ave_h, var_h = meanvar_from_inputs(hidden(rbm), inputs_v_to_h(rbm, data); wts)
+    var_h .+= ϵh
     @assert all(var_h .> 0)
 
     # gauge constraints
@@ -70,7 +72,7 @@ function pcd!(
 
             # extract hidden unit statistics from gradient
             ave_h_batch = grad2ave(rbm.hidden, ∂d.hidden)
-            var_h_batch = grad2var(rbm.hidden, ∂d.hidden)
+            var_h_batch = grad2var(rbm.hidden, ∂d.hidden) .+ ϵh
 
             #= Exponential moving average of mean and variance of hidden unit activations.
             The batchweight can be interpreted as an "effective number of updates". =#
