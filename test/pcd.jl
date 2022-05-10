@@ -1,9 +1,10 @@
 using Test: @test, @testset
 using Statistics: mean, cor
+using LinearAlgebra: norm, Diagonal
 using Random: bitrand
 using LogExpFunctions: softmax
-using RestrictedBoltzmannMachines: RBM, Spin, Binary, Potts, Gaussian
-using RestrictedBoltzmannMachines: transfer_mean, extensive_sample, zerosum
+using RestrictedBoltzmannMachines: RBM, Spin, Binary, Potts, Gaussian, mean_h_from_v
+using RestrictedBoltzmannMachines: transfer_mean, extensive_sample, zerosum, batchmean
 using RestrictedBoltzmannMachines: sample_v_from_h, sample_v_from_v, initialize!, pcd!, free_energy, wmean
 import Flux
 
@@ -41,6 +42,21 @@ end
     @test transfer_mean(student.visible) ≈ wmean(data; wts, dims=2)
     pcd!(student, data; wts, epochs, batchsize, mode=:exact, optim=Flux.AdaBelief())
     @info @test cor(free_energy(teacher, data), free_energy(student, data)) > 0.9999
+
+    # moment matching conditions
+    wts_student = softmax(-free_energy(student, data))
+
+    v_student = batchmean(student.visible, data; wts = wts_student)
+    v_teacher = batchmean(teacher.visible, data; wts)
+    @info @test norm(v_student - v_teacher) < 1e-10
+
+    h_student = batchmean(student.hidden, mean_h_from_v(student, data); wts=wts_student)
+    h_teacher = batchmean(teacher.hidden, mean_h_from_v(student, data); wts)
+    @info @test norm(h_student - h_teacher) < 1e-10
+
+    vh_student = data * Diagonal(wts_student) * mean_h_from_v(student, data)' / sum(wts_student)
+    vh_teacher = data * Diagonal(wts) * mean_h_from_v(student, data)' / sum(wts)
+    @info @test norm(vh_student - vh_teacher) < 1e-10
 end
 
 @testset "pcd -- teacher/student, Spin, with weights, exact" begin
