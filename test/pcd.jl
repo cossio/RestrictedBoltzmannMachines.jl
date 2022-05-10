@@ -3,8 +3,9 @@ using Statistics: mean, cor
 using LinearAlgebra: norm, Diagonal
 using Random: bitrand
 using LogExpFunctions: softmax
-using RestrictedBoltzmannMachines: RBM, Spin, Binary, Potts, Gaussian, mean_h_from_v
-using RestrictedBoltzmannMachines: transfer_mean, extensive_sample, zerosum, batchmean
+using RestrictedBoltzmannMachines: RBM, Spin, Binary, Potts, Gaussian
+using RestrictedBoltzmannMachines: mean_h_from_v, var_h_from_v, batchmean, batchvar
+using RestrictedBoltzmannMachines: transfer_mean, extensive_sample, zerosum
 using RestrictedBoltzmannMachines: sample_v_from_h, sample_v_from_v, initialize!, pcd!, free_energy, wmean
 import Flux
 
@@ -93,8 +94,12 @@ end
     initialize!(student, data; wts)
     student.w .= cos.(1:N)
     @test transfer_mean(student.visible) ≈ wmean(data; wts, dims=2)
-    pcd!(student, data; wts, epochs, batchsize, shuffle=false, mode=:exact, optim=Flux.ADAM())
+    pcd!(student, data; wts, epochs, batchsize, ϵh=1e-2, shuffle=false, mode=:exact, optim=Flux.ADAM())
     @info @test cor(free_energy(teacher, data), free_energy(student, data)) > 0.99
+    wts_student = softmax(-free_energy(student, data))
+    ν_int = batchmean(student.hidden, var_h_from_v(student, data); wts = wts_student)
+    ν_ext = batchvar(student.hidden, mean_h_from_v(student, data); wts = wts_student)
+    @test only(ν_int + ν_ext) ≈ 1 - 1e-2 # not exactly 1 because of ϵh
 end
 
 @testset "pcd -- teacher/student, Potts, with weights, exact" begin
