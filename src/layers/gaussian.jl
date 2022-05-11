@@ -49,10 +49,10 @@ gauss_energy(θ::Real, γ::Real, x::Real) = (abs(γ) * x / 2 - θ) * x
 
 function ∂free_energies(layer::Gaussian, inputs::Union{Real,AbstractArray} = 0)
     θ = layer.θ .+ inputs
-    γ = abs.(layer.γ)
+    abs_γ = abs.(layer.γ)
     return (
-        θ = -θ ./ γ,
-        γ = sign.(γ) .* (γ .+ θ.^2) ./ γ.^2 / 2
+        θ = -θ ./ abs_γ,
+        γ = @. sign(layer.γ) * (abs_γ + θ^2) / abs_γ^2 / 2
     )
 end
 
@@ -71,5 +71,5 @@ suffstats(layer::Gaussian, x::AbstractArray; wts = nothing) = GaussStats(layer, 
 
 function ∂energy(layer::Gaussian, stats::GaussStats)
     @assert size(layer) == size(stats)
-    return (; θ = -stats.x1, γ = stats.x2 / 2)
+    return (; θ = -stats.x1, γ = sign.(layer.γ) .* stats.x2 / 2)
 end

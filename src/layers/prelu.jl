@@ -48,12 +48,14 @@ function ∂free_energies(layer::pReLU, inputs::Union{Real,AbstractArray} = 0)
     μ2p = @. (νp + μp^2) / 2
     μ2n = @. (νn + μn^2) / 2
 
+    abs_γ = abs.(layer.γ)
+
     ∂θ = @. -(pp * μp - pn * μn)
-    ∂γ = @. pp * μ2p / (1 + layer.η) + pn * μ2n / (1 - layer.η)
+    ∂γ = @. (pp * μ2p / (1 + layer.η) + pn * μ2n / (1 - layer.η)) .* sign.(layer.γ)
     ∂Δ = @. -pp * μp / (1 + layer.η) - pn * μn / (1 - layer.η)
     ∂η = @. (
-        pp * (-layer.γ * μ2p + layer.Δ * μp) / (1 + layer.η)^2 +
-        pn * ( layer.γ * μ2n - layer.Δ * μn) / (1 - layer.η)^2
+        pp * (-abs_γ * μ2p + layer.Δ * μp) / (1 + layer.η)^2 +
+        pn * ( abs_γ * μ2n - layer.Δ * μn) / (1 - layer.η)^2
     )
     return (θ = ∂θ, γ = ∂γ, Δ = ∂Δ, η = ∂η)
 end
@@ -77,10 +79,12 @@ Base.size(stats::pReLUStats) = size(stats.x)
 function ∂energy(layer::pReLU, stats::pReLUStats)
     @assert size(layer) == size(stats)
     ∂γ = @. (stats.xp2 / (1 + layer.η) + stats.xn2 / (1 - layer.η)) / 2
+    ∂γ .*= sign.(layer.γ)
     ∂Δ = @. -(stats.xp1 / (1 + layer.η) - stats.xn1 / (1 - layer.η))
+    abs_γ = abs.(layer.γ)
     ∂η = @. (
-        (-layer.γ * stats.xp2 / 2 + layer.Δ * stats.xp1) / (1 + layer.η)^2 +
-        ( layer.γ * stats.xn2 / 2 + layer.Δ * stats.xn1) / (1 - layer.η)^2
+        (-abs_γ * stats.xp2 / 2 + layer.Δ * stats.xp1) / (1 + layer.η)^2 +
+        ( abs_γ * stats.xn2 / 2 + layer.Δ * stats.xn1) / (1 - layer.η)^2
     )
     return (θ = -stats.x, γ = ∂γ, Δ = ∂Δ, η = ∂η)
 end

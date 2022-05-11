@@ -114,7 +114,11 @@ function ∂free_energies(layer::dReLU, inputs::Union{Real,AbstractArray} = 0)
     μn, νn = transfer_meanvar(ln, -inputs)
     μ2p = @. (νp + μp^2) / 2
     μ2n = @. (νn + μn^2) / 2
-    return (θp = -pp .* μp, θn = pn .* μn, γp = pp .* μ2p, γn = pn .* μ2n)
+    return (
+        θp = -pp .* μp, θn = pn .* μn,
+        γp = pp .* μ2p .* sign.(layer.γp),
+        γn = pn .* μ2n .* sign.(layer.γn)
+    )
 end
 
 struct dReLUStats{A}
@@ -135,7 +139,11 @@ suffstats(layer::dReLU, data::AbstractArray; wts = nothing) = dReLUStats(layer, 
 
 function ∂energy(layer::dReLU, stats::dReLUStats)
     @assert size(layer) == size(stats)
-    return (θp = -stats.xp1, θn = -stats.xn1, γp = stats.xp2 / 2, γn = stats.xn2 / 2)
+    return (
+        θp = -stats.xp1, θn = -stats.xn1,
+        γp = sign.(layer.γp) .* stats.xp2 / 2,
+        γn = sign.(layer.γn) .* stats.xn2 / 2
+    )
 end
 
 function drelu_energy(θp::Real, θn::Real, γp::Real, γn::Real, x::Real)

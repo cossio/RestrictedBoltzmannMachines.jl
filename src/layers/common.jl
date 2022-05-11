@@ -72,10 +72,12 @@ sitesize(layer::AbstractLayer) = size(layer)
 sitesize(layer::Potts) = size(layer)[2:end]
 
 function pReLU(layer::dReLU)
-    γ = @. 2layer.γp * layer.γn / (layer.γp + layer.γn)
-    η = @. (layer.γn - layer.γp) / (layer.γp + layer.γn)
-    θ = @. (layer.θp * layer.γn + layer.θn * layer.γp) / (layer.γp + layer.γn)
-    Δ = @. γ * (layer.θp - layer.θn) / (layer.γp + layer.γn)
+    abs_γp = abs.(layer.γp)
+    abs_γn = abs.(layer.γn)
+    γ = @. 2abs_γp * abs_γn / (abs_γp + abs_γn)
+    η = @. (abs_γn - abs_γp) / (abs_γp + abs_γn)
+    θ = @. (layer.θp * abs_γn + layer.θn * abs_γp) / (abs_γp + abs_γn)
+    Δ = @. γ * (layer.θp - layer.θn) / (abs_γp + abs_γn)
     return pReLU(θ, γ, Δ, η)
 end
 
@@ -88,10 +90,12 @@ function dReLU(layer::pReLU)
 end
 
 function xReLU(layer::dReLU)
-    γ = @. 2layer.γp * layer.γn / (layer.γp + layer.γn)
-    ξ = @. (layer.γn - layer.γp) / (layer.γp + layer.γn - abs(layer.γn - layer.γp))
-    θ = @. (layer.θp * layer.γn + layer.θn * layer.γp) / (layer.γp + layer.γn)
-    Δ = @. γ * (layer.θp - layer.θn) / (layer.γp + layer.γn)
+    abs_γp = abs.(layer.γp)
+    abs_γn = abs.(layer.γn)
+    γ = @. 2abs_γp * abs_γn / (abs_γp + abs_γn)
+    ξ = @. (abs_γn - abs_γp) / (abs_γp + abs_γn - abs(abs_γn - abs_γp))
+    θ = @. (layer.θp * abs_γn + layer.θn * abs_γp) / (abs_γp + abs_γn)
+    Δ = @. γ * (layer.θp - layer.θn) / (abs_γp + abs_γn)
     return xReLU(θ, γ, Δ, ξ)
 end
 

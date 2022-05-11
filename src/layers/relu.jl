@@ -56,7 +56,7 @@ transfer_std(layer::ReLU, inputs::Union{Real,AbstractArray} = 0) = sqrt.(transfe
 function ∂free_energies(layer::ReLU, inputs::Union{Real,AbstractArray} = 0)
     μ = transfer_mean(layer, inputs)
     ν = transfer_var(layer, inputs)
-    return (θ = -μ, γ = (ν .+ μ.^2) / 2)
+    return (θ = -μ, γ = sign.(layer.γ) .* (ν .+ μ.^2) / 2)
 end
 
 const ReLUStats = GaussStats
@@ -64,7 +64,7 @@ suffstats(layer::ReLU, data::AbstractArray; wts = nothing) = ReLUStats(layer, da
 
 function ∂energy(layer::ReLU, stats::ReLUStats)
     @assert size(layer) == size(stats)
-    return (; θ = -stats.x1, γ = stats.x2 / 2)
+    return (; θ = -stats.x1, γ = sign.(layer.γ) .* stats.x2 / 2)
 end
 
 function relu_energy(θ::Real, γ::Real, x::Real)

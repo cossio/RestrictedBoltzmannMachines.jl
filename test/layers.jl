@@ -2,7 +2,7 @@ import Random
 import Zygote
 import RestrictedBoltzmannMachines as RBMs
 
-using Test: @test, @testset
+using Test: @test, @testset, @inferred
 using Statistics: mean, var, cov
 using Random: bitrand
 using LogExpFunctions: logistic
@@ -27,10 +27,10 @@ _layers = (
 )
 
 random_layer(::Type{T}, N::Int...) where {T <: Union{Binary,Spin,Potts}} = T(randn(N...))
-random_layer(::Type{T}, N::Int...) where {T <: Union{Gaussian,ReLU}} = T(randn(N...), rand(N...))
-random_layer(::Type{dReLU}, N::Int...) = dReLU(randn(N...), randn(N...), rand(N...), rand(N...))
-random_layer(::Type{xReLU}, N::Int...) = xReLU(randn(N...), rand(N...), randn(N...), randn(N...))
-random_layer(::Type{pReLU}, N::Int...) = pReLU(randn(N...), rand(N...), randn(N...), 2rand(N...) .- 1)
+random_layer(::Type{T}, N::Int...) where {T <: Union{Gaussian,ReLU}} = T(randn(N...), randn(N...))
+random_layer(::Type{dReLU}, N::Int...) = dReLU(randn(N...), randn(N...), randn(N...), randn(N...))
+random_layer(::Type{xReLU}, N::Int...) = xReLU(randn(N...), randn(N...), randn(N...), randn(N...))
+random_layer(::Type{pReLU}, N::Int...) = pReLU(randn(N...), randn(N...), randn(N...), 2rand(N...) .- 1)
 
 @testset "testing $Layer" for Layer in _layers
     N = (3,2)
@@ -204,8 +204,8 @@ end
     N = (3, 4, 5)
     B = 7
 
-    # bound γ away from zero to avoid numerical issues with quadgk
-    layer = Gaussian(randn(N...), rand(N...) .+ 0.5)
+    # bound γ away from zero to avoid numerical issues with quadgk, but allow negative
+    layer = Gaussian(randn(N...), (rand(N...) .+ 1) .* (rand(Bool, N...) .- 0.5))
 
     x = randn(size(layer)..., B)
     @test energies(layer, x) ≈ @. abs(layer.γ) * x^2 / 2 - layer.θ * x
@@ -225,7 +225,7 @@ end
     μ2 = @. ν + μ^2
     ∂ = RBMs.∂free_energy(layer)
     @test ∂.θ ≈ only(gs).θ ≈ -μ
-    @test ∂.γ ≈ only(gs).γ ≈ μ2/2
+    @test ∂.γ ≈ only(gs).γ ≈ sign.(layer.γ) .* μ2/2
     @test RBMs.grad2mean(layer, ∂) ≈ transfer_mean(layer)
     @test RBMs.grad2var(layer, ∂) ≈ transfer_var(layer)
 end
@@ -234,8 +234,8 @@ end
     N = (3, 4, 5)
     B = 7
 
-    # bound γ away from zero to avoid numerical issues with quadgk
-    layer = ReLU(randn(N...), rand(N...) .+ 0.5)
+    # bound γ away from zero to avoid numerical issues with quadgk, but allow negative
+    layer = ReLU(randn(N...), (rand(N...) .+ 1) .* (rand(Bool, N...) .- 0.5))
 
     x = abs.(randn(size(layer)..., B))
     @test energies(layer, x) ≈ energies(Gaussian(layer.θ, layer.γ), x)
@@ -254,7 +254,7 @@ end
     μ2 = @. ν + μ^2
     ∂ = RBMs.∂free_energy(layer)
     @test ∂.θ ≈ only(gs).θ ≈ -μ
-    @test ∂.γ ≈ only(gs).γ ≈ μ2/2
+    @test ∂.γ ≈ only(gs).γ ≈ sign.(layer.γ) .* μ2/2
     @test RBMs.grad2mean(layer, ∂) ≈ transfer_mean(layer)
     @test RBMs.grad2var(layer, ∂) ≈ transfer_var(layer)
 end
@@ -264,15 +264,15 @@ end
     B = 13
     x = randn(N..., B)
 
-    drelu = dReLU(randn(N...), randn(N...), rand(N...), rand(N...))
+    drelu = dReLU(randn(N...), randn(N...), randn(N...), randn(N...))
     prelu = @inferred pReLU(drelu)
     xrelu = @inferred xReLU(drelu)
     @test drelu.θp ≈ dReLU(prelu).θp ≈ dReLU(xrelu).θp
     @test drelu.θn ≈ dReLU(prelu).θn ≈ dReLU(xrelu).θn
-    @test drelu.γp ≈ dReLU(prelu).γp
-    @test drelu.γn ≈ dReLU(prelu).γn
-    @test abs.(drelu.γp) ≈ dReLU(xrelu).γp
-    @test abs.(drelu.γn) ≈ dReLU(xrelu).γn
+    @test abs.(drelu.γp) ≈ abs.(dReLU(prelu).γp)
+    @test abs.(drelu.γn) ≈ abs.(dReLU(prelu).γn)
+    @test abs.(drelu.γp) ≈ abs.(dReLU(xrelu).γp)
+    @test abs.(drelu.γn) ≈ abs.(dReLU(xrelu).γn)
     @test energies(drelu, x) ≈ energies(prelu, x) ≈ energies(xrelu, x)
     @test free_energies(drelu) ≈ free_energies(prelu) ≈ free_energies(xrelu)
     @test transfer_mode(drelu) ≈ transfer_mode(prelu) ≈ transfer_mode(xrelu)
@@ -280,11 +280,11 @@ end
     @test transfer_mean_abs(drelu) ≈ transfer_mean_abs(prelu) ≈ transfer_mean_abs(xrelu)
     @test transfer_var(drelu) ≈ transfer_var(prelu) ≈ transfer_var(xrelu)
 
-    prelu = pReLU(randn(N...), rand(N...), randn(N...), 2rand(N...) .- 1)
+    prelu = pReLU(randn(N...), randn(N...), randn(N...), 2rand(N...) .- 1)
     drelu = @inferred dReLU(prelu)
     xrelu = @inferred xReLU(prelu)
     @test prelu.θ ≈ pReLU(drelu).θ ≈ pReLU(xrelu).θ
-    @test prelu.γ ≈ pReLU(drelu).γ ≈ pReLU(xrelu).γ
+    @test abs.(prelu.γ) ≈ abs.(pReLU(drelu).γ) ≈ abs.(pReLU(xrelu).γ)
     @test prelu.Δ ≈ pReLU(drelu).Δ ≈ pReLU(xrelu).Δ
     @test prelu.η ≈ pReLU(drelu).η ≈ pReLU(xrelu).η
     @test energies(drelu, x) ≈ energies(prelu, x) ≈ energies(xrelu, x)
@@ -294,14 +294,13 @@ end
     @test transfer_mean_abs(drelu) ≈ transfer_mean_abs(prelu) ≈ transfer_mean_abs(xrelu)
     @test transfer_var(drelu) ≈ transfer_var(prelu) ≈ transfer_var(xrelu)
 
-    xrelu = xReLU(randn(N...), rand(N...), randn(N...), randn(N...))
+    xrelu = xReLU(randn(N...), randn(N...), randn(N...), randn(N...))
     drelu = @inferred dReLU(xrelu)
     prelu = @inferred pReLU(xrelu)
     @test xrelu.θ ≈ xReLU(drelu).θ ≈ xReLU(prelu).θ
     @test xrelu.Δ ≈ xReLU(drelu).Δ ≈ xReLU(prelu).Δ
     @test xrelu.ξ ≈ xReLU(drelu).ξ ≈ xReLU(prelu).ξ
-    @test xrelu.γ ≈ xReLU(prelu).γ
-    @test abs.(xrelu.γ) ≈ xReLU(drelu).γ
+    @test abs.(xrelu.γ) ≈ abs.(xReLU(prelu).γ)
     @test energies(drelu, x) ≈ energies(prelu, x) ≈ energies(xrelu, x)
     @test free_energies(drelu) ≈ free_energies(prelu) ≈ free_energies(xrelu)
     @test transfer_mode(drelu) ≈ transfer_mode(prelu) ≈ transfer_mode(xrelu)
@@ -309,7 +308,7 @@ end
     @test transfer_mean_abs(drelu) ≈ transfer_mean_abs(prelu) ≈ transfer_mean_abs(xrelu)
     @test transfer_var(drelu) ≈ transfer_var(prelu) ≈ transfer_var(xrelu)
 
-    gauss = Gaussian(randn(N...), rand(N...))
+    gauss = Gaussian(randn(N...), randn(N...))
     drelu = @inferred dReLU(gauss)
     prelu = @inferred pReLU(gauss)
     xrelu = @inferred xReLU(gauss)
@@ -338,7 +337,7 @@ end
         transfer_var(prelu) ≈ transfer_var(xrelu)
     )
 
-    drelu = dReLU(randn(1), [0.0], rand(1), [Inf])
+    drelu = dReLU(randn(1), [0.0], randn(1), [Inf])
     relu = ReLU(drelu.θp, drelu.γp)
     x = rand(1, 100)
     @test energies(relu, x) ≈ energies(drelu, x)
@@ -356,7 +355,9 @@ end
 
     # bound γ away from zero to avoid issues with quadgk
     layer = dReLU(
-        randn(N...), randn(N...), rand(N...) .+ 1, rand(N...) .+ 1
+        randn(N...), randn(N...),
+        (rand(N...) .+ 1) .* (rand(Bool, N...) .- 0.5),
+        (rand(N...) .+ 1) .* (rand(Bool, N...) .- 0.5)
     )
 
     Ep = energy(ReLU( layer.θp, layer.γp), max.( x, 0))
@@ -368,7 +369,7 @@ end
         Z, ϵ = quadgk(h -> exp(-RBMs.drelu_energy(θp, θn, γp, γn, h)), -Inf, Inf)
         return -log(Z)
     end
-    @test free_energies(layer) ≈ quad_free.(layer.θp, layer.θn, abs.(layer.γp), abs.(layer.γn))
+    @test free_energies(layer) ≈ quad_free.(layer.θp, layer.θn, layer.γp, layer.γn)
 
     gs = Zygote.gradient(layer) do layer
         sum(free_energies(layer))
@@ -382,7 +383,7 @@ end
     ν = transfer_var(layer)
     μ2 = @. ν + μ^2
     @test ∂.θp + ∂.θn ≈ -μ
-    @test ∂.γp + ∂.γn ≈ μ2/2
+    @test ∂.γp .* sign.(layer.γp) + ∂.γn .* sign.(layer.γn) ≈ μ2/2
     @test RBMs.grad2mean(layer, ∂) ≈ transfer_mean(layer)
     @test RBMs.grad2var(layer, ∂) ≈ transfer_var(layer)
 
@@ -404,7 +405,7 @@ end
 
 @testset "pReLU" begin
     N = (3, 5, 7)
-    layer = pReLU(randn(N...), rand(N...), randn(N...), 2rand(N...) .- 1)
+    layer = pReLU(randn(N...), randn(N...), randn(N...), 2rand(N...) .- 1)
     gs = Zygote.gradient(layer) do layer
         sum(free_energies(layer))
     end
@@ -419,7 +420,7 @@ end
 
 @testset "xReLU" begin
     N = (3, 5, 7)
-    layer = xReLU(randn(N...), rand(N...), randn(N...), randn(N...))
+    layer = xReLU(randn(N...), randn(N...), randn(N...), randn(N...))
     gs = Zygote.gradient(layer) do layer
         sum(free_energies(layer))
     end
