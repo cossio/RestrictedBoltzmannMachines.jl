@@ -10,15 +10,15 @@ using RestrictedBoltzmannMachines: rescale_hidden!, rescale_activations!
 Random.seed!(23)
 
 @testset "rescale_activations!" begin
-    N = 7
+    N = (7,2)
     layers = (
-        Gaussian(randn(N...), 1 .+ rand(N...)),
-        ReLU(randn(N...), 1 .+ rand(N...)),
-        dReLU(randn(N...), randn(N...), 1 .+ rand(N...), 1 .+ rand(N...)),
-        pReLU(randn(N...), 1 .+ rand(N...), randn(N...), 2rand(N...) .- 1),
-        xReLU(randn(N...), 1 .+ rand(N...), randn(N...), randn(N...))
+        Gaussian(randn(N...), randn(N...)),
+        ReLU(randn(N...), randn(N...)),
+        dReLU(randn(N...), randn(N...), randn(N...), randn(N...)),
+        pReLU(randn(N...), randn(N...), randn(N...), 2rand(N...) .- 1),
+        xReLU(randn(N...), randn(N...), randn(N...), randn(N...))
     )
-    λ = rand(N...) .+ 1
+    λ = rand(N...)
     for layer in layers
         μ = transfer_mean(layer)
         ν = transfer_var(layer)
