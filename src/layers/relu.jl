@@ -33,7 +33,7 @@ function mean_from_inputs(layer::ReLU, inputs::Union{Real,AbstractArray} = 0)
     return @. μ + σ * tnmean(-μ / σ)
 end
 
-transfer_mean_abs(layer::ReLU, inputs::Union{Real,AbstractArray} = 0) = mean_from_inputs(layer, inputs)
+mean_abs_from_inputs(layer::ReLU, inputs::Union{Real,AbstractArray} = 0) = mean_from_inputs(layer, inputs)
 
 function var_from_inputs(layer::ReLU, inputs::Union{Real,AbstractArray} = 0)
     g = Gaussian(layer.θ, layer.γ)

@@ -87,7 +87,7 @@ function meanvar_from_inputs(layer::dReLU, inputs::Union{Real,AbstractArray} = 0
     return μ, ν
 end
 
-function transfer_mean_abs(layer::dReLU, inputs::Union{Real,AbstractArray} = 0)
+function mean_abs_from_inputs(layer::dReLU, inputs::Union{Real,AbstractArray} = 0)
     lp = ReLU( layer.θp, layer.γp)
     ln = ReLU(-layer.θn, layer.γn)
 

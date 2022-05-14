@@ -39,7 +39,7 @@ function meanvar_from_inputs(l::Gaussian, inputs::Union{Real,AbstractArray} = 0)
     return mean_from_inputs(l, inputs), var_from_inputs(l, inputs)
 end
 
-function transfer_mean_abs(layer::Gaussian, inputs::Union{Real,AbstractArray} = 0)
+function mean_abs_from_inputs(layer::Gaussian, inputs::Union{Real,AbstractArray} = 0)
     μ = mean_from_inputs(layer, inputs)
     ν = var_from_inputs(layer, inputs)
     return @. √(2ν/π) * exp(-μ^2 / (2ν)) + μ * erf(μ / √(2ν))

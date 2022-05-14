@@ -21,7 +21,7 @@ Base.repeat(l::Spin, n::Int...) = Spin(repeat(l.θ, n...))
 free_energies(layer::Spin, inputs::Union{Real,AbstractArray} = 0) = spin_free.(layer.θ .+ inputs)
 mode_from_inputs(layer::Spin, inputs::Union{Real,AbstractArray} = 0) = ifelse.(layer.θ .+ inputs .> 0, Int8(1), Int8(-1))
 mean_from_inputs(layer::Spin, inputs::Union{Real,AbstractArray} = 0) = tanh.(layer.θ .+ inputs)
-transfer_mean_abs(layer::Spin, inputs::Union{Real,AbstractArray} = 0) = Ones{Int8}(size(layer))
+mean_abs_from_inputs(layer::Spin, inputs::Union{Real,AbstractArray} = 0) = Ones{Int8}(size(layer))
 std_from_inputs(layer::Spin, inputs::Union{Real,AbstractArray} = 0) = sqrt.(var_from_inputs(layer, inputs))
 
 function var_from_inputs(layer::Spin, inputs::Union{Real,AbstractArray} = 0)

@@ -10,7 +10,7 @@ using QuadGK: quadgk
 using RestrictedBoltzmannMachines: flatten, batch_size, batchmean, batchvar, batchcov
 using RestrictedBoltzmannMachines: Binary, Spin, Potts, Gaussian, ReLU, dReLU, xReLU, pReLU
 using RestrictedBoltzmannMachines: mean_from_inputs, var_from_inputs, meanvar_from_inputs,
-    std_from_inputs, transfer_mean_abs, transfer_sample, mode_from_inputs
+    std_from_inputs, mean_abs_from_inputs, transfer_sample, mode_from_inputs
 using RestrictedBoltzmannMachines: energy, free_energy, free_energies, energies
 
 Random.seed!(2)
@@ -113,7 +113,7 @@ random_layer(::Type{pReLU}, N::Int...) = pReLU(randn(N...), randn(N...), randn(N
     samples = @inferred transfer_sample(layer, zeros(size(layer)..., 10^6))
     @test @inferred(mean_from_inputs(layer)) ≈ reshape(mean(samples; dims=3), size(layer)) rtol=0.1 atol=0.01
     @test @inferred(var_from_inputs(layer)) ≈ reshape(var(samples; dims=ndims(samples)), size(layer)) rtol=0.1
-    @test @inferred(transfer_mean_abs(layer)) ≈ reshape(mean(abs.(samples); dims=ndims(samples)), size(layer)) rtol=0.1
+    @test @inferred(mean_abs_from_inputs(layer)) ≈ reshape(mean(abs.(samples); dims=ndims(samples)), size(layer)) rtol=0.1
 
     ∂F = @inferred RBMs.∂free_energy(layer)
     ∂E = @inferred RBMs.∂energy(layer, samples)
@@ -277,7 +277,7 @@ end
     @test free_energies(drelu) ≈ free_energies(prelu) ≈ free_energies(xrelu)
     @test mode_from_inputs(drelu) ≈ mode_from_inputs(prelu) ≈ mode_from_inputs(xrelu)
     @test mean_from_inputs(drelu) ≈ mean_from_inputs(prelu) ≈ mean_from_inputs(xrelu)
-    @test transfer_mean_abs(drelu) ≈ transfer_mean_abs(prelu) ≈ transfer_mean_abs(xrelu)
+    @test mean_abs_from_inputs(drelu) ≈ mean_abs_from_inputs(prelu) ≈ mean_abs_from_inputs(xrelu)
     @test var_from_inputs(drelu) ≈ var_from_inputs(prelu) ≈ var_from_inputs(xrelu)
 
     prelu = pReLU(randn(N...), randn(N...), randn(N...), 2rand(N...) .- 1)
@@ -291,7 +291,7 @@ end
     @test free_energies(drelu) ≈ free_energies(prelu) ≈ free_energies(xrelu)
     @test mode_from_inputs(drelu) ≈ mode_from_inputs(prelu) ≈ mode_from_inputs(xrelu)
     @test mean_from_inputs(drelu) ≈ mean_from_inputs(prelu) ≈ mean_from_inputs(xrelu)
-    @test transfer_mean_abs(drelu) ≈ transfer_mean_abs(prelu) ≈ transfer_mean_abs(xrelu)
+    @test mean_abs_from_inputs(drelu) ≈ mean_abs_from_inputs(prelu) ≈ mean_abs_from_inputs(xrelu)
     @test var_from_inputs(drelu) ≈ var_from_inputs(prelu) ≈ var_from_inputs(xrelu)
 
     xrelu = xReLU(randn(N...), randn(N...), randn(N...), randn(N...))
@@ -305,7 +305,7 @@ end
     @test free_energies(drelu) ≈ free_energies(prelu) ≈ free_energies(xrelu)
     @test mode_from_inputs(drelu) ≈ mode_from_inputs(prelu) ≈ mode_from_inputs(xrelu)
     @test mean_from_inputs(drelu) ≈ mean_from_inputs(prelu) ≈ mean_from_inputs(xrelu)
-    @test transfer_mean_abs(drelu) ≈ transfer_mean_abs(prelu) ≈ transfer_mean_abs(xrelu)
+    @test mean_abs_from_inputs(drelu) ≈ mean_abs_from_inputs(prelu) ≈ mean_abs_from_inputs(xrelu)
     @test var_from_inputs(drelu) ≈ var_from_inputs(prelu) ≈ var_from_inputs(xrelu)
 
     gauss = Gaussian(randn(N...), randn(N...))
@@ -329,8 +329,8 @@ end
         mean_from_inputs(prelu) ≈ mean_from_inputs(xrelu)
     )
     @test (
-        transfer_mean_abs(gauss) ≈ transfer_mean_abs(drelu) ≈
-        transfer_mean_abs(prelu) ≈ transfer_mean_abs(xrelu)
+        mean_abs_from_inputs(gauss) ≈ mean_abs_from_inputs(drelu) ≈
+        mean_abs_from_inputs(prelu) ≈ mean_abs_from_inputs(xrelu)
     )
     @test (
         var_from_inputs(gauss) ≈ var_from_inputs(drelu) ≈
@@ -344,7 +344,7 @@ end
     @test free_energies(relu) ≈ free_energies(drelu)
     @test mode_from_inputs(relu) ≈ mode_from_inputs(drelu)
     #@test mean_from_inputs(relu) ≈ mean_from_inputs(drelu)
-    #@test transfer_mean_abs(relu)  ≈ transfer_mean_abs(drelu)
+    #@test mean_abs_from_inputs(relu)  ≈ mean_abs_from_inputs(drelu)
     #@test var_from_inputs(relu) ≈ var_from_inputs(drelu)
 end
 

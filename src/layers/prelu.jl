@@ -30,7 +30,7 @@ mean_from_inputs(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = mean_fro
 var_from_inputs(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = var_from_inputs(dReLU(layer), inputs)
 meanvar_from_inputs(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = meanvar_from_inputs(dReLU(layer), inputs)
 mode_from_inputs(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = mode_from_inputs(dReLU(layer), inputs)
-transfer_mean_abs(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = transfer_mean_abs(dReLU(layer), inputs)
+mean_abs_from_inputs(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = mean_abs_from_inputs(dReLU(layer), inputs)
 std_from_inputs(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = sqrt.(var_from_inputs(layer, inputs))
 
 function ∂free_energies(layer::pReLU, inputs::Union{Real,AbstractArray} = 0)
