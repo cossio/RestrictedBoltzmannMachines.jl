@@ -40,7 +40,7 @@ function pcd!(
 
     # we center layers with their average activities
     ave_v = batchmean(visible(rbm), data; wts)
-    ave_h, var_h = meanvar_from_inputs(hidden(rbm), inputs_v_to_h(rbm, data); wts)
+    ave_h, var_h = total_meanvar_from_inputs(hidden(rbm), inputs_v_to_h(rbm, data); wts)
     @assert all(var_h .+ ϵh .> 0)
 
     # gauge constraints
