@@ -399,8 +399,8 @@ end
     @test RBMs.grad2mean(layer, ∂) ≈ μ
     @test RBMs.grad2var(layer, ∂) ≈ ν
     μ1, ν1 = RBMs.total_meanvar_from_inputs(layer, inputs)
-    @test μ1 ≈ μ
-    @test ν1 ≈ ν
+    @test μ1 ≈ μ ≈ RBMs.total_mean_from_inputs(layer, inputs)
+    @test ν1 ≈ ν ≈ RBMs.total_var_from_inputs(layer, inputs)
 end
 
 @testset "pReLU" begin

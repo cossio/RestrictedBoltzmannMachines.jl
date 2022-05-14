@@ -135,6 +135,48 @@ function batchcov(
 end
 
 """
+    total_mean_from_inputs(layer, inputs; wts = nothing)
+
+Total mean of unit activations from inputs.
+"""
+function total_mean_from_inputs(
+    layer::AbstractLayer, inputs::Union{Real,AbstractArray}; wts = nothing
+)
+    h_ave = mean_from_inputs(layer, inputs)
+    return batchmean(layer, h_ave; wts)
+end
+
+"""
+    total_var_from_inputs(layer, inputs; wts = nothing)
+
+Total variance of unit activations from inputs.
+"""
+function total_var_from_inputs(
+    layer::AbstractLayer, inputs::Union{Real,AbstractArray}; wts = nothing
+)
+    h_ave, h_var = meanvar_from_inputs(layer, inputs)
+    ν_int = batchmean(layer, h_var; wts) # intrinsic noise
+    ν_ext = batchvar(layer, h_ave; wts) # extrinsic noise
+    return ν_int + ν_ext # law of total variance
+end
+
+"""
+    total_meanvar_from_inputs(layer, inputs; wts = nothing)
+
+Total mean and total variance of unit activations from inputs.
+"""
+function total_meanvar_from_inputs(
+    layer::AbstractLayer, inputs::Union{Real,AbstractArray}; wts = nothing
+)
+    h_ave, h_var = meanvar_from_inputs(layer, inputs)
+    μ = batchmean(layer, h_ave; wts)
+    ν_int = batchmean(layer, h_var; wts) # intrinsic noise
+    ν_ext = batchvar(layer, h_ave; wts, mean = μ) # extrinsic noise
+    ν = ν_int + ν_ext # law of total variance
+    return (μ = μ, ν = ν)
+end
+
+"""
     ∂energy(layer, data; wts = nothing)
     ∂energy(layer, stats)
 
