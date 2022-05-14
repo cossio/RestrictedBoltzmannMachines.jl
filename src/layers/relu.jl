@@ -51,7 +51,7 @@ function meanvar_from_inputs(layer::ReLU, inputs::Union{Real,AbstractArray} = 0)
     return μ + σ .* tμ, ν .* tν
 end
 
-transfer_std(layer::ReLU, inputs::Union{Real,AbstractArray} = 0) = sqrt.(transfer_var(layer, inputs))
+std_from_inputs(layer::ReLU, inputs::Union{Real,AbstractArray} = 0) = sqrt.(transfer_var(layer, inputs))
 
 function ∂free_energies(layer::ReLU, inputs::Union{Real,AbstractArray} = 0)
     μ = transfer_mean(layer, inputs)

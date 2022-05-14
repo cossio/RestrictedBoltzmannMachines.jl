@@ -32,7 +32,7 @@ end
 
 transfer_mean(l::Gaussian, inputs::Union{Real,AbstractArray} = 0) = (l.θ .+ inputs) ./ abs.(l.γ)
 transfer_var(l::Gaussian, inputs::Union{Real,AbstractArray} = 0) = inv.(abs.(l.γ .+ zero(inputs)))
-transfer_std(l::Gaussian, inputs::Union{Real,AbstractArray} = 0) = sqrt.(transfer_var(l, inputs))
+std_from_inputs(l::Gaussian, inputs::Union{Real,AbstractArray} = 0) = sqrt.(transfer_var(l, inputs))
 transfer_mode(l::Gaussian, inputs::Union{Real,AbstractArray} = 0) = transfer_mean(l, inputs)
 
 function meanvar_from_inputs(l::Gaussian, inputs::Union{Real,AbstractArray} = 0)

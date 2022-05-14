@@ -41,7 +41,7 @@ transfer_mode(layer::dReLU, inputs::Union{Real,AbstractArray} = 0) = drelu_mode.
     layer.θp .+ inputs, layer.θn .+ inputs, layer.γp, layer.γn
 )
 
-function transfer_std(layer::dReLU, inputs::Union{Real,AbstractArray} = 0)
+function std_from_inputs(layer::dReLU, inputs::Union{Real,AbstractArray} = 0)
     return sqrt.(transfer_var(layer, inputs))
 end
 

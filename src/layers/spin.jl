@@ -22,7 +22,7 @@ free_energies(layer::Spin, inputs::Union{Real,AbstractArray} = 0) = spin_free.(l
 transfer_mode(layer::Spin, inputs::Union{Real,AbstractArray} = 0) = ifelse.(layer.θ .+ inputs .> 0, Int8(1), Int8(-1))
 transfer_mean(layer::Spin, inputs::Union{Real,AbstractArray} = 0) = tanh.(layer.θ .+ inputs)
 transfer_mean_abs(layer::Spin, inputs::Union{Real,AbstractArray} = 0) = Ones{Int8}(size(layer))
-transfer_std(layer::Spin, inputs::Union{Real,AbstractArray} = 0) = sqrt.(transfer_var(layer, inputs))
+std_from_inputs(layer::Spin, inputs::Union{Real,AbstractArray} = 0) = sqrt.(transfer_var(layer, inputs))
 
 function transfer_var(layer::Spin, inputs::Union{Real,AbstractArray} = 0)
     μ = transfer_mean(layer, inputs)

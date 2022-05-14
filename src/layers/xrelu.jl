@@ -30,7 +30,7 @@ transfer_mode(layer::xReLU, inputs::Union{Real,AbstractArray} = 0) = transfer_mo
 transfer_mean(layer::xReLU, inputs::Union{Real,AbstractArray} = 0) = transfer_mean(dReLU(layer), inputs)
 transfer_var(layer::xReLU, inputs::Union{Real,AbstractArray} = 0) = transfer_var(dReLU(layer), inputs)
 meanvar_from_inputs(layer::xReLU, inputs::Union{Real,AbstractArray} = 0) = meanvar_from_inputs(dReLU(layer), inputs)
-transfer_std(layer::xReLU, inputs::Union{Real,AbstractArray} = 0) = sqrt.(transfer_var(layer, inputs))
+std_from_inputs(layer::xReLU, inputs::Union{Real,AbstractArray} = 0) = sqrt.(transfer_var(layer, inputs))
 transfer_mean_abs(layer::xReLU, inputs::Union{Real,AbstractArray} = 0) = transfer_mean_abs(dReLU(layer), inputs)
 
 function ∂free_energies(layer::xReLU, inputs::Union{Real,AbstractArray} = 0)

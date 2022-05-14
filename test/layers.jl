@@ -10,7 +10,7 @@ using QuadGK: quadgk
 using RestrictedBoltzmannMachines: flatten, batch_size, batchmean, batchvar, batchcov
 using RestrictedBoltzmannMachines: Binary, Spin, Potts, Gaussian, ReLU, dReLU, xReLU, pReLU
 using RestrictedBoltzmannMachines: transfer_mean, transfer_var, meanvar_from_inputs,
-    transfer_std, transfer_mean_abs, transfer_sample, transfer_mode
+    std_from_inputs, transfer_mean_abs, transfer_sample, transfer_mode
 using RestrictedBoltzmannMachines: energy, free_energy, free_energies, energies
 
 Random.seed!(2)
@@ -51,7 +51,7 @@ random_layer(::Type{pReLU}, N::Int...) = pReLU(randn(N...), randn(N...), randn(N
     @test size(@inferred transfer_var(layer)) == size(layer)
     @test size(@inferred transfer_sample(layer)) == size(layer)
     @test free_energies(layer, 0) ≈ free_energies(layer)
-    @test transfer_std(layer) ≈ sqrt.(transfer_var(layer))
+    @test std_from_inputs(layer) ≈ sqrt.(transfer_var(layer))
 
     if layer isa RBMs.Potts
         @test size(@inferred free_energies(layer)) == (1, size(layer)[2:end]...)
@@ -71,7 +71,7 @@ random_layer(::Type{pReLU}, N::Int...) = pReLU(randn(N...), randn(N...), randn(N
         @test size(@inferred transfer_sample(layer, x)) == size(x)
         @test size(@inferred transfer_mean(layer, x)) == size(x)
         @test size(@inferred transfer_var(layer, x)) == size(x)
-        @test @inferred(transfer_std(layer, x)) ≈ sqrt.(transfer_var(layer, x))
+        @test @inferred(std_from_inputs(layer, x)) ≈ sqrt.(transfer_var(layer, x))
         @test all(energy(layer, transfer_mode(layer)) .≤ energy(layer, x))
 
         μ, ν = meanvar_from_inputs(layer, x)

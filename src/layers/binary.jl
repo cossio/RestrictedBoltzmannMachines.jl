@@ -14,7 +14,7 @@ transfer_mode(layer::Binary, inputs::Union{Real,AbstractArray} = 0) = layer.θ .
 transfer_mean(layer::Binary, inputs::Union{Real,AbstractArray} = 0) = logistic.(layer.θ .+ inputs)
 transfer_mean_abs(layer::Binary, inputs::Union{Real,AbstractArray} = 0) = transfer_mean(layer, inputs)
 transfer_var(layer::Binary, inputs::Union{Real,AbstractArray} = 0) = binary_var.(layer.θ .+ inputs)
-transfer_std(layer::Binary, inputs::Union{Real,AbstractArray} = 0) = binary_std.(layer.θ .+ inputs)
+std_from_inputs(layer::Binary, inputs::Union{Real,AbstractArray} = 0) = binary_std.(layer.θ .+ inputs)
 
 function meanvar_from_inputs(layer::Binary, inputs::Union{Real,AbstractArray} = 0)
     θ = layer.θ .+ inputs
