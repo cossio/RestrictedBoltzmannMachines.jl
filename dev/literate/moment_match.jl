@@ -13,7 +13,7 @@ import MLDatasets
 import Flux
 using Statistics: mean, cor
 using LinearAlgebra: norm
-using RestrictedBoltzmannMachines: RBM, Binary, transfer_sample, free_energy
+using RestrictedBoltzmannMachines: RBM, Binary, sample_from_inputs, free_energy
 using RestrictedBoltzmannMachines: sample_v_from_v, sample_h_from_v, initialize!, pcd!
 
 # load MNIST dataset
@@ -51,7 +51,7 @@ initialize!(rbm, train_x);
 nsteps = 2000
 nsamples = 1000
 v_model = falses(28, 28, nsamples, nsteps);
-v_model[:,:,:,1] .= transfer_sample(rbm.visible, falses(28,28,nsamples));
+v_model[:,:,:,1] .= sample_from_inputs(rbm.visible, falses(28,28,nsamples));
 for t in 2:nsteps
     v_model[:, :, :, t] .= sample_v_from_v(rbm, v_model[:, :, :, t - 1])
 end
