@@ -29,33 +29,33 @@ transfer_mode(layer::ReLU, inputs::Union{Real,AbstractArray} = 0) = max.((layer.
 function transfer_mean(layer::ReLU, inputs::Union{Real,AbstractArray} = 0)
     g = Gaussian(layer.θ, layer.γ)
     μ = transfer_mean(g, inputs)
-    σ = sqrt.(transfer_var(g, inputs))
+    σ = sqrt.(var_from_inputs(g, inputs))
     return @. μ + σ * tnmean(-μ / σ)
 end
 
 transfer_mean_abs(layer::ReLU, inputs::Union{Real,AbstractArray} = 0) = transfer_mean(layer, inputs)
 
-function transfer_var(layer::ReLU, inputs::Union{Real,AbstractArray} = 0)
+function var_from_inputs(layer::ReLU, inputs::Union{Real,AbstractArray} = 0)
     g = Gaussian(layer.θ, layer.γ)
     μ = transfer_mean(g, inputs)
-    ν = transfer_var(g, inputs)
+    ν = var_from_inputs(g, inputs)
     return @. ν * tnvar(-μ / √ν)
 end
 
 function meanvar_from_inputs(layer::ReLU, inputs::Union{Real,AbstractArray} = 0)
     g = Gaussian(layer.θ, layer.γ)
     μ = transfer_mean(g, inputs)
-    ν = transfer_var(g, inputs)
+    ν = var_from_inputs(g, inputs)
     σ = sqrt.(ν)
     tμ, tν = tnmeanvar(-μ ./ σ)
     return μ + σ .* tμ, ν .* tν
 end
 
-std_from_inputs(layer::ReLU, inputs::Union{Real,AbstractArray} = 0) = sqrt.(transfer_var(layer, inputs))
+std_from_inputs(layer::ReLU, inputs::Union{Real,AbstractArray} = 0) = sqrt.(var_from_inputs(layer, inputs))
 
 function ∂free_energies(layer::ReLU, inputs::Union{Real,AbstractArray} = 0)
     μ = transfer_mean(layer, inputs)
-    ν = transfer_var(layer, inputs)
+    ν = var_from_inputs(layer, inputs)
     return (θ = -μ, γ = sign.(layer.γ) .* (ν .+ μ.^2) / 2)
 end
 

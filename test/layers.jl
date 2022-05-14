@@ -9,7 +9,7 @@ using LogExpFunctions: logistic
 using QuadGK: quadgk
 using RestrictedBoltzmannMachines: flatten, batch_size, batchmean, batchvar, batchcov
 using RestrictedBoltzmannMachines: Binary, Spin, Potts, Gaussian, ReLU, dReLU, xReLU, pReLU
-using RestrictedBoltzmannMachines: transfer_mean, transfer_var, meanvar_from_inputs,
+using RestrictedBoltzmannMachines: transfer_mean, var_from_inputs, meanvar_from_inputs,
     std_from_inputs, transfer_mean_abs, transfer_sample, transfer_mode
 using RestrictedBoltzmannMachines: energy, free_energy, free_energies, energies
 
@@ -48,10 +48,10 @@ random_layer(::Type{pReLU}, N::Int...) = pReLU(randn(N...), randn(N...), randn(N
     @test (@inferred free_energy(layer)) isa Number
     @test (@inferred free_energy(layer, rand(N...))) isa Number
     @test size(@inferred transfer_mean(layer)) == size(layer)
-    @test size(@inferred transfer_var(layer)) == size(layer)
+    @test size(@inferred var_from_inputs(layer)) == size(layer)
     @test size(@inferred transfer_sample(layer)) == size(layer)
     @test free_energies(layer, 0) ≈ free_energies(layer)
-    @test std_from_inputs(layer) ≈ sqrt.(transfer_var(layer))
+    @test std_from_inputs(layer) ≈ sqrt.(var_from_inputs(layer))
 
     if layer isa RBMs.Potts
         @test size(@inferred free_energies(layer)) == (1, size(layer)[2:end]...)
@@ -70,13 +70,13 @@ random_layer(::Type{pReLU}, N::Int...) = pReLU(randn(N...), randn(N...), randn(N
         @test size(@inferred energies(layer, x)) == size(x)
         @test size(@inferred transfer_sample(layer, x)) == size(x)
         @test size(@inferred transfer_mean(layer, x)) == size(x)
-        @test size(@inferred transfer_var(layer, x)) == size(x)
-        @test @inferred(std_from_inputs(layer, x)) ≈ sqrt.(transfer_var(layer, x))
+        @test size(@inferred var_from_inputs(layer, x)) == size(x)
+        @test @inferred(std_from_inputs(layer, x)) ≈ sqrt.(var_from_inputs(layer, x))
         @test all(energy(layer, transfer_mode(layer)) .≤ energy(layer, x))
 
         μ, ν = meanvar_from_inputs(layer, x)
         @test μ ≈ transfer_mean(layer, x)
-        @test ν ≈ transfer_var(layer, x)
+        @test ν ≈ var_from_inputs(layer, x)
 
         if layer isa RBMs.Potts
             @test size(@inferred free_energies(layer, x)) == (1, size(x)[2:end]...)
@@ -112,7 +112,7 @@ random_layer(::Type{pReLU}, N::Int...) = pReLU(randn(N...), randn(N...), randn(N
 
     samples = @inferred transfer_sample(layer, zeros(size(layer)..., 10^6))
     @test @inferred(transfer_mean(layer)) ≈ reshape(mean(samples; dims=3), size(layer)) rtol=0.1 atol=0.01
-    @test @inferred(transfer_var(layer)) ≈ reshape(var(samples; dims=ndims(samples)), size(layer)) rtol=0.1
+    @test @inferred(var_from_inputs(layer)) ≈ reshape(var(samples; dims=ndims(samples)), size(layer)) rtol=0.1
     @test @inferred(transfer_mean_abs(layer)) ≈ reshape(mean(abs.(samples); dims=ndims(samples)), size(layer)) rtol=0.1
 
     ∂F = @inferred RBMs.∂free_energy(layer)
@@ -154,7 +154,7 @@ end
     end
 
     layer = Binary(randn(7, 4, 5))
-    transfer_var(layer) ≈ @. logistic(layer.θ) * logistic(-layer.θ)
+    var_from_inputs(layer) ≈ @. logistic(layer.θ) * logistic(-layer.θ)
     @test free_energies(layer) ≈ -log.(sum(exp.(layer.θ .* h) for h in 0:1))
     @test sort(unique(transfer_sample(layer))) == [0, 1]
 
@@ -164,7 +164,7 @@ end
     ∂ = RBMs.∂free_energy(layer)
     @test ∂.θ ≈ only(gs).θ ≈ -transfer_mean(layer)
     @test RBMs.grad2mean(layer, ∂) ≈ transfer_mean(layer)
-    @test RBMs.grad2var(layer, ∂) ≈ transfer_var(layer)
+    @test RBMs.grad2var(layer, ∂) ≈ var_from_inputs(layer)
 end
 
 @testset "Spin" begin
@@ -178,7 +178,7 @@ end
     ∂ = RBMs.∂free_energy(layer)
     @test ∂.θ ≈ only(gs).θ ≈ -transfer_mean(layer)
     @test RBMs.grad2mean(layer, ∂) ≈ transfer_mean(layer)
-    @test RBMs.grad2var(layer, ∂) ≈ transfer_var(layer)
+    @test RBMs.grad2var(layer, ∂) ≈ var_from_inputs(layer)
 end
 
 @testset "Potts" begin
@@ -197,7 +197,7 @@ end
     ∂ = RBMs.∂free_energy(layer)
     @test ∂.θ ≈ only(gs).θ ≈ -transfer_mean(layer)
     @test RBMs.grad2mean(layer, ∂) ≈ transfer_mean(layer)
-    @test RBMs.grad2var(layer, ∂) ≈ transfer_var(layer)
+    @test RBMs.grad2var(layer, ∂) ≈ var_from_inputs(layer)
 end
 
 @testset "Gaussian" begin
@@ -221,13 +221,13 @@ end
         sum(free_energies(layer))
     end
     μ = transfer_mean(layer)
-    ν = transfer_var(layer)
+    ν = var_from_inputs(layer)
     μ2 = @. ν + μ^2
     ∂ = RBMs.∂free_energy(layer)
     @test ∂.θ ≈ only(gs).θ ≈ -μ
     @test ∂.γ ≈ only(gs).γ ≈ sign.(layer.γ) .* μ2/2
     @test RBMs.grad2mean(layer, ∂) ≈ transfer_mean(layer)
-    @test RBMs.grad2var(layer, ∂) ≈ transfer_var(layer)
+    @test RBMs.grad2var(layer, ∂) ≈ var_from_inputs(layer)
 end
 
 @testset "ReLU" begin
@@ -250,13 +250,13 @@ end
         sum(free_energies(layer))
     end
     μ = transfer_mean(layer)
-    ν = transfer_var(layer)
+    ν = var_from_inputs(layer)
     μ2 = @. ν + μ^2
     ∂ = RBMs.∂free_energy(layer)
     @test ∂.θ ≈ only(gs).θ ≈ -μ
     @test ∂.γ ≈ only(gs).γ ≈ sign.(layer.γ) .* μ2/2
     @test RBMs.grad2mean(layer, ∂) ≈ transfer_mean(layer)
-    @test RBMs.grad2var(layer, ∂) ≈ transfer_var(layer)
+    @test RBMs.grad2var(layer, ∂) ≈ var_from_inputs(layer)
 end
 
 @testset "pReLU / xReLU / dReLU convert" begin
@@ -278,7 +278,7 @@ end
     @test transfer_mode(drelu) ≈ transfer_mode(prelu) ≈ transfer_mode(xrelu)
     @test transfer_mean(drelu) ≈ transfer_mean(prelu) ≈ transfer_mean(xrelu)
     @test transfer_mean_abs(drelu) ≈ transfer_mean_abs(prelu) ≈ transfer_mean_abs(xrelu)
-    @test transfer_var(drelu) ≈ transfer_var(prelu) ≈ transfer_var(xrelu)
+    @test var_from_inputs(drelu) ≈ var_from_inputs(prelu) ≈ var_from_inputs(xrelu)
 
     prelu = pReLU(randn(N...), randn(N...), randn(N...), 2rand(N...) .- 1)
     drelu = @inferred dReLU(prelu)
@@ -292,7 +292,7 @@ end
     @test transfer_mode(drelu) ≈ transfer_mode(prelu) ≈ transfer_mode(xrelu)
     @test transfer_mean(drelu) ≈ transfer_mean(prelu) ≈ transfer_mean(xrelu)
     @test transfer_mean_abs(drelu) ≈ transfer_mean_abs(prelu) ≈ transfer_mean_abs(xrelu)
-    @test transfer_var(drelu) ≈ transfer_var(prelu) ≈ transfer_var(xrelu)
+    @test var_from_inputs(drelu) ≈ var_from_inputs(prelu) ≈ var_from_inputs(xrelu)
 
     xrelu = xReLU(randn(N...), randn(N...), randn(N...), randn(N...))
     drelu = @inferred dReLU(xrelu)
@@ -306,7 +306,7 @@ end
     @test transfer_mode(drelu) ≈ transfer_mode(prelu) ≈ transfer_mode(xrelu)
     @test transfer_mean(drelu) ≈ transfer_mean(prelu) ≈ transfer_mean(xrelu)
     @test transfer_mean_abs(drelu) ≈ transfer_mean_abs(prelu) ≈ transfer_mean_abs(xrelu)
-    @test transfer_var(drelu) ≈ transfer_var(prelu) ≈ transfer_var(xrelu)
+    @test var_from_inputs(drelu) ≈ var_from_inputs(prelu) ≈ var_from_inputs(xrelu)
 
     gauss = Gaussian(randn(N...), randn(N...))
     drelu = @inferred dReLU(gauss)
@@ -333,8 +333,8 @@ end
         transfer_mean_abs(prelu) ≈ transfer_mean_abs(xrelu)
     )
     @test (
-        transfer_var(gauss) ≈ transfer_var(drelu) ≈
-        transfer_var(prelu) ≈ transfer_var(xrelu)
+        var_from_inputs(gauss) ≈ var_from_inputs(drelu) ≈
+        var_from_inputs(prelu) ≈ var_from_inputs(xrelu)
     )
 
     drelu = dReLU(randn(1), [0.0], randn(1), [Inf])
@@ -345,7 +345,7 @@ end
     @test transfer_mode(relu) ≈ transfer_mode(drelu)
     #@test transfer_mean(relu) ≈ transfer_mean(drelu)
     #@test transfer_mean_abs(relu)  ≈ transfer_mean_abs(drelu)
-    #@test transfer_var(relu) ≈ transfer_var(drelu)
+    #@test var_from_inputs(relu) ≈ var_from_inputs(drelu)
 end
 
 @testset "dReLU" begin
@@ -380,18 +380,18 @@ end
     @test ∂.γp ≈ only(gs).γp
     @test ∂.γn ≈ only(gs).γn
     μ = transfer_mean(layer)
-    ν = transfer_var(layer)
+    ν = var_from_inputs(layer)
     μ2 = @. ν + μ^2
     @test ∂.θp + ∂.θn ≈ -μ
     @test ∂.γp .* sign.(layer.γp) + ∂.γn .* sign.(layer.γn) ≈ μ2/2
     @test RBMs.grad2mean(layer, ∂) ≈ transfer_mean(layer)
-    @test RBMs.grad2var(layer, ∂) ≈ transfer_var(layer)
+    @test RBMs.grad2var(layer, ∂) ≈ var_from_inputs(layer)
 
     # check law of total variance
     inputs = randn(size(layer)..., 1000)
     ∂ = RBMs.∂free_energy(layer, inputs)
     h_ave = transfer_mean(layer, inputs)
-    h_var = transfer_var(layer, inputs)
+    h_var = var_from_inputs(layer, inputs)
     μ = batchmean(layer, h_ave)
     ν_int = batchmean(layer, h_var)
     ν_ext = batchvar(layer, h_ave; mean = μ)
@@ -415,7 +415,7 @@ end
     @test ∂.Δ ≈ only(gs).Δ
     @test ∂.η ≈ only(gs).η
     @test RBMs.grad2mean(layer, ∂) ≈ transfer_mean(layer)
-    @test RBMs.grad2var(layer, ∂) ≈ transfer_var(layer)
+    @test RBMs.grad2var(layer, ∂) ≈ var_from_inputs(layer)
 end
 
 @testset "xReLU" begin
@@ -430,5 +430,5 @@ end
     @test ∂.Δ ≈ only(gs).Δ
     @test ∂.ξ ≈ only(gs).ξ
     @test RBMs.grad2mean(layer, ∂) ≈ transfer_mean(layer)
-    @test RBMs.grad2var(layer, ∂) ≈ transfer_var(layer)
+    @test RBMs.grad2var(layer, ∂) ≈ var_from_inputs(layer)
 end

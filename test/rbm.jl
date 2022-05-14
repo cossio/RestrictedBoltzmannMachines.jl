@@ -138,7 +138,7 @@ end
     rbm = RBMs.HopfieldRBM(randn(5), randn(5,3))
     @test RBMs.visible(rbm) isa RBMs.Spin
     @test iszero(RBMs.transfer_mean(hidden(rbm)))
-    @test RBMs.transfer_var(hidden(rbm)) == ones(size(hidden(rbm)))
+    @test RBMs.var_from_inputs(hidden(rbm)) == ones(size(hidden(rbm)))
     @test size(RBMs.weights(rbm)) == (5,3)
 end
 

@@ -42,7 +42,7 @@ transfer_mode(layer::dReLU, inputs::Union{Real,AbstractArray} = 0) = drelu_mode.
 )
 
 function std_from_inputs(layer::dReLU, inputs::Union{Real,AbstractArray} = 0)
-    return sqrt.(transfer_var(layer, inputs))
+    return sqrt.(var_from_inputs(layer, inputs))
 end
 
 function transfer_mean(layer::dReLU, inputs::Union{Real,AbstractArray} = 0)
@@ -58,7 +58,7 @@ function transfer_mean(layer::dReLU, inputs::Union{Real,AbstractArray} = 0)
     return pp .* μp - pn .* μn
 end
 
-function transfer_var(layer::dReLU, inputs::Union{Real,AbstractArray} = 0)
+function var_from_inputs(layer::dReLU, inputs::Union{Real,AbstractArray} = 0)
     lp = ReLU( layer.θp, layer.γp)
     ln = ReLU(-layer.θn, layer.γn)
     Fp = free_energies(lp,  inputs)

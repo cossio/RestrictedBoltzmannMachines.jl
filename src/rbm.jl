@@ -179,7 +179,7 @@ Variance of unit activation values, conditioned on the other layer, var(v | h).
 """
 function var_v_from_h(rbm::RBM, h::AbstractArray)
     inputs = inputs_h_to_v(rbm, h)
-    return transfer_var(visible(rbm), inputs)
+    return var_from_inputs(visible(rbm), inputs)
 end
 
 """
@@ -189,7 +189,7 @@ Variance of unit activation values, conditioned on the other layer, var(h | v).
 """
 function var_h_from_v(rbm::RBM, v::AbstractArray)
     inputs = inputs_v_to_h(rbm, v)
-    return transfer_var(hidden(rbm), inputs)
+    return var_from_inputs(hidden(rbm), inputs)
 end
 
 """

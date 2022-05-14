@@ -20,13 +20,13 @@ Base.repeat(l::Potts, n::Int...) = Potts(repeat(l.θ, n...))
 free_energies(layer::Potts, inputs::Union{Real,AbstractArray} = 0) = -logsumexp(layer.θ .+ inputs; dims=1)
 transfer_mean(layer::Potts, inputs::Union{Real,AbstractArray} = 0) = softmax(layer.θ .+ inputs; dims=1)
 transfer_mean_abs(layer::Potts, inputs::Union{Real,AbstractArray} = 0) = transfer_mean(layer, inputs)
-std_from_inputs(layer::Potts, inputs::Union{Real,AbstractArray} = 0) = sqrt.(transfer_var(layer, inputs))
+std_from_inputs(layer::Potts, inputs::Union{Real,AbstractArray} = 0) = sqrt.(var_from_inputs(layer, inputs))
 
 function transfer_mode(layer::Potts, inputs::Union{Real,AbstractArray} = 0)
     return layer.θ .+ inputs .== maximum(layer.θ .+ inputs; dims=1)
 end
 
-function transfer_var(layer::Potts, inputs::Union{Real,AbstractArray} = 0)
+function var_from_inputs(layer::Potts, inputs::Union{Real,AbstractArray} = 0)
     μ = transfer_mean(layer, inputs)
     return μ .* (1 .- μ)
 end
