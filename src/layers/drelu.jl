@@ -37,7 +37,7 @@ free_energies(layer::dReLU, inputs::Union{Real,AbstractArray} = 0) = drelu_free.
 transfer_sample(layer::dReLU, inputs::Union{Real,AbstractArray} = 0) = drelu_rand.(
     layer.θp .+ inputs, layer.θn .+ inputs, layer.γp, layer.γn
 )
-transfer_mode(layer::dReLU, inputs::Union{Real,AbstractArray} = 0) = drelu_mode.(
+mode_from_inputs(layer::dReLU, inputs::Union{Real,AbstractArray} = 0) = drelu_mode.(
     layer.θp .+ inputs, layer.θn .+ inputs, layer.γp, layer.γn
 )
 

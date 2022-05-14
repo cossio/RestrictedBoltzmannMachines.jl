@@ -24,7 +24,7 @@ end
 
 free_energies(layer::ReLU, inputs::Union{Real,AbstractArray} = 0) = relu_free.(layer.θ .+ inputs, layer.γ)
 transfer_sample(layer::ReLU, inputs::Union{Real,AbstractArray} = 0) = relu_rand.(layer.θ .+ inputs, layer.γ)
-transfer_mode(layer::ReLU, inputs::Union{Real,AbstractArray} = 0) = max.((layer.θ .+ inputs) ./ abs.(layer.γ), 0)
+mode_from_inputs(layer::ReLU, inputs::Union{Real,AbstractArray} = 0) = max.((layer.θ .+ inputs) ./ abs.(layer.γ), 0)
 
 function mean_from_inputs(layer::ReLU, inputs::Union{Real,AbstractArray} = 0)
     g = Gaussian(layer.θ, layer.γ)

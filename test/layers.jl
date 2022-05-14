@@ -10,7 +10,7 @@ using QuadGK: quadgk
 using RestrictedBoltzmannMachines: flatten, batch_size, batchmean, batchvar, batchcov
 using RestrictedBoltzmannMachines: Binary, Spin, Potts, Gaussian, ReLU, dReLU, xReLU, pReLU
 using RestrictedBoltzmannMachines: mean_from_inputs, var_from_inputs, meanvar_from_inputs,
-    std_from_inputs, transfer_mean_abs, transfer_sample, transfer_mode
+    std_from_inputs, transfer_mean_abs, transfer_sample, mode_from_inputs
 using RestrictedBoltzmannMachines: energy, free_energy, free_energies, energies
 
 Random.seed!(2)
@@ -72,7 +72,7 @@ random_layer(::Type{pReLU}, N::Int...) = pReLU(randn(N...), randn(N...), randn(N
         @test size(@inferred mean_from_inputs(layer, x)) == size(x)
         @test size(@inferred var_from_inputs(layer, x)) == size(x)
         @test @inferred(std_from_inputs(layer, x)) ≈ sqrt.(var_from_inputs(layer, x))
-        @test all(energy(layer, transfer_mode(layer)) .≤ energy(layer, x))
+        @test all(energy(layer, mode_from_inputs(layer)) .≤ energy(layer, x))
 
         μ, ν = meanvar_from_inputs(layer, x)
         @test μ ≈ mean_from_inputs(layer, x)
@@ -275,7 +275,7 @@ end
     @test abs.(drelu.γn) ≈ abs.(dReLU(xrelu).γn)
     @test energies(drelu, x) ≈ energies(prelu, x) ≈ energies(xrelu, x)
     @test free_energies(drelu) ≈ free_energies(prelu) ≈ free_energies(xrelu)
-    @test transfer_mode(drelu) ≈ transfer_mode(prelu) ≈ transfer_mode(xrelu)
+    @test mode_from_inputs(drelu) ≈ mode_from_inputs(prelu) ≈ mode_from_inputs(xrelu)
     @test mean_from_inputs(drelu) ≈ mean_from_inputs(prelu) ≈ mean_from_inputs(xrelu)
     @test transfer_mean_abs(drelu) ≈ transfer_mean_abs(prelu) ≈ transfer_mean_abs(xrelu)
     @test var_from_inputs(drelu) ≈ var_from_inputs(prelu) ≈ var_from_inputs(xrelu)
@@ -289,7 +289,7 @@ end
     @test prelu.η ≈ pReLU(drelu).η ≈ pReLU(xrelu).η
     @test energies(drelu, x) ≈ energies(prelu, x) ≈ energies(xrelu, x)
     @test free_energies(drelu) ≈ free_energies(prelu) ≈ free_energies(xrelu)
-    @test transfer_mode(drelu) ≈ transfer_mode(prelu) ≈ transfer_mode(xrelu)
+    @test mode_from_inputs(drelu) ≈ mode_from_inputs(prelu) ≈ mode_from_inputs(xrelu)
     @test mean_from_inputs(drelu) ≈ mean_from_inputs(prelu) ≈ mean_from_inputs(xrelu)
     @test transfer_mean_abs(drelu) ≈ transfer_mean_abs(prelu) ≈ transfer_mean_abs(xrelu)
     @test var_from_inputs(drelu) ≈ var_from_inputs(prelu) ≈ var_from_inputs(xrelu)
@@ -303,7 +303,7 @@ end
     @test abs.(xrelu.γ) ≈ abs.(xReLU(prelu).γ)
     @test energies(drelu, x) ≈ energies(prelu, x) ≈ energies(xrelu, x)
     @test free_energies(drelu) ≈ free_energies(prelu) ≈ free_energies(xrelu)
-    @test transfer_mode(drelu) ≈ transfer_mode(prelu) ≈ transfer_mode(xrelu)
+    @test mode_from_inputs(drelu) ≈ mode_from_inputs(prelu) ≈ mode_from_inputs(xrelu)
     @test mean_from_inputs(drelu) ≈ mean_from_inputs(prelu) ≈ mean_from_inputs(xrelu)
     @test transfer_mean_abs(drelu) ≈ transfer_mean_abs(prelu) ≈ transfer_mean_abs(xrelu)
     @test var_from_inputs(drelu) ≈ var_from_inputs(prelu) ≈ var_from_inputs(xrelu)
@@ -321,8 +321,8 @@ end
         free_energies(prelu) ≈ free_energies(xrelu)
     )
     @test (
-        transfer_mode(gauss) ≈ transfer_mode(drelu) ≈
-        transfer_mode(prelu) ≈ transfer_mode(xrelu)
+        mode_from_inputs(gauss) ≈ mode_from_inputs(drelu) ≈
+        mode_from_inputs(prelu) ≈ mode_from_inputs(xrelu)
     )
     @test (
         mean_from_inputs(gauss) ≈ mean_from_inputs(drelu) ≈
@@ -342,7 +342,7 @@ end
     x = rand(1, 100)
     @test energies(relu, x) ≈ energies(drelu, x)
     @test free_energies(relu) ≈ free_energies(drelu)
-    @test transfer_mode(relu) ≈ transfer_mode(drelu)
+    @test mode_from_inputs(relu) ≈ mode_from_inputs(drelu)
     #@test mean_from_inputs(relu) ≈ mean_from_inputs(drelu)
     #@test transfer_mean_abs(relu)  ≈ transfer_mean_abs(drelu)
     #@test var_from_inputs(relu) ≈ var_from_inputs(drelu)

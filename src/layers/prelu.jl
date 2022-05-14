@@ -29,7 +29,7 @@ transfer_sample(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = transfer_
 mean_from_inputs(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = mean_from_inputs(dReLU(layer), inputs)
 var_from_inputs(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = var_from_inputs(dReLU(layer), inputs)
 meanvar_from_inputs(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = meanvar_from_inputs(dReLU(layer), inputs)
-transfer_mode(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = transfer_mode(dReLU(layer), inputs)
+mode_from_inputs(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = mode_from_inputs(dReLU(layer), inputs)
 transfer_mean_abs(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = transfer_mean_abs(dReLU(layer), inputs)
 std_from_inputs(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = sqrt.(var_from_inputs(layer, inputs))
 

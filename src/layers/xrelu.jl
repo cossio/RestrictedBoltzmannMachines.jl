@@ -26,7 +26,7 @@ Base.repeat(l::xReLU, n::Int...) = xReLU(
 energies(layer::xReLU, x::AbstractArray) = energies(dReLU(layer), x)
 free_energies(layer::xReLU, inputs::Union{Real,AbstractArray} = 0) = free_energies(dReLU(layer), inputs)
 transfer_sample(layer::xReLU, inputs::Union{Real,AbstractArray} = 0) = transfer_sample(dReLU(layer), inputs)
-transfer_mode(layer::xReLU, inputs::Union{Real,AbstractArray} = 0) = transfer_mode(dReLU(layer), inputs)
+mode_from_inputs(layer::xReLU, inputs::Union{Real,AbstractArray} = 0) = mode_from_inputs(dReLU(layer), inputs)
 mean_from_inputs(layer::xReLU, inputs::Union{Real,AbstractArray} = 0) = mean_from_inputs(dReLU(layer), inputs)
 var_from_inputs(layer::xReLU, inputs::Union{Real,AbstractArray} = 0) = var_from_inputs(dReLU(layer), inputs)
 meanvar_from_inputs(layer::xReLU, inputs::Union{Real,AbstractArray} = 0) = meanvar_from_inputs(dReLU(layer), inputs)

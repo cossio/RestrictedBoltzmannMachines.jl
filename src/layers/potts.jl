@@ -22,7 +22,7 @@ mean_from_inputs(layer::Potts, inputs::Union{Real,AbstractArray} = 0) = softmax(
 transfer_mean_abs(layer::Potts, inputs::Union{Real,AbstractArray} = 0) = mean_from_inputs(layer, inputs)
 std_from_inputs(layer::Potts, inputs::Union{Real,AbstractArray} = 0) = sqrt.(var_from_inputs(layer, inputs))
 
-function transfer_mode(layer::Potts, inputs::Union{Real,AbstractArray} = 0)
+function mode_from_inputs(layer::Potts, inputs::Union{Real,AbstractArray} = 0)
     return layer.θ .+ inputs .== maximum(layer.θ .+ inputs; dims=1)
 end
 

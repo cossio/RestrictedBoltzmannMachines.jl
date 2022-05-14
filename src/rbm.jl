@@ -199,7 +199,7 @@ Mode unit activations, conditioned on the other layer.
 """
 function mode_v_from_h(rbm::RBM, h::AbstractArray)
     inputs = inputs_h_to_v(rbm, h)
-    return transfer_mode(visible(rbm), inputs)
+    return mode_from_inputs(visible(rbm), inputs)
 end
 
 """
@@ -209,7 +209,7 @@ Mode unit activations, conditioned on the other layer.
 """
 function mode_h_from_v(rbm::RBM, v::AbstractArray)
     inputs = inputs_v_to_h(rbm, v)
-    return transfer_mode(hidden(rbm), inputs)
+    return mode_from_inputs(hidden(rbm), inputs)
 end
 
 """
