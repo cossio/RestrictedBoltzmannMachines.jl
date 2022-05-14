@@ -11,8 +11,8 @@ Binary(n::Int...) = Binary(Float64, n...)
 
 free_energies(layer::Binary, inputs::Union{Real,AbstractArray} = 0) = -log1pexp.(layer.θ .+ inputs)
 transfer_mode(layer::Binary, inputs::Union{Real,AbstractArray} = 0) = layer.θ .+ inputs .> 0
-transfer_mean(layer::Binary, inputs::Union{Real,AbstractArray} = 0) = logistic.(layer.θ .+ inputs)
-transfer_mean_abs(layer::Binary, inputs::Union{Real,AbstractArray} = 0) = transfer_mean(layer, inputs)
+mean_from_inputs(layer::Binary, inputs::Union{Real,AbstractArray} = 0) = logistic.(layer.θ .+ inputs)
+transfer_mean_abs(layer::Binary, inputs::Union{Real,AbstractArray} = 0) = mean_from_inputs(layer, inputs)
 var_from_inputs(layer::Binary, inputs::Union{Real,AbstractArray} = 0) = binary_var.(layer.θ .+ inputs)
 std_from_inputs(layer::Binary, inputs::Union{Real,AbstractArray} = 0) = binary_std.(layer.θ .+ inputs)
 

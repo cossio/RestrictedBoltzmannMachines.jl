@@ -106,20 +106,20 @@ end
     rbm = RBMs.BinaryRBM(randn(3,2), randn(2,3), zeros(3,2,2,3))
     v = bitrand(size(visible(rbm))..., 10^6)
     v = RBMs.sample_v_from_v(rbm, v)
-    @test RBMs.batchmean(visible(rbm), v) ≈ RBMs.transfer_mean(visible(rbm)) rtol=0.1
+    @test RBMs.batchmean(visible(rbm), v) ≈ RBMs.mean_from_inputs(visible(rbm)) rtol=0.1
 
     h = bitrand(size(hidden(rbm))...,  10^6)
     h = RBMs.sample_h_from_h(rbm, h)
-    @test RBMs.batchmean(hidden(rbm), h) ≈ RBMs.transfer_mean(hidden(rbm)) rtol=0.1
+    @test RBMs.batchmean(hidden(rbm), h) ≈ RBMs.mean_from_inputs(hidden(rbm)) rtol=0.1
 
     randn!(weights(rbm))
     h = RBMs.sample_h_from_v(rbm, v)
-    μ = RBMs.transfer_mean(hidden(rbm), inputs_v_to_h(rbm, v))
+    μ = RBMs.mean_from_inputs(hidden(rbm), inputs_v_to_h(rbm, v))
     @test RBMs.batchmean(hidden(rbm), h) ≈ RBMs.batchmean(hidden(rbm), μ) rtol=0.1
 
     randn!(weights(rbm))
     v = RBMs.sample_v_from_h(rbm, h)
-    μ = RBMs.transfer_mean(visible(rbm), inputs_h_to_v(rbm, h))
+    μ = RBMs.mean_from_inputs(visible(rbm), inputs_h_to_v(rbm, h))
     @test RBMs.batchmean(visible(rbm), v) ≈ RBMs.batchmean(visible(rbm), μ) rtol=0.1
 end
 
@@ -137,7 +137,7 @@ end
 
     rbm = RBMs.HopfieldRBM(randn(5), randn(5,3))
     @test RBMs.visible(rbm) isa RBMs.Spin
-    @test iszero(RBMs.transfer_mean(hidden(rbm)))
+    @test iszero(RBMs.mean_from_inputs(hidden(rbm)))
     @test RBMs.var_from_inputs(hidden(rbm)) == ones(size(hidden(rbm)))
     @test size(RBMs.weights(rbm)) == (5,3)
 end

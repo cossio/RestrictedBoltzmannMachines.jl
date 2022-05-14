@@ -5,7 +5,7 @@ using Random: bitrand
 using LogExpFunctions: softmax
 using RestrictedBoltzmannMachines: RBM, Spin, Binary, Potts, Gaussian
 using RestrictedBoltzmannMachines: mean_h_from_v, var_h_from_v, batchmean, batchvar
-using RestrictedBoltzmannMachines: transfer_mean, extensive_sample, zerosum
+using RestrictedBoltzmannMachines: mean_from_inputs, extensive_sample, zerosum
 using RestrictedBoltzmannMachines: sample_v_from_h, sample_v_from_v, initialize!, pcd!, free_energy, wmean
 import Flux
 
@@ -40,7 +40,7 @@ end
     student = RBM(Binary(N), Binary(1), zeros(N,1))
     initialize!(student, data; wts)
     student.w .= cos.(range(-10, 10, length=N))
-    @test transfer_mean(student.visible) ≈ wmean(data; wts, dims=2)
+    @test mean_from_inputs(student.visible) ≈ wmean(data; wts, dims=2)
     pcd!(student, data; wts, epochs, batchsize, mode=:exact, optim=Flux.AdaBelief())
     @info @test cor(free_energy(teacher, data), free_energy(student, data)) > 0.9999
 
@@ -74,7 +74,7 @@ end
     student = RBM(Spin(N), Spin(1), zeros(N,1))
     initialize!(student, data; wts)
     student.w .= cos.(1:N)
-    @test transfer_mean(student.visible) ≈ wmean(data; wts, dims=2)
+    @test mean_from_inputs(student.visible) ≈ wmean(data; wts, dims=2)
     pcd!(student, data; wts, epochs, batchsize, mode=:exact, shuffle=false, optim=Flux.RADAM())
     @info @test cor(free_energy(teacher, data), free_energy(student, data)) > 0.9999
 end
@@ -93,7 +93,7 @@ end
     student = RBM(Binary(N), Gaussian(1), zeros(N,1))
     initialize!(student, data; wts)
     student.w .= cos.(1:N)
-    @test transfer_mean(student.visible) ≈ wmean(data; wts, dims=2)
+    @test mean_from_inputs(student.visible) ≈ wmean(data; wts, dims=2)
     pcd!(student, data; wts, epochs, batchsize, ϵh=1e-2, shuffle=false, mode=:exact, optim=Flux.ADAM())
     @info @test cor(free_energy(teacher, data), free_energy(student, data)) > 0.99
     wts_student = softmax(-free_energy(student, data))
@@ -118,7 +118,7 @@ end
     student = RBM(Potts(q, N), Spin(1), zeros(q, N, 1))
     initialize!(student, data; wts)
     student.w[1,:,1] .= -student.w[2,:,1] .= cos.(1:N)
-    @test transfer_mean(student.visible) ≈ wmean(data; wts, dims=3)
+    @test mean_from_inputs(student.visible) ≈ wmean(data; wts, dims=3)
     pcd!(student, data; wts, epochs, batchsize, mode=:exact, optim=Flux.AdaBelief())
     @info @test cor(free_energy(teacher, data), free_energy(student, data)) > 0.9999
 end
@@ -134,7 +134,7 @@ end
     nsamples = size(data)[end]
     epochs = train_nepochs(; nsamples, batchsize, nupdates)
     initialize!(student, data)
-    @test transfer_mean(student.visible) ≈ mean(data; dims=2)
+    @test mean_from_inputs(student.visible) ≈ mean(data; dims=2)
     pcd!(student, data; epochs, batchsize)
     @info @test cor(free_energy(teacher, data), free_energy(student, data)) > 0.9
 end
@@ -152,7 +152,7 @@ end
     epochs = train_nepochs(; nsamples, batchsize, nupdates)
     student = RBM(Spin(N), Spin(1), zeros(N,1))
     initialize!(student, data; wts)
-    @test transfer_mean(student.visible) ≈ wmean(data; wts, dims=2)
+    @test mean_from_inputs(student.visible) ≈ wmean(data; wts, dims=2)
     pcd!(student, data; wts, epochs, batchsize)
     @info @test cor(free_energy(teacher, data), free_energy(student, data)) > 0.95
 end
@@ -169,7 +169,7 @@ end
     nsamples = size(data)[end]
     epochs = train_nepochs(; nsamples, batchsize, nupdates)
     initialize!(student, data)
-    @test transfer_mean(student.visible) ≈ mean(data; dims=3)
+    @test mean_from_inputs(student.visible) ≈ mean(data; dims=3)
     pcd!(student, data; epochs, batchsize)
     @info @test cor(free_energy(teacher, data), free_energy(student, data)) > 0.9
 end
@@ -189,7 +189,7 @@ end
     epochs = train_nepochs(; nsamples, batchsize, nupdates)
     student = RBM(Potts(q,N), Spin(1), zeros(q,N,1))
     initialize!(student, data; wts)
-    @test transfer_mean(student.visible) ≈ wmean(data; wts, dims=3)
+    @test mean_from_inputs(student.visible) ≈ wmean(data; wts, dims=3)
     pcd!(student, data; wts, epochs, batchsize)
     @info @test cor(free_energy(teacher, data), free_energy(student, data)) > 0.95
 end
@@ -205,7 +205,7 @@ end
     nsamples = size(data)[end]
     epochs = train_nepochs(; nsamples, batchsize, nupdates)
     initialize!(student, data)
-    @test transfer_mean(student.visible) ≈ mean(data; dims=3)
+    @test mean_from_inputs(student.visible) ≈ mean(data; dims=3)
     pcd!(student, data; epochs, batchsize)
     @info @test cor(free_energy(teacher, data), free_energy(student, data)) > 0.9
 end
@@ -224,7 +224,7 @@ end
     nsamples = size(data)[end]
     epochs = train_nepochs(; nsamples, batchsize, nupdates)
     initialize!(student, data)
-    @test transfer_mean(student.visible) ≈ mean(data; dims=3)
+    @test mean_from_inputs(student.visible) ≈ mean(data; dims=3)
     pcd!(student, data; wts, epochs, batchsize)
     @info @test cor(free_energy(teacher, data), free_energy(student, data)) > 0.9
 end

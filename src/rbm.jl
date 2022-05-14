@@ -159,7 +159,7 @@ Mean unit activation values, conditioned on the other layer, <h | v>.
 """
 function mean_h_from_v(rbm::RBM, v::AbstractArray)
     inputs = inputs_v_to_h(rbm, v)
-    return transfer_mean(hidden(rbm), inputs)
+    return mean_from_inputs(hidden(rbm), inputs)
 end
 
 """
@@ -169,7 +169,7 @@ Mean unit activation values, conditioned on the other layer, <v | h>.
 """
 function mean_v_from_h(rbm::RBM, h::AbstractArray)
     inputs = inputs_h_to_v(rbm, h)
-    return transfer_mean(visible(rbm), inputs)
+    return mean_from_inputs(visible(rbm), inputs)
 end
 
 """

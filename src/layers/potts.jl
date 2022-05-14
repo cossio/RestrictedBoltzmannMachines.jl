@@ -18,8 +18,8 @@ Potts(q::Int, n::Int...) = Potts(Float64, q, n...)
 Base.repeat(l::Potts, n::Int...) = Potts(repeat(l.θ, n...))
 
 free_energies(layer::Potts, inputs::Union{Real,AbstractArray} = 0) = -logsumexp(layer.θ .+ inputs; dims=1)
-transfer_mean(layer::Potts, inputs::Union{Real,AbstractArray} = 0) = softmax(layer.θ .+ inputs; dims=1)
-transfer_mean_abs(layer::Potts, inputs::Union{Real,AbstractArray} = 0) = transfer_mean(layer, inputs)
+mean_from_inputs(layer::Potts, inputs::Union{Real,AbstractArray} = 0) = softmax(layer.θ .+ inputs; dims=1)
+transfer_mean_abs(layer::Potts, inputs::Union{Real,AbstractArray} = 0) = mean_from_inputs(layer, inputs)
 std_from_inputs(layer::Potts, inputs::Union{Real,AbstractArray} = 0) = sqrt.(var_from_inputs(layer, inputs))
 
 function transfer_mode(layer::Potts, inputs::Union{Real,AbstractArray} = 0)
@@ -27,12 +27,12 @@ function transfer_mode(layer::Potts, inputs::Union{Real,AbstractArray} = 0)
 end
 
 function var_from_inputs(layer::Potts, inputs::Union{Real,AbstractArray} = 0)
-    μ = transfer_mean(layer, inputs)
+    μ = mean_from_inputs(layer, inputs)
     return μ .* (1 .- μ)
 end
 
 function meanvar_from_inputs(layer::Potts, inputs::Union{Real,AbstractArray} = 0)
-    μ = transfer_mean(layer, inputs)
+    μ = mean_from_inputs(layer, inputs)
     ν = μ .* (1 .- μ)
     return μ, ν
 end

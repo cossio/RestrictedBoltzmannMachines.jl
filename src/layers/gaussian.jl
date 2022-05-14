@@ -24,23 +24,23 @@ function free_energies(l::Gaussian, inputs::Union{Real,AbstractArray} = 0)
 end
 
 function transfer_sample(layer::Gaussian, inputs::Union{Real,AbstractArray} = 0)
-    μ = transfer_mean(layer, inputs)
+    μ = mean_from_inputs(layer, inputs)
     σ = sqrt.(var_from_inputs(layer, inputs))
     z = randn!(similar(μ))
     return μ .+ σ .* z
 end
 
-transfer_mean(l::Gaussian, inputs::Union{Real,AbstractArray} = 0) = (l.θ .+ inputs) ./ abs.(l.γ)
+mean_from_inputs(l::Gaussian, inputs::Union{Real,AbstractArray} = 0) = (l.θ .+ inputs) ./ abs.(l.γ)
 var_from_inputs(l::Gaussian, inputs::Union{Real,AbstractArray} = 0) = inv.(abs.(l.γ .+ zero(inputs)))
 std_from_inputs(l::Gaussian, inputs::Union{Real,AbstractArray} = 0) = sqrt.(var_from_inputs(l, inputs))
-transfer_mode(l::Gaussian, inputs::Union{Real,AbstractArray} = 0) = transfer_mean(l, inputs)
+transfer_mode(l::Gaussian, inputs::Union{Real,AbstractArray} = 0) = mean_from_inputs(l, inputs)
 
 function meanvar_from_inputs(l::Gaussian, inputs::Union{Real,AbstractArray} = 0)
-    return transfer_mean(l, inputs), var_from_inputs(l, inputs)
+    return mean_from_inputs(l, inputs), var_from_inputs(l, inputs)
 end
 
 function transfer_mean_abs(layer::Gaussian, inputs::Union{Real,AbstractArray} = 0)
-    μ = transfer_mean(layer, inputs)
+    μ = mean_from_inputs(layer, inputs)
     ν = var_from_inputs(layer, inputs)
     return @. √(2ν/π) * exp(-μ^2 / (2ν)) + μ * erf(μ / √(2ν))
 end

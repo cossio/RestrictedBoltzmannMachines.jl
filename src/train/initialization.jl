@@ -118,7 +118,7 @@ function initialize_w!(
 end
 
 function initialize_w!(rbm::RBM; λ::Real = 0.1, ϵ::Real = 1e-6)
-    d = sum(var_from_inputs(visible(rbm)) .+ transfer_mean(visible(rbm)).^2)
+    d = sum(var_from_inputs(visible(rbm)) .+ mean_from_inputs(visible(rbm)).^2)
     randn!(weights(rbm))
     weights(rbm) .*= λ / √(d + ϵ)
     return rbm

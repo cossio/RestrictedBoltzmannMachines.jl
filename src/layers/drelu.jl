@@ -45,7 +45,7 @@ function std_from_inputs(layer::dReLU, inputs::Union{Real,AbstractArray} = 0)
     return sqrt.(var_from_inputs(layer, inputs))
 end
 
-function transfer_mean(layer::dReLU, inputs::Union{Real,AbstractArray} = 0)
+function mean_from_inputs(layer::dReLU, inputs::Union{Real,AbstractArray} = 0)
     lp = ReLU( layer.θp, layer.γp)
     ln = ReLU(-layer.θn, layer.γn)
     Fp = free_energies(lp,  inputs)
@@ -53,8 +53,8 @@ function transfer_mean(layer::dReLU, inputs::Union{Real,AbstractArray} = 0)
     F = -logaddexp.(-Fp, -Fn)
     pp = exp.(F - Fp)
     pn = exp.(F - Fn)
-    μp = transfer_mean(lp,  inputs)
-    μn = transfer_mean(ln, -inputs)
+    μp = mean_from_inputs(lp,  inputs)
+    μn = mean_from_inputs(ln, -inputs)
     return pp .* μp - pn .* μn
 end
 
@@ -97,8 +97,8 @@ function transfer_mean_abs(layer::dReLU, inputs::Union{Real,AbstractArray} = 0)
     pp = exp.(F - Fp)
     pn = exp.(F - Fn)
 
-    μp =  transfer_mean(lp,  inputs)
-    μn = -transfer_mean(ln, -inputs)
+    μp =  mean_from_inputs(lp,  inputs)
+    μn = -mean_from_inputs(ln, -inputs)
     return pp .* μp - pn .* μn
 end
 

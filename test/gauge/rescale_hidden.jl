@@ -4,7 +4,7 @@ using Statistics: mean, var
 using Random: bitrand, rand!, randn!
 using RestrictedBoltzmannMachines: RBM, Binary, visible, hidden, weights, free_energy
 using RestrictedBoltzmannMachines: Gaussian, ReLU, dReLU, pReLU, xReLU
-using RestrictedBoltzmannMachines: sample_v_from_v, sample_h_from_h, transfer_mean, var_from_inputs
+using RestrictedBoltzmannMachines: sample_v_from_v, sample_h_from_h, mean_from_inputs, var_from_inputs
 using RestrictedBoltzmannMachines: rescale_hidden!, rescale_activations!
 
 Random.seed!(23)
@@ -20,10 +20,10 @@ Random.seed!(23)
     )
     λ = rand(N...)
     for layer in layers
-        μ = transfer_mean(layer)
+        μ = mean_from_inputs(layer)
         ν = var_from_inputs(layer)
         rescale_activations!(layer, λ)
-        @test transfer_mean(layer) ≈ μ ./ λ
+        @test mean_from_inputs(layer) ≈ μ ./ λ
         @test var_from_inputs(layer) ≈ ν ./ λ.^2
     end
 end
