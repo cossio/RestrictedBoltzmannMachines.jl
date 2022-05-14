@@ -88,7 +88,7 @@ function substitution_matrix_sites(
 )
     @assert size(visible(rbm)) == size(v)[1:ndims(visible(rbm))]
     @assert size(sites) == batch_size(visible(rbm), v)
-    E_ = zeros(colors(visible(rbm)), batch_size(visible(rbm), v)...)
+    E_ = zeros(2, batch_size(visible(rbm), v)...)
     for (k, x) in enumerate((false, true))
         v_ = copy(v)
         for (b, i) in pairs(sites)
@@ -122,8 +122,8 @@ function substitution_matrix_sites(
 )
     @assert size(visible(rbm)) == size(v)[1:ndims(visible(rbm))]
     @assert size(sites) == batch_size(visible(rbm), v)
-    E_ = zeros(colors(visible(rbm)), batch_size(visible(rbm), v)...)
-    for x in 1:colors(visible(rbm))
+    E_ = zeros(size(rbm.visible, 1), batch_size(visible(rbm), v)...)
+    for x in 1:size(rbm.visible, 1)
         v_ = copy(v)
         for (b, i) in pairs(sites)
             v_[:, i, b] .= false
@@ -194,7 +194,7 @@ function substitution_matrix_exhaustive(rbm::RBM{<:Potts}, v::AbstractArray)
     E_ = zeros(size(v))
     for i in CartesianIndices(sitesize(visible(rbm)))
         v_ = copy(v)
-        for x in 1:colors(visible(rbm))
+        for x in 1:size(rbm.visible, 1)
             v_[:, i, batch_indices] .= false
             v_[x, i, batch_indices] .= true
             E_[x, i, batch_indices] .= free_energy(rbm, v_)
