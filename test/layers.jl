@@ -9,7 +9,7 @@ using LogExpFunctions: logistic
 using QuadGK: quadgk
 using RestrictedBoltzmannMachines: flatten, batch_size, batchmean, batchvar, batchcov
 using RestrictedBoltzmannMachines: Binary, Spin, Potts, Gaussian, ReLU, dReLU, xReLU, pReLU
-using RestrictedBoltzmannMachines: transfer_mean, transfer_var, transfer_meanvar,
+using RestrictedBoltzmannMachines: transfer_mean, transfer_var, meanvar_from_inputs,
     transfer_std, transfer_mean_abs, transfer_sample, transfer_mode
 using RestrictedBoltzmannMachines: energy, free_energy, free_energies, energies
 
@@ -74,7 +74,7 @@ random_layer(::Type{pReLU}, N::Int...) = pReLU(randn(N...), randn(N...), randn(N
         @test @inferred(transfer_std(layer, x)) ≈ sqrt.(transfer_var(layer, x))
         @test all(energy(layer, transfer_mode(layer)) .≤ energy(layer, x))
 
-        μ, ν = transfer_meanvar(layer, x)
+        μ, ν = meanvar_from_inputs(layer, x)
         @test μ ≈ transfer_mean(layer, x)
         @test ν ≈ transfer_var(layer, x)
 

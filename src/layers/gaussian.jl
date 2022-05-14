@@ -35,7 +35,7 @@ transfer_var(l::Gaussian, inputs::Union{Real,AbstractArray} = 0) = inv.(abs.(l.Î
 transfer_std(l::Gaussian, inputs::Union{Real,AbstractArray} = 0) = sqrt.(transfer_var(l, inputs))
 transfer_mode(l::Gaussian, inputs::Union{Real,AbstractArray} = 0) = transfer_mean(l, inputs)
 
-function transfer_meanvar(l::Gaussian, inputs::Union{Real,AbstractArray} = 0)
+function meanvar_from_inputs(l::Gaussian, inputs::Union{Real,AbstractArray} = 0)
     return transfer_mean(l, inputs), transfer_var(l, inputs)
 end
 

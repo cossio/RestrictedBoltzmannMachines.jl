@@ -16,7 +16,7 @@ transfer_mean_abs(layer::Binary, inputs::Union{Real,AbstractArray} = 0) = transf
 transfer_var(layer::Binary, inputs::Union{Real,AbstractArray} = 0) = binary_var.(layer.θ .+ inputs)
 transfer_std(layer::Binary, inputs::Union{Real,AbstractArray} = 0) = binary_std.(layer.θ .+ inputs)
 
-function transfer_meanvar(layer::Binary, inputs::Union{Real,AbstractArray} = 0)
+function meanvar_from_inputs(layer::Binary, inputs::Union{Real,AbstractArray} = 0)
     θ = layer.θ .+ inputs
     t = @. exp(-abs(θ))
     μ = @. ifelse(θ ≥ 0, 1 / (1 + t), t / (1 + t))

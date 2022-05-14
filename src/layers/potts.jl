@@ -31,7 +31,7 @@ function transfer_var(layer::Potts, inputs::Union{Real,AbstractArray} = 0)
     return μ .* (1 .- μ)
 end
 
-function transfer_meanvar(layer::Potts, inputs::Union{Real,AbstractArray} = 0)
+function meanvar_from_inputs(layer::Potts, inputs::Union{Real,AbstractArray} = 0)
     μ = transfer_mean(layer, inputs)
     ν = μ .* (1 .- μ)
     return μ, ν

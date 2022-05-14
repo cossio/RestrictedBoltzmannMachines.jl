@@ -42,7 +42,7 @@ function transfer_var(layer::ReLU, inputs::Union{Real,AbstractArray} = 0)
     return @. ν * tnvar(-μ / √ν)
 end
 
-function transfer_meanvar(layer::ReLU, inputs::Union{Real,AbstractArray} = 0)
+function meanvar_from_inputs(layer::ReLU, inputs::Union{Real,AbstractArray} = 0)
     g = Gaussian(layer.θ, layer.γ)
     μ = transfer_mean(g, inputs)
     ν = transfer_var(g, inputs)

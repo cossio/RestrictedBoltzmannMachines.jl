@@ -66,13 +66,13 @@ function transfer_var(layer::dReLU, inputs::Union{Real,AbstractArray} = 0)
     F = -logaddexp.(-Fp, -Fn)
     pp = exp.(F - Fp)
     pn = exp.(F - Fn)
-    μp, νp = transfer_meanvar(lp,  inputs)
-    μn, νn = transfer_meanvar(ln, -inputs)
+    μp, νp = meanvar_from_inputs(lp,  inputs)
+    μn, νn = meanvar_from_inputs(ln, -inputs)
     μ = pp .* μp - pn .* μn
     return @. pp * (νp + μp^2) + pn * (νn + μn^2) - μ^2
 end
 
-function transfer_meanvar(layer::dReLU, inputs::Union{Real,AbstractArray} = 0)
+function meanvar_from_inputs(layer::dReLU, inputs::Union{Real,AbstractArray} = 0)
     lp = ReLU( layer.θp, layer.γp)
     ln = ReLU(-layer.θn, layer.γn)
     Fp = free_energies(lp,  inputs)
@@ -80,8 +80,8 @@ function transfer_meanvar(layer::dReLU, inputs::Union{Real,AbstractArray} = 0)
     F = -logaddexp.(-Fp, -Fn)
     pp = exp.(F - Fp)
     pn = exp.(F - Fn)
-    μp, νp = transfer_meanvar(lp,  inputs)
-    μn, νn = transfer_meanvar(ln, -inputs)
+    μp, νp = meanvar_from_inputs(lp,  inputs)
+    μn, νn = meanvar_from_inputs(ln, -inputs)
     μ = pp .* μp - pn .* μn
     ν = @. pp * (νp + μp^2) + pn * (νn + μn^2) - μ^2
     return μ, ν
@@ -110,8 +110,8 @@ function ∂free_energies(layer::dReLU, inputs::Union{Real,AbstractArray} = 0)
     F = -logaddexp.(-Fp, -Fn)
     pp = exp.(F - Fp)
     pn = exp.(F - Fn)
-    μp, νp = transfer_meanvar(lp,  inputs)
-    μn, νn = transfer_meanvar(ln, -inputs)
+    μp, νp = meanvar_from_inputs(lp,  inputs)
+    μn, νn = meanvar_from_inputs(ln, -inputs)
     μ2p = @. (νp + μp^2) / 2
     μ2n = @. (νn + μn^2) / 2
     return (

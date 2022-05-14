@@ -29,7 +29,7 @@ function transfer_var(layer::Spin, inputs::Union{Real,AbstractArray} = 0)
     return @. (1 - μ) * (1 + μ)
 end
 
-function transfer_meanvar(layer::Spin, inputs::Union{Real,AbstractArray} = 0)
+function meanvar_from_inputs(layer::Spin, inputs::Union{Real,AbstractArray} = 0)
     μ = transfer_mean(layer, inputs)
     ν = @. (1 - μ) * (1 + μ)
     return μ, ν
