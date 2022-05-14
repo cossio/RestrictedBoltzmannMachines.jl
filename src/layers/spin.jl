@@ -35,7 +35,7 @@ function meanvar_from_inputs(layer::Spin, inputs::Union{Real,AbstractArray} = 0)
     return μ, ν
 end
 
-function transfer_sample(layer::Spin, inputs::Union{Real,AbstractArray} = 0)
+function sample_from_inputs(layer::Spin, inputs::Union{Real,AbstractArray} = 0)
     θ = layer.θ .+ inputs
     u = rand!(similar(θ))
     return spin_rand.(θ, u)

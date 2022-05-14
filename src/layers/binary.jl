@@ -24,7 +24,7 @@ function meanvar_from_inputs(layer::Binary, inputs::Union{Real,AbstractArray} = 
     return μ, ν
 end
 
-function transfer_sample(layer::Binary, inputs::Union{Real,AbstractArray} = 0)
+function sample_from_inputs(layer::Binary, inputs::Union{Real,AbstractArray} = 0)
     θ = layer.θ .+ inputs
     u = rand!(similar(θ))
     return binary_rand.(θ, u)

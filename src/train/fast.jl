@@ -16,7 +16,7 @@ function fpcd!(rbm::RBM, data::AbstractArray;
     @assert size(data) == (size(visible(rbm))..., size(data)[end])
     @assert isnothing(wts) || _nobs(data) == _nobs(wts)
     stats = suffstats(rbm, data; wts)
-    vm = transfer_sample(visible(rbm), falses(size(visible(rbm))..., batchsize))
+    vm = sample_from_inputs(visible(rbm), falses(size(visible(rbm))..., batchsize))
     rbmfast = deepcopy(rbm) # store fast parameters
     # (Actually, the parameters of rbmfast are the sums θ_regular + θ_fast)
     for epoch in 1:epochs

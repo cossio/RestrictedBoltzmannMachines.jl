@@ -37,7 +37,7 @@ function meanvar_from_inputs(layer::Potts, inputs::Union{Real,AbstractArray} = 0
     return μ, ν
 end
 
-function transfer_sample(layer::Potts, inputs::Union{Real,AbstractArray} = 0)
+function sample_from_inputs(layer::Potts, inputs::Union{Real,AbstractArray} = 0)
     c = categorical_sample_from_logits(layer.θ .+ inputs)
     return onehot_encode(c, 1:size(layer, 1))
 end

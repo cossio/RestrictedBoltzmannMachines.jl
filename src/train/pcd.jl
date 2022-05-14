@@ -112,7 +112,7 @@ fantasy_init(rbm::RBM; batchsize::Int, mode::Symbol = :pcd) = fantasy_init(rbm.v
 function fantasy_init(l::AbstractLayer; batchsize::Int, mode::Symbol = :pcd)
     @assert mode ∈ (:pcd, :cd, :exact)
     if mode === :pcd || mode === :cd
-        return transfer_sample(l, falses(size(l)..., batchsize))
+        return sample_from_inputs(l, falses(size(l)..., batchsize))
     elseif mode === :exact
         @warn "Running extensive sampling; this can take a lot of RAM and time"
         return extensive_sample(l)

@@ -20,7 +20,7 @@ function rdm!(rbm::RBM, data::AbstractArray;
         batches = minibatches(data, wts; batchsize = batchsize)
         for (vd, wd) in batches
             # fantasy particles, initialized randomly
-            vm = transfer_sample(visible(rbm), Falses(size(visible(rbm)))..., batchsize)
+            vm = sample_from_inputs(visible(rbm), Falses(size(visible(rbm)))..., batchsize)
             vm = sample_v_from_v(rbm, vm; steps = steps)
             ∂ = ∂contrastive_divergence(rbm, vd, vm; wd = wd, wm = wd, stats)
             update!(rbm, update!(∂, rbm, optim))

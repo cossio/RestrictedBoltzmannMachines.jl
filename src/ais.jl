@@ -46,7 +46,7 @@ temperatures!
 """
 function ais(rbm::RBM; nbetas::Int = 1000, nsamples::Int = 1, init::AbstractLayer = visible(rbm))
     @assert size(init) == size(visible(rbm))
-    v = transfer_sample(init, Falses(size(init)..., nsamples)) # v[0]
+    v = sample_from_inputs(init, Falses(size(init)..., nsamples)) # v[0]
     annealed_rbm = anneal(init, rbm; β = 0 / nbetas) # β[0]
     R = fill(log_partition_zero_weight(annealed_rbm), nsamples)
     for t in 1:nbetas
@@ -95,7 +95,7 @@ function ais!(traj::AbstractArray, rbm::RBM; init::AbstractLayer = visible(rbm))
     nbetas = size(traj, ndims(traj))
     @assert size(traj) == (size(visible(rbm))..., nsamples, nbetas)
     @assert size(init) == size(visible(rbm))
-    v = transfer_sample(init, Falses(size(init)..., nsamples)) # v[0]
+    v = sample_from_inputs(init, Falses(size(init)..., nsamples)) # v[0]
     annealed_rbm = anneal(init, rbm; β = 0 / nbetas) # β[0] -> β[1]
     R = fill(log_partition_zero_weight(annealed_rbm), nsamples)
     for t in 1:nbetas

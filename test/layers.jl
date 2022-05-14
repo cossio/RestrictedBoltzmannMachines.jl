@@ -10,7 +10,7 @@ using QuadGK: quadgk
 using RestrictedBoltzmannMachines: flatten, batch_size, batchmean, batchvar, batchcov
 using RestrictedBoltzmannMachines: Binary, Spin, Potts, Gaussian, ReLU, dReLU, xReLU, pReLU
 using RestrictedBoltzmannMachines: mean_from_inputs, var_from_inputs, meanvar_from_inputs,
-    std_from_inputs, mean_abs_from_inputs, transfer_sample, mode_from_inputs
+    std_from_inputs, mean_abs_from_inputs, sample_from_inputs, mode_from_inputs
 using RestrictedBoltzmannMachines: energy, free_energy, free_energies, energies
 
 Random.seed!(2)
@@ -49,7 +49,7 @@ random_layer(::Type{pReLU}, N::Int...) = pReLU(randn(N...), randn(N...), randn(N
     @test (@inferred free_energy(layer, rand(N...))) isa Number
     @test size(@inferred mean_from_inputs(layer)) == size(layer)
     @test size(@inferred var_from_inputs(layer)) == size(layer)
-    @test size(@inferred transfer_sample(layer)) == size(layer)
+    @test size(@inferred sample_from_inputs(layer)) == size(layer)
     @test free_energies(layer, 0) ≈ free_energies(layer)
     @test std_from_inputs(layer) ≈ sqrt.(var_from_inputs(layer))
 
@@ -59,7 +59,7 @@ random_layer(::Type{pReLU}, N::Int...) = pReLU(randn(N...), randn(N...), randn(N
         @test size(@inferred free_energies(layer)) == size(layer)
     end
 
-    @test size(@inferred transfer_sample(layer, 0)) == size(layer)
+    @test size(@inferred sample_from_inputs(layer, 0)) == size(layer)
 
     for B in ((), (2,), (1,2))
         x = rand(N..., B...)
@@ -68,7 +68,7 @@ random_layer(::Type{pReLU}, N::Int...) = pReLU(randn(N...), randn(N...), randn(N
         @test size(@inferred energy(layer, x)) == (B...,)
         @test size(@inferred free_energy(layer, x)) == (B...,)
         @test size(@inferred energies(layer, x)) == size(x)
-        @test size(@inferred transfer_sample(layer, x)) == size(x)
+        @test size(@inferred sample_from_inputs(layer, x)) == size(x)
         @test size(@inferred mean_from_inputs(layer, x)) == size(x)
         @test size(@inferred var_from_inputs(layer, x)) == size(x)
         @test @inferred(std_from_inputs(layer, x)) ≈ sqrt.(var_from_inputs(layer, x))
@@ -110,7 +110,7 @@ random_layer(::Type{pReLU}, N::Int...) = pReLU(randn(N...), randn(N...), randn(N
         @test ∂ω ≈ getproperty(only(gs), ω)
     end
 
-    samples = @inferred transfer_sample(layer, zeros(size(layer)..., 10^6))
+    samples = @inferred sample_from_inputs(layer, zeros(size(layer)..., 10^6))
     @test @inferred(mean_from_inputs(layer)) ≈ reshape(mean(samples; dims=3), size(layer)) rtol=0.1 atol=0.01
     @test @inferred(var_from_inputs(layer)) ≈ reshape(var(samples; dims=ndims(samples)), size(layer)) rtol=0.1
     @test @inferred(mean_abs_from_inputs(layer)) ≈ reshape(mean(abs.(samples); dims=ndims(samples)), size(layer)) rtol=0.1
@@ -156,7 +156,7 @@ end
     layer = Binary(randn(7, 4, 5))
     var_from_inputs(layer) ≈ @. logistic(layer.θ) * logistic(-layer.θ)
     @test free_energies(layer) ≈ -log.(sum(exp.(layer.θ .* h) for h in 0:1))
-    @test sort(unique(transfer_sample(layer))) == [0, 1]
+    @test sort(unique(sample_from_inputs(layer))) == [0, 1]
 
     gs = Zygote.gradient(layer) do layer
         sum(free_energies(layer))
@@ -170,7 +170,7 @@ end
 @testset "Spin" begin
     layer = Spin(randn(7, 4, 5))
     @test free_energies(layer) ≈ -log.(sum(exp.(layer.θ .* h) for h in (-1, 1)))
-    @test sort(unique(transfer_sample(layer))) == [-1, 1]
+    @test sort(unique(sample_from_inputs(layer))) == [-1, 1]
 
     gs = Zygote.gradient(layer) do layer
         sum(free_energies(layer))
@@ -188,8 +188,8 @@ end
     @test free_energies(layer) ≈ -log.(sum(exp.(layer.θ[h:h,:,:,:]) for h in 1:q))
     @test all(sum(mean_from_inputs(layer); dims=1) .≈ 1)
     # samples are proper one-hot
-    @test sort(unique(transfer_sample(layer))) == [0, 1]
-    @test all(sum(transfer_sample(layer); dims=1) .== 1)
+    @test sort(unique(sample_from_inputs(layer))) == [0, 1]
+    @test all(sum(sample_from_inputs(layer); dims=1) .== 1)
 
     gs = Zygote.gradient(layer) do layer
         sum(free_energies(layer))

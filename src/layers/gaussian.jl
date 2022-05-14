@@ -23,7 +23,7 @@ function free_energies(l::Gaussian, inputs::Union{Real,AbstractArray} = 0)
     return @. -(l.θ .+ inputs)^2 / abs(2l.γ) + log(abs(l.γ)/π/2) / 2
 end
 
-function transfer_sample(layer::Gaussian, inputs::Union{Real,AbstractArray} = 0)
+function sample_from_inputs(layer::Gaussian, inputs::Union{Real,AbstractArray} = 0)
     μ = mean_from_inputs(layer, inputs)
     σ = sqrt.(var_from_inputs(layer, inputs))
     z = randn!(similar(μ))
