@@ -46,7 +46,7 @@ function RBMs.energy(rbm::CenteredRBM, v::AbstractArray, h::AbstractArray)
 end
 
 function RBMs.free_energy(rbm::CenteredRBM, v::AbstractArray)
-    inputs = RBMs.inputs_v_to_h(RBM(rbm), v .- rbm.λv)
+    inputs = RBMs.inputs_h_from_v(RBM(rbm), v .- rbm.λv)
     E = energy(rbm.visible, v) + energy(Binary(-rbm.λh), inputs)
     F = free_energy(rbm.hidden, inputs)
     return E + F

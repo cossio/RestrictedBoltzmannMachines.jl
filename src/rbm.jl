@@ -26,11 +26,11 @@ flat_v(rbm::RBM, v::AbstractArray) = flatten(visible(rbm), v)
 flat_h(rbm::RBM, h::AbstractArray) = flatten(hidden(rbm), h)
 
 """
-    inputs_v_to_h(rbm, v)
+    inputs_h_from_v(rbm, v)
 
 Interaction inputs from visible to hidden layer.
 """
-function inputs_v_to_h(rbm::RBM, v::AbstractArray)
+function inputs_h_from_v(rbm::RBM, v::AbstractArray)
     wflat = flat_w(rbm)
     vflat = activations_convert_maybe(wflat, flat_v(rbm, v))
     iflat = wflat' * vflat
@@ -38,16 +38,20 @@ function inputs_v_to_h(rbm::RBM, v::AbstractArray)
 end
 
 """
-    inputs_h_to_v(rbm, h)
+    inputs_v_from_h(rbm, h)
 
 Interaction inputs from hidden to visible layer.
 """
-function inputs_h_to_v(rbm::RBM, h::AbstractArray)
+function inputs_v_from_h(rbm::RBM, h::AbstractArray)
     wflat = flat_w(rbm)
     hflat = activations_convert_maybe(wflat, flat_h(rbm, h))
     iflat = wflat * hflat
     return reshape(iflat, size(visible(rbm))..., batch_size(hidden(rbm), h)...)
 end
+
+# compat
+inputs_v_to_h(rbm::RBM, v::AbstractArray) = inputs_h_from_v(rbm, v)
+inputs_h_to_v(rbm::RBM, h::AbstractArray) = inputs_v_from_h(rbm, h)
 
 """
     free_energy(rbm, v)
@@ -56,7 +60,7 @@ Free energy of visible configuration (after marginalizing hidden configurations)
 """
 function free_energy(rbm::RBM, v::AbstractArray)
     E = energy(visible(rbm), v)
-    inputs = inputs_v_to_h(rbm, v)
+    inputs = inputs_h_from_v(rbm, v)
     F = free_energy(hidden(rbm), inputs)
     return E + F
 end
@@ -83,10 +87,10 @@ function interaction_energy(rbm::RBM, v::AbstractArray, h::AbstractArray)
     if ndims(visible(rbm)) == ndims(v) || ndims(hidden(rbm)) == ndims(h)
         E = -flat_v(rbm, v)' * flat_w(rbm) * flat_h(rbm, h)
     elseif length(visible(rbm)) ≥ length(hidden(rbm))
-        inputs = inputs_v_to_h(rbm, v)
+        inputs = inputs_h_from_v(rbm, v)
         E = -sum(inputs .* h; dims = 1:ndims(hidden(rbm)))
     else
-        inputs = inputs_h_to_v(rbm, h)
+        inputs = inputs_v_from_h(rbm, h)
         E = -sum(v .* inputs; dims=1:ndims(visible(rbm)))
     end
     return reshape_maybe(E, bsz)
@@ -98,7 +102,7 @@ end
 Samples a hidden configuration conditional on the visible configuration `v`.
 """
 function sample_h_from_v(rbm::RBM, v::AbstractArray)
-    inputs = inputs_v_to_h(rbm, v)
+    inputs = inputs_h_from_v(rbm, v)
     return sample_from_inputs(hidden(rbm), inputs)
 end
 
@@ -108,7 +112,7 @@ end
 Samples a visible configuration conditional on the hidden configuration `h`.
 """
 function sample_v_from_h(rbm::RBM, h::AbstractArray)
-    inputs = inputs_h_to_v(rbm, h)
+    inputs = inputs_v_from_h(rbm, h)
     return sample_from_inputs(visible(rbm), inputs)
 end
 
@@ -158,7 +162,7 @@ end
 Mean unit activation values, conditioned on the other layer, <h | v>.
 """
 function mean_h_from_v(rbm::RBM, v::AbstractArray)
-    inputs = inputs_v_to_h(rbm, v)
+    inputs = inputs_h_from_v(rbm, v)
     return mean_from_inputs(hidden(rbm), inputs)
 end
 
@@ -168,7 +172,7 @@ end
 Mean unit activation values, conditioned on the other layer, <v | h>.
 """
 function mean_v_from_h(rbm::RBM, h::AbstractArray)
-    inputs = inputs_h_to_v(rbm, h)
+    inputs = inputs_v_from_h(rbm, h)
     return mean_from_inputs(visible(rbm), inputs)
 end
 
@@ -178,7 +182,7 @@ end
 Variance of unit activation values, conditioned on the other layer, var(v | h).
 """
 function var_v_from_h(rbm::RBM, h::AbstractArray)
-    inputs = inputs_h_to_v(rbm, h)
+    inputs = inputs_v_from_h(rbm, h)
     return var_from_inputs(visible(rbm), inputs)
 end
 
@@ -188,7 +192,7 @@ end
 Variance of unit activation values, conditioned on the other layer, var(h | v).
 """
 function var_h_from_v(rbm::RBM, v::AbstractArray)
-    inputs = inputs_v_to_h(rbm, v)
+    inputs = inputs_h_from_v(rbm, v)
     return var_from_inputs(hidden(rbm), inputs)
 end
 
@@ -198,7 +202,7 @@ end
 Mode unit activations, conditioned on the other layer.
 """
 function mode_v_from_h(rbm::RBM, h::AbstractArray)
-    inputs = inputs_h_to_v(rbm, h)
+    inputs = inputs_v_from_h(rbm, h)
     return mode_from_inputs(visible(rbm), inputs)
 end
 
@@ -208,7 +212,7 @@ end
 Mode unit activations, conditioned on the other layer.
 """
 function mode_h_from_v(rbm::RBM, v::AbstractArray)
-    inputs = inputs_v_to_h(rbm, v)
+    inputs = inputs_h_from_v(rbm, v)
     return mode_from_inputs(hidden(rbm), inputs)
 end
 
@@ -282,7 +286,7 @@ If `v` consists of multiple samples (batches), then an average is taken.
 function ∂free_energy(
     rbm::RBM, v::AbstractArray; wts = nothing, stats = suffstats(rbm, v; wts)
 )
-    inputs = inputs_v_to_h(rbm, v)
+    inputs = inputs_h_from_v(rbm, v)
     ∂v = ∂energy(visible(rbm), stats)
     ∂Γ = ∂free_energies(hidden(rbm), inputs)
     ∂h = map(∂Γ) do ∂f

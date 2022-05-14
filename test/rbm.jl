@@ -10,7 +10,7 @@ using LinearAlgebra: logdet, diag, diagm, dot, isposdef
 using LogExpFunctions: logsumexp
 using QuadGK: quadgk
 using RestrictedBoltzmannMachines: visible, hidden, weights
-using RestrictedBoltzmannMachines: inputs_v_to_h, inputs_h_to_v
+using RestrictedBoltzmannMachines: inputs_h_from_v, inputs_v_from_h, inputs_v_to_h, inputs_h_to_v
 using RestrictedBoltzmannMachines: energy, interaction_energy, free_energy
 
 @testset "batches, n=$n, m=$m, Bv=$Bv, Bh=$Bh" for n in (5, (5,2)), m in (2, (3,4)), Bv in ((), (3,2)), Bh in ((), (3,2))
@@ -22,8 +22,10 @@ using RestrictedBoltzmannMachines: energy, interaction_energy, free_energy
     @test RBMs.batch_size(visible(rbm), v) == Bv
     @test RBMs.batch_size(hidden(rbm), h) == Bh
 
-    @test size(inputs_v_to_h(rbm, v)) == (size(hidden(rbm))...,  Bv...)
-    @test size(inputs_h_to_v(rbm, h)) == (size(visible(rbm))..., Bh...)
+    @test size(inputs_h_from_v(rbm, v)) == (size(hidden(rbm))...,  Bv...)
+    @test size(inputs_v_from_h(rbm, h)) == (size(visible(rbm))..., Bh...)
+    @test inputs_h_from_v(rbm, v) == inputs_v_to_h(rbm, v)
+    @test inputs_v_from_h(rbm, h) == inputs_h_to_v(rbm, h)
 
     if length(Bv) == length(Bh) == 0
         @test interaction_energy(rbm, v, h) isa Number
@@ -52,8 +54,8 @@ using RestrictedBoltzmannMachines: energy, interaction_energy, free_energy
         @test interaction_energy(rbm, v, h) ≈ reshape(E, Bv)
         @test size(energy(rbm, v, h)) == Bv == Bh
     end
-    @inferred inputs_v_to_h(rbm, v)
-    @inferred inputs_h_to_v(rbm, h)
+    @inferred inputs_h_from_v(rbm, v)
+    @inferred inputs_v_from_h(rbm, h)
     @inferred interaction_energy(rbm, v, h)
     @inferred energy(rbm, v, h)
     gs = Zygote.gradient(rbm) do rbm
@@ -114,12 +116,12 @@ end
 
     randn!(weights(rbm))
     h = RBMs.sample_h_from_v(rbm, v)
-    μ = RBMs.mean_from_inputs(hidden(rbm), inputs_v_to_h(rbm, v))
+    μ = RBMs.mean_from_inputs(hidden(rbm), inputs_h_from_v(rbm, v))
     @test RBMs.batchmean(hidden(rbm), h) ≈ RBMs.batchmean(hidden(rbm), μ) rtol=0.1
 
     randn!(weights(rbm))
     v = RBMs.sample_v_from_h(rbm, h)
-    μ = RBMs.mean_from_inputs(visible(rbm), inputs_h_to_v(rbm, h))
+    μ = RBMs.mean_from_inputs(visible(rbm), inputs_v_from_h(rbm, h))
     @test RBMs.batchmean(visible(rbm), v) ≈ RBMs.batchmean(visible(rbm), μ) rtol=0.1
 end
 
@@ -261,7 +263,7 @@ end
     @test RBMs.log_likelihood(rbm, v) ≈ -free_energy(rbm, v) .- RBMs.log_partition(rbm)
 
     Ev = sum(visible(rbm).γ .* v.^2 ./ 2 - visible(rbm).θ .* v)
-    Fv = sum(-(hidden(rbm).θ .+ inputs_v_to_h(rbm, v)).^2 ./ 2hidden(rbm).γ)
+    Fv = sum(-(hidden(rbm).θ .+ inputs_h_from_v(rbm, v)).^2 ./ 2hidden(rbm).γ)
     @test only(free_energy(rbm, v)) ≈ Ev + Fv - sum(log.(2π ./ hidden(rbm).γ)) / 2
 
     gs = Zygote.gradient(rbm) do rbm
