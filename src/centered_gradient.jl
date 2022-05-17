@@ -8,8 +8,8 @@ function center_gradient(rbm::RBM, ∂::NamedTuple, λv::AbstractArray, λh::Abs
     @assert size(rbm.visible) == size(λv)
     @assert size(rbm.hidden) == size(λh)
     @assert size(∂.w) == size(rbm.w)
-    Δv = grad2mean(rbm.visible, ∂.visible)
-    Δh = grad2mean(rbm.hidden, ∂.hidden)
+    Δv = grad2ave(rbm.visible, ∂.visible)
+    Δh = grad2ave(rbm.hidden, ∂.hidden)
     ∂w = reshape(∂.w, length(rbm.visible), length(rbm.hidden))
     ∂wc = ∂w + vec(λv) * vec(Δh)' + vec(Δv) * vec(λh)'
     return (; ∂.visible, ∂.hidden, w = oftype(∂.w, reshape(∂wc, size(∂.w))))
@@ -52,8 +52,8 @@ function uncenter_step(layer::dReLU, ∂::NamedTuple, shift::AbstractArray)
 end
 
 # get moments from layer gradients, e.g. <v> = -derivative w.r.t. θ
-grad2mean(::Union{Binary,Spin,Potts,Gaussian,ReLU,pReLU,xReLU}, ∂::NamedTuple) = -∂.θ
-grad2mean(::dReLU, ∂::NamedTuple) = -(∂.θp + ∂.θn)
+grad2ave(::Union{Binary,Spin,Potts,Gaussian,ReLU,pReLU,xReLU}, ∂::NamedTuple) = -∂.θ
+grad2ave(::dReLU, ∂::NamedTuple) = -(∂.θp + ∂.θn)
 
 grad2var(::Union{Binary,Potts}, ∂::NamedTuple) = -∂.θ .* (1 .+ ∂.θ)
 grad2var(::Spin, ∂::NamedTuple) = (1 .- ∂.θ) .* (1 .+ ∂.θ)
