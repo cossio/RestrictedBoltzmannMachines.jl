@@ -34,6 +34,7 @@ include("rbm.jl")
 
 include("rbms/hopfield.jl")
 include("rbms/binary.jl")
+include("rbms/gaussian.jl")
 
 include("gauge/zerosum.jl")
 include("gauge/rescale_hidden.jl")
