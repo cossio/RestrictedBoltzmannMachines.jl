@@ -9,7 +9,8 @@ function ∂regularize!(
     l2_fields::Real = 0, # L2 regularization of visible unit fields
     l1_weights::Real = 0, # L1 regularization of weights
     l2_weights::Real = 0, # L2 regularization of weights
-    l2l1_weights::Real = 0 # L2/L1 regularziation of weights (10.7554/eLife.39397, Eq. 8)
+    l2l1_weights::Real = 0, # L2/L1 regularziation of weights (10.7554/eLife.39397, Eq. 8)
+    zerosum::Bool = false # whether to zerosum gradients
 )
     if !iszero(l2_fields)
         ∂regularize_fields!(∂.visible, rbm.visible; l2_fields)
@@ -24,6 +25,7 @@ function ∂regularize!(
         dims = ntuple(identity, ndims(rbm.visible))
         ∂.w .+= l2l1_weights * sign.(rbm.w) .* mean(abs, rbm.w; dims)
     end
+    zerosum && zerosum!(∂, rbm)
     return ∂
 end
 
