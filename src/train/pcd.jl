@@ -24,8 +24,8 @@ function pcd!(
     rescale::Bool = true, # normalize hidden units to var(h) = 1
     center::Bool = true, # center gradients
 
-    # damping for hidden activity statistics tracking
-    damp::Real = 1//100,
+    # momentum for hidden activity statistics tracking
+    ρh::Real = 99//100,
     ϵh::Real = 1e-2, # prevent vanishing var(h) estimate
 
     callback = empty_callback, # called for every batch
@@ -72,9 +72,9 @@ function pcd!(
 
             #= Exponential moving average of mean and variance of hidden unit activations.
             The batchweight can be interpreted as an "effective number of updates". =#
-            damp_eff = damp ^ batch_weight # effective damp after 'batch_weight' updates
-            ave_h .= (1 - damp_eff) * ave_h .+ damp_eff * ave_h_batch
-            var_h .= (1 - damp_eff) * var_h .+ damp_eff * var_h_batch
+            ρh_eff = ρh ^ batch_weight # effective damp after 'batch_weight' updates
+            ave_h .= ρh_eff * ave_h .+ (1 - ρh_eff) * ave_h_batch
+            var_h .= ρh_eff * var_h .+ (1 - ρh_eff) * var_h_batch
             @assert all(var_h .+ ϵh .> 0)
 
             # weight decay
