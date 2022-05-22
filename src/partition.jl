@@ -15,26 +15,6 @@ function log_partition(rbm::RBM)
     return logsumexp(-free_energy(rbm, v))
 end
 
-# For a Gaussian-Gaussian RBM we can use the analytical expression
-function log_partition(rbm::RBM{<:Gaussian, <:Gaussian})
-    θ = [vec(visible(rbm).θ); vec(hidden(rbm).θ)]
-    γv = vec(abs.(visible(rbm).γ))
-    γh = vec(abs.(hidden(rbm).γ))
-    w = flat_w(rbm)
-
-    lA = block_matrix_logdet(
-        Diagonal(γv), -w,
-        -w', Diagonal(γh)
-    )
-
-    iA = block_matrix_invert(
-        Diagonal(γv), -w,
-        -w', Diagonal(γh)
-    )
-
-    return length(θ)/2 * log(2π) + dot(θ, iA, θ)/2 - lA/2
-end
-
 """
     log_likelihood(rbm, v)
 

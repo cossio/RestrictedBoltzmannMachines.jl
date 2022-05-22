@@ -73,8 +73,8 @@ function pcd!(
             #= Exponential moving average of mean and variance of hidden unit activations.
             The batchweight can be interpreted as an "effective number of updates". =#
             damp_eff = damp ^ batch_weight # effective damp after 'batch_weight' updates
-            ave_h .= damp_eff * ave_h_batch .+ (1 - damp_eff) * ave_h
-            var_h .= damp_eff * var_h_batch .+ (1 - damp_eff) * var_h
+            ave_h .= (1 - damp_eff) * ave_h .+ damp_eff * ave_h_batch
+            var_h .= (1 - damp_eff) * var_h .+ damp_eff * var_h_batch
             @assert all(var_h .+ ϵh .> 0)
 
             # weight decay
