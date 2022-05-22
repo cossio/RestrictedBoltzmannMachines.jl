@@ -26,7 +26,7 @@ function pcd!(
 
     # momentum for hidden activity statistics tracking
     ρh::Real = 99//100,
-    ϵh::Real = 1e-2, # prevent vanishing var(h) estimate
+    ϵh::Real = 1//100, # prevent vanishing var(h) estimate
 
     callback = empty_callback, # called for every batch
     mode::Symbol = :pcd, # :pcd, :cd, or :exact
