@@ -42,6 +42,7 @@ function contrastive_divergence(
 end
 
 function mean_free_energy(rbm::RBM, v::AbstractArray; wts = nothing)::Number
+    # TODO: Allow passing sufficient statistics here, so that AD can exploit them too
     F = free_energy(rbm, v)
     if ndims(visible(rbm)) == ndims(v)
         wts::Nothing
