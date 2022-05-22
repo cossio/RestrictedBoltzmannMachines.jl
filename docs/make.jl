@@ -64,9 +64,9 @@ Documenter.makedocs(
                 "dReLU" => "literate/layers/dReLU.md",
             ],
             "Performance" => [
-                "MKL" => "literate/mkl.md",
-                "Float32 vs. Float64" => "literate/float32.md",
-                "AutoDiff" => "literate/ad.md",
+                "MKL" => "literate/performance/mkl.md",
+                "Float32 vs. Float64" => "literate/performance/float32.md",
+                "Zygote" => "literate/performance/ad.md",
             ],
             "Moment-matching" => "literate/moment_match.md",
             "Learning rate decay" => "literate/lr_decay.md",
