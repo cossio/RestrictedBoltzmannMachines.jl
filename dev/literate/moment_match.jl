@@ -50,7 +50,7 @@ batchsize = 64
 nupdates = 20000
 epochs = training_epochs(; nsamples = size(train_x, 3), nupdates, batchsize)
 rbm = RBM(Binary(Float,28,28), Binary(Float,nhidden), randn(Float,28,28,nhidden)/28)
-#initialize!(rbm, train_x);
+initialize!(rbm, train_x);
 lpls = Float64[]
 Fm = zeros(batchsize, epochs * minibatch_count(train_x; batchsize))
 Fd = zeros(batchsize, epochs * minibatch_count(train_x; batchsize))
