@@ -3,10 +3,11 @@ using Statistics: mean, cor
 using LinearAlgebra: norm, Diagonal
 using Random: bitrand
 using LogExpFunctions: softmax
-using RestrictedBoltzmannMachines: RBM, Spin, Binary, Potts, Gaussian, training_epochs
+using RestrictedBoltzmannMachines: RBM, Spin, Binary, Potts, Gaussian, training_epochs, zerosum!
 using RestrictedBoltzmannMachines: mean_h_from_v, var_h_from_v, batchmean, batchvar
 using RestrictedBoltzmannMachines: mean_from_inputs, extensive_sample, zerosum
 using RestrictedBoltzmannMachines: sample_v_from_h, sample_v_from_v, initialize!, pcd!, free_energy, wmean
+import Random
 import Flux
 
 @testset "extensive_sample" begin
@@ -219,4 +220,49 @@ end
     @test mean_from_inputs(student.visible) ≈ mean(data; dims=3)
     pcd!(student, data; wts, epochs, batchsize)
     @info @test cor(free_energy(teacher, data), free_energy(student, data)) > 0.9
+end
+
+@testset "pcd -- teacher/student, Potts, with weights and regularization, exact" begin
+    Random.seed!(4)
+    q = 2
+    N = 5
+    teacher = RBM(Potts(q, N), Spin(1), zerosum(1.5randn(q, N, 1)))
+    data = extensive_sample(teacher.visible)
+    wts_teacher = softmax(-free_energy(teacher, data))
+    @test sum(wts_teacher) ≈ 1
+
+    nupdates = 20000
+    nsamples = size(data)[end]
+    batchsize = nsamples
+    epochs = training_epochs(; nsamples, batchsize, nupdates)
+    student = RBM(Potts(q, N), Spin(1), zeros(q, N, 1))
+    initialize!(student, data; wts = wts_teacher)
+    @test mean_from_inputs(student.visible) ≈ wmean(data; wts = wts_teacher, dims=3)
+    l2_weights = 0.05
+    function callback(; rbm, kw...)
+        rbm.visible.θ .= 0
+        rbm.hidden.θ .= 0
+    end
+    pcd!(
+        student, data;
+        wts = wts_teacher, epochs, batchsize, mode=:exact, optim=Flux.AdaBelief(),
+        l2_weights, zerosum=false, center=true, rescale=false, callback
+    )
+
+    wts_student = softmax(-free_energy(student, data))
+
+    v_teacher = batchmean(student.visible, data; wts = wts_teacher)
+    v_student = batchmean(student.visible, data; wts = wts_student)
+    @info @test v_student ≈ v_teacher rtol=1e-3
+
+    h_student = batchmean(student.hidden, mean_h_from_v(student, data); wts=wts_student)
+    h_teacher = batchmean(student.hidden, mean_h_from_v(student, data); wts=wts_teacher)
+    @info @test h_student ≈ h_teacher atol=1e-10
+
+    data_flat = reshape(data, q*N, :)
+    vh_teacher = data_flat * Diagonal(wts_teacher) * mean_h_from_v(student, data)' / sum(wts_teacher)
+    vh_student = data_flat * Diagonal(wts_student) * mean_h_from_v(student, data)' / sum(wts_student)
+    vh_student = reshape(vh_student, q, N, :)
+    vh_teacher = reshape(vh_teacher, q, N, :)
+    @info @test vh_student ≈ vh_teacher - l2_weights * student.w rtol=1e-5
 end
