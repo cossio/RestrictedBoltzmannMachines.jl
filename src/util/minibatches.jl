@@ -32,7 +32,7 @@ end
 Number of minibatches.
 """
 function minibatch_count(ds::Union{AbstractArray, Nothing}...; batchsize::Int)
-    return minibatch_count(_nobs(ds...); batchsize = batchsize)
+    return minibatch_count(_nobs(ds...); batchsize)
 end
 
 """
