@@ -10,7 +10,7 @@ If your RBM has a smaller hidden layer, mirroring the layers of the `rbm` first
 """
 function log_partition(rbm::RBM)
     v = ChainRulesCore.ignore_derivatives() do
-        collect_states(visible(rbm))
+        collect_states(rbm.visible)
     end
     return logsumexp(-free_energy(rbm, v))
 end

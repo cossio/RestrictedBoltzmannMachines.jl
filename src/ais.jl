@@ -31,7 +31,7 @@ function ais_step(rbm::RBM, init::AbstractLayer, annealed_rbm::RBM, v::AbstractA
 end
 
 """
-    ais(rbm; nbetas = 10000, nsamples = 10, init = visible(rbm))
+    ais(rbm; nbetas = 10000, nsamples = 10, init = rbm.visible)
 
 Estimates the log-partition function of `rbm` by Annealed Importance Sampling (AIS).
 Here `init` is an initial independent-site distribution, represented by a visible layer.
@@ -57,14 +57,14 @@ function ais(rbm::RBM; nbetas::Int = 1000, nsamples::Int = 1, init::AbstractLaye
 end
 
 """
-    rais(rbm, v; nbetas = 10000, nsamples = 10, init = visible(rbm))
+    rais(rbm, v; nbetas = 10000, nsamples = 10, init = rbm.visible)
 
 Estimates the log-partition function of `rbm` by reverse Annealed Importance Sampling (AIS).
 These requires a set of samples `v` from the `rbm`. In pratice, we can use data points,
 assuming the `rbm` has been well-trained and approximates well the empirical distribution.
 As in [`ais`](@ref), `init` is an initial independent-site distribution, represented
 by a visible layer. It is recommended to select `init` to match the independent-site
-statistics of the data (so try to not use the default value `visible(rbm)`!).
+statistics of the data (so try to not use the default value `rbm.visible`!).
 Returns `nsamples` variates, which can be averaged.
 
 If `R = rais(rbm)`, then `mean(exp.(-R))` is an unbiased estimator of `1/Z`, the inverse of
@@ -77,8 +77,8 @@ temperatures!
 """
 function rais(rbm::RBM, v::AbstractArray; nbetas::Int, init::AbstractLayer = visible(rbm))
     nsamples = size(v, ndims(v))
-    @assert size(v) == (size(visible(rbm))..., nsamples)
-    @assert size(init) == size(visible(rbm))
+    @assert size(v) == (size(rbm.visible)..., nsamples)
+    @assert size(init) == size(rbm.visible)
     annealed_rbm = anneal(init, rbm; β = nbetas / nbetas) # β[K]
     R = fill(log_partition_zero_weight(anneal(init, rbm; β = 0 / nbetas)), nsamples)
     for t in reverse(1:(nbetas - 1))
@@ -90,7 +90,7 @@ end
 
 #= in-place versions, useful for visualization =#
 
-function ais!(traj::AbstractArray, rbm::RBM; init::AbstractLayer = visible(rbm))
+function ais!(traj::AbstractArray, rbm::RBM; init::AbstractLayer = rbm.visible)
     nsamples = size(traj, ndims(traj) - 1)
     nbetas = size(traj, ndims(traj))
     @assert size(traj) == (size(visible(rbm))..., nsamples, nbetas)
@@ -133,7 +133,7 @@ given by:
     E(v,h) = (1 - β) * E0(v) + β * E1(v, h)
 """
 function anneal(init::AbstractLayer, final::RBM; β::Real)
-    vis = anneal(init, visible(final); β)
+    vis = anneal(init, final.visible; β)
     hid = anneal(hidden(final); β)
     w = oftype(weights(final), β * weights(final))
     return RBM(vis, hid, w)
@@ -202,7 +202,7 @@ anneal(init::xReLU, final::xReLU; β::Real) = xReLU(
 
 Log-partition function of a zero-weight version of `rbm`.
 """
-log_partition_zero_weight(rbm::RBM) = -free_energy(visible(rbm)) - free_energy(hidden(rbm))
+log_partition_zero_weight(rbm::RBM) = -free_energy(rbm.visible) - free_energy(hidden(rbm))
 
 """
     logmeanexp(A; dims=:)
