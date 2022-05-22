@@ -5,14 +5,25 @@ Given the gradient `∂` of `rbm`, returns the gradient of the equivalent center
 with offsets `λv` and `λh`.
 """
 function center_gradient(rbm::RBM, ∂::NamedTuple, λv::AbstractArray, λh::AbstractArray)
+    ∂ = oftype(∂, center_gradient_v(rbm, ∂, λv))
+    ∂ = oftype(∂, center_gradient_h(rbm, ∂, λh))
+    return ∂
+end
+
+function center_gradient_v(rbm::RBM, ∂::NamedTuple, λv::AbstractArray)
     @assert size(rbm.visible) == size(λv)
+    @assert size(∂.w) == size(rbm.w)
+    Δh = grad2ave(rbm.hidden, ∂.hidden)
+    ∂w = reshape(∂.w, length(rbm.visible), length(rbm.hidden)) + vec(λv) * vec(Δh)'
+    return oftype(∂, (; ∂..., w = reshape(∂w, size(∂.w))))
+end
+
+function center_gradient_h(rbm::RBM, ∂::NamedTuple, λh::AbstractArray)
     @assert size(rbm.hidden) == size(λh)
     @assert size(∂.w) == size(rbm.w)
     Δv = grad2ave(rbm.visible, ∂.visible)
-    Δh = grad2ave(rbm.hidden, ∂.hidden)
-    ∂w = reshape(∂.w, length(rbm.visible), length(rbm.hidden))
-    ∂wc = ∂w + vec(λv) * vec(Δh)' + vec(Δv) * vec(λh)'
-    return (; ∂.visible, ∂.hidden, w = oftype(∂.w, reshape(∂wc, size(∂.w))))
+    ∂w = reshape(∂.w, length(rbm.visible), length(rbm.hidden)) + vec(Δv) * vec(λh)'
+    return oftype(∂, (; ∂..., w = reshape(∂w, size(∂.w))))
 end
 
 """
