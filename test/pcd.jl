@@ -264,5 +264,5 @@ end
     vh_student = data_flat * Diagonal(wts_student) * mean_h_from_v(student, data)' / sum(wts_student)
     vh_student = reshape(vh_student, q, N, :)
     vh_teacher = reshape(vh_teacher, q, N, :)
-    @info @test vh_student ≈ vh_teacher - l2_weights * student.w rtol=1e-5
+    @info @test vh_student ≈ vh_teacher - l2_weights * student.w rtol=1e-4
 end

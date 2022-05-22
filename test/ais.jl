@@ -3,8 +3,8 @@ using Statistics: mean, std, var
 using Random: randn!, bitrand
 using LogExpFunctions: logsumexp
 using RestrictedBoltzmannMachines: BinaryRBM, energy, free_energy, sample_from_inputs, visible, hidden
-using RestrictedBoltzmannMachines: anneal, ais, rais, ais!, rais!, log_partition_zero_weight
-using RestrictedBoltzmannMachines: logmeanexp, logvarexp, logstdexp
+using RestrictedBoltzmannMachines: anneal, ais, ais_step, rais, ais!, rais!, log_partition_zero_weight
+using RestrictedBoltzmannMachines: logmeanexp, logvarexp, logstdexp, sample_v_from_v
 using RestrictedBoltzmannMachines: Binary, Spin, Potts, Gaussian, ReLU, dReLU, xReLU, pReLU
 
 @testset "logmeanexp, logvarexp" begin
@@ -32,6 +32,14 @@ end
     @test free_energy(hidden(anneal(visible(rbm), rbm; β = 0))) ≈ -log(4)
     @test log_partition_zero_weight(anneal(visible(rbm), rbm; β = 0)) ≈ log(4) - free_energy(visible(rbm))
     @test log_partition_zero_weight(anneal(visible(rbm), rbm; β = 1)) ≈ lZ
+end
+
+@testset "ais_step" begin
+    rbm = BinaryRBM(randn(3), randn(2), randn(3,2))
+    init = rbm.visible
+    annealed_rbm = @inferred anneal(init, rbm; β = 0.5)
+    annealed_rbm, v, ΔF = @inferred ais_step(rbm, init, annealed_rbm, bitrand(3, 10); β = 0.5)
+    @test iszero(ΔF)
 end
 
 @testset "AIS for binary RBM" begin
