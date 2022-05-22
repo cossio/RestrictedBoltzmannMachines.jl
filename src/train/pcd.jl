@@ -78,7 +78,7 @@ function pcd!(
             @assert all(var_h .+ ϵh .> 0)
 
             # weight decay
-            ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights)
+            ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum)
 
             if center
                 # gradient of the centered RBM (Melchior et al 2016)
