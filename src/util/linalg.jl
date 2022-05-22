@@ -64,17 +64,17 @@ function block_matrix_invert(
     @assert size(A, 1) == size(A, 2) == size(B, 1) == size(C, 2)
     @assert size(D, 1) == size(D, 2) == size(B, 2) == size(C, 1)
 
-    a = inv(A)
-    d = inv(D)
+    CinvA = C * inv(A)
+    BinvD = B * inv(D)
 
     M = [
-        inv(A - B * d * C)  zeros(size(A, 1), size(D, 2))
-        zeros(size(D, 1), size(A, 2))  inv(D - C * a * B)
+        inv(A - BinvD * C)  zero(B)
+        zero(C)  inv(D - CinvA * B)
     ]
 
     N = [
-        I(size(B,1))  -B * d
-        -C * a  I(size(C,1))
+        I(size(B, 1))  -BinvD
+        -CinvA  I(size(C, 1))
     ]
 
     return M * N
