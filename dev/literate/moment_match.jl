@@ -7,13 +7,31 @@ However, due to biased nature of the PCD approximation, these conditions might n
 exactly in practice.
 =#
 
+#import MKL # faster on Intel CPUs
 import Makie, CairoMakie
 import MLDatasets
 import Flux
 using Statistics: mean, cor
 using LinearAlgebra: norm
 using RestrictedBoltzmannMachines: RBM, Binary, sample_from_inputs, free_energy, log_pseudolikelihood, training_epochs
-using RestrictedBoltzmannMachines: sample_v_from_v, sample_h_from_v, initialize!, pcd!, minibatch_count, moving_average
+using RestrictedBoltzmannMachines: sample_v_from_v, sample_h_from_v, initialize!, pcd!, minibatch_count
+
+# based on https://julialang.org/blog/2016/02/iteration/#writing_multidimensional_algorithms_with_cartesianindex_iterators
+function moving_average(A::AbstractArray, m::Int)
+    out = similar(A)
+    R = CartesianIndices(A)
+    Ifirst, Ilast = first(R), last(R)
+    I1 = m÷2 * oneunit(Ifirst)
+    for I in R
+        n, s = 0, zero(eltype(out))
+        for J in max(Ifirst, I-I1):min(Ilast, I+I1)
+            s += A[J]
+            n += 1
+        end
+        out[I] = s/n
+    end
+    return out
+end
 
 # load MNIST dataset
 
@@ -63,8 +81,8 @@ fig = Makie.Figure()
 ax = Makie.Axis(fig[1,1])
 Makie.lines!(ax, vec(mean(Fm; dims=1)), color=(:red, 0.25))
 Makie.lines!(ax, vec(mean(Fd; dims=1)), color=(:blue, 0.25))
-Makie.lines!(ax, moving_average(vec(mean(Fm; dims=1)), 20), color=:red, label="Fm")
-Makie.lines!(ax, moving_average(vec(mean(Fd; dims=1)), 20), color=:blue, label="Fd")
+Makie.lines!(ax, moving_average(vec(mean(Fm; dims=1)), 30), color=:red, label="Fm")
+Makie.lines!(ax, moving_average(vec(mean(Fd; dims=1)), 30), color=:blue, label="Fd")
 Makie.axislegend(ax)
 fig
 
@@ -73,7 +91,7 @@ fig
 fig = Makie.Figure()
 ax = Makie.Axis(fig[1,1])
 Makie.lines!(ax, vec(mean(Fm .- Fd; dims=1)), color=(:blue, 0.25))
-Makie.lines!(ax, moving_average(vec(mean(Fm .- Fd; dims=1)), 20), color=:red)
+Makie.lines!(ax, moving_average(vec(mean(Fm .- Fd; dims=1)), 30), color=:red)
 fig
 
 # Generate samples, in v-space and h-space.
