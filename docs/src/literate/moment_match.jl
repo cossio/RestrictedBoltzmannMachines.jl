@@ -16,8 +16,8 @@ using LinearAlgebra: norm
 using RestrictedBoltzmannMachines: RBM, Binary, sample_from_inputs, free_energy, log_pseudolikelihood, training_epochs
 using RestrictedBoltzmannMachines: sample_v_from_v, sample_h_from_v, initialize!, pcd!, minibatch_count
 
+# based on https://julialang.org/blog/2016/02/iteration/#writing_multidimensional_algorithms_with_cartesianindex_iterators
 function moving_average(A::AbstractArray, m::Int)
-    # based on https://julialang.org/blog/2016/02/iteration/#writing_multidimensional_algorithms_with_cartesianindex_iterators
     out = similar(A)
     R = CartesianIndices(A)
     Ifirst, Ilast = first(R), last(R)
