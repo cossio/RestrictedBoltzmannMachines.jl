@@ -37,3 +37,12 @@ end
     p = sortperm(batch[1])
     @test batch[1][p] == batch[2]'[p] == [1,2,3]
 end
+
+@testset "training_epochs" begin
+    nsamples = 5421
+    nupdates = 10403
+    batchsize = 5
+    nepochs = RBMs.training_epochs(; nsamples, nupdates, batchsize)
+    @test RBMs.minibatch_count(nsamples; batchsize) * (nepochs - 1) ≤ nupdates
+    @test RBMs.minibatch_count(nsamples; batchsize) * (nepochs + 1) ≥ nupdates
+end

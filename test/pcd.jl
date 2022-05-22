@@ -3,19 +3,11 @@ using Statistics: mean, cor
 using LinearAlgebra: norm, Diagonal
 using Random: bitrand
 using LogExpFunctions: softmax
-using RestrictedBoltzmannMachines: RBM, Spin, Binary, Potts, Gaussian
+using RestrictedBoltzmannMachines: RBM, Spin, Binary, Potts, Gaussian, training_epochs
 using RestrictedBoltzmannMachines: mean_h_from_v, var_h_from_v, batchmean, batchvar
 using RestrictedBoltzmannMachines: mean_from_inputs, extensive_sample, zerosum
 using RestrictedBoltzmannMachines: sample_v_from_h, sample_v_from_v, initialize!, pcd!, free_energy, wmean
 import Flux
-
-function train_nepochs(;
-    nsamples::Int, # number observations in the data
-    nupdates::Int, # desired number of parameter updates
-    batchsize::Int # size of each mini-batch
-)
-    return ceil(Int, nupdates * batchsize / nsamples)
-end
 
 @testset "extensive_sample" begin
     @test extensive_sample(Binary(1)) == [0 1]
@@ -36,7 +28,7 @@ end
     wts = softmax(-free_energy(teacher, data))
     @test sum(wts) ≈ 1
     nsamples = size(data)[end]
-    epochs = train_nepochs(; nsamples, batchsize, nupdates)
+    epochs = training_epochs(; nsamples, batchsize, nupdates)
     student = RBM(Binary(N), Binary(1), zeros(N,1))
     initialize!(student, data; wts)
     student.w .= cos.(range(-10, 10, length=N))
@@ -70,7 +62,7 @@ end
     wts = softmax(-free_energy(teacher, data))
     @test sum(wts) ≈ 1
     nsamples = size(data)[end]
-    epochs = train_nepochs(; nsamples, batchsize, nupdates)
+    epochs = training_epochs(; nsamples, batchsize, nupdates)
     student = RBM(Spin(N), Spin(1), zeros(N,1))
     initialize!(student, data; wts)
     student.w .= cos.(1:N)
@@ -89,7 +81,7 @@ end
     wts = softmax(-free_energy(teacher, data))
     @test sum(wts) ≈ 1
     nsamples = size(data)[end]
-    epochs = train_nepochs(; nsamples, batchsize, nupdates)
+    epochs = training_epochs(; nsamples, batchsize, nupdates)
     student = RBM(Binary(N), Gaussian(1), zeros(N,1))
     initialize!(student, data; wts)
     student.w .= cos.(1:N)
@@ -114,7 +106,7 @@ end
     wts = softmax(-free_energy(teacher, data))
     @test sum(wts) ≈ 1
     nsamples = size(data)[end]
-    epochs = train_nepochs(; nsamples, batchsize, nupdates)
+    epochs = training_epochs(; nsamples, batchsize, nupdates)
     student = RBM(Potts(q, N), Spin(1), zeros(q, N, 1))
     initialize!(student, data; wts)
     student.w[1,:,1] .= -student.w[2,:,1] .= cos.(1:N)
@@ -132,7 +124,7 @@ end
     data = sample_v_from_h(teacher, repeat(Int8[1 -1], 1, 10000))
     student = RBM(Spin(N), Spin(1), zeros(N,1))
     nsamples = size(data)[end]
-    epochs = train_nepochs(; nsamples, batchsize, nupdates)
+    epochs = training_epochs(; nsamples, batchsize, nupdates)
     initialize!(student, data)
     @test mean_from_inputs(student.visible) ≈ mean(data; dims=2)
     pcd!(student, data; epochs, batchsize)
@@ -149,7 +141,7 @@ end
     wts = softmax(-free_energy(teacher, data))
     @test sum(wts) ≈ 1
     nsamples = size(data)[end]
-    epochs = train_nepochs(; nsamples, batchsize, nupdates)
+    epochs = training_epochs(; nsamples, batchsize, nupdates)
     student = RBM(Spin(N), Spin(1), zeros(N,1))
     initialize!(student, data; wts)
     @test mean_from_inputs(student.visible) ≈ wmean(data; wts, dims=2)
@@ -167,7 +159,7 @@ end
     data = sample_v_from_h(teacher, repeat(Int8[1 -1], 1, 10000))
     student = RBM(Potts(q, N), Spin(1), zeros(q, N, 1))
     nsamples = size(data)[end]
-    epochs = train_nepochs(; nsamples, batchsize, nupdates)
+    epochs = training_epochs(; nsamples, batchsize, nupdates)
     initialize!(student, data)
     @test mean_from_inputs(student.visible) ≈ mean(data; dims=3)
     pcd!(student, data; epochs, batchsize)
@@ -186,7 +178,7 @@ end
     wts = softmax(-free_energy(teacher, data))
     @test sum(wts) ≈ 1
     nsamples = size(data)[end]
-    epochs = train_nepochs(; nsamples, batchsize, nupdates)
+    epochs = training_epochs(; nsamples, batchsize, nupdates)
     student = RBM(Potts(q,N), Spin(1), zeros(q,N,1))
     initialize!(student, data; wts)
     @test mean_from_inputs(student.visible) ≈ wmean(data; wts, dims=3)
@@ -203,7 +195,7 @@ end
     data = sample_v_from_v(teacher, falses(q, N, 10000); steps=1000)
     student = RBM(Potts(q, N), Gaussian(1), zeros(q, N, 1))
     nsamples = size(data)[end]
-    epochs = train_nepochs(; nsamples, batchsize, nupdates)
+    epochs = training_epochs(; nsamples, batchsize, nupdates)
     initialize!(student, data)
     @test mean_from_inputs(student.visible) ≈ mean(data; dims=3)
     pcd!(student, data; epochs, batchsize)
@@ -222,7 +214,7 @@ end
     wts = softmax(-free_energy(teacher, data))
     student = RBM(Potts(q, N), Gaussian(1), zeros(q, N, 1))
     nsamples = size(data)[end]
-    epochs = train_nepochs(; nsamples, batchsize, nupdates)
+    epochs = training_epochs(; nsamples, batchsize, nupdates)
     initialize!(student, data)
     @test mean_from_inputs(student.visible) ≈ mean(data; dims=3)
     pcd!(student, data; wts, epochs, batchsize)

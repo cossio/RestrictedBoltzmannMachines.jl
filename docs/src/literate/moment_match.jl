@@ -13,7 +13,7 @@ import MLDatasets
 import Flux
 using Statistics: mean, cor
 using LinearAlgebra: norm
-using RestrictedBoltzmannMachines: RBM, Binary, sample_from_inputs, free_energy, log_pseudolikelihood
+using RestrictedBoltzmannMachines: RBM, Binary, sample_from_inputs, free_energy, log_pseudolikelihood, training_epochs
 using RestrictedBoltzmannMachines: sample_v_from_v, sample_h_from_v, initialize!, pcd!, minibatch_count
 
 function moving_average(A::AbstractArray, m::Int)
@@ -43,22 +43,12 @@ train_x = train_x[:, :, train_y .== 0]; # only zeros for speed
 
 Float = Float32
 
-# compute training epochs from desired number of parameter updates
-
-function train_nepochs(;
-    nsamples::Int, # number observations in the data
-    nupdates::Int, # desired number of parameter updates
-    batchsize::Int # size of each mini-batch
-)
-    return ceil(Int, nupdates * batchsize / nsamples)
-end
-
 # initialize RBM
 
 nhidden = 64
 batchsize = 64
 nupdates = 20000
-epochs = train_nepochs(; nsamples = size(train_x, 3), nupdates, batchsize)
+epochs = training_epochs(; nsamples = size(train_x, 3), nupdates, batchsize)
 rbm = RBM(Binary(Float,28,28), Binary(Float,nhidden), randn(Float,28,28,nhidden)/28)
 #initialize!(rbm, train_x);
 lpls = Float64[]

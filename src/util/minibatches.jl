@@ -61,3 +61,17 @@ function minibatch_count(nobs::Int; batchsize::Int)
     @assert nobs > 0 && batchsize > 0
     return cld(nobs, batchsize)
 end
+
+"""
+    training_epochs(; nsamples, nupdates, batchsize)
+
+Computes the number of epochs needed to achieve the given number of gradient `nupdates`,
+at a given `batchsize`, for a dataset of size `nsamples`.
+"""
+function training_epochs(;
+    nsamples::Int, # number observations in the data
+    nupdates::Int, # desired number of parameter updates
+    batchsize::Int # size of each mini-batch
+)
+    return ceil(Int, nupdates * batchsize / nsamples)
+end
