@@ -30,6 +30,7 @@ nothing #hide
 # Train using explicit gradients
 
 rbm_∂s = BinaryRBM(Float, (28,28), 128)
+@time cd!(rbm_∂s, train_x) # warm-up run so as to not consider pre-compilation times
 initialize!(rbm_∂s, train_x)
 history_∂s = MVHistory()
 time_0 = time()
@@ -44,6 +45,7 @@ nothing #hide
 # Train using Zygote gradients
 
 rbm_ad = BinaryRBM(Float, (28,28), 128)
+@time cdad!(rbm_ad, train_x) # warm-up run so as to not consider pre-compilation times
 initialize!(rbm_ad, train_x)
 history_ad = MVHistory()
 time_0 = time()
