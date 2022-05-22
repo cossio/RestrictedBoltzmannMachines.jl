@@ -111,11 +111,11 @@ fantasy_init(rbm::RBM; batchsize::Int, mode::Symbol = :pcd) = fantasy_init(rbm.v
 
 function fantasy_init(l::AbstractLayer; batchsize::Int, mode::Symbol = :pcd)
     @assert mode ∈ (:pcd, :cd, :exact)
-    if mode === :pcd || mode === :cd
-        return sample_from_inputs(l, falses(size(l)..., batchsize))
-    elseif mode === :exact
+    if mode === :exact
         @warn "Running extensive sampling; this can take a lot of RAM and time"
         return extensive_sample(l)
+    else
+        return sample_from_inputs(l, falses(size(l)..., batchsize))
     end
 end
 
@@ -148,7 +148,7 @@ end
 function extensive_sample(layer::Binary; maxlen::Int = 12)
     @assert length(layer) ≤ maxlen
     N = length(layer)
-    v = reduce(hcat, digits.(Bool, 0:(2^N - 1), base=2, pad=N))
+    v = reduce(hcat, BitVector.(digits.(Bool, 0:(2^N - 1), base=2, pad=N)))
     return reshape(v, size(layer)..., :)
 end
 
