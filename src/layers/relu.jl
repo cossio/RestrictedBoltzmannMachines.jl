@@ -54,8 +54,7 @@ end
 std_from_inputs(layer::ReLU, inputs::Union{Real,AbstractArray} = 0) = sqrt.(var_from_inputs(layer, inputs))
 
 function ∂free_energies(layer::ReLU, inputs::Union{Real,AbstractArray} = 0)
-    μ = mean_from_inputs(layer, inputs)
-    ν = var_from_inputs(layer, inputs)
+    μ, ν = meanvar_from_inputs(layer, inputs)
     return (θ = -μ, γ = sign.(layer.γ) .* (ν .+ μ.^2) / 2)
 end
 
