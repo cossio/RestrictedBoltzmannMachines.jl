@@ -11,7 +11,8 @@ import CairoMakie
 import RestrictedBoltzmannMachines as RBMs
 using Statistics: mean, std, middle
 using ValueHistories: MVHistory
-using RestrictedBoltzmannMachines: Binary, BinaryRBM, initialize!, pcd!, ais, aise, raise, logmeanexp, logstdexp
+using RestrictedBoltzmannMachines: Binary, BinaryRBM, initialize!, pcd!,
+    aise, raise, logmeanexp, logstdexp, sample_v_from_v
 
 # Load MNIST (0 digit only).
 
@@ -38,6 +39,7 @@ for nbetas in ndists
         @time aise(rbm; nbetas, nsamples, init=initialize!(Binary(zero(rbm.visible.θ)), train_x))
     )
     v = train_x[:, :, rand(1:size(train_x, 3), nsamples)]
+    sample_v_from_v(rbm, v; steps=1000) # equilibrate
     push!(R_rev,
         @time raise(rbm; v, nbetas, init=initialize!(Binary(zero(rbm.visible.θ)), train_x))
     )
@@ -55,14 +57,16 @@ Makie.band!(
     mean.(R_ais) + std.(R_ais);
     color=(:blue, 0.25)
 )
-Makie.lines!(ax, ndists, mean.(R_ais); color=:blue, label="AIS")
 Makie.band!(
     ax, ndists,
     mean.(R_rev) - std.(R_rev),
     mean.(R_rev) + std.(R_rev);
     color=(:black, 0.25)
 )
+Makie.lines!(ax, ndists, mean.(R_ais); color=:blue, label="AIS")
 Makie.lines!(ax, ndists, mean.(R_rev); color=:black, label="reverse AIS")
+Makie.lines!(ax, ndists, logmeanexp.(R_ais); color=:blue, linestyle=:dash)
+Makie.lines!(ax, ndists, logmeanexp.(R_rev); color=:black, linestyle=:dash)
 Makie.hlines!(ax, middle(mean(R_ais[end]), mean(R_rev[end])), linestyle=:dash, color=:red, label="limiting estimate")
 Makie.xlims!(extrema(ndists)...)
 Makie.axislegend(ax, position=:rb)
