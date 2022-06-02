@@ -183,5 +183,6 @@ end
     lZr = raise(rbm; v, nbetas=3)
     @test mean(logmeanexp.(Iterators.partition(lZf, 10))) ≤ lZ
     @test lZ ≤ mean(-logmeanexp.(Iterators.partition(-lZr, 10)))
+    @test mean(-logmeanexp.(Iterators.partition(-lZr, 10))) ≤ mean(logmeanexp.(Iterators.partition(lZr, 10)))
     @test -logmeanexp(-lZr) ≤ logmeanexp(lZr)
 end
