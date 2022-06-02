@@ -134,3 +134,11 @@ end
     lZ = raise(rbm; v, nbetas=5)
     @test mean(exp.(lZ)) ≈ exp(log_partition(rbm)) rtol=0.1
 end
+
+@testset "aise ≤ raise" begin
+    rbm = BinaryRBM(randn(2), randn(1), randn(2,1))
+    v = sample_v_from_v(rbm, bitrand(2, 30000); steps=3000)
+    lZ = aise(rbm; nbetas=10, nsamples=size(v)[end])
+    lZr = raise(rbm; v, nbetas=10)
+    @test logmeanexp(lZ) ≤ logmeanexp(lZr)
+end
