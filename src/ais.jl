@@ -29,29 +29,23 @@ Provided `v0` is an equilibrated sample from `rbm0`, returns `F` such that `mean
 an unbiased estimator of `Z1/Z0`, the ratio of partition functions of `rbm1` and `rbm0`.
 """
 function ais(rbm0::RBM, rbm1::RBM, v::AbstractArray, βs::AbstractVector)
-    @assert issorted(βs) && 0 ≤ first(βs) ≤ last(βs) ≤ 1
+    @assert issorted(βs) && 0 == first(βs) ≤ last(βs) == 1
     F = free_energy(rbm0, v)
     for β in βs
         if iszero(β) || isone(β)
             continue
         else
             rbm = anneal(rbm0, rbm1; β)
-            F0 = free_energy(rbm, v)
+            F -= free_energy(rbm, v)
             v = sample_v_from_v(rbm, v)
-            F1 = free_energy(rbm, v)
-            F += F1 - F0
+            F += free_energy(rbm, v)
         end
     end
     F -= free_energy(rbm1, v)
     return F
 end
 
-function ais(init::AbstractLayer, rbm1::RBM, v0::AbstractArray, βs::AbstractVector)
-    rbm0 = anneal_zero(init, rbm1)
-    return ais(rbm0, rbm1, v0, βs)
-end
-
-function ais(rbm0::Union{RBM,AbstractLayer}, rbm1::RBM, v0::AbstractArray; nbetas::Int=2)
+function ais(rbm0::RBM, rbm1::RBM, v0::AbstractArray; nbetas::Int=2)
     βs = range(0, 1, nbetas)
     return ais(rbm0, rbm1, v0, βs)
 end
@@ -105,41 +99,6 @@ function anneal(rbm0::RBM, rbm1::RBM; β::Real)
     return RBM(vis, hid, w)
 end
 
-function anneal(init::AbstractLayer, rbm1::RBM; β::Real)
-    rbm0 = anneal_zero(init, rbm1)
-    return anneal(rbm0, rbm1; β)
-end
-
-anneal_zero(init::AbstractLayer, rbm1::RBM) = RBM(init, anneal(rbm1.hidden; β=0), Zeros(rbm1.w))
-
-anneal(layer::Binary; β::Real) = Binary(
-    oftype(layer.θ, β * layer.θ)
-)
-anneal(layer::Spin; β::Real) = Spin(
-    oftype(layer.θ, β * layer.θ)
-)
-anneal(layer::Potts; β::Real) = Potts(
-    oftype(layer.θ, β * layer.θ)
-)
-anneal(layer::Gaussian; β::Real) = Gaussian(
-    oftype(layer.θ, β * layer.θ), layer.γ
-)
-anneal(l::ReLU; β::Real) = ReLU(
-    oftype(l.θ, β * l.θ), l.γ
-)
-anneal(layer::dReLU; β::Real) = dReLU(
-    oftype(layer.θp, β * layer.θp),
-    oftype(layer.θn, β * layer.θn),
-    layer.γp, layer.γn
-)
-anneal(layer::pReLU; β::Real) = pReLU(
-    oftype(layer.θ, β * layer.θ), layer.γ,
-    oftype(layer.Δ, β * layer.Δ), layer.η
-)
-anneal(layer::xReLU; β::Real) = xReLU(
-    oftype(layer.θ, β * layer.θ), layer.γ,
-    oftype(layer.Δ, β * layer.Δ), layer.ξ
-)
 anneal(init::Binary, final::Binary; β::Real) = Binary(
     oftype(final.θ, (1 - β) * init.θ + β * final.θ)
 )
@@ -150,31 +109,49 @@ anneal(init::Potts, final::Potts; β::Real) = Potts(
     oftype(final.θ, (1 - β) * init.θ + β * final.θ)
 )
 anneal(init::Gaussian, final::Gaussian; β::Real) = Gaussian(
-    oftype(final.θ, (1 - β) * init.θ + β * final.θ), final.γ
+    oftype(final.θ, (1 - β) * init.θ + β * final.θ),
+    oftype(final.γ, (1 - β) * init.γ + β * final.γ)
 )
 anneal(init::ReLU, final::ReLU; β::Real) = ReLU(
-    oftype(final.θ, (1 - β) * init.θ + β * final.θ), final.γ
+    oftype(final.θ, (1 - β) * init.θ + β * final.θ),
+    oftype(final.γ, (1 - β) * init.γ + β * final.γ)
 )
 anneal(init::dReLU, final::dReLU; β::Real) = dReLU(
     oftype(final.θp, (1 - β) * init.θp + β * final.θp),
     oftype(final.θn, (1 - β) * init.θn + β * final.θn),
-    final.γp, final.γn
+    oftype(final.γp, (1 - β) * init.γp + β * final.γp),
+    oftype(final.γn, (1 - β) * init.γn + β * final.γn)
 )
 anneal(init::pReLU, final::pReLU; β::Real) = pReLU(
-    oftype(final.θ, (1 - β) * init.θ + β * final.θ), final.γ,
-    oftype(final.Δ, (1 - β) * init.Δ + β * final.Δ), final.η
+    oftype(final.θ, (1 - β) * init.θ + β * final.θ),
+    oftype(final.γ, (1 - β) * init.γ + β * final.γ),
+    oftype(final.Δ, (1 - β) * init.Δ + β * final.Δ),
+    oftype(final.η, (1 - β) * init.η + β * final.η)
 )
 anneal(init::xReLU, final::xReLU; β::Real) = xReLU(
-    oftype(final.θ, (1 - β) * init.θ + β * final.θ), final.γ,
-    oftype(final.Δ, (1 - β) * init.Δ + β * final.Δ), final.ξ
+    oftype(final.θ, (1 - β) * init.θ + β * final.θ),
+    oftype(final.γ, (1 - β) * init.γ + β * final.γ),
+    oftype(final.Δ, (1 - β) * init.Δ + β * final.Δ),
+    oftype(final.ξ, (1 - β) * init.ξ + β * final.ξ)
 )
+
+anneal_zero(init::AbstractLayer, rbm1::RBM) = RBM(init, anneal_zero(rbm1.hidden), Zeros(rbm1.w))
+
+anneal_zero(l::Binary) = Binary(zero(l.θ))
+anneal_zero(l::Spin) = Spin(zero(l.θ))
+anneal_zero(l::Potts) = Potts(zero(l.θ))
+anneal_zero(l::Gaussian) = Gaussian(zero(l.θ), l.γ)
+anneal_zero(l::ReLU) = ReLU(zero(l.θ), l.γ)
+anneal_zero(l::dReLU) = dReLU(zero(l.θp), zero(l.θn), l.γp, l.γn)
+anneal_zero(l::pReLU) = pReLU(zero(l.θ), l.γ, zero(l.Δ), l.η)
+anneal_zero(l::xReLU) = xReLU(zero(l.θ), l.γ, zero(l.Δ), l.ξ)
 
 """
     log_partition_zero_weight(rbm)
 
 Log-partition function of a zero-weight version of `rbm`.
 """
-log_partition_zero_weight(rbm::RBM) = -free_energy(rbm.visible) - free_energy(hidden(rbm))
+log_partition_zero_weight(rbm::RBM) = -free_energy(rbm.visible) - free_energy(rbm.hidden)
 
 """
     logmeanexp(A; dims=:)
