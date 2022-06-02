@@ -22,19 +22,10 @@ https://www.sciencedirect.com/science/article/pii/S0004370219301948
 For a variant or RAISE: https://arxiv.org/abs/1511.02543
 =#
 
-function ais_step(rbm0::RBM, rbm1::RBM, v::AbstractArray; β::Real)
-    @assert 0 < β < 1
-    rbm = anneal(rbm0, rbm1; β)
-    F0 = free_energy(rbm, v)
-    v1 = sample_v_from_v(rbm, v)
-    F1 = free_energy(rbm, v1)
-    return v1, F1 - F0
-end
-
 """
     ais(rbm0, rbm1, v0, βs)
 
-Provided `v0` is an unbiased sample from `rbm0`, returns `F` such that `mean(exp.(F))` is
+Provided `v0` is an equilibrated sample from `rbm0`, returns `F` such that `mean(exp.(F))` is
 an unbiased estimator of `Z1/Z0`, the ratio of partition functions of `rbm1` and `rbm0`.
 """
 function ais(rbm0::RBM, rbm1::RBM, v::AbstractArray, βs::AbstractVector)
@@ -44,8 +35,11 @@ function ais(rbm0::RBM, rbm1::RBM, v::AbstractArray, βs::AbstractVector)
         if iszero(β) || isone(β)
             continue
         else
-            v, ΔF = ais_step(rbm0, rbm1, v; β)
-            F += ΔF
+            rbm = anneal(rbm0, rbm1; β)
+            F0 = free_energy(rbm, v)
+            v = sample_v_from_v(rbm, v)
+            F1 = free_energy(rbm, v)
+            F += F1 - F0
         end
     end
     F -= free_energy(rbm1, v)
@@ -84,8 +78,7 @@ end
 
 Reverse AIS estimator of the log-partition function of `rbm`.
 While `aise` tends to understimate the log of the partition function, `raise` tends to
-overstimate it.
-`v` must be an equilibrated sample from `rbm`.
+overstimate it. `v` must be an equilibrated sample from `rbm`.
 """
 function raise(rbm::RBM, βs::AbstractVector; v::AbstractArray, init::AbstractLayer=rbm.visible)
     rbm0 = anneal_zero(init, rbm)
