@@ -11,7 +11,7 @@ import CairoMakie
 import RestrictedBoltzmannMachines as RBMs
 using Statistics: mean, std, middle
 using ValueHistories: MVHistory
-using RestrictedBoltzmannMachines: Binary, BinaryRBM, initialize!, pcd!, ais, rais, logmeanexp, logstdexp
+using RestrictedBoltzmannMachines: Binary, BinaryRBM, initialize!, pcd!, ais, aise, raise, logmeanexp, logstdexp
 
 # Load MNIST (0 digit only).
 
@@ -35,11 +35,11 @@ R_ais = Vector{Float64}[]
 R_rev = Vector{Float64}[]
 for nbetas in ndists
     push!(R_ais,
-        @time ais(rbm; nbetas, nsamples, init=initialize!(Binary(zero(rbm.visible.θ)), train_x))
+        @time aise(rbm; nbetas, nsamples, init=initialize!(Binary(zero(rbm.visible.θ)), train_x))
     )
     v = train_x[:, :, rand(1:size(train_x, 3), nsamples)]
     push!(R_rev,
-        @time rais(rbm, v; nbetas, init=initialize!(Binary(zero(rbm.visible.θ)), train_x))
+        @time raise(rbm; v, nbetas, init=initialize!(Binary(zero(rbm.visible.θ)), train_x))
     )
 end
 
