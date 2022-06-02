@@ -22,147 +22,102 @@ https://www.sciencedirect.com/science/article/pii/S0004370219301948
 For a variant or RAISE: https://arxiv.org/abs/1511.02543
 =#
 
-function ais_step(rbm::RBM, init::AbstractLayer, annealed_rbm::RBM, v::AbstractArray; β::Real)
-    v = oftype(v, sample_v_from_v(annealed_rbm, v)) # v[k ∓ 1] -> v[k]
-    F_curr = free_energy(annealed_rbm, v) # F[k](v[k])
-    annealed_rbm = oftype(annealed_rbm, anneal(init, rbm; β)) # β[k] -> β[k ± 1]
-    F_next = free_energy(annealed_rbm, v) # F[k ± 1](v[k])
-    return annealed_rbm, v, F_next - F_curr
+function ais_step(rbm0::RBM, rbm1::RBM, v::AbstractArray; β::Real)
+    @assert 0 < β < 1
+    rbm = anneal(rbm0, rbm1; β)
+    F0 = free_energy(rbm, v)
+    v1 = sample_v_from_v(rbm, v)
+    F1 = free_energy(rbm, v1)
+    return v1, F1 - F0
 end
 
 """
-    ais(rbm; nbetas = 10000, nsamples = 10, init = rbm.visible)
+    ais(rbm0, rbm1, v0, βs)
 
-Estimates the log-partition function of `rbm` by Annealed Importance Sampling (AIS).
-Here `init` is an initial independent-site distribution, represented by a visible layer.
-Returns `nsamples` variates, which can be averaged.
-
-If `R = ais(rbm)`, then `mean(exp.(R))` is an unbiased estimator of the partition function.
-One can use `mean(R)` or `logmeanexp(R)` to estimate the log-partition function, and these
-estimators have different properties.
-`std(R)` or `logstdexp(R)` can be used to get (rough) estimates of the sampling error, but
-do not trust these because the estimator is biased for any number of finite interpolating
-temperatures!
+Provided `v0` is an unbiased sample from `rbm0`, returns `F` such that `mean(exp.(F))` is
+an unbiased estimator of `Z1/Z0`, the ratio of partition functions of `rbm1` and `rbm0`.
 """
-function ais(rbm::RBM; nbetas::Int = 1000, nsamples::Int = 1, init::AbstractLayer = rbm.visible)
-    βs = range(0, 1, nbetas)
-    return ais(rbm, βs; nsamples, init)
-end
-
-function ais(rbm::RBM, βs::AbstractVector{<:Real}; nsamples::Int = 1, init::AbstractLayer = rbm.visible)
-    @assert size(init) == size(rbm.visible)
-    @assert iszero(first(βs)) && isone(last(βs)) && issorted(βs)
-    v = sample_from_inputs(init, Falses(size(init)..., nsamples)) # v[0]
-    annealed_rbm = anneal(init, rbm; β = first(βs)) # β[0]
-    R = fill(log_partition_zero_weight(annealed_rbm), nsamples)
+function ais(rbm0::RBM, rbm1::RBM, v::AbstractArray, βs::AbstractVector)
+    @assert issorted(βs) && 0 ≤ first(βs) ≤ last(βs) ≤ 1
+    F = free_energy(rbm0, v)
     for β in βs
-        annealed_rbm, v, ΔF = ais_step(rbm, init, annealed_rbm, v; β)
-        R -= ΔF
+        if iszero(β) || isone(β)
+            continue
+        else
+            v, ΔF = ais_step(rbm0, rbm1, v; β)
+            F += ΔF
+        end
     end
-    return R # returns a vector of samples; use logmeanexp(R) to get a single estimate
+    F -= free_energy(rbm1, v)
+    return F
+end
+
+function ais(init::AbstractLayer, rbm1::RBM, v0::AbstractArray, βs::AbstractVector)
+    rbm0 = anneal_zero(init, rbm1)
+    return ais(rbm0, rbm1, v0, βs)
+end
+
+function ais(rbm0::Union{RBM,AbstractLayer}, rbm1::RBM, v0::AbstractArray; nbetas::Int=2)
+    βs = range(0, 1, nbetas)
+    return ais(rbm0, rbm1, v0, βs)
 end
 
 """
-    rais(rbm, v; nbetas = 10000, nsamples = 10, init = rbm.visible)
+    aise(rbm, [βs]; [nbetas], init=rbm.visible, nsamples=1)
 
-Estimates the log-partition function of `rbm` by reverse Annealed Importance Sampling (AIS).
-These requires a set of samples `v` from the `rbm`. In pratice, we can use data points,
-assuming the `rbm` has been well-trained and approximates well the empirical distribution.
-As in [`ais`](@ref), `init` is an initial independent-site distribution, represented
-by a visible layer. It is recommended to select `init` to match the independent-site
-statistics of the data (so try to not use the default value `rbm.visible`!).
-Returns `nsamples` variates, which can be averaged.
+AIS estimator of the log-partition function of `rbm`. It is recommended to fit `init` to
+the single-site statistics of `rbm` (or the data).
 
-If `R = rais(rbm)`, then `mean(exp.(-R))` is an unbiased estimator of `1/Z`, the inverse of
-the partition function.
-In practice, one can use `mean(R)` or `logmeanexp(R)` to estimate the log-partition function,
-but note that these estimators have different properties.
-`std(R)` or `logstdexp(R)` can be used to get (rough) estimates of the sampling error, but
-do not trust these because the estimator is biased for any number of finite interpolating
-temperatures!
+!!! tip Use large `nbetas`
+    For more accurate estimates, use larger `nbetas`. It is usually better to have
+    large `nbetas` and small `nsamples`, rather than large `nsamples` and small `nbetas`.
 """
-function rais(rbm::RBM, v::AbstractArray; nbetas::Int, init::AbstractLayer = rbm.visible)
-    βs = range(0, 1, nbetas)
-    return rais(rbm, v, βs; init)
-end
-
-function rais(rbm::RBM, v::AbstractArray, βs::AbstractVector; init::AbstractLayer = rbm.visible)
-    nsamples = size(v, ndims(v))
-    @assert size(v) == (size(rbm.visible)..., nsamples)
-    @assert size(init) == size(rbm.visible)
-    @assert iszero(first(βs)) && isone(last(βs)) && issorted(βs)
-    annealed_rbm = anneal(init, rbm; β = last(βs)) # β[K]
-    R = fill(log_partition_zero_weight(anneal(init, rbm; β = first(βs))), nsamples)
-    for β in reverse(βs[(begin + 1):(end - 1)])
-        annealed_rbm, v, ΔF = ais_step(rbm, init, annealed_rbm, v; β)
-        R += ΔF
-    end
-    return R # mean(R) or -logmeanexp(-R) to get an estimate of Z
-end
-
-#= in-place versions, useful for visualization =#
-
-function ais!(traj::AbstractArray, rbm::RBM; init::AbstractLayer = rbm.visible)
-    nbetas = size(traj, ndims(traj))
-    βs = range(0, 1, nbetas)
-    return ais!(traj, rbm, βs; init)
-end
-
-function ais!(traj::AbstractArray, rbm::RBM, βs::AbstractVector; init::AbstractLayer = rbm.visible)
-    nsamples = size(traj, ndims(traj) - 1)
-    @assert size(traj) == (size(rbm.visible)..., nsamples, length(βs))
-    @assert size(init) == size(rbm.visible)
-    @assert iszero(first(βs)) && isone(last(βs)) && issorted(βs)
-    v = sample_from_inputs(init, Falses(size(init)..., nsamples)) # v[0]
-    annealed_rbm = anneal(init, rbm; β = first(βs)) # β[0] -> β[1]
-    R = fill(log_partition_zero_weight(annealed_rbm), nsamples)
-    for (t, β) in enumerate(βs)
-        annealed_rbm, v, ΔF = ais_step(rbm, init, annealed_rbm, v; β)
-        R -= ΔF
-        selectdim(traj, ndims(traj), t) .= v
-    end
-    return R # returns a vector of samples; use logmeanexp(R) to get a single estimate
-end
-
-function rais!(traj::AbstractArray, v::AbstractArray, rbm::RBM; init::AbstractLayer = rbm.visible)
-    nbetas = size(traj, ndims(traj))
-    βs = range(0, 1, nbetas)
-    return rais!(traj, v, rbm, βs; init)
-end
-
-function rais!(traj::AbstractArray, v::AbstractArray, rbm::RBM, βs::AbstractVector; init::AbstractLayer = rbm.visible)
-    nsamples = size(traj, ndims(traj) - 1)
-    @assert size(traj) == (size(rbm.visible)..., nsamples, length(βs))
-    @assert size(init) == size(rbm.visible)
-    @assert iszero(first(βs)) && isone(last(βs)) && issorted(βs)
-    selectdim(traj, ndims(traj), length(βs)) .= v
-    annealed_rbm = anneal(init, rbm; β = last(βs))
-    R = fill(log_partition_zero_weight(anneal(init, rbm; β = first(βs))), nsamples)
-    for (t, β) in reverse(collect(enumerate(βs[(begin + 1):end])))
-        annealed_rbm, v, ΔF = ais_step(rbm, init, annealed_rbm, v; β)
-        R += ΔF
-        selectdim(traj, ndims(traj), t) .= v
-    end
-    return R # returns a vector of samples; use logmeanexp(R) to get a single estimate
+function aise(rbm::RBM, βs::AbstractVector{<:Real}; init::AbstractLayer=rbm.visible, nsamples::Int=1)
+    rbm0 = anneal_zero(init, rbm)
+    v0 = sample_from_inputs(init, Falses(size(init)..., nsamples))
+    F = ais(rbm0, rbm, v0, βs)
+    return F .+ log_partition_zero_weight(rbm0)
 end
 
 """
-    anneal(visible_init, rbm_final; β)
+    raise(rbm::RBM, βs; v, init)
 
-Returns an RBM that interpolates between an independent-site model `visible_init`
-and `rbm`. Denoting by `E0(v)` the energies assigned by `visible_init`, and by
-`E1(v, h)` the energies assigned by `rbm_final`, the returned RBM assigns energies
-given by:
+Reverse AIS estimator of the log-partition function of `rbm`.
+While `aise` tends to understimate the log of the partition function, `raise` tends to
+overstimate it.
+`v` must be an equilibrated sample from `rbm`.
+"""
+function raise(rbm::RBM, βs::AbstractVector; v::AbstractArray, init::AbstractLayer=rbm.visible)
+    rbm0 = anneal_zero(init, rbm)
+    F = ais(rbm, rbm0, v, βs)
+    return log_partition_zero_weight(rbm0) .- F
+end
+
+aise(rbm::RBM; nbetas::Int=10000, kw...) = aise(rbm, range(0, 1, nbetas); kw...)
+raise(rbm::RBM; nbetas::Int=10000, kw...) = raise(rbm, range(0, 1, nbetas); kw...)
+
+"""
+    anneal(rbm0, rbm1; β)
+
+Returns an RBM that interpolates between `rbm0` and `rbm1`.
+Denoting by `E0(v, h)` and `E1(v, h)` the energies assigned by `rbm0` and `rbm1`,
+respectively, the returned RBM assigns energies given by:
 
     E(v,h) = (1 - β) * E0(v) + β * E1(v, h)
 """
-function anneal(init::AbstractLayer, final::RBM; β::Real)
-    vis = anneal(init, final.visible; β)
-    hid = anneal(hidden(final); β)
-    w = oftype(weights(final), β * weights(final))
+function anneal(rbm0::RBM, rbm1::RBM; β::Real)
+    vis = anneal(rbm0.visible, rbm1.visible; β)
+    hid = anneal(rbm0.hidden, rbm1.hidden; β)
+    w = (1 - β) * rbm0.w + β * rbm1.w
     return RBM(vis, hid, w)
-    #return RBM(vis, hidden(final), β * weights(final))
 end
+
+function anneal(init::AbstractLayer, rbm1::RBM; β::Real)
+    rbm0 = anneal_zero(init, rbm1)
+    return anneal(rbm0, rbm1; β)
+end
+
+anneal_zero(init::AbstractLayer, rbm1::RBM) = RBM(init, anneal(rbm1.hidden; β=0), Zeros(rbm1.w))
 
 anneal(layer::Binary; β::Real) = Binary(
     oftype(layer.θ, β * layer.θ)
