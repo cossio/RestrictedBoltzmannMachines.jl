@@ -142,7 +142,7 @@ end
     v0 = sample_v_from_v(rbm0, bitrand(2, 100000); steps=1)
     data = ais(rbm0, rbm1, v0; nbetas=10)
     @test logmeanexp(data) ≈ log_partition(rbm1) - log_partition(rbm0) rtol=0.1
-    @test mean(logmeanexp.(Iterators.partition(data, 20))) ≈ log_partition(rbm1) - log_partition(rbm0) rtol=0.1
+    @test mean(logmeanexp.(Iterators.partition(data, 10))) ≈ log_partition(rbm1) - log_partition(rbm0) rtol=0.1
 
     v0 = sample_v_from_v(rbm0, bitrand(2); steps=1)
     data = ais(rbm0, rbm1, v0; nbetas=100000)
@@ -176,13 +176,11 @@ end
 end
 
 @testset "aise ≤ lZ ≤ raise" begin
-    rbm = BinaryRBM(randn(7), randn(3), randn(7,3))
+    rbm = BinaryRBM(randn(3), randn(2), randn(3,2))
     lZ = log_partition(rbm)
-    v = sample_v_from_v(rbm, bitrand(size(rbm.visible)..., 10000); steps=100)
-    lZf = aise(rbm; nbetas=4, nsamples=size(v)[end])
+    v = sample_v_from_v(rbm, bitrand(size(rbm.visible)..., 100_000); steps=500)
+    lZf = aise(rbm; nbetas=3, nsamples=size(v)[end])
     lZr = raise(rbm; v, nbetas=3)
-    @test mean(logmeanexp.(Iterators.partition(lZf, 10))) ≤ lZ
-    @test lZ ≤ mean(-logmeanexp.(Iterators.partition(-lZr, 10)))
-    @test mean(-logmeanexp.(Iterators.partition(-lZr, 10))) ≤ mean(logmeanexp.(Iterators.partition(lZr, 10)))
+    @info @test mean(logmeanexp.(Iterators.partition(lZf, 2))) ≤ lZ ≤ mean(-logmeanexp.(Iterators.partition(-lZr, 2)))
     @test -logmeanexp(-lZr) ≤ logmeanexp(lZr)
 end
