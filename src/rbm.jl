@@ -268,7 +268,7 @@ end
 """
     mirror(rbm)
 
-Returns a new RBM with viible and hidden layers flipped.
+Returns a new RBM with visible and hidden layers flipped.
 """
 function mirror(rbm::RBM)
     p(i::Int) = i ≤ ndims(visible(rbm)) ? i + ndims(hidden(rbm)) : i - ndims(visible(rbm))
