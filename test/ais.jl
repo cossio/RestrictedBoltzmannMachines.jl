@@ -2,10 +2,10 @@ using Test: @test, @testset, @inferred
 using Statistics: mean, std, var
 using Random: randn!, bitrand
 using LogExpFunctions: logsumexp
-using RestrictedBoltzmannMachines: BinaryRBM, energy, free_energy, sample_from_inputs, sample_v_from_v
+using RestrictedBoltzmannMachines: RBM, BinaryRBM, Binary, Spin, Potts, Gaussian, ReLU, dReLU, xReLU, pReLU
+using RestrictedBoltzmannMachines: energy, free_energy, sample_from_inputs, sample_v_from_v
 using RestrictedBoltzmannMachines: anneal, anneal_zero, ais, aise, raise, log_partition_zero_weight
 using RestrictedBoltzmannMachines: logmeanexp, logvarexp, logstdexp
-using RestrictedBoltzmannMachines: RBM, Binary, Spin, Potts, Gaussian, ReLU, dReLU, xReLU, pReLU
 using RestrictedBoltzmannMachines: log_partition
 
 @testset "logmeanexp, logvarexp" begin
@@ -183,4 +183,14 @@ end
     lZr = raise(rbm; v, nbetas=3)
     @info @test mean(logmeanexp.(Iterators.partition(lZf, 2))) ≤ lZ ≤ mean(-logmeanexp.(Iterators.partition(-lZr, 2)))
     @test -logmeanexp(-lZr) ≤ logmeanexp(lZr)
+end
+
+@testset "ais gaussian" begin
+    rbm0 = RBM(Gaussian(randn(20), 1 .+ 5rand(20)), Gaussian(randn(10), 1 .+ rand(10)), randn(20, 10)/10)
+    rbm1 = RBM(Gaussian(randn(20), 1 .+ 5rand(20)), Gaussian(randn(10), 1 .+ rand(10)), randn(20, 10)/10)
+    lZ0 = log_partition(rbm0)
+    lZ1 = log_partition(rbm1)
+    v0 = sample_v_from_v(rbm0, randn(20, 10); steps=1)
+    R = ais(rbm0, rbm1, v0, nbetas=10000)
+    @test logmeanexp(R) ≈ lZ1 - lZ0 rtol=0.1
 end
