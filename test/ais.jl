@@ -194,3 +194,12 @@ end
     R = ais(rbm0, rbm1, v0, nbetas=10000)
     @test logmeanexp(R) ≈ lZ1 - lZ0 rtol=0.1
 end
+
+@testset "zero hidden units" begin
+    rbm = BinaryRBM(randn(2), randn(0), randn(2,0))
+    v = sample_v_from_v(rbm, bitrand(2, 100); steps=1)
+    lZ = aise(rbm; nbetas=3, nsamples=100)
+    @test logmeanexp(lZ) ≈ log_partition(rbm)
+    lZ = raise(rbm; v, nbetas=3)
+    @test logmeanexp(lZ) ≈ log_partition(rbm)
+end

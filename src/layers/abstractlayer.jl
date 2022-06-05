@@ -13,7 +13,7 @@ function flatten(layer::AbstractLayer, x::AbstractArray)
     if ndims(layer) == ndims(x)
         return vec(x)
     else
-        return reshape(x, length(layer), :)
+        return reshape(x, length(layer), prod(size(x, d) for d in (ndims(layer) + 1):ndims(x)))
     end
 end
 
