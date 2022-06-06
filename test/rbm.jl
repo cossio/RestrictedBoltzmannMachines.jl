@@ -9,7 +9,7 @@ using Statistics: mean
 using LinearAlgebra: logdet, diag, diagm, dot, isposdef
 using LogExpFunctions: logsumexp
 using QuadGK: quadgk
-using RestrictedBoltzmannMachines: visible, hidden, weights
+using RestrictedBoltzmannMachines: BinaryRBM, visible, hidden, weights
 using RestrictedBoltzmannMachines: inputs_h_from_v, inputs_v_from_h, inputs_v_to_h, inputs_h_to_v
 using RestrictedBoltzmannMachines: energy, interaction_energy, free_energy
 
@@ -283,4 +283,10 @@ end
     @test -2∂γv ≈ diag(C[1:N, 1:N]) # <vi^2>
     @test -2∂γh ≈ diag(C[(N + 1):end, (N + 1):end]) # <hμ^2>
     @test ∂w ≈ C[1:N, (N + 1):end] # <vi*hμ>
+end
+
+@testset "zero hidden units" begin
+    rbm = BinaryRBM(randn(5), randn(0), randn(5,0))
+    v = bitrand(5)
+    @test free_energy(rbm, v) ≈ energy(rbm.visible, v)
 end
