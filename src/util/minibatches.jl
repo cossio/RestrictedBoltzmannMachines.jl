@@ -5,7 +5,7 @@ function _nobs(d::AbstractArray, ds::Union{AbstractArray, Nothing}...)
 end
 _nobs(d::AbstractArray) = size(d, ndims(d))
 _nobs(::Nothing...) = nothing
-_selobs(i, d::AbstractArray) = collect(selectdim(d, ndims(d), i))
+_selobs(i, d::AbstractArray) = d[.., i]
 _selobs(i, ::Nothing) = nothing
 _getobs(i, ds::Union{AbstractArray, Nothing}...) = map(d -> _selobs(i, d), ds)
 

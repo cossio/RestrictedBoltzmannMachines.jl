@@ -38,7 +38,7 @@ function metropolis!(v::AbstractArray, rbm::RBM; β::Real = 1)
     @assert ndims(v) > ndims(rbm.visible) # last dim contains nsteps
     @assert size(v)[1:ndims(rbm.visible)] == size(rbm.visible)
     for t in 2:size(v, ndims(v))
-        selectdim(v, ndims(v), t) .= metropolis_once(rbm, selectdim(v, ndims(v), t - 1); β)
+        v[.., t] .= metropolis_once(rbm, v[.., t - 1]; β)
     end
     return v
 end

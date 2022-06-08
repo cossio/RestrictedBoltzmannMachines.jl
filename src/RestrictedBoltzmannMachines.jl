@@ -8,6 +8,7 @@ using Base: front, tail
 using Random: AbstractRNG, GLOBAL_RNG, randexp, randn!, rand!, shuffle!
 using LinearAlgebra: Diagonal, logdet, I, dot, norm
 using Statistics: mean, std
+using EllipsisNotation: (..)
 using LogExpFunctions: softmax, logsumexp, log1pexp, logistic, logaddexp, logsubexp
 using SpecialFunctions: erf, erfcx, logerfcx
 using FillArrays: Fill, Zeros, Ones, Trues, Falses

@@ -94,7 +94,7 @@ function substitution_matrix_sites(
         for (b, i) in pairs(sites)
             v_[i, b] = x
         end
-        selectdim(E_, 1, k) .= free_energy(rbm, v_)
+        E_[k, ..] .= free_energy(rbm, v_)
     end
     E = [E_[(v[i, b] > 0) + 1, b] for (b, i) in pairs(sites)]
     return E_ .- reshape(E, 1, batch_size(visible(rbm), v)...)
@@ -111,7 +111,7 @@ function substitution_matrix_sites(
         for (b, i) in pairs(sites)
             v_[i, b] = x
         end
-        selectdim(E_, 1, k) .= free_energy(rbm, v_)
+        E_[k, ..] .= free_energy(rbm, v_)
     end
     E = [E_[(v[i, b] > 0) + 1, b] for (b, i) in pairs(sites)]
     return E_ .- reshape(E, 1, batch_size(visible(rbm), v)...)
@@ -123,13 +123,13 @@ function substitution_matrix_sites(
     @assert size(visible(rbm)) == size(v)[1:ndims(visible(rbm))]
     @assert size(sites) == batch_size(visible(rbm), v)
     E_ = zeros(size(rbm.visible, 1), batch_size(visible(rbm), v)...)
-    for x in 1:size(rbm.visible, 1)
+    for k in 1:size(rbm.visible, 1)
         v_ = copy(v)
         for (b, i) in pairs(sites)
             v_[:, i, b] .= false
-            v_[x, i, b] = true
+            v_[k, i, b] = true
         end
-        selectdim(E_, 1, x) .= free_energy(rbm, v_)
+        E_[k, ..] .= free_energy(rbm, v_)
     end
     c = onehot_decode(v)
     E = [E_[c[i, b], b] for (b, i) in pairs(sites)]
