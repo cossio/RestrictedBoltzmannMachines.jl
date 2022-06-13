@@ -30,7 +30,7 @@ nothing #hide
 
 # Get some equilibrated samples from model
 v = train_x[:, :, rand(1:size(train_x, 3), 1000)]
-sample_v_from_v(rbm, v; steps=1000)
+v = sample_v_from_v(rbm, v; steps=1000)
 nothing #hide
 
 # Estimate Z with AIS and reverse AIS.
