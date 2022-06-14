@@ -24,6 +24,17 @@ using RestrictedBoltzmannMachines: log_partition
     @test logstdexp(A) ≈ log.(std(exp.(A)))
 end
 
+@testset "logmeanexp properties" begin
+    X = randn(1000, 1000)
+    @test only(logmeanexp(logmeanexp(X; dims=1); dims=2)) ≈ logmeanexp(X)
+    @test only(logmeanexp(-logmeanexp(-X; dims=1); dims=2)) ≤ only(-logmeanexp(-logmeanexp(X; dims=1); dims=2))
+    x = randn()
+    @test logmeanexp([x]) ≈ x
+    X = randn(1000, 1000, 1)
+    @test logmeanexp(X; dims=3) ≈ X
+    @test -logmeanexp(-X) ≤ logmeanexp(X)
+end
+
 @testset "log_partition_zero_weight" begin
     rbm0 = BinaryRBM(randn(3), randn(2), zeros(3,2))
     @test log_partition_zero_weight(rbm0) ≈ log_partition(rbm0)
