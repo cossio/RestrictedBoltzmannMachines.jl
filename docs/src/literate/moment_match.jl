@@ -50,7 +50,7 @@ end
 @time pcd!(
     rbm, train_x;
     epochs, batchsize, callback=mycb, l2_weights=1e-4,
-    optim=Flux.ADAM(5e-4, (0.9, 0.999))
+    optim=Flux.Adam(5e-4, (0.9, 0.999))
 );
 
 # Plot log_pseudolikelihood during training

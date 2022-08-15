@@ -1,7 +1,7 @@
 """
     update!(∂, x, optim)
 
-Computes parameter update step according to `optim` algorithm (e.g. ADAM), and gradient `∂`
+Computes parameter update step according to `optim` algorithm (e.g. Adam), and gradient `∂`
 of parameters `x`.
 Overwrites `∂` with update step and returns it.
 Note that this does not update parameters.
@@ -128,7 +128,7 @@ Clips gradients by `clip`.
 function default_optimizer(
     nsamples::Int, batchsize::Int, epochs::Int;
     decay_final::Real = 0.01, decay_after::Real = 0.5, clip = 1,
-    optim = ADAM(5e-3, (0, 0.99), 1e-3)
+    optim = Adam(5e-3, (0, 0.99), 1e-3)
 )
     # Defaults from https://github.com/jertubiana/PGM
     # See also 10.1016/j.cels.2020.11.005 (search RMSprop)

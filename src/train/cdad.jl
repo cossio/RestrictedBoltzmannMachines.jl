@@ -7,12 +7,12 @@ Computes gradients with Zygote.
 function cdad!(rbm::RBM, data::AbstractArray;
     batchsize = 1,
     epochs = 1,
-    optim = ADAM(),
+    optim = Adam(),
     wts = nothing,
     steps::Int = 1,
     callback = empty_callback
 )
-    @assert size(data) == (size(visible(rbm))..., size(data)[end])
+    @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert isnothing(wts) || _nobs(data) == _nobs(wts)
     for epoch in 1:epochs
         batches = minibatches(data, wts; batchsize = batchsize)

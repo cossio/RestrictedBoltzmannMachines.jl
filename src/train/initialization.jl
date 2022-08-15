@@ -12,8 +12,8 @@ If provided, matches average unit activities from `data`.
 function initialize! end
 
 function initialize!(rbm::RBM; ϵ::Real = 1e-6)
-    initialize!(visible(rbm))
-    initialize!(hidden(rbm))
+    initialize!(rbm.visible)
+    initialize!(rbm.hidden)
     initialize_w!(rbm; ϵ)
     zerosum!(rbm)
     return rbm
@@ -21,9 +21,9 @@ end
 
 function initialize!(rbm::RBM, data::AbstractArray; ϵ::Real = 1e-6, wts = nothing)
     @assert 0 < ϵ < 1/2
-    @assert size(data) == (size(visible(rbm))..., size(data)[end])
-    initialize!(visible(rbm), data; ϵ, wts)
-    initialize!(hidden(rbm))
+    @assert size(data) == (size(rbm.visible)..., size(data)[end])
+    initialize!(rbm.visible, data; ϵ, wts)
+    initialize!(rbm.hidden)
     initialize_w!(rbm, data; ϵ, wts)
     zerosum!(rbm)
     return rbm
@@ -104,22 +104,22 @@ function initialize_w!(
     rbm::RBM, data::AbstractArray;
     λ::Real = 0.1, ϵ::Real = 1e-6, wts::Union{Nothing,AbstractVector} = nothing
 )
-    @assert size(data) == (size(visible(rbm))..., size(data)[end])
+    @assert size(data) == (size(rbm.visible)..., size(data)[end])
     if isnothing(wts)
         d = dot(data, data / size(data, ndims(data)))
     else
         @assert length(wts) == size(data)[end]
-        x = reshape(data, length(visible(rbm)), size(data)[end])
+        x = reshape(data, length(rbm.visible), size(data)[end])
         d = dot(x * Diagonal(wts), x / sum(wts))
     end
-    randn!(weights(rbm))
-    weights(rbm) .*= λ / √(d + ϵ)
+    randn!(rbm.w)
+    rbm.w .*= λ / √(d + ϵ)
     return rbm # does not impose zerosum
 end
 
 function initialize_w!(rbm::RBM; λ::Real = 0.1, ϵ::Real = 1e-6)
-    d = sum(var_from_inputs(visible(rbm)) .+ mean_from_inputs(visible(rbm)).^2)
-    randn!(weights(rbm))
-    weights(rbm) .*= λ / √(d + ϵ)
+    d = sum(var_from_inputs(rbm.visible) .+ mean_from_inputs(rbm.visible).^2)
+    randn!(rbm.w)
+    rbm.w .*= λ / √(d + ϵ)
     return rbm
 end

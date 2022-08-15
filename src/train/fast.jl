@@ -7,16 +7,16 @@ See http://dl.acm.org/citation.cfm?id=1553374.1553506.
 function fpcd!(rbm::RBM, data::AbstractArray;
     batchsize::Int = 1,
     epochs::Int = 1,
-    optim = ADAM(),
+    optim = Adam(),
     wts = nothing,
     steps::Int = 1,
-    optimfast = ADAM(), # optimizer algorithm for fast parameters
+    optimfast = Adam(), # optimizer algorithm for fast parameters
     decayfast::Real = 19/20  # weight decay of fast parameters
 )
-    @assert size(data) == (size(visible(rbm))..., size(data)[end])
+    @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert isnothing(wts) || _nobs(data) == _nobs(wts)
     stats = suffstats(rbm, data; wts)
-    vm = sample_from_inputs(visible(rbm), falses(size(visible(rbm))..., batchsize))
+    vm = sample_from_inputs(rbm.visible, falses(size(rbm.visible)..., batchsize))
     rbmfast = deepcopy(rbm) # store fast parameters
     # (Actually, the parameters of rbmfast are the sums θ_regular + θ_fast)
     for epoch in 1:epochs
@@ -38,9 +38,9 @@ In other words, writing the parametrs of `rbmfast` as
 ω_regular + ω_fast, where ω_regular are the prameters of
 `rbm`, then here we decay the ω_fast part towards zero. =#
 function decayfast!(rbmfast::M, rbm::M; decay::Real) where {M<:RBM}
-    decayfast!(visible(rbmfast), visible(rbm); decay)
-    decayfast!(hidden(rbmfast), hidden(rbm); decay)
-    decayfast!(weights(rbmfast), weights(rbm); decay)
+    decayfast!(rbmfast.visible, rbm.visible; decay)
+    decayfast!(rbmfast.hidden, rbm.hidden; decay)
+    decayfast!(rbmfast.w, rbm.w; decay)
 end
 
 function decayfast!(fast::L, regular::L; decay::Real) where {L<:Union{Binary,Spin,Potts}}

@@ -38,8 +38,8 @@ end
 
 @testset "∂contrastive_divergence" begin
     rbm = RBMs.BinaryRBM(randn(5,2), randn(4,3), randn(5,2,4,3))
-    vd = bitrand(size(RBMs.visible(rbm))..., 7)
-    vm = bitrand(size(RBMs.visible(rbm))..., 7)
+    vd = bitrand(size(rbm.visible)..., 7)
+    vm = bitrand(size(rbm.visible)..., 7)
     gs = Zygote.gradient(rbm) do rbm
         RBMs.contrastive_divergence(rbm, vd, vm)
     end

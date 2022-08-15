@@ -34,13 +34,13 @@ function pcd!(
     vm = fantasy_init(rbm; batchsize, mode), # fantasy chains
     shuffle::Bool = true
 )
-    @assert size(data) == (size(visible(rbm))..., size(data)[end])
+    @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert isnothing(wts) || size(data)[end] == length(wts)
     @assert ϵh ≥ 0
 
     # we center layers with their average activities
-    ave_v = batchmean(visible(rbm), data; wts)
-    ave_h, var_h = total_meanvar_from_inputs(hidden(rbm), inputs_h_from_v(rbm, data); wts)
+    ave_v = batchmean(rbm.visible, data; wts)
+    ave_h, var_h = total_meanvar_from_inputs(rbm.hidden, inputs_h_from_v(rbm, data); wts)
     @assert all(var_h .+ ϵh .> 0)
 
     # gauge constraints

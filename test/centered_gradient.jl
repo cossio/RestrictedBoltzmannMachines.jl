@@ -4,7 +4,7 @@ using Statistics: mean
 using LinearAlgebra: dot
 using Random: bitrand, rand!
 using Zygote: gradient, jacobian
-using RestrictedBoltzmannMachines: visible, hidden, weights, free_energy, energy, interaction_energy
+using RestrictedBoltzmannMachines: free_energy, energy, interaction_energy
 using RestrictedBoltzmannMachines: RBM, BinaryRBM, grad2ave, subtract_gradients
 using RestrictedBoltzmannMachines: Binary, Spin, Potts, Gaussian, ReLU, dReLU, pReLU, xReLU
 using RestrictedBoltzmannMachines: sample_v_from_v, sample_h_from_h, ∂free_energy
@@ -18,7 +18,7 @@ struct CenteredRBM{V<:Binary,H<:Binary,W<:AbstractArray,Av<:AbstractArray,Ah<:Ab
 end
 
 CenteredRBM(rbm::RBM, λv::Vector, λh::Vector) = CenteredRBM(
-    visible(rbm), hidden(rbm), weights(rbm), λv, λh
+    rbm.visible, rbm.hidden, rbm.w, λv, λh
 )
 
 CenteredRBM(a::Vector, b::Vector, w::Matrix, λv::Vector, λh::Vector) = CenteredRBM(
@@ -179,5 +179,5 @@ end
     rbm = RBM(layer, Binary(randn(3)), randn(5,3))
     v = sample_v_from_v(rbm, randn(5,100); steps=100)
     ∂ = ∂free_energy(rbm, v)
-    @test grad2ave(visible(rbm), ∂.visible) ≈ dropdims(mean(v; dims=2); dims=2)
+    @test grad2ave(rbm.visible, ∂.visible) ≈ dropdims(mean(v; dims=2); dims=2)
 end

@@ -6,13 +6,13 @@ Trains the RBM on data using contrastive divergence.
 function cd!(rbm::RBM, data::AbstractArray;
     batchsize = 1,
     epochs = 1,
-    optim = ADAM(), # optimizer algorithm
+    optim = Adam(), # optimizer algorithm
     wts = nothing, # weighted data points; named wts to avoid conflicts with RBM nomenclature
     steps::Int = 1, # Monte Carlo steps to update fantasy particles
     stats = suffstats(rbm, data; wts),
     callback = empty_callback
 )
-    @assert size(data) == (size(visible(rbm))..., size(data)[end])
+    @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert isnothing(wts) || _nobs(data) == _nobs(wts)
     for epoch in 1:epochs
         batches = minibatches(data, wts; batchsize = batchsize)
@@ -44,7 +44,7 @@ end
 function mean_free_energy(rbm::RBM, v::AbstractArray; wts = nothing)::Number
     # TODO: Allow passing sufficient statistics here, so that AD can exploit them too
     F = free_energy(rbm, v)
-    if ndims(visible(rbm)) == ndims(v)
+    if ndims(rbm.visible) == ndims(v)
         wts::Nothing
         return F
     else

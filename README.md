@@ -55,3 +55,4 @@ Therefore I explain the compat requirements here.
 See [a19cd5c](https://github.com/cossio/RestrictedBoltzmannMachines.jl/commit/a19cd5cf38162f1991839cb69532480faca98068).
 Since now I am starting to use explicit gradients everywhere, this requirement might eventually go away.
 - **Flux 0.12.9:** `ExpDecay` with a `start` step option [#1816](https://github.com/FluxML/Flux.jl/pull/1816).
+- **Flux 0.13.4:** `Adam` instead of `ADAM` (and others) [v0.13.4](https://github.com/FluxML/Flux.jl/releases/tag/v0.13.4).

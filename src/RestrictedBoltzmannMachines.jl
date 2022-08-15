@@ -12,7 +12,7 @@ using EllipsisNotation: (..)
 using LogExpFunctions: softmax, logsumexp, log1pexp, logistic, logaddexp, logsubexp
 using SpecialFunctions: erf, erfcx, logerfcx
 using FillArrays: Fill, Zeros, Ones, Trues, Falses
-using Flux: ADAM, Descent
+using Flux: Adam, Descent
 
 include("util/util.jl")
 include("util/onehot.jl")

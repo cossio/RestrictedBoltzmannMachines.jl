@@ -87,7 +87,7 @@ end
     initialize!(student, data; wts)
     student.w .= cos.(1:N)
     @test mean_from_inputs(student.visible) ≈ wmean(data; wts, dims=2)
-    pcd!(student, data; wts, epochs, batchsize, ϵh=1e-2, shuffle=false, mode=:exact, optim=Flux.ADAM())
+    pcd!(student, data; wts, epochs, batchsize, ϵh=1e-2, shuffle=false, mode=:exact, optim=Flux.Adam())
     @info @test cor(free_energy(teacher, data), free_energy(student, data)) > 0.99
     wts_student = softmax(-free_energy(student, data))
     ν_int = batchmean(student.hidden, var_h_from_v(student, data); wts = wts_student)
