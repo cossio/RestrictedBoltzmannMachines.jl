@@ -31,7 +31,7 @@ function energies(layer::dReLU, x::AbstractArray)
     return drelu_energy.(layer.θp, layer.θn, layer.γp, layer.γn, x)
 end
 
-free_energies(layer::dReLU, inputs::Union{Real,AbstractArray} = 0) = drelu_free.(
+cfgs(layer::dReLU, inputs::Union{Real,AbstractArray} = 0) = drelu_free.(
     layer.θp .+ inputs, layer.θn .+ inputs, layer.γp, layer.γn
 )
 sample_from_inputs(layer::dReLU, inputs::Union{Real,AbstractArray} = 0) = drelu_rand.(
@@ -48,8 +48,8 @@ end
 function mean_from_inputs(layer::dReLU, inputs::Union{Real,AbstractArray} = 0)
     lp = ReLU( layer.θp, layer.γp)
     ln = ReLU(-layer.θn, layer.γn)
-    Fp = free_energies(lp,  inputs)
-    Fn = free_energies(ln, -inputs)
+    Fp = cfgs(lp,  inputs)
+    Fn = cfgs(ln, -inputs)
     F = -logaddexp.(-Fp, -Fn)
     pp = exp.(F - Fp)
     pn = exp.(F - Fn)
@@ -61,8 +61,8 @@ end
 function var_from_inputs(layer::dReLU, inputs::Union{Real,AbstractArray} = 0)
     lp = ReLU( layer.θp, layer.γp)
     ln = ReLU(-layer.θn, layer.γn)
-    Fp = free_energies(lp,  inputs)
-    Fn = free_energies(ln, -inputs)
+    Fp = cfgs(lp,  inputs)
+    Fn = cfgs(ln, -inputs)
     F = -logaddexp.(-Fp, -Fn)
     pp = exp.(F - Fp)
     pn = exp.(F - Fn)
@@ -75,8 +75,8 @@ end
 function meanvar_from_inputs(layer::dReLU, inputs::Union{Real,AbstractArray} = 0)
     lp = ReLU( layer.θp, layer.γp)
     ln = ReLU(-layer.θn, layer.γn)
-    Fp = free_energies(lp,  inputs)
-    Fn = free_energies(ln, -inputs)
+    Fp = cfgs(lp,  inputs)
+    Fn = cfgs(ln, -inputs)
     F = -logaddexp.(-Fp, -Fn)
     pp = exp.(F - Fp)
     pn = exp.(F - Fn)
@@ -91,8 +91,8 @@ function mean_abs_from_inputs(layer::dReLU, inputs::Union{Real,AbstractArray} = 
     lp = ReLU( layer.θp, layer.γp)
     ln = ReLU(-layer.θn, layer.γn)
 
-    Fp = free_energies(lp,  inputs)
-    Fn = free_energies(ln, -inputs)
+    Fp = cfgs(lp,  inputs)
+    Fn = cfgs(ln, -inputs)
     F = -logaddexp.(-Fp, -Fn)
     pp = exp.(F - Fp)
     pn = exp.(F - Fn)
@@ -102,11 +102,11 @@ function mean_abs_from_inputs(layer::dReLU, inputs::Union{Real,AbstractArray} = 
     return pp .* μp - pn .* μn
 end
 
-function ∂free_energies(layer::dReLU, inputs::Union{Real,AbstractArray} = 0)
+function ∂cfgs(layer::dReLU, inputs::Union{Real,AbstractArray} = 0)
     lp = ReLU( layer.θp, layer.γp)
     ln = ReLU(-layer.θn, layer.γn)
-    Fp = free_energies(lp,  inputs)
-    Fn = free_energies(ln, -inputs)
+    Fp = cfgs(lp,  inputs)
+    Fn = cfgs(ln, -inputs)
     F = -logaddexp.(-Fp, -Fn)
     pp = exp.(F - Fp)
     pn = exp.(F - Fn)
@@ -159,8 +159,8 @@ function drelu_energy(θp::T, θn::T, γp::S, γn::S, x::Real) where {T<:Real, S
 end
 
 function drelu_free(θp::Real, θn::Real, γp::Real, γn::Real)
-    Fp = relu_free( θp, γp)
-    Fn = relu_free(-θn, γn)
+    Fp = relu_cfg( θp, γp)
+    Fn = relu_cfg(-θn, γn)
     return -logaddexp(-Fp, -Fn)
 end
 
@@ -169,8 +169,8 @@ function drelu_rand(θp::Real, θn::Real, γp::Real, γn::Real)
 end
 
 function drelu_rand(θp::T, θn::T, γp::S, γn::S) where {T<:Real, S<:Real}
-    Fp = relu_free(θp, γp)
-    Fn = relu_free(-θn, γn)
+    Fp = relu_cfg(θp, γp)
+    Fn = relu_cfg(-θn, γn)
     F = -logaddexp(-Fp, -Fn)
     if randexp(typeof(F)) ≥ Fp - F
         return  relu_rand( θp, γp)

@@ -18,7 +18,7 @@ Spin(n::Int...) = Spin(Float64, n...)
 
 Base.repeat(l::Spin, n::Int...) = Spin(repeat(l.θ, n...))
 
-free_energies(layer::Spin, inputs::Union{Real,AbstractArray} = 0) = spin_free.(layer.θ .+ inputs)
+cfgs(layer::Spin, inputs::Union{Real,AbstractArray} = 0) = spin_cfg.(layer.θ .+ inputs)
 mode_from_inputs(layer::Spin, inputs::Union{Real,AbstractArray} = 0) = ifelse.(layer.θ .+ inputs .> 0, Int8(1), Int8(-1))
 mean_from_inputs(layer::Spin, inputs::Union{Real,AbstractArray} = 0) = tanh.(layer.θ .+ inputs)
 mean_abs_from_inputs(layer::Spin, inputs::Union{Real,AbstractArray} = 0) = Ones{Int8}(size(layer))
@@ -41,7 +41,7 @@ function sample_from_inputs(layer::Spin, inputs::Union{Real,AbstractArray} = 0)
     return spin_rand.(θ, u)
 end
 
-function spin_free(θ::Real)
+function spin_cfg(θ::Real)
     abs_θ = abs(θ)
     return -abs_θ - log1pexp(-2abs_θ)
 end

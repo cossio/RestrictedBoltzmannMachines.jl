@@ -24,7 +24,7 @@ function energy(layer::_FieldLayers, x::AbstractArray)
     end
 end
 
-function ∂free_energies(layer::_FieldLayers, inputs::Union{Real,AbstractArray} = 0)
+function ∂cfgs(layer::_FieldLayers, inputs::Union{Real,AbstractArray} = 0)
     return (; θ = -mean_from_inputs(layer, inputs))
 end
 

@@ -19,7 +19,7 @@ Base.repeat(l::Gaussian, n::Int...) = Gaussian(repeat(l.θ, n...), repeat(l.γ, 
 
 energies(layer::Gaussian, x::AbstractArray) = gauss_energy.(layer.θ, layer.γ, x)
 
-function free_energies(l::Gaussian, inputs::Union{Real,AbstractArray} = 0)
+function cfgs(l::Gaussian, inputs::Union{Real,AbstractArray} = 0)
     return @. -(l.θ .+ inputs)^2 / abs(2l.γ) + log(abs(l.γ)/π/2) / 2
 end
 
@@ -47,7 +47,7 @@ end
 
 gauss_energy(θ::Real, γ::Real, x::Real) = (abs(γ) * x / 2 - θ) * x
 
-function ∂free_energies(layer::Gaussian, inputs::Union{Real,AbstractArray} = 0)
+function ∂cfgs(layer::Gaussian, inputs::Union{Real,AbstractArray} = 0)
     θ = layer.θ .+ inputs
     abs_γ = abs.(layer.γ)
     return (

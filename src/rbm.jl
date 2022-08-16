@@ -18,16 +18,16 @@ struct RBM{V,H,W}
     end
 end
 
-flat_w(rbm::RBM) = reshape(rbm.w, length(rbm.visible), length(rbm.hidden))
-flat_v(rbm::RBM, v::AbstractArray) = flatten(rbm.visible, v)
-flat_h(rbm::RBM, h::AbstractArray) = flatten(rbm.hidden, h)
+flat_w(rbm) = reshape(rbm.w, length(rbm.visible), length(rbm.hidden))
+flat_v(rbm, v) = flatten(rbm.visible, v)
+flat_h(rbm, h) = flatten(rbm.hidden, h)
 
 """
     inputs_h_from_v(rbm, v)
 
 Interaction inputs from visible to hidden layer.
 """
-function inputs_h_from_v(rbm::RBM, v::AbstractArray)
+function inputs_h_from_v(rbm, v)
     wflat = flat_w(rbm)
     vflat = activations_convert_maybe(wflat, flat_v(rbm, v))
     iflat = wflat' * vflat
@@ -39,7 +39,7 @@ end
 
 Interaction inputs from hidden to visible layer.
 """
-function inputs_v_from_h(rbm::RBM, h::AbstractArray)
+function inputs_v_from_h(rbm, h)
     wflat = flat_w(rbm)
     hflat = activations_convert_maybe(wflat, flat_h(rbm, h))
     iflat = wflat * hflat
@@ -47,8 +47,8 @@ function inputs_v_from_h(rbm::RBM, h::AbstractArray)
 end
 
 # compat
-inputs_v_to_h(rbm::RBM, v::AbstractArray) = inputs_h_from_v(rbm, v)
-inputs_h_to_v(rbm::RBM, h::AbstractArray) = inputs_v_from_h(rbm, h)
+inputs_v_to_h(rbm, v) = inputs_h_from_v(rbm, v)
+inputs_h_to_v(rbm, h) = inputs_v_from_h(rbm, h)
 
 """
     free_energy(rbm, v)
@@ -58,7 +58,7 @@ Free energy of visible configuration (after marginalizing hidden configurations)
 function free_energy(rbm::RBM, v::AbstractArray)
     E = energy(rbm.visible, v)
     inputs = inputs_h_from_v(rbm, v)
-    F = free_energy(rbm.hidden, inputs)
+    F = cfg(rbm.hidden, inputs)
     return E + F
 end
 
@@ -67,7 +67,7 @@ end
 
 Energy of the rbm in the configuration `(v,h)`.
 """
-function energy(rbm::RBM, v::AbstractArray, h::AbstractArray)
+function energy(rbm, v, h)
     Ev = energy(rbm.visible, v)
     Eh = energy(rbm.hidden, h)
     Ew = interaction_energy(rbm, v, h)
@@ -79,7 +79,7 @@ end
 
 Weight mediated interaction energy.
 """
-function interaction_energy(rbm::RBM, v::AbstractArray, h::AbstractArray)
+function interaction_energy(rbm, v, h)
     bsz = batch_size(rbm, v, h)
     if ndims(rbm.visible) == ndims(v) || ndims(rbm.hidden) == ndims(h)
         E = -flat_v(rbm, v)' * flat_w(rbm) * flat_h(rbm, h)
@@ -98,7 +98,7 @@ end
 
 Samples a hidden configuration conditional on the visible configuration `v`.
 """
-function sample_h_from_v(rbm::RBM, v::AbstractArray)
+function sample_h_from_v(rbm, v)
     inputs = inputs_h_from_v(rbm, v)
     return sample_from_inputs(rbm.hidden, inputs)
 end
@@ -108,18 +108,18 @@ end
 
 Samples a visible configuration conditional on the hidden configuration `h`.
 """
-function sample_v_from_h(rbm::RBM, h::AbstractArray)
+function sample_v_from_h(rbm, h)
     inputs = inputs_v_from_h(rbm, h)
     return sample_from_inputs(rbm.visible, inputs)
 end
 
 """
-    sample_v_from_v(rbm, v; steps = 1)
+    sample_v_from_v(rbm, v; steps=1)
 
 Samples a visible configuration conditional on another visible configuration `v`.
 Ensures type stability by requiring that the returned array is of the same type as `v`.
 """
-function sample_v_from_v(rbm::RBM, v::AbstractArray; steps::Int = 1)
+function sample_v_from_v(rbm, v; steps=1)
     @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
     for _ in 1:steps
         v = oftype(v, sample_v_from_v_once(rbm, v))
@@ -128,12 +128,12 @@ function sample_v_from_v(rbm::RBM, v::AbstractArray; steps::Int = 1)
 end
 
 """
-    sample_h_from_h(rbm, h; steps = 1)
+    sample_h_from_h(rbm, h; steps=1)
 
 Samples a hidden configuration conditional on another hidden configuration `h`.
 Ensures type stability by requiring that the returned array is of the same type as `h`.
 """
-function sample_h_from_h(rbm::RBM, h::AbstractArray; steps::Int = 1)
+function sample_h_from_h(rbm, h; steps=1)
     @assert size(rbm.hidden) == size(h)[1:ndims(rbm.hidden)]
     for _ in 1:steps
         h = oftype(h, sample_h_from_h_once(rbm, h))
@@ -141,13 +141,13 @@ function sample_h_from_h(rbm::RBM, h::AbstractArray; steps::Int = 1)
     return h
 end
 
-function sample_v_from_v_once(rbm::RBM, v::AbstractArray)
+function sample_v_from_v_once(rbm, v)
     h = sample_h_from_v(rbm, v)
     v = sample_v_from_h(rbm, h)
     return v
 end
 
-function sample_h_from_h_once(rbm::RBM, h::AbstractArray)
+function sample_h_from_h_once(rbm, h)
     v = sample_v_from_h(rbm, h)
     h = sample_h_from_v(rbm, v)
     return h
@@ -158,7 +158,7 @@ end
 
 Mean unit activation values, conditioned on the other layer, <h | v>.
 """
-function mean_h_from_v(rbm::RBM, v::AbstractArray)
+function mean_h_from_v(rbm, v)
     inputs = inputs_h_from_v(rbm, v)
     return mean_from_inputs(rbm.hidden, inputs)
 end
@@ -168,7 +168,7 @@ end
 
 Mean unit activation values, conditioned on the other layer, <v | h>.
 """
-function mean_v_from_h(rbm::RBM, h::AbstractArray)
+function mean_v_from_h(rbm, h)
     inputs = inputs_v_from_h(rbm, h)
     return mean_from_inputs(rbm.visible, inputs)
 end
@@ -285,7 +285,7 @@ function ∂free_energy(
 )
     inputs = inputs_h_from_v(rbm, v)
     ∂v = ∂energy(rbm.visible, stats)
-    ∂Γ = ∂free_energies(rbm.hidden, inputs)
+    ∂Γ = ∂cfgs(rbm.hidden, inputs)
     ∂h = map(∂Γ) do ∂f
         batchmean(rbm.hidden, ∂f; wts)
     end

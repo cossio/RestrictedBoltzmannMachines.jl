@@ -24,7 +24,7 @@ Base.repeat(l::pReLU, n::Int...) = pReLU(
 )
 
 energies(layer::pReLU, x::AbstractArray) = energies(dReLU(layer), x)
-free_energies(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = free_energies(dReLU(layer), inputs)
+cfgs(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = cfgs(dReLU(layer), inputs)
 sample_from_inputs(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = sample_from_inputs(dReLU(layer), inputs)
 mean_from_inputs(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = mean_from_inputs(dReLU(layer), inputs)
 var_from_inputs(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = var_from_inputs(dReLU(layer), inputs)
@@ -33,13 +33,13 @@ mode_from_inputs(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = mode_fro
 mean_abs_from_inputs(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = mean_abs_from_inputs(dReLU(layer), inputs)
 std_from_inputs(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = sqrt.(var_from_inputs(layer, inputs))
 
-function ∂free_energies(layer::pReLU, inputs::Union{Real,AbstractArray} = 0)
+function ∂cfgs(layer::pReLU, inputs::Union{Real,AbstractArray} = 0)
     drelu = dReLU(layer)
 
     lp = ReLU( drelu.θp, drelu.γp)
     ln = ReLU(-drelu.θn, drelu.γn)
-    Fp = free_energies(lp,  inputs)
-    Fn = free_energies(ln, -inputs)
+    Fp = cfgs(lp,  inputs)
+    Fn = cfgs(ln, -inputs)
     F = -logaddexp.(-Fp, -Fn)
     pp = exp.(F - Fp)
     pn = exp.(F - Fn)

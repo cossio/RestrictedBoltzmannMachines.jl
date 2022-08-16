@@ -45,7 +45,7 @@ We also overlay the analytical PDF.
 
 fig = Makie.Figure(resolution=(1000, 700))
 xs = repeat(reshape(range(minimum(data), maximum(data), 100), 1,1,1,1,100), size(layer)...)
-ps = exp.(RBMs.free_energies(layer) .- RBMs.energies(layer, xs))
+ps = exp.(RBMs.cfgs(layer) .- RBMs.energies(layer, xs))
 for (iθp, θp) in enumerate(θps), (iθn, θn) in enumerate(θns)
     ax = Makie.Axis(fig[iθp,iθn], title="θp=$θp, θn=$θn", xlabel="h", ylabel="P(h)")
     for (iγp, γp) in enumerate(γps), (iγn, γn) in enumerate(γns)

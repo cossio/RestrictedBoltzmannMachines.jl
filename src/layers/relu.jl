@@ -22,7 +22,7 @@ function energies(layer::ReLU, x::AbstractArray)
     return relu_energy.(layer.θ, layer.γ, x)
 end
 
-free_energies(layer::ReLU, inputs::Union{Real,AbstractArray} = 0) = relu_free.(layer.θ .+ inputs, layer.γ)
+cfgs(layer::ReLU, inputs::Union{Real,AbstractArray} = 0) = relu_cfg.(layer.θ .+ inputs, layer.γ)
 sample_from_inputs(layer::ReLU, inputs::Union{Real,AbstractArray} = 0) = relu_rand.(layer.θ .+ inputs, layer.γ)
 mode_from_inputs(layer::ReLU, inputs::Union{Real,AbstractArray} = 0) = max.((layer.θ .+ inputs) ./ abs.(layer.γ), 0)
 
@@ -53,7 +53,7 @@ end
 
 std_from_inputs(layer::ReLU, inputs::Union{Real,AbstractArray} = 0) = sqrt.(var_from_inputs(layer, inputs))
 
-function ∂free_energies(layer::ReLU, inputs::Union{Real,AbstractArray} = 0)
+function ∂cfgs(layer::ReLU, inputs::Union{Real,AbstractArray} = 0)
     μ, ν = meanvar_from_inputs(layer, inputs)
     return (θ = -μ, γ = sign.(layer.γ) .* (ν .+ μ.^2) / 2)
 end
@@ -71,7 +71,7 @@ function relu_energy(θ::Real, γ::Real, x::Real)
     return x < 0 ? inf(E) : E
 end
 
-function relu_free(θ::Real, γ::Real)
+function relu_cfg(θ::Real, γ::Real)
     abs_γ = abs(γ)
     return -logerfcx(-θ / √(2abs_γ)) + log(2abs_γ/π) / 2
 end

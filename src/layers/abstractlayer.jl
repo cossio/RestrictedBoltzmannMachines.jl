@@ -34,12 +34,12 @@ function energy(layer::AbstractLayer, x::AbstractArray)
 end
 
 """
-    free_energy(layer, inputs = 0)
+    cfg(layer, inputs = 0)
 
 Cumulant generating function of layer, reduced over layer dimensions.
 """
-function free_energy(layer::AbstractLayer, inputs::Union{Real,AbstractArray} = 0)
-    F = free_energies(layer, inputs)
+function cfg(layer::AbstractLayer, inputs::Union{Real,AbstractArray} = 0)
+    F = cfgs(layer, inputs)
     if inputs isa Real || ndims(layer) == ndims(inputs)
         return sum(F)
     else
@@ -190,14 +190,14 @@ function ∂energy(layer::AbstractLayer, data::AbstractArray; wts=nothing)
 end
 
 """
-    ∂free_energy(layer, inputs = 0; wts = 1)
+    ∂cfg(layer, inputs = 0; wts = 1)
 
 Unit activation moments, conjugate to layer parameters.
-These are obtained by differentiating `free_energies` with respect to the layer parameters.
+These are obtained by differentiating `cfgs` with respect to the layer parameters.
 Averages over configurations (weigthed by `wts`).
 """
-function ∂free_energy(layer::AbstractLayer, inputs::Union{Real,AbstractArray} = 0; wts = nothing)
-    ∂F = ∂free_energies(layer, inputs)
+function ∂cfg(layer::AbstractLayer, inputs::Union{Real,AbstractArray} = 0; wts = nothing)
+    ∂F = ∂cfgs(layer, inputs)
     return map(∂F) do ∂f
         batchmean(layer, ∂f; wts)
     end

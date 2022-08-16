@@ -7,7 +7,7 @@ using Zygote: gradient, jacobian
 using RestrictedBoltzmannMachines: free_energy, energy, interaction_energy
 using RestrictedBoltzmannMachines: RBM, BinaryRBM, grad2ave, subtract_gradients
 using RestrictedBoltzmannMachines: Binary, Spin, Potts, Gaussian, ReLU, dReLU, pReLU, xReLU
-using RestrictedBoltzmannMachines: sample_v_from_v, sample_h_from_h, ∂free_energy
+using RestrictedBoltzmannMachines: sample_v_from_v, sample_h_from_h, ∂free_energy, ∂cfg, cfg
 
 struct CenteredRBM{V<:Binary,H<:Binary,W<:AbstractArray,Av<:AbstractArray,Ah<:AbstractArray}
     visible::V
@@ -48,7 +48,7 @@ end
 function RBMs.free_energy(rbm::CenteredRBM, v::AbstractArray)
     inputs = RBMs.inputs_h_from_v(RBM(rbm), v .- rbm.λv)
     E = energy(rbm.visible, v) + energy(Binary(-rbm.λh), inputs)
-    F = free_energy(rbm.hidden, inputs)
+    F = cfg(rbm.hidden, inputs)
     return E + F
 end
 

@@ -9,7 +9,7 @@ end
 Binary(::Type{T}, n::Int...) where {T} = Binary(zeros(T, n...))
 Binary(n::Int...) = Binary(Float64, n...)
 
-free_energies(layer::Binary, inputs::Union{Real,AbstractArray} = 0) = -log1pexp.(layer.θ .+ inputs)
+cfgs(layer::Binary, inputs::Union{Real,AbstractArray} = 0) = -log1pexp.(layer.θ .+ inputs)
 mode_from_inputs(layer::Binary, inputs::Union{Real,AbstractArray} = 0) = layer.θ .+ inputs .> 0
 mean_from_inputs(layer::Binary, inputs::Union{Real,AbstractArray} = 0) = logistic.(layer.θ .+ inputs)
 mean_abs_from_inputs(layer::Binary, inputs::Union{Real,AbstractArray} = 0) = mean_from_inputs(layer, inputs)

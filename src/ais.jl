@@ -147,7 +147,7 @@ anneal(init::xReLU, final::xReLU; β::Real) = xReLU(
     oftype(final.ξ, (1 - β) * init.ξ + β * final.ξ)
 )
 
-anneal_zero(init::AbstractLayer, rbm1::RBM) = RBM(init, anneal_zero(rbm1.hidden), Zeros(rbm1.w))
+anneal_zero(init::AbstractLayer, rbm::RBM) = RBM(init, anneal_zero(rbm.hidden), Zeros(rbm.w))
 
 anneal_zero(l::Binary) = Binary(zero(l.θ))
 anneal_zero(l::Spin) = Spin(zero(l.θ))
@@ -163,7 +163,7 @@ anneal_zero(l::xReLU) = xReLU(zero(l.θ), l.γ, zero(l.Δ), l.ξ)
 
 Log-partition function of a zero-weight version of `rbm`.
 """
-log_partition_zero_weight(rbm::RBM) = -free_energy(rbm.visible) - free_energy(rbm.hidden)
+log_partition_zero_weight(rbm) = -cfg(rbm.visible) - cfg(rbm.hidden)
 
 """
     logmeanexp(A; dims=:)

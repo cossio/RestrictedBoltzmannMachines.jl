@@ -3,7 +3,7 @@ import Flux
 import RestrictedBoltzmannMachines as RBMs
 using Random: bitrand
 using RestrictedBoltzmannMachines: default_optimizer, minibatch_count, minibatches
-using RestrictedBoltzmannMachines: RBM, BinaryRBM, ∂free_energy
+using RestrictedBoltzmannMachines: RBM, BinaryRBM, ∂free_energy, ∂cfg
 using RestrictedBoltzmannMachines: Binary, Spin, Potts, Gaussian, ReLU, dReLU, pReLU, xReLU
 
 @testset "default_optimizer" begin
@@ -59,7 +59,7 @@ end
 
     opt = Flux.Descent(rand())
     layer = Gaussian(randn(5), rand(5))
-    ∂ = ∂free_energy(layer, randn(5, 10))
+    ∂ = ∂cfg(layer, randn(5, 10))
     Δ = deepcopy(∂)
     @test RBMs.update!(Δ, layer, opt) == Δ
     layer0 = deepcopy(layer)
@@ -69,7 +69,7 @@ end
 
     opt = Flux.Descent(rand())
     layer = dReLU(randn(5), randn(5), rand(5), rand(5))
-    ∂ = ∂free_energy(layer, randn(5, 10))
+    ∂ = ∂cfg(layer, randn(5, 10))
     Δ = deepcopy(∂)
     @test RBMs.update!(Δ, layer, opt) == Δ
     layer0 = deepcopy(layer)
@@ -81,7 +81,7 @@ end
 
     opt = Flux.Descent(rand())
     layer = pReLU(randn(5), randn(5), rand(5), rand(5))
-    ∂ = ∂free_energy(layer, randn(5, 10))
+    ∂ = ∂cfg(layer, randn(5, 10))
     Δ = deepcopy(∂)
     @test RBMs.update!(Δ, layer, opt) == Δ
     layer0 = deepcopy(layer)
@@ -93,7 +93,7 @@ end
 
     opt = Flux.Descent(rand())
     layer = xReLU(randn(5), randn(5), rand(5), rand(5))
-    ∂ = ∂free_energy(layer, randn(5, 10))
+    ∂ = ∂cfg(layer, randn(5, 10))
     Δ = deepcopy(∂)
     @test RBMs.update!(Δ, layer, opt) == Δ
     layer0 = deepcopy(layer)

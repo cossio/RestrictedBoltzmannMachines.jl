@@ -17,7 +17,7 @@ Potts(q::Int, n::Int...) = Potts(Float64, q, n...)
 
 Base.repeat(l::Potts, n::Int...) = Potts(repeat(l.θ, n...))
 
-free_energies(layer::Potts, inputs::Union{Real,AbstractArray} = 0) = -logsumexp(layer.θ .+ inputs; dims=1)
+cfgs(layer::Potts, inputs::Union{Real,AbstractArray} = 0) = -logsumexp(layer.θ .+ inputs; dims=1)
 mean_from_inputs(layer::Potts, inputs::Union{Real,AbstractArray} = 0) = softmax(layer.θ .+ inputs; dims=1)
 mean_abs_from_inputs(layer::Potts, inputs::Union{Real,AbstractArray} = 0) = mean_from_inputs(layer, inputs)
 std_from_inputs(layer::Potts, inputs::Union{Real,AbstractArray} = 0) = sqrt.(var_from_inputs(layer, inputs))
