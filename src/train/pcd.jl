@@ -11,7 +11,7 @@ function pcd!(
     wts::Union{AbstractVector, Nothing} = nothing, # data weights
     steps::Int = 1, # MC steps to update fantasy chains
     optim = default_optimizer(_nobs(data), batchsize, epochs), # optimization algorithm
-    stats = suffstats(rbm, data; wts), # sufficient statistics for visible layer
+    stats = suffstats(rbm.visible, data; wts), # sufficient statistics for visible layer
 
     # regularization
     l2_fields::Real = 0, # visible fields L2 regularization

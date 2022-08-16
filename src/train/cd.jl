@@ -9,7 +9,7 @@ function cd!(rbm::RBM, data::AbstractArray;
     optim = Adam(), # optimizer algorithm
     wts = nothing, # weighted data points; named wts to avoid conflicts with RBM nomenclature
     steps::Int = 1, # Monte Carlo steps to update fantasy particles
-    stats = suffstats(rbm, data; wts),
+    stats = suffstats(rbm.visible, data; wts),
     callback = empty_callback
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
@@ -55,7 +55,7 @@ end
 function ∂contrastive_divergence(
     rbm::RBM, vd::AbstractArray, vm::AbstractArray;
     wd = nothing, wm = nothing,
-    stats = suffstats(rbm, vd; wts = wd)
+    stats = suffstats(rbm.visible, vd; wts = wd)
 )
     ∂d = ∂free_energy(rbm, vd; wts = wd, stats)
     ∂m = ∂free_energy(rbm, vm; wts = wm)

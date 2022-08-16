@@ -281,7 +281,7 @@ Gradient of `free_energy(rbm, v)` with respect to model parameters.
 If `v` consists of multiple samples (batches), then an average is taken.
 """
 function ∂free_energy(
-    rbm::RBM, v::AbstractArray; wts = nothing, stats = suffstats(rbm, v; wts)
+    rbm::RBM, v::AbstractArray; wts = nothing, stats = suffstats(rbm.visible, v; wts)
 )
     inputs = inputs_h_from_v(rbm, v)
     ∂v = ∂energy(rbm.visible, stats)
@@ -294,7 +294,7 @@ function ∂free_energy(
     return (visible = ∂v, hidden = ∂h, w = ∂w)
 end
 
-function ∂interaction_energy(rbm::RBM, v::AbstractArray, h::AbstractArray; wts = nothing)
+function ∂interaction_energy(rbm, v, h; wts=nothing)
     bsz = batch_size(rbm, v, h)
     if ndims(rbm.visible) == ndims(v) && ndims(rbm.hidden) == ndims(h)
         wts::Nothing
@@ -318,5 +318,3 @@ function ∂interaction_energy(rbm::RBM, v::AbstractArray, h::AbstractArray; wts
     ∂w = reshape(∂wflat, size(rbm.w))
     return ∂w
 end
-
-suffstats(rbm::RBM, v::AbstractArray; wts=nothing) = suffstats(rbm.visible, v; wts)

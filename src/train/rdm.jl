@@ -14,7 +14,7 @@ function rdm!(rbm::RBM, data::AbstractArray;
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert isnothing(wts) || _nobs(data) == _nobs(wts)
 
-    stats = suffstats(rbm, data; wts)
+    stats = suffstats(rbm.visible, data; wts)
 
     for epoch in 1:epochs
         batches = minibatches(data, wts; batchsize = batchsize)
