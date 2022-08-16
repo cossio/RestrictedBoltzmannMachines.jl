@@ -55,7 +55,7 @@ inputs_h_to_v(rbm, h) = inputs_v_from_h(rbm, h)
 
 Free energy of visible configuration (after marginalizing hidden configurations).
 """
-function free_energy(rbm::RBM, v::AbstractArray)
+function free_energy(rbm, v)
     E = energy(rbm.visible, v)
     inputs = inputs_h_from_v(rbm, v)
     F = cfg(rbm.hidden, inputs)
@@ -178,7 +178,7 @@ end
 
 Variance of unit activation values, conditioned on the other layer, var(v | h).
 """
-function var_v_from_h(rbm::RBM, h::AbstractArray)
+function var_v_from_h(rbm, h)
     inputs = inputs_v_from_h(rbm, h)
     return var_from_inputs(rbm.visible, inputs)
 end
@@ -188,7 +188,7 @@ end
 
 Variance of unit activation values, conditioned on the other layer, var(h | v).
 """
-function var_h_from_v(rbm::RBM, v::AbstractArray)
+function var_h_from_v(rbm, v)
     inputs = inputs_h_from_v(rbm, v)
     return var_from_inputs(rbm.hidden, inputs)
 end
@@ -198,7 +198,7 @@ end
 
 Mode unit activations, conditioned on the other layer.
 """
-function mode_v_from_h(rbm::RBM, h::AbstractArray)
+function mode_v_from_h(rbm, h)
     inputs = inputs_v_from_h(rbm, h)
     return mode_from_inputs(rbm.visible, inputs)
 end
@@ -208,7 +208,7 @@ end
 
 Mode unit activations, conditioned on the other layer.
 """
-function mode_h_from_v(rbm::RBM, v::AbstractArray)
+function mode_h_from_v(rbm, v)
     inputs = inputs_h_from_v(rbm, v)
     return mode_from_inputs(rbm.hidden, inputs)
 end
@@ -218,7 +218,7 @@ end
 
 Returns the batch size if `energy(rbm, v, h)` were computed.
 """
-function batch_size(rbm::RBM, v::AbstractArray, h::AbstractArray)
+function batch_size(rbm, v, h)
     v_bsz = batch_size(rbm.visible, v)
     h_bsz = batch_size(rbm.hidden, h)
     if isempty(v_bsz)
@@ -251,7 +251,7 @@ end
 
 Stochastic reconstruction error of `v`.
 """
-function reconstruction_error(rbm::RBM, v::AbstractArray; steps::Int=1)
+function reconstruction_error(rbm, v; steps=1)
     @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
     v1 = sample_v_from_v(rbm, v; steps)
     ϵ = mean(abs.(v .- v1); dims = 1:ndims(rbm.visible))
@@ -267,7 +267,7 @@ end
 
 Returns a new RBM with visible and hidden layers flipped.
 """
-function mirror(rbm::RBM)
+function mirror(rbm)
     p(i::Int) = i ≤ ndims(rbm.visible) ? i + ndims(rbm.hidden) : i - ndims(rbm.visible)
     perm = ntuple(p, ndims(rbm.w))
     w = permutedims(rbm.w, perm)

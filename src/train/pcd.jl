@@ -31,7 +31,7 @@ function pcd!(
     callback = empty_callback, # called for every batch
     mode::Symbol = :pcd, # :pcd, :cd, or :exact
 
-    vm = fantasy_init(rbm; batchsize, mode), # fantasy chains
+    vm = fantasy_init(rbm.visible; batchsize, mode), # fantasy chains
     shuffle::Bool = true
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
@@ -107,15 +107,13 @@ function pcd!(
 end
 
 # init fantasy chains
-fantasy_init(rbm::RBM; batchsize::Int, mode::Symbol = :pcd) = fantasy_init(rbm.visible; batchsize, mode)
-
-function fantasy_init(l::AbstractLayer; batchsize::Int, mode::Symbol = :pcd)
+function fantasy_init(layer::AbstractLayer; batchsize::Int, mode::Symbol = :pcd)
     @assert mode ∈ (:pcd, :cd, :exact)
     if mode === :exact
         @warn "Running extensive sampling; this can take a lot of RAM and time"
-        return extensive_sample(l)
+        return extensive_sample(layer)
     else
-        return sample_from_inputs(l, falses(size(l)..., batchsize))
+        return sample_from_inputs(layer, falses(size(layer)..., batchsize))
     end
 end
 
