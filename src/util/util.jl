@@ -123,3 +123,10 @@ function moving_average(A::AbstractArray, m::Int)
     end
     return out
 end
+
+"""
+    lpaddim(A)
+
+Adds a singleton dimension to the array on the left.
+"""
+lpaddim(A::AbstractArray) = reshape(A, 1, size(A)...)
