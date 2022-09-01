@@ -1,6 +1,3 @@
-#= Github Actions uses Intel CPUs, for which MKL is faster than OpenBLAS.
-It is recommended to load MKL before any other package, so we load it here. =#
-import MKL
 import Documenter
 import Literate
 import RestrictedBoltzmannMachines as RBMs
@@ -64,7 +61,6 @@ Documenter.makedocs(
                 "dReLU" => "literate/layers/dReLU.md",
             ],
             "Performance" => [
-                "MKL" => "literate/performance/mkl.md",
                 "Float32 vs. Float64" => "literate/performance/float32.md",
                 "Zygote" => "literate/performance/ad.md",
             ],

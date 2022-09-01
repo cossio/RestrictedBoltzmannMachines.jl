@@ -5,7 +5,6 @@ It is possible to calculate gradients with Zygote.
 Let's compare performance to explicit gradients.
 =#
 
-import MKL
 import MLDatasets
 import Makie
 import CairoMakie

@@ -4,7 +4,6 @@
 Compare training performance using `Float32` vs. `Float64`.
 =#
 
-import MKL
 import MLDatasets
 import Makie
 import CairoMakie
