@@ -25,8 +25,3 @@ using SafeTestsets: @safetestset
 @time @safetestset "rescale_hidden" begin include("gauge/rescale_hidden.jl") end
 @time @safetestset "centered_gradient" begin include("centered_gradient.jl") end
 @time @safetestset "pcd" begin include("pcd.jl") end
-
-if Sys.islinux() # NPZ has issues on Windows
-    # compare to https://github.com/jertubiana/PGM
-    @time @safetestset "pgm" begin include("compare_to_pgm/pgm.jl") end
-end
