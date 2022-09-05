@@ -11,7 +11,7 @@ function pcd!(
     wts::Union{AbstractVector, Nothing} = nothing, # data weights
     steps::Int = 1, # MC steps to update fantasy chains
     optim = default_optimizer(_nobs(data), batchsize, epochs), # optimization algorithm
-    stats = suffstats(rbm.visible, data; wts), # sufficient statistics for visible layer
+    moments = moments_from_samples(rbm.visible, data; wts), # sufficient statistics for visible layer
 
     # regularization
     l2_fields::Real = 0, # visible fields L2 regularization
@@ -54,17 +54,17 @@ function pcd!(
         batches = minibatches(data, wts; batchsize, shuffle)
         for (batch_idx, (vd, wd)) in enumerate(batches)
             # compute positive gradient from data
-            ∂d = ∂free_energy(rbm, vd; wts = wd, stats)
+            ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
 
             # compute negative gradient
             ∂m = ∂logpartition(rbm; vd, vm, wd, mode, steps)
 
             # likelihood gradient is the difference of positive and negative parts
-            ∂ = subtract_gradients(∂d, ∂m)
+            ∂ = ∂d - ∂m
 
             # correct weighted minibatch bias
             batch_weight = isnothing(wts) ? 1 : mean(wd) / wts_mean
-            ∂ = gradmult(∂, batch_weight)
+            ∂ *= batch_weight
 
             # extract hidden unit statistics from gradient
             ave_h_batch = grad2ave(rbm.hidden, ∂d.hidden)
@@ -151,7 +151,7 @@ function extensive_sample(layer::Binary; maxlen::Int = 12)
 end
 
 function extensive_sample(layer::Spin; maxlen::Int = 12)
-    σ = extensive_sample(Binary(layer.θ); maxlen)
+    σ = extensive_sample(Binary(; layer.θ); maxlen)
     return Int8(2) * σ .- Int8(1)
 end
 

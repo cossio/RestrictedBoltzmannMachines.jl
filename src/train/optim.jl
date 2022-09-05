@@ -1,120 +1,46 @@
-"""
-    update!(∂, x, optim)
+struct ∂RBM{V,H,W}
+    visible::V
+    hidden::H
+    w::W
+    function ∂RBM(visible::AbstractArray, hidden::AbstractArray, w::AbstractArray)
+        @assert size(w) == (tail(size(visible))..., tail(size(hidden))...)
+        return new{typeof(visible), typeof(hidden), typeof(w)}(visible, hidden, w)
+    end
+end
 
-Computes parameter update step according to `optim` algorithm (e.g. Adam), and gradient `∂`
-of parameters `x`.
-Overwrites `∂` with update step and returns it.
+"""
+    update!(∂rbm, rbm, optim)
+
+Computes parameter update step according to `optim` algorithm (e.g. Adam),
+and gradient `∂rbm` of parameters in `rbm`.
+Overwrites `∂rbm` with update step and returns it.
 Note that this does not update parameters.
 """
-function update!(∂::AbstractArray, x::AbstractArray, optim)
-    ∂ .= Flux.Optimise.apply!(optim, x, ∂)
-    return ∂
-end
-
-function update!(∂::NamedTuple, rbm::RBM, optim)
-    update!(∂.visible, rbm.visible, optim)
-    update!(∂.hidden, rbm.hidden, optim)
-    update!(∂.w, rbm.w, optim)
-    return ∂
-end
-
-function update!(∂::NamedTuple, l::Union{Binary,Spin,Potts}, optim)
-    update!(∂.θ, l.θ, optim)
-    return ∂
-end
-
-function update!(∂::NamedTuple, l::Union{Gaussian,ReLU}, optim)
-    update!(∂.θ, l.θ, optim)
-    update!(∂.γ, l.γ, optim)
-    return ∂
-end
-
-function update!(∂::NamedTuple, l::dReLU, optim)
-    update!(∂.θp, l.θp, optim)
-    update!(∂.θn, l.θn, optim)
-    update!(∂.γp, l.γp, optim)
-    update!(∂.γn, l.γn, optim)
-    return ∂
-end
-
-function update!(∂::NamedTuple, l::pReLU, optim)
-    update!(∂.θ, l.θ, optim)
-    update!(∂.γ, l.γ, optim)
-    update!(∂.Δ, l.Δ, optim)
-    update!(∂.η, l.η, optim)
-    return ∂
-end
-
-function update!(∂::NamedTuple, l::xReLU, optim)
-    update!(∂.θ, l.θ, optim)
-    update!(∂.γ, l.γ, optim)
-    update!(∂.Δ, l.Δ, optim)
-    update!(∂.ξ, l.ξ, optim)
+function update!(∂::∂RBM, rbm::RBM, optim)
+    Flux.Optimise.apply!(optim, rbm.visible.par, ∂.visible)
+    Flux.Optimise.apply!(optim, rbm.hidden.par, ∂.hidden)
+    Flux.Optimise.apply!(optim, rbm.w, ∂.w)
     return ∂
 end
 
 """
-    update!(x, ∂)
+    update!(rbm, ∂rbm)
 
-Updates parameters according to steps `∂`.
+Updates parameters of `rbm` according to steps `∂rbm`.
 """
-function update!(x::AbstractArray, ∂::AbstractArray)
-    x .-= ∂
-    return x
-end
-
-function update!(rbm::RBM, ∂::NamedTuple)
-    update!(rbm.visible, ∂.visible)
-    update!(rbm.hidden, ∂.hidden)
-    update!(rbm.w, ∂.w)
+function update!(rbm::RBM, ∂::∂RBM)
+    rbm.visible.par .= rbm.visible.par - ∂.visible
+    rbm.hidden.par .= rbm.hidden.par - ∂.hidden
+    rbm.w .= rbm.w - ∂.w
     return rbm
 end
-
-function update!(l::Union{Binary,Spin,Potts}, ∂::NamedTuple)
-    update!(l.θ, ∂.θ)
-    return l
-end
-
-function update!(l::Union{Gaussian,ReLU}, ∂::NamedTuple)
-    update!(l.θ, ∂.θ)
-    update!(l.γ, ∂.γ)
-    return l
-end
-
-function update!(l::dReLU, ∂::NamedTuple)
-    update!(l.θp, ∂.θp)
-    update!(l.θn, ∂.θn)
-    update!(l.γp, ∂.γp)
-    update!(l.γn, ∂.γn)
-    return l
-end
-
-function update!(l::pReLU, ∂::NamedTuple)
-    update!(l.θ, ∂.θ)
-    update!(l.γ, ∂.γ)
-    update!(l.Δ, ∂.Δ)
-    update!(l.η, ∂.η)
-    return l
-end
-
-function update!(l::xReLU, ∂::NamedTuple)
-    update!(l.θ, ∂.θ)
-    update!(l.γ, ∂.γ)
-    update!(l.Δ, ∂.Δ)
-    update!(l.ξ, ∂.ξ)
-    return l
-end
-
-update!(x::Any, ::Nothing) = x
 
 """
     gradnorms(∂)
 
 Computes gradient norms.
 """
-gradnorms(∂::AbstractArray) = norm(∂)
-gradnorms(∂::NamedTuple) = map(gradnorms, ∂)
-gradnorms(::Nothing) = false
+gradnorms(∂::∂RBM) = (visible = norm(∂.visible), hidden = norm(∂.hidden), w = norm(∂.w))
 
 """
     default_optimizer(nsamples, batchsize, epochs; decay_after, decay_final, clip, optim)
@@ -143,31 +69,9 @@ function default_optimizer(
     )
 end
 
-subtract_gradients(∂1::NamedTuple, ∂2::NamedTuple) = map(subtract_gradients, ∂1, ∂2)
-subtract_gradients(∂1::AbstractArray, ∂2::AbstractArray) = ∂1 - ∂2
-
-add_gradients(∂1::NamedTuple, ∂2::NamedTuple) = map(add_gradients, ∂1, ∂2)
-add_gradients(∂1::AbstractArray, ∂2::AbstractArray) = ∂1 + ∂2
-add_gradients(∂1::Union{NamedTuple,AbstractArray}, ::Nothing) = ∂1
-add_gradients(::Nothing, ∂2::Union{NamedTuple,AbstractArray}) = ∂2
-
-accum_gradients!(∂::NamedTuple, ∂other::NamedTuple) = map(accum_gradients!, ∂, ∂other)
-accum_gradients!(∂::AbstractArray, ∂other::AbstractArray) = ∂ .+= ∂other
-accum_gradients!(∂::Union{AbstractArray,Nothing}, ::Nothing) = ∂
-
-function combine_gradients(op, ∂1::NamedTuple, ∂2::NamedTuple)
-    _op(∂1::NamedTuple, ∂2::NamedTuple) = map(_op, ∂1, ∂2)
-    _op(∂1::AbstractArray, ∂2::AbstractArray) = op(∂1, ∂2)
-    return map(_op, ∂1, ∂2)
-end
-
-"""
-    gradmult(∂, λ)
-
-Multiplies gradients by a scalar `λ`.
-"""
-gradmult(∂::AbstractArray, λ::Real) = oftype(∂, λ * ∂)
-gradmult(∂::Nothing, ::Real) = ∂
-gradmult(∂::NamedTuple, λ::Real) = map(∂) do x
-    gradmult(x, λ)
-end
+Base.:(+)(∂1::∂RBM, ∂2::∂RBM) = ∂RBM(∂1.visible + ∂2.visible, ∂1.hidden + ∂2.hidden, ∂1.w + ∂2.w)
+Base.:(-)(∂1::∂RBM, ∂2::∂RBM) = ∂RBM(∂1.visible - ∂2.visible, ∂1.hidden - ∂2.hidden, ∂1.w - ∂2.w)
+Base.:(*)(λ::Real, ∂::∂RBM) = ∂RBM(λ * ∂.visible, λ * ∂.hidden, λ * ∂.w)
+Base.:(*)(∂::∂RBM, λ::Real) = λ * ∂
+Base.:(==)(∂1::∂RBM, ∂2::∂RBM) = (∂1.visible == ∂2.visible) && (∂1.hidden == ∂2.hidden) && (∂1.w == ∂2.w)
+Base.hash(∂::∂RBM, h::UInt) = hash(∂.visible, hash(∂.hidden, hash(∂.w, h)))

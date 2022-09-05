@@ -2,11 +2,10 @@ using Test: @test, @testset, @inferred
 using Statistics: mean, std, var
 using Random: randn!, bitrand
 using LogExpFunctions: logsumexp
-using RestrictedBoltzmannMachines: RBM, BinaryRBM, Binary, Spin, Potts, Gaussian, ReLU, dReLU, xReLU, pReLU
-using RestrictedBoltzmannMachines: energy, free_energy, sample_from_inputs, sample_v_from_v
-using RestrictedBoltzmannMachines: anneal, anneal_zero, ais, aise, raise, log_partition_zero_weight
-using RestrictedBoltzmannMachines: logmeanexp, logvarexp, logstdexp
-using RestrictedBoltzmannMachines: log_partition
+using RestrictedBoltzmannMachines: RBM, BinaryRBM, Binary, Spin, Potts, Gaussian, ReLU, dReLU, xReLU, pReLU,
+    energy, free_energy, sample_from_inputs, sample_v_from_v,
+    anneal, anneal_zero, ais, aise, raise, log_partition_zero_weight,
+    logmeanexp, logvarexp, logstdexp, log_partition
 
 @testset "logmeanexp, logvarexp" begin
     A = randn(5,3,2)
@@ -46,43 +45,43 @@ end
     β = 0.3
     N = 11
 
-    init = Binary(randn(N))
-    final = Binary(randn(N))
+    init = Binary(; θ = randn(N))
+    final = Binary(; θ = randn(N))
     x = sample_from_inputs(final)
     @test energy(anneal(init, final; β), x) ≈ (1 - β) * energy(init, x) + β * energy(final, x)
 
-    init = Spin(randn(N))
-    final = Spin(randn(N))
+    init = Spin(; θ = randn(N))
+    final = Spin(; θ = randn(N))
     x = sample_from_inputs(final)
     @test energy(anneal(init, final; β), x) ≈ (1 - β) * energy(init, x) + β * energy(final, x)
 
-    init = Potts(randn(N))
-    final = Potts(randn(N))
+    init = Potts(; θ = randn(N))
+    final = Potts(; θ = randn(N))
     x = sample_from_inputs(final)
     @test energy(anneal(init, final; β), x) ≈ (1 - β) * energy(init, x) + β * energy(final, x)
 
-    init = Gaussian(randn(N), rand(N))
-    final = Gaussian(randn(N), rand(N))
+    init = Gaussian(; θ = randn(N), γ = rand(N))
+    final = Gaussian(; θ = randn(N), γ = rand(N))
     x = sample_from_inputs(final)
     @test energy(anneal(init, final; β), x) ≈ (1 - β) * energy(init, x) + β * energy(final, x)
 
-    init = ReLU(randn(N), rand(N))
-    final = ReLU(randn(N), rand(N))
+    init = ReLU(; θ = randn(N), γ = rand(N))
+    final = ReLU(; θ = randn(N), γ = rand(N))
     x = sample_from_inputs(final)
     @test energy(anneal(init, final; β), x) ≈ (1 - β) * energy(init, x) + β * energy(final, x)
 
-    init = dReLU(randn(N), randn(N), rand(N), rand(N))
-    final = dReLU(randn(N), randn(N), init.γp, init.γn)
+    init = dReLU(; θp = randn(N), θn = randn(N), γp = rand(N), γn = rand(N))
+    final = dReLU(; θp = randn(N), θn = randn(N), init.γp, init.γn)
     x = sample_from_inputs(final)
     @test energy(anneal(init, final; β), x) ≈ (1 - β) * energy(init, x) + β * energy(final, x)
 
-    init = pReLU(randn(N), rand(N), randn(N), rand(N) .- 0.5)
-    final = pReLU(randn(N), init.γ, randn(N), init.η)
+    init = pReLU(; θ = randn(N), γ = rand(N), Δ = randn(N), η = rand(N) .- 0.5)
+    final = pReLU(; θ = randn(N), init.γ, Δ = randn(N), init.η)
     x = sample_from_inputs(final)
     @test energy(anneal(init, final; β), x) ≈ (1 - β) * energy(init, x) + β * energy(final, x)
 
-    init = xReLU(randn(N), rand(N), randn(N), randn(N))
-    final = xReLU(randn(N), init.γ, randn(N), init.ξ)
+    init = xReLU(; θ = randn(N), γ = rand(N), Δ = randn(N), ξ = randn(N))
+    final = xReLU(; θ = randn(N), init.γ, Δ = randn(N), init.ξ)
     x = sample_from_inputs(final)
     @test energy(anneal(init, final; β), x) ≈ (1 - β) * energy(init, x) + β * energy(final, x)
 end
@@ -92,43 +91,43 @@ end
     N = 11
     M = 5
     rbm = BinaryRBM(randn(N), randn(M), randn(N,M))
-    init = Binary(randn(N))
+    init = Binary(; θ = randn(N))
     null = BinaryRBM(init.θ, zeros(M), zeros(N,M))
     v = bitrand(N, 10)
     h = bitrand(M, 10)
     @test energy(anneal_zero(init, rbm), v, h) ≈ energy(anneal(null, rbm; β=0), v, h)
     @test iszero(anneal_zero(init, rbm).w)
 
-    layer = Binary(randn(N))
+    layer = Binary(; θ = randn(N))
     @test iszero(anneal_zero(layer).θ)
 
-    layer = Spin(randn(N))
+    layer = Spin(; θ = randn(N))
     @test iszero(anneal_zero(layer).θ)
 
-    layer = Potts(randn(N))
+    layer = Potts(; θ = randn(N))
     @test iszero(anneal_zero(layer).θ)
 
-    layer = Gaussian(randn(N), rand(N))
-    @test iszero(anneal_zero(layer).θ)
-    @test anneal_zero(layer).γ == layer.γ
-
-    layer = ReLU(randn(N), rand(N))
+    layer = Gaussian(; θ = randn(N), γ = rand(N))
     @test iszero(anneal_zero(layer).θ)
     @test anneal_zero(layer).γ == layer.γ
 
-    layer = dReLU(randn(N), randn(N), rand(N), rand(N))
+    layer = ReLU(; θ = randn(N), γ = rand(N))
+    @test iszero(anneal_zero(layer).θ)
+    @test anneal_zero(layer).γ == layer.γ
+
+    layer = dReLU(; θp = randn(N), θn = randn(N), γp = rand(N), γn = rand(N))
     @test iszero(anneal_zero(layer).θp)
     @test iszero(anneal_zero(layer).θn)
     @test anneal_zero(layer).γp == layer.γp
     @test anneal_zero(layer).γn == layer.γn
 
-    layer = pReLU(randn(N), rand(N), randn(N), rand(N) .- 0.5)
+    layer = pReLU(; θ = randn(N), γ = rand(N), Δ = randn(N), η = rand(N) .- 0.5)
     @test iszero(anneal_zero(layer).θ)
     @test iszero(anneal_zero(layer).Δ)
     @test anneal_zero(layer).γ == layer.γ
     @test anneal_zero(layer).η == layer.η
 
-    layer = xReLU(randn(N), rand(N), randn(N), randn(N))
+    layer = xReLU(; θ = randn(N), γ = rand(N), Δ = randn(N), ξ = randn(N))
     @test iszero(anneal_zero(layer).θ)
     @test iszero(anneal_zero(layer).Δ)
     @test anneal_zero(layer).γ == layer.γ
@@ -197,8 +196,16 @@ end
 end
 
 @testset "ais gaussian" begin
-    rbm0 = RBM(Gaussian(randn(20), 1 .+ 5rand(20)), Gaussian(randn(10), 1 .+ rand(10)), randn(20, 10)/10)
-    rbm1 = RBM(Gaussian(randn(20), 1 .+ 5rand(20)), Gaussian(randn(10), 1 .+ rand(10)), randn(20, 10)/10)
+    rbm0 = RBM(
+        Gaussian(; θ = randn(20), γ = 1 .+ 5rand(20)),
+        Gaussian(; θ = randn(10), γ = 1 .+ 1rand(10)),
+        randn(20, 10) / 10
+    )
+    rbm1 = RBM(
+        Gaussian(; θ = randn(20), γ = 1 .+ 5rand(20)),
+        Gaussian(; θ = randn(10), γ = 1 .+ 1rand(10)),
+        randn(20, 10) / 10
+    )
     lZ0 = log_partition(rbm0)
     lZ1 = log_partition(rbm1)
     v0 = sample_v_from_v(rbm0, randn(20, 10); steps=1)

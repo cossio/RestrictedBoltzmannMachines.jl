@@ -15,7 +15,7 @@ function fpcd!(rbm::RBM, data::AbstractArray;
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert isnothing(wts) || _nobs(data) == _nobs(wts)
-    stats = suffstats(rbm.visible, data; wts)
+    moments = moments_from_samples(rbm.visible, data; wts)
     vm = sample_from_inputs(rbm.visible, falses(size(rbm.visible)..., batchsize))
     rbmfast = deepcopy(rbm) # store fast parameters
     # (Actually, the parameters of rbmfast are the sums θ_regular + θ_fast)
@@ -23,7 +23,7 @@ function fpcd!(rbm::RBM, data::AbstractArray;
         batches = minibatches(data, wts; batchsize = batchsize)
         Δt = @elapsed for (vd, wd) in batches
             vm = sample_v_from_v(rbmfast, vm; steps = steps)
-            ∂ = ∂contrastive_divergence(rbm, vd, vm; wd, stats)
+            ∂ = ∂contrastive_divergence(rbm, vd, vm; wd, moments)
             update!(rbm, update!(∂, rbm, optim))
             # update fast parameters
             update!(rbmfast, update!(∂, rbmfast, optimfast))

@@ -4,11 +4,13 @@ import Random
 import Zygote
 import Flux
 import RestrictedBoltzmannMachines as RBMs
+using RestrictedBoltzmannMachines: RBM, BinaryRBM, Binary
 
 @testset "Binary-Binary RBM partition function (brute force)" begin
-    rbm = RBMs.RBM(RBMs.Binary(3), RBMs.Binary(2), randn(3,2))
+    rbm = BinaryRBM(3, 2)
     randn!(rbm.visible.θ)
     randn!(rbm.hidden.θ)
+    randn!(rbm.w)
 
     Z = 0.0
     for v1 in (0,1), v2 in (0,1), v3 in (0,1)
@@ -24,12 +26,12 @@ import RestrictedBoltzmannMachines as RBMs
     gs = Zygote.gradient(rbm) do rbm
         RBMs.log_partition(rbm)
     end
-    @test only(gs).visible.θ ≈ Flux.sigmoid.(rbm.visible.θ)
-    @test only(gs).hidden.θ  ≈ Flux.sigmoid.(rbm.hidden.θ)
+    @test only(gs).visible.par ≈ Flux.sigmoid.(rbm.visible.par)
+    @test only(gs).hidden.par  ≈ Flux.sigmoid.(rbm.hidden.par)
 end
 
 @testset "Spin-Binary RBM partition function (brute force)" begin
-    rbm = RBMs.RBM(RBMs.Spin(3), RBMs.Binary(2), randn(3,2))
+    rbm = RBMs.RBM(RBMs.Spin((3,)), RBMs.Binary((2,)), randn(3,2))
     randn!(rbm.visible.θ)
     randn!(rbm.hidden.θ)
 
@@ -47,6 +49,6 @@ end
     gs = Zygote.gradient(rbm) do rbm
         RBMs.log_partition(rbm)
     end
-    @test only(gs).visible.θ ≈ tanh.(rbm.visible.θ)
-    @test only(gs).hidden.θ ≈ Flux.sigmoid.(rbm.hidden.θ)
+    @test only(gs).visible.par ≈ tanh.(rbm.visible.par)
+    @test only(gs).hidden.par ≈ Flux.sigmoid.(rbm.hidden.par)
 end

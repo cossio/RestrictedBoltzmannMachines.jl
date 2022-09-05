@@ -3,20 +3,31 @@
 
 Binary layer, with external fields `θ`.
 """
-struct Binary{N, T, A <: AbstractArray{T,N}} <: AbstractLayer{N}
-    θ::A
+struct Binary{N,A} <: AbstractLayer{N}
+    par::A
+    function Binary(par::AbstractArray)
+        @assert size(par, 1) == 1 # θ
+        N = ndims(par) - 1
+        return new{N, typeof(par)}(par)
+    end
 end
-Binary(::Type{T}, n::Int...) where {T} = Binary(zeros(T, n...))
-Binary(n::Int...) = Binary(Float64, n...)
 
-cfgs(layer::Binary, inputs::Union{Real,AbstractArray} = 0) = -log1pexp.(layer.θ .+ inputs)
-mode_from_inputs(layer::Binary, inputs::Union{Real,AbstractArray} = 0) = layer.θ .+ inputs .> 0
-mean_from_inputs(layer::Binary, inputs::Union{Real,AbstractArray} = 0) = logistic.(layer.θ .+ inputs)
-mean_abs_from_inputs(layer::Binary, inputs::Union{Real,AbstractArray} = 0) = mean_from_inputs(layer, inputs)
-var_from_inputs(layer::Binary, inputs::Union{Real,AbstractArray} = 0) = binary_var.(layer.θ .+ inputs)
-std_from_inputs(layer::Binary, inputs::Union{Real,AbstractArray} = 0) = binary_std.(layer.θ .+ inputs)
+function Binary(; θ)
+    par = vstack((θ,))
+    return Binary(par)
+end
 
-function meanvar_from_inputs(layer::Binary, inputs::Union{Real,AbstractArray} = 0)
+Binary(::Type{T}, sz::Dims) where {T} = Binary(; θ = zeros(T, sz))
+Binary(sz::Dims) = Binary(Float64, sz)
+
+cfgs(layer::Binary, inputs = 0) = -log1pexp.(layer.θ .+ inputs)
+mode_from_inputs(layer::Binary, inputs = 0) = layer.θ .+ inputs .> 0
+mean_from_inputs(layer::Binary, inputs = 0) = logistic.(layer.θ .+ inputs)
+mean_abs_from_inputs(layer::Binary, inputs = 0) = mean_from_inputs(layer, inputs)
+var_from_inputs(layer::Binary, inputs = 0) = binary_var.(layer.θ .+ inputs)
+std_from_inputs(layer::Binary, inputs = 0) = binary_std.(layer.θ .+ inputs)
+
+function meanvar_from_inputs(layer::Binary, inputs = 0)
     θ = layer.θ .+ inputs
     t = @. exp(-abs(θ))
     μ = @. ifelse(θ ≥ 0, 1 / (1 + t), t / (1 + t))
@@ -24,7 +35,7 @@ function meanvar_from_inputs(layer::Binary, inputs::Union{Real,AbstractArray} = 
     return μ, ν
 end
 
-function sample_from_inputs(layer::Binary, inputs::Union{Real,AbstractArray} = 0)
+function sample_from_inputs(layer::Binary, inputs = 0)
     θ = layer.θ .+ inputs
     u = rand!(similar(θ))
     return binary_rand.(θ, u)

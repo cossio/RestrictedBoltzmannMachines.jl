@@ -1,53 +1,74 @@
-struct dReLU{N,Aθp,Aθn,Aγp,Aγn} <: AbstractLayer{N}
-    θp::Aθp
-    θn::Aθn
-    γp::Aγp
-    γn::Aγn
-    function dReLU(θp::AbstractArray, θn::AbstractArray, γp::AbstractArray, γn::AbstractArray)
-        @assert size(θp) == size(θn) == size(γp) == size(γn)
-        return new{ndims(θp), typeof(θp), typeof(θn), typeof(γp), typeof(γn)}(θp, θn, γp, γn)
+struct dReLU{N,A} <: AbstractLayer{N}
+    par::A
+    function dReLU(par::AbstractArray)
+        @assert size(par, 1) == 4 # θp, θn, γp, γn
+        N = ndims(par) - 1
+        return new{N, typeof(par)}(par)
     end
 end
 
-function dReLU(::Type{T}, n::Int...) where {T}
-    θp = zeros(T, n...)
-    θn = zeros(T, n...)
-    γp = ones(T, n...)
-    γn = ones(T, n...)
-    return dReLU(θp, θn, γp, γn)
+function dReLU(; θp, θn, γp, γn)
+    par = vstack((θp, θn, γp, γn))
+    return dReLU(par)
 end
 
-dReLU(n::Int...) = dReLU(Float64, n...)
+function dReLU(::Type{T}, sz::Dims) where {T}
+    θp = zeros(T, sz)
+    θn = zeros(T, sz)
+    γp = ones(T, sz)
+    γn = ones(T, sz)
+    return dReLU(; θp, θn, γp, γn)
+end
 
+dReLU(sz::Dims) = dReLU(Float64, sz)
 Base.size(layer::dReLU) = size(layer.θp)
 Base.size(layer::dReLU, d::Int) = size(layer.θp, d)
 Base.length(layer::dReLU) = length(layer.θp)
-Base.repeat(l::dReLU, n::Int...) = dReLU(
-    repeat(l.θp, n...), repeat(l.θn, n...), repeat(l.γp, n...), repeat(l.γn, n...)
-)
+
+Base.propertynames(::dReLU) = (:θp, :θn, :γp, :γn)
+
+function Base.getproperty(layer::dReLU, name::Symbol)
+    if name === :θp
+        return @view getfield(layer, :par)[1, ..]
+    elseif name === :θn
+        return @view getfield(layer, :par)[2, ..]
+    elseif name === :γp
+        return @view getfield(layer, :par)[3, ..]
+    elseif name === :γn
+        return @view getfield(layer, :par)[4, ..]
+    else
+        return getfield(layer, name)
+    end
+end
 
 function energies(layer::dReLU, x::AbstractArray)
     @assert size(layer) == size(x)[1:ndims(layer)]
     return drelu_energy.(layer.θp, layer.θn, layer.γp, layer.γn, x)
 end
 
-cfgs(layer::dReLU, inputs::Union{Real,AbstractArray} = 0) = drelu_free.(
-    layer.θp .+ inputs, layer.θn .+ inputs, layer.γp, layer.γn
-)
-sample_from_inputs(layer::dReLU, inputs::Union{Real,AbstractArray} = 0) = drelu_rand.(
-    layer.θp .+ inputs, layer.θn .+ inputs, layer.γp, layer.γn
-)
-mode_from_inputs(layer::dReLU, inputs::Union{Real,AbstractArray} = 0) = drelu_mode.(
-    layer.θp .+ inputs, layer.θn .+ inputs, layer.γp, layer.γn
-)
-
-function std_from_inputs(layer::dReLU, inputs::Union{Real,AbstractArray} = 0)
-    return sqrt.(var_from_inputs(layer, inputs))
+function cfgs(layer::dReLU, inputs = 0)
+    θp = layer.θp .+ inputs
+    θn = layer.θn .+ inputs
+    return drelu_free.(θp, θn, layer.γp, layer.γn)
 end
 
-function mean_from_inputs(layer::dReLU, inputs::Union{Real,AbstractArray} = 0)
-    lp = ReLU( layer.θp, layer.γp)
-    ln = ReLU(-layer.θn, layer.γn)
+function sample_from_inputs(layer::dReLU, inputs = 0)
+    θp = layer.θp .+ inputs
+    θn = layer.θn .+ inputs
+    return drelu_rand.(θp, θn, layer.γp, layer.γn)
+end
+
+function mode_from_inputs(layer::dReLU, inputs = 0)
+    θp = layer.θp .+ inputs
+    θn = layer.θn .+ inputs
+    return drelu_mode.(θp, θn, layer.γp, layer.γn)
+end
+
+std_from_inputs(layer::dReLU, inputs = 0) = sqrt.(var_from_inputs(layer, inputs))
+
+function mean_from_inputs(layer::dReLU, inputs = 0)
+    lp = ReLU(; θ =  layer.θp, γ = layer.γp)
+    ln = ReLU(; θ = -layer.θn, γ = layer.γn)
     Fp = cfgs(lp,  inputs)
     Fn = cfgs(ln, -inputs)
     F = -logaddexp.(-Fp, -Fn)
@@ -58,9 +79,10 @@ function mean_from_inputs(layer::dReLU, inputs::Union{Real,AbstractArray} = 0)
     return pp .* μp - pn .* μn
 end
 
-function var_from_inputs(layer::dReLU, inputs::Union{Real,AbstractArray} = 0)
-    lp = ReLU( layer.θp, layer.γp)
-    ln = ReLU(-layer.θn, layer.γn)
+function var_from_inputs(layer::dReLU, inputs = 0)
+    lp = ReLU(; θ =  layer.θp, γ = layer.γp)
+    ln = ReLU(; θ = -layer.θn, γ = layer.γn)
+
     Fp = cfgs(lp,  inputs)
     Fn = cfgs(ln, -inputs)
     F = -logaddexp.(-Fp, -Fn)
@@ -72,12 +94,14 @@ function var_from_inputs(layer::dReLU, inputs::Union{Real,AbstractArray} = 0)
     return @. pp * (νp + μp^2) + pn * (νn + μn^2) - μ^2
 end
 
-function meanvar_from_inputs(layer::dReLU, inputs::Union{Real,AbstractArray} = 0)
-    lp = ReLU( layer.θp, layer.γp)
-    ln = ReLU(-layer.θn, layer.γn)
+function meanvar_from_inputs(layer::dReLU, inputs = 0)
+    lp = ReLU(; θ =  layer.θp, γ = layer.γp)
+    ln = ReLU(; θ = -layer.θn, γ = layer.γn)
+
     Fp = cfgs(lp,  inputs)
     Fn = cfgs(ln, -inputs)
     F = -logaddexp.(-Fp, -Fn)
+
     pp = exp.(F - Fp)
     pn = exp.(F - Fn)
     μp, νp = meanvar_from_inputs(lp,  inputs)
@@ -87,13 +111,14 @@ function meanvar_from_inputs(layer::dReLU, inputs::Union{Real,AbstractArray} = 0
     return μ, ν
 end
 
-function mean_abs_from_inputs(layer::dReLU, inputs::Union{Real,AbstractArray} = 0)
-    lp = ReLU( layer.θp, layer.γp)
-    ln = ReLU(-layer.θn, layer.γn)
+function mean_abs_from_inputs(layer::dReLU, inputs = 0)
+    lp = ReLU(; θ =  layer.θp, γ = layer.γp)
+    ln = ReLU(; θ = -layer.θn, γ = layer.γn)
 
     Fp = cfgs(lp,  inputs)
     Fn = cfgs(ln, -inputs)
     F = -logaddexp.(-Fp, -Fn)
+
     pp = exp.(F - Fp)
     pn = exp.(F - Fn)
 
@@ -102,48 +127,45 @@ function mean_abs_from_inputs(layer::dReLU, inputs::Union{Real,AbstractArray} = 
     return pp .* μp - pn .* μn
 end
 
-function ∂cfgs(layer::dReLU, inputs::Union{Real,AbstractArray} = 0)
-    lp = ReLU( layer.θp, layer.γp)
-    ln = ReLU(-layer.θn, layer.γn)
+function ∂cfgs(layer::dReLU, inputs = 0)
+    lp = ReLU(; θ =  layer.θp, γ = layer.γp)
+    ln = ReLU(; θ = -layer.θn, γ = layer.γn)
+
     Fp = cfgs(lp,  inputs)
     Fn = cfgs(ln, -inputs)
     F = -logaddexp.(-Fp, -Fn)
+
     pp = exp.(F - Fp)
     pn = exp.(F - Fn)
     μp, νp = meanvar_from_inputs(lp,  inputs)
     μn, νn = meanvar_from_inputs(ln, -inputs)
     μ2p = @. (νp + μp^2) / 2
     μ2n = @. (νn + μn^2) / 2
-    return (
-        θp = -pp .* μp, θn = pn .* μn,
-        γp = pp .* μ2p .* sign.(layer.γp),
-        γn = pn .* μ2n .* sign.(layer.γn)
-    )
+
+    ∂θp = -pp .* μp
+    ∂θn = +pn .* μn
+    ∂γp = pp .* μ2p .* sign.(layer.γp)
+    ∂γn = pn .* μ2n .* sign.(layer.γn)
+    return vstack((∂θp, ∂θn, ∂γp, ∂γn))
 end
 
-struct dReLUStats{A}
-    xp1::A; xn1::A; xp2::A; xn2::A
-    function dReLUStats(layer::dReLU, data::AbstractArray; wts=nothing)
-        xp = max.(data, 0)
-        xn = min.(data, 0)
-        xp1 = batchmean(layer, xp; wts)
-        xn1 = batchmean(layer, xn; wts)
-        xp2 = batchmean(layer, xp.^2; wts)
-        xn2 = batchmean(layer, xn.^2; wts)
-        return new{typeof(xp1)}(xp1, xn1, xp2, xn2)
-    end
+function moments_from_samples(layer::dReLU, data::AbstractArray; wts = nothing)
+    xp = max.(data, 0)
+    xn = min.(data, 0)
+    xp1 = batchmean(layer, xp; wts)
+    xn1 = batchmean(layer, xn; wts)
+    xp2 = batchmean(layer, xp.^2; wts)
+    xn2 = batchmean(layer, xn.^2; wts)
+    return vstack((xp1, xn1, xp2, xn2))
 end
 
-Base.size(stats::dReLUStats) = size(stats.xp1)
-suffstats(layer::dReLU, data::AbstractArray; wts = nothing) = dReLUStats(layer, data; wts)
-
-function ∂energy(layer::dReLU, stats::dReLUStats)
-    @assert size(layer) == size(stats)
-    return (
-        θp = -stats.xp1, θn = -stats.xn1,
-        γp = sign.(layer.γp) .* stats.xp2 / 2,
-        γn = sign.(layer.γn) .* stats.xn2 / 2
-    )
+function ∂energy_from_moments(layer::dReLU, moments::AbstractArray)
+    @assert size(layer.par) == size(moments)
+    ∂θp = -moments[1, ..]
+    ∂θn = -moments[2, ..]
+    ∂γp = sign.(layer.γp) .* moments[3, ..] / 2
+    ∂γn = sign.(layer.γn) .* moments[4, ..] / 2
+    return vstack((∂θp, ∂θn, ∂γp, ∂γn))
 end
 
 function drelu_energy(θp::Real, θn::Real, γp::Real, γn::Real, x::Real)

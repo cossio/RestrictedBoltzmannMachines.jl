@@ -3,47 +3,66 @@
 
 ReLU layer, with location parameters `θ` and scale parameters `γ`.
 """
-struct ReLU{N,A1,A2} <: AbstractLayer{N}
-    θ::A1
-    γ::A2
-    function ReLU(θ::AbstractArray, γ::AbstractArray)
-        @assert size(θ) == size(γ)
-        return new{ndims(θ), typeof(θ), typeof(γ)}(θ, γ)
+struct ReLU{N,A} <: AbstractLayer{N}
+    par::A
+    function ReLU(par::AbstractArray)
+        @assert size(par, 1) == 2 # θ, γ
+        N = ndims(par) - 1
+        return new{N, typeof(par)}(par)
     end
 end
 
-ReLU(::Type{T}, sz::Int...) where {T} = ReLU(zeros(T, sz...), ones(T, sz...))
-ReLU(sz::Int...) = ReLU(Float64, sz...)
+function ReLU(; θ, γ)
+    par = vstack((θ, γ))
+    return ReLU(par)
+end
 
-Base.repeat(l::ReLU, n::Int...) = ReLU(repeat(l.θ, n...), repeat(l.γ, n...))
+function ReLU(::Type{T}, sz::Dims) where {T}
+    θ = zeros(T, sz)
+    γ = ones(T, sz)
+    return ReLU(; θ, γ)
+end
+
+ReLU(sz::Dims) = ReLU(Float64, sz)
+Base.propertynames(::ReLU) = (:θ, :γ)
+
+function Base.getproperty(layer::ReLU, name::Symbol)
+    if name === :θ
+        return @view getfield(layer, :par)[1, ..]
+    elseif name === :γ
+        return @view getfield(layer, :par)[2, ..]
+    else
+        return getfield(layer, name)
+    end
+end
 
 function energies(layer::ReLU, x::AbstractArray)
     @assert size(layer) == size(x)[1:ndims(layer)]
     return relu_energy.(layer.θ, layer.γ, x)
 end
 
-cfgs(layer::ReLU, inputs::Union{Real,AbstractArray} = 0) = relu_cfg.(layer.θ .+ inputs, layer.γ)
-sample_from_inputs(layer::ReLU, inputs::Union{Real,AbstractArray} = 0) = relu_rand.(layer.θ .+ inputs, layer.γ)
-mode_from_inputs(layer::ReLU, inputs::Union{Real,AbstractArray} = 0) = max.((layer.θ .+ inputs) ./ abs.(layer.γ), 0)
+cfgs(layer::ReLU, inputs = 0) = relu_cfg.(layer.θ .+ inputs, layer.γ)
+sample_from_inputs(layer::ReLU, inputs = 0) = relu_rand.(layer.θ .+ inputs, layer.γ)
+mode_from_inputs(layer::ReLU, inputs = 0) = max.((layer.θ .+ inputs) ./ abs.(layer.γ), 0)
+mean_abs_from_inputs(layer::ReLU, inputs = 0) = mean_from_inputs(layer, inputs)
+std_from_inputs(layer::ReLU, inputs = 0) = sqrt.(var_from_inputs(layer, inputs))
 
-function mean_from_inputs(layer::ReLU, inputs::Union{Real,AbstractArray} = 0)
-    g = Gaussian(layer.θ, layer.γ)
+function mean_from_inputs(layer::ReLU, inputs = 0)
+    g = Gaussian(layer.par)
     μ = mean_from_inputs(g, inputs)
     σ = sqrt.(var_from_inputs(g, inputs))
     return @. μ + σ * tnmean(-μ / σ)
 end
 
-mean_abs_from_inputs(layer::ReLU, inputs::Union{Real,AbstractArray} = 0) = mean_from_inputs(layer, inputs)
-
-function var_from_inputs(layer::ReLU, inputs::Union{Real,AbstractArray} = 0)
-    g = Gaussian(layer.θ, layer.γ)
+function var_from_inputs(layer::ReLU, inputs = 0)
+    g = Gaussian(layer.par)
     μ = mean_from_inputs(g, inputs)
     ν = var_from_inputs(g, inputs)
     return @. ν * tnvar(-μ / √ν)
 end
 
-function meanvar_from_inputs(layer::ReLU, inputs::Union{Real,AbstractArray} = 0)
-    g = Gaussian(layer.θ, layer.γ)
+function meanvar_from_inputs(layer::ReLU, inputs = 0)
+    g = Gaussian(layer.par)
     μ = mean_from_inputs(g, inputs)
     ν = var_from_inputs(g, inputs)
     σ = sqrt.(ν)
@@ -51,19 +70,19 @@ function meanvar_from_inputs(layer::ReLU, inputs::Union{Real,AbstractArray} = 0)
     return μ + σ .* tμ, ν .* tν
 end
 
-std_from_inputs(layer::ReLU, inputs::Union{Real,AbstractArray} = 0) = sqrt.(var_from_inputs(layer, inputs))
-
-function ∂cfgs(layer::ReLU, inputs::Union{Real,AbstractArray} = 0)
+function ∂cfgs(layer::ReLU, inputs = 0)
     μ, ν = meanvar_from_inputs(layer, inputs)
-    return (θ = -μ, γ = sign.(layer.γ) .* (ν .+ μ.^2) / 2)
+    ∂θ = -μ
+    ∂γ = sign.(layer.γ) .* (ν .+ μ.^2) / 2
+    return vstack((∂θ, ∂γ))
 end
 
-const ReLUStats = GaussStats
-suffstats(layer::ReLU, data::AbstractArray; wts = nothing) = ReLUStats(layer, data; wts)
+function ∂energy_from_moments(layer::ReLU, moments::AbstractArray)
+    return ∂energy_from_moments(Gaussian(layer.par), moments)
+end
 
-function ∂energy(layer::ReLU, stats::ReLUStats)
-    @assert size(layer) == size(stats)
-    return (; θ = -stats.x1, γ = sign.(layer.γ) .* stats.x2 / 2)
+function moments_from_samples(layer::ReLU, data::AbstractArray; wts = nothing)
+    return moments_from_samples(Gaussian(layer.par), data; wts)
 end
 
 function relu_energy(θ::Real, γ::Real, x::Real)

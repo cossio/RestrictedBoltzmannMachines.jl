@@ -1,5 +1,3 @@
-const TupleN{T,N} = NTuple{N,T}
-
 # convenience functions to get generic Inf and NaN
 inf(::Union{Type{T}, T}) where {T<:Number} = convert(T, Inf)
 two(::Union{Type{T}, T}) where {T<:Number} = convert(T, 2)
@@ -80,24 +78,8 @@ Like `reshape(x, shape)`, except that zero-dimensional outputs are returned as s
 """
 reshape_maybe(x::Number, ::Tuple{}) = x
 reshape_maybe(x::AbstractArray, ::Tuple{}) = only(x)
-reshape_maybe(x::AbstractArray, sz::TupleN{Int}) = reshape(x, sz)
+reshape_maybe(x::AbstractArray, sz::Dims) = reshape(x, sz)
 reshape_maybe(x::Union{Number,AbstractArray}, sz::Int...) = reshape(x, sz)
-
-"""
-    repeat_size(sz, r...)
-
-Returns `size(repeat(A, r...))`, provided `size(A) == sz`.
-"""
-repeat_size(sz::NTuple{N,Int}, r::Int...) where {N} = repeat_size(sz, r)
-repeat_size(n::NTuple{N,Int}, r::NTuple{R,Int}) where {N,R} = ntuple(max(N, R)) do d
-    if d ≤ N && d ≤ R
-        n[d] * r[d]
-    elseif R < d ≤ N
-        n[d]
-    elseif N < d ≤ R
-        r[d]
-    end
-end
 
 sizedims(A::AbstractArray, dims::Int...) = sizedims(A, dims)
 sizedims(A::AbstractArray, dims::Tuple{Vararg{Int}}) = map(d -> size(A, d), dims)
@@ -125,8 +107,18 @@ function moving_average(A::AbstractArray, m::Int)
 end
 
 """
-    lpaddim(A)
+    vstack(x)
 
-Adds a singleton dimension to the array on the left.
+Stack arrays along a new dimension inserted on the left.
 """
-lpaddim(A::AbstractArray) = reshape(A, 1, size(A)...)
+function vstack(xs::Tuple)
+    ys = map(vwiden, xs)
+    return vcat(ys...)
+end
+
+"""
+    vwiden(x)
+
+Adds a singleton dimension on the left.
+"""
+vwiden(x::AbstractArray) = reshape(x, 1, size(x)...)

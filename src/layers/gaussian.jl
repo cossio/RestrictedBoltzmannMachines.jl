@@ -3,73 +3,84 @@
 
 Gaussian layer, with location parameters `θ` and scale parameters `γ`.
 """
-struct Gaussian{N,Aθ,Aγ} <: AbstractLayer{N}
-    θ::Aθ
-    γ::Aγ
-    function Gaussian(θ::AbstractArray, γ::AbstractArray)
-        @assert size(θ) == size(γ)
-        return new{ndims(θ), typeof(θ), typeof(γ)}(θ, γ)
+struct Gaussian{N,A} <: AbstractLayer{N}
+    par::A
+    function Gaussian(par::AbstractArray)
+        @assert size(par, 1) == 2 # θ, γ
+        N = ndims(par) - 1
+        return new{N, typeof(par)}(par)
     end
 end
 
-Gaussian(::Type{T}, n::Int...) where {T} = Gaussian(zeros(T, n...), ones(T, n...))
-Gaussian(n::Int...) = Gaussian(Float64, n...)
-
-Base.repeat(l::Gaussian, n::Int...) = Gaussian(repeat(l.θ, n...), repeat(l.γ, n...))
-
-energies(layer::Gaussian, x::AbstractArray) = gauss_energy.(layer.θ, layer.γ, x)
-
-function cfgs(l::Gaussian, inputs::Union{Real,AbstractArray} = 0)
-    return @. -(l.θ .+ inputs)^2 / abs(2l.γ) + log(abs(l.γ)/π/2) / 2
+function Gaussian(; θ, γ)
+    par = vstack((θ, γ))
+    return Gaussian(par)
 end
 
-function sample_from_inputs(layer::Gaussian, inputs::Union{Real,AbstractArray} = 0)
+function Gaussian(::Type{T}, sz::Dims) where {T}
+    θ = zeros(T, sz)
+    γ = ones(T, sz)
+    return Gaussian(; θ, γ)
+end
+
+Gaussian(sz::Dims) = Gaussian(Float64, sz)
+Base.propertynames(::Gaussian) = (:θ, :γ)
+
+function Base.getproperty(layer::Gaussian, name::Symbol)
+    if name === :θ
+        return @view getfield(layer, :par)[1, ..]
+    elseif name === :γ
+        return @view getfield(layer, :par)[2, ..]
+    else
+        return getfield(layer, name)
+    end
+end
+
+energies(layer::Gaussian, x::AbstractArray) = gauss_energy.(layer.θ, layer.γ, x)
+gauss_energy(θ::Real, γ::Real, x::Real) = (abs(γ) * x / 2 - θ) * x
+
+cfgs(layer::Gaussian, inputs = 0) = gauss_cfg.(layer.θ .+ inputs, layer.γ)
+gauss_cfg(θ::Real, γ::Real) = -θ^2 / abs(2γ) + log(abs(γ)/π/2) / 2
+
+function sample_from_inputs(layer::Gaussian, inputs = 0)
     μ = mean_from_inputs(layer, inputs)
-    σ = sqrt.(var_from_inputs(layer, inputs))
+    σ = std_from_inputs(layer, inputs)
     z = randn!(similar(μ))
     return μ .+ σ .* z
 end
 
-mean_from_inputs(l::Gaussian, inputs::Union{Real,AbstractArray} = 0) = (l.θ .+ inputs) ./ abs.(l.γ)
-var_from_inputs(l::Gaussian, inputs::Union{Real,AbstractArray} = 0) = inv.(abs.(l.γ .+ zero(inputs)))
-std_from_inputs(l::Gaussian, inputs::Union{Real,AbstractArray} = 0) = sqrt.(var_from_inputs(l, inputs))
-mode_from_inputs(l::Gaussian, inputs::Union{Real,AbstractArray} = 0) = mean_from_inputs(l, inputs)
+mean_from_inputs(l::Gaussian, inputs = 0) = (l.θ .+ inputs) ./ abs.(l.γ)
+var_from_inputs(l::Gaussian, inputs = 0) = inv.(abs.(l.γ .+ zero(inputs)))
+std_from_inputs(l::Gaussian, inputs = 0) = sqrt.(var_from_inputs(l, inputs))
+mode_from_inputs(l::Gaussian, inputs = 0) = mean_from_inputs(l, inputs)
 
-function meanvar_from_inputs(l::Gaussian, inputs::Union{Real,AbstractArray} = 0)
-    return mean_from_inputs(l, inputs), var_from_inputs(l, inputs)
+function meanvar_from_inputs(l::Gaussian, inputs = 0)
+    return (mean_from_inputs(l, inputs), var_from_inputs(l, inputs))
 end
 
-function mean_abs_from_inputs(layer::Gaussian, inputs::Union{Real,AbstractArray} = 0)
+function mean_abs_from_inputs(layer::Gaussian, inputs = 0)
     μ = mean_from_inputs(layer, inputs)
     ν = var_from_inputs(layer, inputs)
     return @. √(2ν/π) * exp(-μ^2 / (2ν)) + μ * erf(μ / √(2ν))
 end
 
-gauss_energy(θ::Real, γ::Real, x::Real) = (abs(γ) * x / 2 - θ) * x
-
-function ∂cfgs(layer::Gaussian, inputs::Union{Real,AbstractArray} = 0)
-    θ = layer.θ .+ inputs
-    abs_γ = abs.(layer.γ)
-    return (
-        θ = -θ ./ abs_γ,
-        γ = @. sign(layer.γ) * (abs_γ + θ^2) / abs_γ^2 / 2
-    )
+function ∂cfgs(layer::Gaussian, inputs = 0)
+    ∂θ = @. -(layer.θ .+ inputs) / abs(layer.γ)
+    ∂γ = @. inv(layer.γ) / 2 + sign(layer.γ) * ∂θ^2 / 2
+    return vstack((∂θ, ∂γ))
 end
 
-struct GaussStats{A<:AbstractArray}
-    x1::A
-    x2::A
-    function GaussStats(layer::AbstractLayer, data::AbstractArray; wts = nothing)
-        x1 = batchmean(layer, data; wts)
-        x2 = batchmean(layer, data.^2; wts)
-        return new{typeof(x1)}(x1, x2)
-    end
+function ∂energy_from_moments(layer::Gaussian, moments::AbstractArray)
+    @assert size(layer.par) == size(moments)
+    x1 = moments[1, ..]
+    x2 = moments[2, ..]
+    ∂θ = -x1
+    ∂γ = @. sign(layer.γ) * x2 / 2
+    return vstack((∂θ, ∂γ))
 end
 
-Base.size(stats::GaussStats) = size(stats.x1)
-suffstats(layer::Gaussian, x::AbstractArray; wts = nothing) = GaussStats(layer, x; wts)
-
-function ∂energy(layer::Gaussian, stats::GaussStats)
-    @assert size(layer) == size(stats)
-    return (; θ = -stats.x1, γ = sign.(layer.γ) .* stats.x2 / 2)
+function moments_from_samples(layer::Gaussian, data::AbstractArray; wts = nothing)
+    x1 = batchmean(layer, data; wts)
+    x2 = batchmean(layer, data.^2; wts)
+    return vstack((x1, x2))
 end

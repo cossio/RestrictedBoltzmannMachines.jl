@@ -38,7 +38,7 @@ end
 
 Cumulant generating function of layer, reduced over layer dimensions.
 """
-function cfg(layer::AbstractLayer, inputs::Union{Real,AbstractArray} = 0)
+function cfg(layer::AbstractLayer, inputs = 0)
     F = cfgs(layer, inputs)
     if inputs isa Real || ndims(layer) == ndims(inputs)
         return sum(F)
@@ -47,13 +47,6 @@ function cfg(layer::AbstractLayer, inputs::Union{Real,AbstractArray} = 0)
         return reshape(f, size(inputs)[(ndims(layer) + 1):end])
     end
 end
-
-"""
-    suffstats(layer, data; [wts])
-
-Computes the sufficient statistics of `layer` extracted from `data`.
-"""
-function suffstats end
 
 """
     batchdims(layer, x)
@@ -139,9 +132,7 @@ end
 
 Total mean of unit activations from inputs.
 """
-function total_mean_from_inputs(
-    layer::AbstractLayer, inputs::Union{Real,AbstractArray}; wts = nothing
-)
+function total_mean_from_inputs(layer::AbstractLayer, inputs = 0; wts = nothing)
     h_ave = mean_from_inputs(layer, inputs)
     return batchmean(layer, h_ave; wts)
 end
@@ -151,9 +142,7 @@ end
 
 Total variance of unit activations from inputs.
 """
-function total_var_from_inputs(
-    layer::AbstractLayer, inputs::Union{Real,AbstractArray}; wts = nothing
-)
+function total_var_from_inputs(layer::AbstractLayer, inputs = 0; wts = nothing)
     h_ave, h_var = meanvar_from_inputs(layer, inputs)
     ν_int = batchmean(layer, h_var; wts) # intrinsic noise
     ν_ext = batchvar(layer, h_ave; wts) # extrinsic noise
@@ -165,9 +154,7 @@ end
 
 Total mean and total variance of unit activations from inputs.
 """
-function total_meanvar_from_inputs(
-    layer::AbstractLayer, inputs::Union{Real,AbstractArray}; wts = nothing
-)
+function total_meanvar_from_inputs(layer::AbstractLayer, inputs = 0; wts = nothing)
     h_ave, h_var = meanvar_from_inputs(layer, inputs)
     μ = batchmean(layer, h_ave; wts)
     ν_int = batchmean(layer, h_var; wts) # intrinsic noise
@@ -178,15 +165,12 @@ end
 
 """
     ∂energy(layer, data; wts = nothing)
-    ∂energy(layer, stats)
 
 Derivative of average energy of `data` with respect to `layer` parameters.
-In the second form, `stats` are the pre-computed sufficient statistics
-of the layer. See [`suffstats`](@ref).
 """
-function ∂energy(layer::AbstractLayer, data::AbstractArray; wts=nothing)
-    stats = suffstats(layer, data; wts)
-    return ∂energy(layer, stats)
+function ∂energy(layer::AbstractLayer, data::AbstractArray; wts = nothing)
+    moments = moments_from_samples(layer, data; wts)
+    return ∂energy_from_moments(layer, moments)
 end
 
 """
@@ -196,9 +180,8 @@ Unit activation moments, conjugate to layer parameters.
 These are obtained by differentiating `cfgs` with respect to the layer parameters.
 Averages over configurations (weigthed by `wts`).
 """
-function ∂cfg(layer::AbstractLayer, inputs::Union{Real,AbstractArray} = 0; wts = nothing)
-    ∂F = ∂cfgs(layer, inputs)
-    return map(∂F) do ∂f
-        batchmean(layer, ∂f; wts)
-    end
+function ∂cfg(layer::AbstractLayer, inputs = 0; wts = nothing)
+    ∂Fs = ∂cfgs(layer, inputs)
+    ∂F = wmean(∂Fs; wts, dims = (ndims(layer.par) + 1):ndims(∂Fs))
+    return reshape(∂F, size(layer.par))
 end

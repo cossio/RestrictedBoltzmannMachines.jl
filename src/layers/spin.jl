@@ -10,32 +10,41 @@ E = -\sum_i \theta_i s_i
 
 where each spin ``s_i`` takes values ``\pm 1``.
 """
-struct Spin{N, T, A <: AbstractArray{T,N}} <: AbstractLayer{N}
-    θ::A
+struct Spin{N,A} <: AbstractLayer{N}
+    par::A
+    function Spin(par::AbstractArray)
+        @assert size(par, 1) == 1 # θ
+        N = ndims(par) - 1
+        return new{N, typeof(par)}(par)
+    end
 end
-Spin(::Type{T}, n::Int...) where {T} = Spin(zeros(T, n...))
-Spin(n::Int...) = Spin(Float64, n...)
 
-Base.repeat(l::Spin, n::Int...) = Spin(repeat(l.θ, n...))
+function Spin(; θ)
+    par = vstack((θ,))
+    return Spin(par)
+end
 
-cfgs(layer::Spin, inputs::Union{Real,AbstractArray} = 0) = spin_cfg.(layer.θ .+ inputs)
-mode_from_inputs(layer::Spin, inputs::Union{Real,AbstractArray} = 0) = ifelse.(layer.θ .+ inputs .> 0, Int8(1), Int8(-1))
-mean_from_inputs(layer::Spin, inputs::Union{Real,AbstractArray} = 0) = tanh.(layer.θ .+ inputs)
-mean_abs_from_inputs(layer::Spin, inputs::Union{Real,AbstractArray} = 0) = Ones{Int8}(size(layer))
-std_from_inputs(layer::Spin, inputs::Union{Real,AbstractArray} = 0) = sqrt.(var_from_inputs(layer, inputs))
+Spin(::Type{T}, sz::Dims) where {T} = Spin(; θ = zeros(T, sz))
+Spin(sz::Dims) = Spin(Float64, sz)
 
-function var_from_inputs(layer::Spin, inputs::Union{Real,AbstractArray} = 0)
+cfgs(layer::Spin, inputs = 0) = spin_cfg.(layer.θ .+ inputs)
+mode_from_inputs(layer::Spin, inputs = 0) = ifelse.(layer.θ .+ inputs .> 0, Int8(1), Int8(-1))
+mean_from_inputs(layer::Spin, inputs = 0) = tanh.(layer.θ .+ inputs)
+mean_abs_from_inputs(layer::Spin, _ = 0) = Ones{Int8}(size(layer))
+std_from_inputs(layer::Spin, inputs = 0) = sqrt.(var_from_inputs(layer, inputs))
+
+function var_from_inputs(layer::Spin, inputs = 0)
     μ = mean_from_inputs(layer, inputs)
     return @. (1 - μ) * (1 + μ)
 end
 
-function meanvar_from_inputs(layer::Spin, inputs::Union{Real,AbstractArray} = 0)
+function meanvar_from_inputs(layer::Spin, inputs = 0)
     μ = mean_from_inputs(layer, inputs)
     ν = @. (1 - μ) * (1 + μ)
     return μ, ν
 end
 
-function sample_from_inputs(layer::Spin, inputs::Union{Real,AbstractArray} = 0)
+function sample_from_inputs(layer::Spin, inputs = 0)
     θ = layer.θ .+ inputs
     u = rand!(similar(θ))
     return spin_rand.(θ, u)

@@ -39,7 +39,7 @@ nsamples=100
 ndists = [10, 100, 1000, 10_000, 100_000]
 R_ais = Vector{Float64}[]
 R_rev = Vector{Float64}[]
-init = initialize!(Binary(zero(rbm.visible.θ)), v)
+init = initialize!(Binary(; θ = zero(rbm.visible.θ)), v)
 nothing #hide
 
 for nbetas in ndists

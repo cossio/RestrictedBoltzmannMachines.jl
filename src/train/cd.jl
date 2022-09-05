@@ -9,7 +9,7 @@ function cd!(rbm::RBM, data::AbstractArray;
     optim = Adam(), # optimizer algorithm
     wts = nothing, # weighted data points; named wts to avoid conflicts with RBM nomenclature
     steps::Int = 1, # Monte Carlo steps to update fantasy particles
-    stats = suffstats(rbm.visible, data; wts),
+    moments = moments_from_samples(rbm.visible, data; wts),
     callback = empty_callback
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
@@ -18,7 +18,7 @@ function cd!(rbm::RBM, data::AbstractArray;
         batches = minibatches(data, wts; batchsize = batchsize)
         for (batch_idx, (vd, wd)) in enumerate(batches)
             vm = sample_v_from_v(rbm, vd; steps = steps)
-            ∂ = ∂contrastive_divergence(rbm, vd, vm; wd = wd, wm = wd, stats)
+            ∂ = ∂contrastive_divergence(rbm, vd, vm; wd = wd, wm = wd, moments)
             update!(∂, rbm, optim)
             update!(rbm, ∂)
             callback(; rbm, optim, epoch, batch_idx, vm, vd, wd)
@@ -55,9 +55,9 @@ end
 function ∂contrastive_divergence(
     rbm::RBM, vd::AbstractArray, vm::AbstractArray;
     wd = nothing, wm = nothing,
-    stats = suffstats(rbm.visible, vd; wts = wd)
+    moments = moments_from_samples(rbm.visible, vd; wts = wd)
 )
-    ∂d = ∂free_energy(rbm, vd; wts = wd, stats)
+    ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
     ∂m = ∂free_energy(rbm, vm; wts = wm)
-    return subtract_gradients(∂d, ∂m)
+    return ∂d - ∂m
 end

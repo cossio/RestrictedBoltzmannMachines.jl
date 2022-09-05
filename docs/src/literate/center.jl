@@ -7,7 +7,6 @@ Trained without centering.
 import Makie
 import CairoMakie
 import MLDatasets
-import Flux
 import RestrictedBoltzmannMachines as RBMs
 using Statistics: mean, std, var
 using Random: bitrand

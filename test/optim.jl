@@ -2,9 +2,9 @@ using Test: @test, @testset, @inferred
 import Flux
 import RestrictedBoltzmannMachines as RBMs
 using Random: bitrand
-using RestrictedBoltzmannMachines: default_optimizer, minibatch_count, minibatches
-using RestrictedBoltzmannMachines: RBM, BinaryRBM, ∂free_energy, ∂cfg
-using RestrictedBoltzmannMachines: Binary, Spin, Potts, Gaussian, ReLU, dReLU, pReLU, xReLU
+using RestrictedBoltzmannMachines: default_optimizer, minibatch_count, minibatches,
+    RBM, BinaryRBM, ∂free_energy, ∂cfg, update!, ∂RBM,
+    Binary, Spin, Potts, Gaussian, ReLU, dReLU, pReLU, xReLU
 
 @testset "default_optimizer" begin
     nsamples = 60000
@@ -47,117 +47,21 @@ end
 
 @testset "update!" begin
     opt = Flux.Descent(rand())
-    rbm = RBM(Binary(randn(5)), Spin(randn(3)), randn(5,3))
+    rbm = RBM(Binary(; θ = randn(5)), Gaussian(; θ = randn(3), γ = randn(3)), randn(5,3))
     ∂ = ∂free_energy(rbm, bitrand(5, 10))
     Δ = deepcopy(∂)
-    @test RBMs.update!(Δ, rbm, opt) == Δ
+    @test update!(Δ, rbm, opt) == Δ
     rbm0 = deepcopy(rbm)
-    rbm = RBMs.update!(rbm, Δ)
-    @test rbm0.visible.θ - rbm.visible.θ ≈ Δ.visible.θ ≈ ∂.visible.θ * opt.eta
-    @test rbm0.hidden.θ - rbm.hidden.θ ≈ Δ.hidden.θ ≈ ∂.hidden.θ * opt.eta
+    rbm = update!(rbm, Δ)
+    @test rbm0.visible.par - rbm.visible.par ≈ Δ.visible ≈ ∂.visible * opt.eta
+    @test rbm0.hidden.par - rbm.hidden.par ≈ Δ.hidden ≈ ∂.hidden * opt.eta
     @test rbm0.w - rbm.w ≈ Δ.w ≈ ∂.w * opt.eta
-
-    opt = Flux.Descent(rand())
-    layer = Gaussian(randn(5), rand(5))
-    ∂ = ∂cfg(layer, randn(5, 10))
-    Δ = deepcopy(∂)
-    @test RBMs.update!(Δ, layer, opt) == Δ
-    layer0 = deepcopy(layer)
-    layer = RBMs.update!(layer, Δ)
-    @test layer0.θ - layer.θ ≈ Δ.θ ≈ ∂.θ * opt.eta
-    @test layer0.γ - layer.γ ≈ Δ.γ ≈ ∂.γ * opt.eta
-
-    opt = Flux.Descent(rand())
-    layer = dReLU(randn(5), randn(5), rand(5), rand(5))
-    ∂ = ∂cfg(layer, randn(5, 10))
-    Δ = deepcopy(∂)
-    @test RBMs.update!(Δ, layer, opt) == Δ
-    layer0 = deepcopy(layer)
-    layer = RBMs.update!(layer, Δ)
-    @test layer0.θp - layer.θp ≈ Δ.θp ≈ ∂.θp * opt.eta
-    @test layer0.θn - layer.θn ≈ Δ.θn ≈ ∂.θn * opt.eta
-    @test layer0.γp - layer.γp ≈ Δ.γp ≈ ∂.γp * opt.eta
-    @test layer0.γn - layer.γn ≈ Δ.γn ≈ ∂.γn * opt.eta
-
-    opt = Flux.Descent(rand())
-    layer = pReLU(randn(5), randn(5), rand(5), rand(5))
-    ∂ = ∂cfg(layer, randn(5, 10))
-    Δ = deepcopy(∂)
-    @test RBMs.update!(Δ, layer, opt) == Δ
-    layer0 = deepcopy(layer)
-    layer = RBMs.update!(layer, Δ)
-    @test layer0.θ - layer.θ ≈ Δ.θ ≈ ∂.θ * opt.eta
-    @test layer0.γ - layer.γ ≈ Δ.γ ≈ ∂.γ * opt.eta
-    @test layer0.Δ - layer.Δ ≈ Δ.Δ ≈ ∂.Δ * opt.eta
-    @test layer0.η - layer.η ≈ Δ.η ≈ ∂.η * opt.eta
-
-    opt = Flux.Descent(rand())
-    layer = xReLU(randn(5), randn(5), rand(5), rand(5))
-    ∂ = ∂cfg(layer, randn(5, 10))
-    Δ = deepcopy(∂)
-    @test RBMs.update!(Δ, layer, opt) == Δ
-    layer0 = deepcopy(layer)
-    layer = RBMs.update!(layer, Δ)
-    @test layer0.θ - layer.θ ≈ Δ.θ ≈ ∂.θ * opt.eta
-    @test layer0.γ - layer.γ ≈ Δ.γ ≈ ∂.γ * opt.eta
-    @test layer0.Δ - layer.Δ ≈ Δ.Δ ≈ ∂.Δ * opt.eta
-    @test layer0.ξ - layer.ξ ≈ Δ.ξ ≈ ∂.ξ * opt.eta
 end
 
-@testset "subtract_gradients" begin
-    nt1 = (x = [2], y = [3])
-    nt2 = (x = [1], y = [-1])
-    @test @inferred(RBMs.subtract_gradients(nt1, nt2)) == (x = [1], y = [4])
-
-    nt1 = (x = [2], y = [3], t = (a = [1], b = [2]))
-    nt2 = (x = [1], y = [-1], t = (a = [2], b = [0]))
-    @test @inferred(RBMs.subtract_gradients(nt1, nt2)) == (
-        x = [1], y = [4], t = (a = [-1], b = [2])
-    )
-end
-
-@testset "add_gradients" begin
-    nt1 = (x = [2], y = [3])
-    nt2 = (x = [1], y = [-1])
-    @test @inferred(RBMs.add_gradients(nt1, nt2)) == (x = [3], y = [2])
-
-    nt1 = (x = [2], y = [3], t = (a = [1], b = [2]))
-    nt2 = (x = [-1], y = [1], t = (a = [-2], b = [0]))
-    @test @inferred(RBMs.add_gradients(nt1, nt2)) == (
-        x = [1], y = [4], t = (a = [-1], b = [2])
-    )
-end
-
-@testset "accum_gradients!" begin
-    nt1 = (x = [2], y = [3])
-    nt2 = (x = [1], y = [-1])
-    nt = deepcopy(nt1)
-    @test RBMs.add_gradients(nt1, nt2) == @inferred RBMs.accum_gradients!(nt, nt2)
-    @test nt == RBMs.add_gradients(nt1, nt2)
-
-    nt1 = (x = [2], y = [3], t = (a = [1], b = [2]))
-    nt2 = (x = [-1], y = [1], t = (a = [-2], b = [0]))
-    nt = deepcopy(nt1)
-    @test RBMs.add_gradients(nt1, nt2) == @inferred RBMs.accum_gradients!(nt, nt2)
-    @test nt == RBMs.add_gradients(nt1, nt2)
-end
-
-@testset "combine_gradients" begin
-    nt1 = (x = [2], y = [3])
-    nt2 = (x = [1], y = [-1])
-    @test RBMs.combine_gradients(-, nt1, nt2) == (x = [1], y = [4])
-    @test RBMs.combine_gradients(-, nt1, nt2) == RBMs.subtract_gradients(nt1, nt2)
-
-    nt1 = (x = [2], y = [3])
-    nt2 = (x = [1], y = [-1])
-    @test RBMs.combine_gradients(+, nt1, nt2) == (x = [3], y = [2])
-    @test RBMs.combine_gradients(+, nt1, nt2) == RBMs.add_gradients(nt1, nt2)
-
-    nt1 = (x = [2], y = [3], t = (a = [1], b = [2]))
-    nt2 = (x = [1], y = [-1], t = (a = [2], b = [0]))
-    @test RBMs.combine_gradients(-, nt1, nt2) == (
-        x = [1], y = [4], t = (a = [-1], b = [2])
-    )
-    @test RBMs.combine_gradients(+, nt1, nt2) == RBMs.add_gradients(nt1, nt2)
-    @test RBMs.combine_gradients(-, nt1, nt2) == RBMs.subtract_gradients(nt1, nt2)
+@testset "∂ operations" begin
+    ∂1 = ∂RBM(randn(1,3), randn(1,2), randn(3,2))
+    ∂2 = ∂RBM(randn(1,3), randn(1,2), randn(3,2))
+    @test @inferred(∂1 + ∂2) == ∂RBM(∂1.visible + ∂2.visible, ∂1.hidden + ∂2.hidden, ∂1.w + ∂2.w)
+    @test @inferred(∂1 - ∂2) == ∂RBM(∂1.visible - ∂2.visible, ∂1.hidden - ∂2.hidden, ∂1.w - ∂2.w)
+    @test @inferred(2∂1) == ∂RBM(2∂1.visible, 2∂1.hidden, 2∂1.w)
 end

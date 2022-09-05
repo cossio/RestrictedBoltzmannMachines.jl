@@ -3,6 +3,16 @@ Base.length(layer::Union{Binary, Spin, Potts, Gaussian, ReLU, pReLU, xReLU}) = l
 
 const _FieldLayers = Union{Binary, Spin, Potts}
 
+Base.propertynames(::_FieldLayers) = (:θ,)
+
+function Base.getproperty(layer::_FieldLayers, name::Symbol)
+    if name === :θ
+        return @view getfield(layer, :par)[1, ..]
+    else
+        return getfield(layer, name)
+    end
+end
+
 """
     energies(layer, x)
 
@@ -24,25 +34,21 @@ function energy(layer::_FieldLayers, x::AbstractArray)
     end
 end
 
-function ∂cfgs(layer::_FieldLayers, inputs::Union{Real,AbstractArray} = 0)
-    return (; θ = -mean_from_inputs(layer, inputs))
+function ∂cfgs(layer::_FieldLayers, inputs = 0)
+    ∂θ = -mean_from_inputs(layer, inputs)
+    return vstack((∂θ,))
 end
 
-struct FieldStats{A<:AbstractArray}
-    μ::A
-    function FieldStats(layer::_FieldLayers, x::AbstractArray; wts=nothing)
-        μ = batchmean(layer, x; wts)
-        return new{typeof(μ)}(μ)
-    end
+function ∂energy_from_moments(layer::_FieldLayers, moments::AbstractArray)
+    @assert size(layer.par) == size(moments)
+    x1 = moments[1, ..]
+    ∂θ = -x1
+    return vstack((∂θ,))
 end
-Base.size(stats::FieldStats) = size(stats.μ)
-Base.ndims(stats::FieldStats) = size(stats.μ)
 
-suffstats(layer::_FieldLayers, data::AbstractArray; wts = nothing) = FieldStats(layer, data; wts)
-
-function ∂energy(layer::_FieldLayers, stats::FieldStats)
-    @assert size(layer) == size(stats.μ)
-    return (; θ = -stats.μ)
+function moments_from_samples(layer::_FieldLayers, data::AbstractArray; wts = nothing)
+    x1 = batchmean(layer, data; wts)
+    return vstack((x1,))
 end
 
 """
@@ -72,13 +78,11 @@ sitesize(layer::AbstractLayer) = size(layer)
 sitesize(layer::Potts) = size(layer)[2:end]
 
 function pReLU(layer::dReLU)
-    abs_γp = abs.(layer.γp)
-    abs_γn = abs.(layer.γn)
-    γ = @. 2abs_γp * abs_γn / (abs_γp + abs_γn)
-    η = @. (abs_γn - abs_γp) / (abs_γp + abs_γn)
-    θ = @. (layer.θp * abs_γn + layer.θn * abs_γp) / (abs_γp + abs_γn)
-    Δ = @. γ * (layer.θp - layer.θn) / (abs_γp + abs_γn)
-    return pReLU(θ, γ, Δ, η)
+    γ = @. 2abs(layer.γp) * abs(layer.γn) / (abs(layer.γp) + abs(layer.γn))
+    η = @. (abs(layer.γn) - abs(layer.γp)) / (abs(layer.γp) + abs(layer.γn))
+    θ = @. (layer.θp * abs(layer.γn) + layer.θn * abs(layer.γp)) / (abs(layer.γp) + abs(layer.γn))
+    Δ = @. γ * (layer.θp - layer.θn) / (abs(layer.γp) + abs(layer.γn))
+    return pReLU(; θ, γ, Δ, η)
 end
 
 function dReLU(layer::pReLU)
@@ -86,17 +90,15 @@ function dReLU(layer::pReLU)
     γn = @. layer.γ / (1 - layer.η)
     θp = @. layer.θ + layer.Δ / (1 + layer.η)
     θn = @. layer.θ - layer.Δ / (1 - layer.η)
-    return dReLU(θp, θn, γp, γn)
+    return dReLU(; θp, θn, γp, γn)
 end
 
 function xReLU(layer::dReLU)
-    abs_γp = abs.(layer.γp)
-    abs_γn = abs.(layer.γn)
-    γ = @. 2abs_γp * abs_γn / (abs_γp + abs_γn)
-    ξ = @. (abs_γn - abs_γp) / (abs_γp + abs_γn - abs(abs_γn - abs_γp))
-    θ = @. (layer.θp * abs_γn + layer.θn * abs_γp) / (abs_γp + abs_γn)
-    Δ = @. γ * (layer.θp - layer.θn) / (abs_γp + abs_γn)
-    return xReLU(θ, γ, Δ, ξ)
+    γ = @. 2abs(layer.γp) * abs(layer.γn) / (abs(layer.γp) + abs(layer.γn))
+    ξ = @. (abs(layer.γn) - abs(layer.γp)) / (abs(layer.γp) + abs(layer.γn) - abs(abs(layer.γn) - abs(layer.γp)))
+    θ = @. (layer.θp * abs(layer.γn) + layer.θn * abs(layer.γp)) / (abs(layer.γp) + abs(layer.γn))
+    Δ = @. γ * (layer.θp - layer.θn) / (abs(layer.γp) + abs(layer.γn))
+    return xReLU(; θ, γ, Δ, ξ)
 end
 
 function dReLU(layer::xReLU)
@@ -106,20 +108,20 @@ function dReLU(layer::xReLU)
     γn = @. layer.γ * ξn
     θp = @. layer.θ + layer.Δ * ξp
     θn = @. layer.θ - layer.Δ * ξn
-    return dReLU(θp, θn, γp, γn)
+    return dReLU(; θp, θn, γp, γn)
 end
 
 function xReLU(layer::pReLU)
     ξ = @. layer.η / (1 - abs(layer.η))
-    return xReLU(layer.θ, layer.γ, layer.Δ, ξ)
+    return xReLU(; layer.θ, layer.γ, layer.Δ, ξ)
 end
 
 function pReLU(layer::xReLU)
     η = @. layer.ξ / (1 + abs(layer.ξ))
-    return pReLU(layer.θ, layer.γ, layer.Δ, η)
+    return pReLU(; layer.θ, layer.γ, layer.Δ, η)
 end
 
-dReLU(layer::Gaussian) = dReLU(layer.θ, layer.θ, layer.γ, layer.γ)
+dReLU(layer::Gaussian) = dReLU(; θp = layer.θ, θn = layer.θ, γp = layer.γ, γn = layer.γ)
 pReLU(layer::Gaussian) = pReLU(dReLU(layer))
 xReLU(layer::Gaussian) = xReLU(dReLU(layer))
 
@@ -140,3 +142,13 @@ xReLU(layer::Gaussian) = xReLU(dReLU(layer))
 #     Δ = zero.(layer.θ)
 #     return xReLU(θ, γ, Δ, ξ)
 # end
+
+function moments_from_samples(layer::Union{pReLU,xReLU}, data::AbstractArray; wts = nothing)
+    xp = max.(data, 0)
+    xn = min.(data, 0)
+    xp1 = batchmean(layer, xp; wts)
+    xn1 = batchmean(layer, xn; wts)
+    xp2 = batchmean(layer, xp.^2; wts)
+    xn2 = batchmean(layer, xn.^2; wts)
+    return vstack((xp1, xn1, xp2, xn2))
+end

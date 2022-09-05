@@ -3,7 +3,8 @@ import RestrictedBoltzmannMachines as RBMs
 using Test: @test, @testset, @inferred
 using Statistics: mean, var, cov
 using LinearAlgebra: dot
-using RestrictedBoltzmannMachines: repeat_size, sizedims, moving_average, lpaddim
+using EllipsisNotation: (..)
+using RestrictedBoltzmannMachines: sizedims, moving_average, vstack
 
 @testset "two" begin
     @test RBMs.two(1) === RBMs.two(Int) === 2
@@ -100,14 +101,6 @@ end
     @test RBMs.reshape_maybe(A, 4) == reshape(A, 4)
 end
 
-@testset "repeat_size" begin
-    ns = ((), (0,), (1,), (1,2), (2,1), (2,3))
-    rs = ((), (0,), (1,), (1,2), (2,1), (2,3))
-    for n in ns, r in rs
-        @test repeat_size(n, r...) == size(repeat(trues(n...), r...))
-    end
-end
-
 @testset "sizedims" begin
     A = randn(7,4,3,2)
     @test @inferred(sizedims(A)) == ()
@@ -128,9 +121,11 @@ end
     @test @inferred(moving_average(x, 3))[1] ≈ mean([x[1], x[2]])
 end
 
-@testset "lpaddim" begin
-    X = randn(4,3,2)
-    Y = @inferred lpaddim(X)
-    @test size(Y) == (1, size(X)...)
-    @test vec(Y) == vec(X)
+@testset "vstack" begin
+    X = randn(3,4)
+    Y = randn(3,4)
+    Z = @inferred vstack((X, Y))
+    @test size(Z) == (2,3,4)
+    @test Z[1,..] == X
+    @test Z[2,..] == Y
 end

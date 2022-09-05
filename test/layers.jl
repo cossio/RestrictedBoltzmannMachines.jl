@@ -1,17 +1,18 @@
 import Random
 import Zygote
 import RestrictedBoltzmannMachines as RBMs
-
+using Base: tail
 using Test: @test, @testset, @inferred
 using Statistics: mean, var, cov
-using Random: bitrand
+using Random: bitrand, rand!, randn!
 using LogExpFunctions: logistic
+using EllipsisNotation: (..)
 using QuadGK: quadgk
-using RestrictedBoltzmannMachines: flatten, batch_size, batchmean, batchvar, batchcov
-using RestrictedBoltzmannMachines: Binary, Spin, Potts, Gaussian, ReLU, dReLU, xReLU, pReLU
-using RestrictedBoltzmannMachines: mean_from_inputs, var_from_inputs, meanvar_from_inputs,
-    std_from_inputs, mean_abs_from_inputs, sample_from_inputs, mode_from_inputs
-using RestrictedBoltzmannMachines: energy, cfg, free_energy, cfgs, energies
+using RestrictedBoltzmannMachines: Binary, Spin, Potts, Gaussian, ReLU, dReLU, xReLU, pReLU,
+    flatten, batch_size, batchmean, batchvar, batchcov,
+    mean_from_inputs, var_from_inputs, meanvar_from_inputs,
+    std_from_inputs, mean_abs_from_inputs, sample_from_inputs, mode_from_inputs,
+    energy, cfg, free_energy, cfgs, energies, ∂cfg, vstack
 
 Random.seed!(2)
 
@@ -26,27 +27,26 @@ _layers = (
     xReLU
 )
 
-random_layer(::Type{T}, N::Int...) where {T <: Union{Binary,Spin,Potts}} = T(randn(N...))
-random_layer(::Type{T}, N::Int...) where {T <: Union{Gaussian,ReLU}} = T(randn(N...), randn(N...))
-random_layer(::Type{dReLU}, N::Int...) = dReLU(randn(N...), randn(N...), randn(N...), randn(N...))
-random_layer(::Type{xReLU}, N::Int...) = xReLU(randn(N...), randn(N...), randn(N...), randn(N...))
-random_layer(::Type{pReLU}, N::Int...) = pReLU(randn(N...), randn(N...), randn(N...), 2rand(N...) .- 1)
-
 @testset "testing $Layer" for Layer in _layers
-    N = (3,2)
-    layer = random_layer(Layer, N...)
+    sz = (3,2)
+    layer = Layer(sz)
+    randn!(layer.par)
 
-    @test (@inferred size(layer)) == N
-    for d in 1:length(N)
-        @test (@inferred size(layer, d)) == N[d]
+    if layer isa pReLU
+        layer.η .= layer.η ./ (1 .+ abs.(layer.η)) # make sure -1 ≤ η ≤ 1
     end
-    @test (@inferred length(layer)) == prod(N)
-    @test (@inferred ndims(layer)) == length(N)
-    @test size(@inferred repeat(layer,2,3,4)) == (((2, 3) .* N)..., 4)
-    @test (@inferred batch_size(layer, rand(N...))) == ()
-    @test (@inferred energy(layer, rand(N...))) isa Number
+
+    @test (@inferred size(layer)) == sz
+    for (d, n) in enumerate(sz)
+        @test (@inferred size(layer, d)) == n
+    end
+
+    @test (@inferred length(layer)) == prod(sz)
+    @test (@inferred ndims(layer)) == length(sz)
+    @test (@inferred batch_size(layer, rand(sz...))) == ()
+    @test (@inferred energy(layer, rand(sz...))) isa Number
     @test (@inferred cfg(layer)) isa Number
-    @test (@inferred cfg(layer, rand(N...))) isa Number
+    @test (@inferred cfg(layer, rand(sz...))) isa Number
     @test size(@inferred mean_from_inputs(layer)) == size(layer)
     @test size(@inferred var_from_inputs(layer)) == size(layer)
     @test size(@inferred sample_from_inputs(layer)) == size(layer)
@@ -54,7 +54,7 @@ random_layer(::Type{pReLU}, N::Int...) = pReLU(randn(N...), randn(N...), randn(N
     @test std_from_inputs(layer) ≈ sqrt.(var_from_inputs(layer))
 
     if layer isa RBMs.Potts
-        @test size(@inferred cfgs(layer)) == (1, size(layer)[2:end]...)
+        @test size(@inferred cfgs(layer)) == (1, tail(size(layer))...)
     else
         @test size(@inferred cfgs(layer)) == size(layer)
     end
@@ -62,9 +62,9 @@ random_layer(::Type{pReLU}, N::Int...) = pReLU(randn(N...), randn(N...), randn(N
     @test size(@inferred sample_from_inputs(layer, 0)) == size(layer)
 
     for B in ((), (2,), (1,2))
-        x = rand(N..., B...)
+        x = rand(sz..., B...)
         @test (@inferred batch_size(layer, x)) == (B...,)
-        @test (@inferred RBMs.batchdims(layer, x)) == (length(N) + 1):ndims(x)
+        @test (@inferred RBMs.batchdims(layer, x)) == (length(sz) + 1):ndims(x)
         @test size(@inferred energy(layer, x)) == (B...,)
         @test size(@inferred cfg(layer, x)) == (B...,)
         @test size(@inferred energies(layer, x)) == size(x)
@@ -79,7 +79,7 @@ random_layer(::Type{pReLU}, N::Int...) = pReLU(randn(N...), randn(N...), randn(N
         @test ν ≈ var_from_inputs(layer, x)
 
         if layer isa RBMs.Potts
-            @test size(@inferred cfgs(layer, x)) == (1, size(x)[2:end]...)
+            @test size(@inferred cfgs(layer, x)) == (1, tail(size(x))...)
         else
             @test size(@inferred cfgs(layer, x)) == size(x)
         end
@@ -88,27 +88,25 @@ random_layer(::Type{pReLU}, N::Int...) = pReLU(randn(N...), randn(N...), randn(N
             @test @inferred(energy(layer, x)) ≈ sum(energies(layer, x))
             @test @inferred(cfg(layer, x)) ≈ sum(cfgs(layer, x))
             @test @inferred(batchmean(layer, x)) ≈ x
-            @test @inferred(batchvar(layer, x)) == zeros(N)
-            @test @inferred(batchcov(layer, x)) == zeros(N..., N...)
+            @test @inferred(batchvar(layer, x)) == zeros(sz)
+            @test @inferred(batchcov(layer, x)) == zeros(sz..., sz...)
         else
             @test @inferred(energy(layer, x)) ≈ reshape(sum(energies(layer, x); dims=1:ndims(layer)), B)
             @test @inferred(cfg(layer, x)) ≈ reshape(sum(cfgs(layer, x); dims=1:ndims(layer)), B)
-            @test @inferred(batchmean(layer, x)) ≈ reshape(mean(x; dims=(ndims(layer) + 1):ndims(x)), N)
-            @test @inferred(batchvar(layer, x)) ≈ reshape(var(x; dims=(ndims(layer) + 1):ndims(x), corrected=false), N)
-            @test @inferred(batchcov(layer, x)) ≈ reshape(cov(flatten(layer, x); dims=2, corrected=false), N..., N...)
+            @test @inferred(batchmean(layer, x)) ≈ reshape(mean(x; dims=(ndims(layer) + 1):ndims(x)), sz)
+            @test @inferred(batchvar(layer, x)) ≈ reshape(var(x; dims=(ndims(layer) + 1):ndims(x), corrected=false), sz)
+            @test @inferred(batchcov(layer, x)) ≈ reshape(cov(flatten(layer, x); dims=2, corrected=false), sz..., sz...)
         end
 
         μ = @inferred mean_from_inputs(layer, x)
         @test only(Zygote.gradient(j -> sum(cfgs(layer, j)), x)) ≈ -μ
     end
 
-    ∂F = @inferred RBMs.∂cfg(layer)
+    ∂F = @inferred ∂cfg(layer)
     gs = Zygote.gradient(layer) do layer
-        sum(cfgs(layer))
+        cfg(layer)
     end
-    for (ω, ∂ω) in pairs(∂F)
-        @test ∂ω ≈ getproperty(only(gs), ω)
-    end
+    @test ∂F ≈ only(gs).par
 
     samples = @inferred sample_from_inputs(layer, zeros(size(layer)..., 10^6))
     @test @inferred(mean_from_inputs(layer)) ≈ reshape(mean(samples; dims=3), size(layer)) rtol=0.1 atol=0.01
@@ -117,30 +115,24 @@ random_layer(::Type{pReLU}, N::Int...) = pReLU(randn(N...), randn(N...), randn(N
 
     ∂F = @inferred RBMs.∂cfg(layer)
     ∂E = @inferred RBMs.∂energy(layer, samples)
-    @test length(∂F) == length(∂E)
-    @test propertynames(∂F) == propertynames(∂E)
-    for (∂f, ∂e) in zip(∂F, ∂E)
-        @test ∂f ≈ ∂e rtol=0.1
-    end
+    @test ∂F ≈ ∂E rtol=0.1
 
     gs = Zygote.gradient(layer) do layer
         sum(energies(layer, samples)) / size(samples)[end]
     end
-    for (ω, ∂ω) in pairs(∂E)
-        @test ∂ω ≈ getproperty(only(gs), ω)
-    end
+    @test ∂E ≈ only(gs).par
 end
 
 @testset "discrete layers ($Layer)" for Layer in (Binary, Spin, RBMs.Potts)
     N = (3, 4, 5)
     B = 13
-    layer = Layer(randn(N...))
+    layer = Layer(; θ = randn(N...))
     x = bitrand(N..., B)
     @test energies(layer, x) ≈ -layer.θ .* x
     gs = Zygote.gradient(layer) do layer
         sum(cfgs(layer))
     end
-    @test RBMs.∂cfg(layer).θ ≈ only(gs).θ ≈ -mean_from_inputs(layer)
+    @test RBMs.∂cfg(layer) ≈ only(gs).par ≈ vstack((-mean_from_inputs(layer),))
 end
 
 @testset "Binary" begin
@@ -153,7 +145,7 @@ end
         @test RBMs.binary_rand.(θ, u) == (@. u * (1 + exp(-θ)) < 1)
     end
 
-    layer = Binary(randn(7, 4, 5))
+    layer = Binary(; θ = randn(7, 4, 5))
     var_from_inputs(layer) ≈ @. logistic(layer.θ) * logistic(-layer.θ)
     @test cfgs(layer) ≈ -log.(sum(exp.(layer.θ .* h) for h in 0:1))
     @test sort(unique(sample_from_inputs(layer))) == [0, 1]
@@ -162,13 +154,13 @@ end
         sum(cfgs(layer))
     end
     ∂ = RBMs.∂cfg(layer)
-    @test ∂.θ ≈ only(gs).θ ≈ -mean_from_inputs(layer)
+    @test ∂ ≈ only(gs).par ≈ vstack((-mean_from_inputs(layer),))
     @test RBMs.grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
     @test RBMs.grad2var(layer, ∂) ≈ var_from_inputs(layer)
 end
 
 @testset "Spin" begin
-    layer = Spin(randn(7, 4, 5))
+    layer = Spin(; θ = randn(7, 4, 5))
     @test cfgs(layer) ≈ -log.(sum(exp.(layer.θ .* h) for h in (-1, 1)))
     @test sort(unique(sample_from_inputs(layer))) == [-1, 1]
 
@@ -176,7 +168,7 @@ end
         sum(cfgs(layer))
     end
     ∂ = RBMs.∂cfg(layer)
-    @test ∂.θ ≈ only(gs).θ ≈ -mean_from_inputs(layer)
+    @test ∂ ≈ only(gs).par ≈ vstack((-mean_from_inputs(layer),))
     @test RBMs.grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
     @test RBMs.grad2var(layer, ∂) ≈ var_from_inputs(layer)
 end
@@ -184,7 +176,7 @@ end
 @testset "Potts" begin
     q = 3
     N = (4, 5)
-    layer = RBMs.Potts(randn(q, N...))
+    layer = RBMs.Potts(; θ = randn(q, N...))
     @test cfgs(layer) ≈ -log.(sum(exp.(layer.θ[h:h,:,:,:]) for h in 1:q))
     @test all(sum(mean_from_inputs(layer); dims=1) .≈ 1)
     # samples are proper one-hot
@@ -195,7 +187,7 @@ end
         sum(cfgs(layer))
     end
     ∂ = RBMs.∂cfg(layer)
-    @test ∂.θ ≈ only(gs).θ ≈ -mean_from_inputs(layer)
+    @test ∂ ≈ only(gs).par ≈ vstack((-mean_from_inputs(layer),))
     @test RBMs.grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
     @test RBMs.grad2var(layer, ∂) ≈ var_from_inputs(layer)
 end
@@ -205,7 +197,7 @@ end
     B = 7
 
     # bound γ away from zero to avoid numerical issues with quadgk, but allow negative
-    layer = Gaussian(randn(N...), (rand(N...) .+ 1) .* (rand(Bool, N...) .- 0.5))
+    layer = Gaussian(; θ = randn(N...), γ = (rand(N...) .+ 1) .* (rand(Bool, N...) .- 0.5))
 
     x = randn(size(layer)..., B)
     @test energies(layer, x) ≈ @. abs(layer.γ) * x^2 / 2 - layer.θ * x
@@ -224,8 +216,9 @@ end
     ν = var_from_inputs(layer)
     μ2 = @. ν + μ^2
     ∂ = RBMs.∂cfg(layer)
-    @test ∂.θ ≈ only(gs).θ ≈ -μ
-    @test ∂.γ ≈ only(gs).γ ≈ sign.(layer.γ) .* μ2/2
+    @test ∂ ≈ only(gs).par
+    @test ∂[1, ..] ≈ -μ
+    @test ∂[2, ..] ≈ sign.(layer.γ) .* μ2/2
     @test RBMs.grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
     @test RBMs.grad2var(layer, ∂) ≈ var_from_inputs(layer)
 end
@@ -235,10 +228,10 @@ end
     B = 7
 
     # bound γ away from zero to avoid numerical issues with quadgk, but allow negative
-    layer = ReLU(randn(N...), (rand(N...) .+ 1) .* (rand(Bool, N...) .- 0.5))
+    layer = ReLU(; θ = randn(N...), γ = (rand(N...) .+ 1) .* (rand(Bool, N...) .- 0.5))
 
     x = abs.(randn(size(layer)..., B))
-    @test energies(layer, x) ≈ energies(Gaussian(layer.θ, layer.γ), x)
+    @test energies(layer, x) ≈ energies(Gaussian(; layer.θ, layer.γ), x)
 
     function quad_free(θ::Real, γ::Real)
         Z, ϵ = quadgk(h -> exp(-RBMs.relu_energy(θ, γ, h)), 0,  Inf)
@@ -253,8 +246,10 @@ end
     ν = var_from_inputs(layer)
     μ2 = @. ν + μ^2
     ∂ = RBMs.∂cfg(layer)
-    @test ∂.θ ≈ only(gs).θ ≈ -μ
-    @test ∂.γ ≈ only(gs).γ ≈ sign.(layer.γ) .* μ2/2
+
+    @test ∂ ≈ only(gs).par
+    @test ∂[1, ..] ≈ -μ
+    @test ∂[2, ..] ≈ sign.(layer.γ) .* μ2/2
     @test RBMs.grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
     @test RBMs.grad2var(layer, ∂) ≈ var_from_inputs(layer)
 end
@@ -264,7 +259,7 @@ end
     B = 13
     x = randn(N..., B)
 
-    drelu = dReLU(randn(N...), randn(N...), randn(N...), randn(N...))
+    drelu = dReLU(; θp = randn(N...), θn = randn(N...), γp = randn(N...), γn = randn(N...))
     prelu = @inferred pReLU(drelu)
     xrelu = @inferred xReLU(drelu)
     @test drelu.θp ≈ dReLU(prelu).θp ≈ dReLU(xrelu).θp
@@ -280,7 +275,7 @@ end
     @test mean_abs_from_inputs(drelu) ≈ mean_abs_from_inputs(prelu) ≈ mean_abs_from_inputs(xrelu)
     @test var_from_inputs(drelu) ≈ var_from_inputs(prelu) ≈ var_from_inputs(xrelu)
 
-    prelu = pReLU(randn(N...), randn(N...), randn(N...), 2rand(N...) .- 1)
+    prelu = pReLU(; θ = randn(N...), γ = randn(N...), Δ = randn(N...), η = 2rand(N...) .- 1)
     drelu = @inferred dReLU(prelu)
     xrelu = @inferred xReLU(prelu)
     @test prelu.θ ≈ pReLU(drelu).θ ≈ pReLU(xrelu).θ
@@ -294,7 +289,7 @@ end
     @test mean_abs_from_inputs(drelu) ≈ mean_abs_from_inputs(prelu) ≈ mean_abs_from_inputs(xrelu)
     @test var_from_inputs(drelu) ≈ var_from_inputs(prelu) ≈ var_from_inputs(xrelu)
 
-    xrelu = xReLU(randn(N...), randn(N...), randn(N...), randn(N...))
+    xrelu = xReLU(; θ = randn(N...), γ = randn(N...), Δ = randn(N...), ξ = randn(N...))
     drelu = @inferred dReLU(xrelu)
     prelu = @inferred pReLU(xrelu)
     @test xrelu.θ ≈ xReLU(drelu).θ ≈ xReLU(prelu).θ
@@ -308,7 +303,7 @@ end
     @test mean_abs_from_inputs(drelu) ≈ mean_abs_from_inputs(prelu) ≈ mean_abs_from_inputs(xrelu)
     @test var_from_inputs(drelu) ≈ var_from_inputs(prelu) ≈ var_from_inputs(xrelu)
 
-    gauss = Gaussian(randn(N...), randn(N...))
+    gauss = Gaussian(; θ = randn(N...), γ = randn(N...))
     drelu = @inferred dReLU(gauss)
     prelu = @inferred pReLU(gauss)
     xrelu = @inferred xReLU(gauss)
@@ -337,8 +332,8 @@ end
         var_from_inputs(prelu) ≈ var_from_inputs(xrelu)
     )
 
-    drelu = dReLU(randn(1), [0.0], randn(1), [Inf])
-    relu = ReLU(drelu.θp, drelu.γp)
+    drelu = dReLU(; θp = randn(1), θn = [0.0], γp = randn(1), γn = [Inf])
+    relu = ReLU(; θ = drelu.θp, γ = drelu.γp)
     x = rand(1, 100)
     @test energies(relu, x) ≈ energies(drelu, x)
     @test cfgs(relu) ≈ cfgs(drelu)
@@ -355,13 +350,13 @@ end
 
     # bound γ away from zero to avoid issues with quadgk
     layer = dReLU(
-        randn(N...), randn(N...),
-        (rand(N...) .+ 1) .* (rand(Bool, N...) .- 0.5),
-        (rand(N...) .+ 1) .* (rand(Bool, N...) .- 0.5)
+        θp = randn(N...), θn = randn(N...),
+        γp = (rand(N...) .+ 1) .* (rand(Bool, N...) .- 0.5),
+        γn = (rand(N...) .+ 1) .* (rand(Bool, N...) .- 0.5)
     )
 
-    Ep = energy(ReLU( layer.θp, layer.γp), max.( x, 0))
-    En = energy(ReLU(-layer.θn, layer.γn), max.(-x, 0))
+    Ep = energy(ReLU(; θ =  layer.θp, γ = layer.γp), max.( x, 0))
+    En = energy(ReLU(; θ = -layer.θn, γ = layer.γn), max.(-x, 0))
     @test energy(layer, x) ≈ Ep + En
     @test iszero(energy(layer, zero(x)))
 
@@ -374,16 +369,8 @@ end
     gs = Zygote.gradient(layer) do layer
         sum(cfgs(layer))
     end
-    ∂ = RBMs.∂cfg(layer)
-    @test ∂.θp ≈ only(gs).θp
-    @test ∂.θn ≈ only(gs).θn
-    @test ∂.γp ≈ only(gs).γp
-    @test ∂.γn ≈ only(gs).γn
-    μ = mean_from_inputs(layer)
-    ν = var_from_inputs(layer)
-    μ2 = @. ν + μ^2
-    @test ∂.θp + ∂.θn ≈ -μ
-    @test ∂.γp .* sign.(layer.γp) + ∂.γn .* sign.(layer.γn) ≈ μ2/2
+    ∂ = @inferred RBMs.∂cfg(layer)
+    @test ∂ ≈ only(gs).par
     @test RBMs.grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
     @test RBMs.grad2var(layer, ∂) ≈ var_from_inputs(layer)
 
@@ -405,30 +392,24 @@ end
 
 @testset "pReLU" begin
     N = (3, 5, 7)
-    layer = pReLU(randn(N...), randn(N...), randn(N...), 2rand(N...) .- 1)
+    layer = pReLU(; θ = randn(N...), γ = randn(N...), Δ = randn(N...), η = 2rand(N...) .- 1)
     gs = Zygote.gradient(layer) do layer
         sum(cfgs(layer))
     end
     ∂ = RBMs.∂cfg(layer)
-    @test ∂.θ ≈ only(gs).θ ≈ -mean_from_inputs(layer)
-    @test ∂.γ ≈ only(gs).γ
-    @test ∂.Δ ≈ only(gs).Δ
-    @test ∂.η ≈ only(gs).η
+    @test ∂ ≈ only(gs).par
     @test RBMs.grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
     @test RBMs.grad2var(layer, ∂) ≈ var_from_inputs(layer)
 end
 
 @testset "xReLU" begin
     N = (3, 5, 7)
-    layer = xReLU(randn(N...), randn(N...), randn(N...), randn(N...))
+    layer = xReLU(; θ = randn(N...), γ = randn(N...), Δ = randn(N...), ξ = randn(N...))
     gs = Zygote.gradient(layer) do layer
         sum(cfgs(layer))
     end
     ∂ = RBMs.∂cfg(layer)
-    @test ∂.θ ≈ only(gs).θ ≈ -mean_from_inputs(layer)
-    @test ∂.γ ≈ only(gs).γ
-    @test ∂.Δ ≈ only(gs).Δ
-    @test ∂.ξ ≈ only(gs).ξ
+    @test ∂ ≈ only(gs).par
     @test RBMs.grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
     @test RBMs.grad2var(layer, ∂) ≈ var_from_inputs(layer)
 end

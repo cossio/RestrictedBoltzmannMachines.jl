@@ -3,7 +3,7 @@ module RestrictedBoltzmannMachines
 import Flux
 import Zygote
 import ChainRulesCore
-
+import LinearAlgebra
 using Base: front, tail
 using Random: AbstractRNG, GLOBAL_RNG, randexp, randn!, rand!, shuffle!
 using LinearAlgebra: Diagonal, logdet, I, dot, norm
@@ -13,6 +13,7 @@ using LogExpFunctions: softmax, logsumexp, log1pexp, logistic, logaddexp, logsub
 using SpecialFunctions: erf, erfcx, logerfcx
 using FillArrays: Fill, Zeros, Ones, Trues, Falses
 using Flux: Adam, Descent
+using MLUtils: stack
 
 include("util/util.jl")
 include("util/onehot.jl")
@@ -37,22 +38,21 @@ include("rbms/hopfield.jl")
 include("rbms/binary.jl")
 include("rbms/gaussian.jl")
 
-include("gauge/zerosum.jl")
-include("gauge/rescale_hidden.jl")
-
 include("pseudolikelihood.jl")
 include("partition.jl")
 include("ais.jl")
 
-include("centered_gradient.jl")
 
 include("train/initialization.jl")
 include("train/cd.jl")
 include("train/cdad.jl")
 include("train/pcd.jl")
 include("train/fast.jl")
-include("train/rdm.jl")
 include("train/optim.jl")
+
+include("centered_gradient.jl")
+include("gauge/zerosum.jl")
+include("gauge/rescale_hidden.jl")
 
 include("regularize.jl")
 

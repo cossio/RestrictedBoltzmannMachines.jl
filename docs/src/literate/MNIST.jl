@@ -8,7 +8,6 @@ We load MNIST via the MLDatasets.jl package.
 import Makie
 import CairoMakie
 import MLDatasets
-import Flux
 import RestrictedBoltzmannMachines as RBMs
 using Statistics: mean, std, var
 using Random: bitrand

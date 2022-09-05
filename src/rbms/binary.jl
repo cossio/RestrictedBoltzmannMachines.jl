@@ -12,16 +12,16 @@ Equivalent to `RBM(Binary(a), Binary(b), w)`.
 """
 function BinaryRBM(a::AbstractArray, b::AbstractArray, w::AbstractArray)
     @assert size(w) == (size(a)..., size(b)...)
-    return RBM(Binary(a), Binary(b), w)
+    visible = Binary(; θ = a)
+    hidden = Binary(; θ = b)
+    return RBM(visible, hidden, w)
 end
 
-function BinaryRBM(::Type{T}, N::Union{Int,TupleN{Int}}, M::Union{Int,TupleN{Int}}) where {T}
+function BinaryRBM(::Type{T}, N::Union{Int,Dims}, M::Union{Int,Dims}) where {T}
     a = zeros(T, N...)
     b = zeros(T, M...)
     w = zeros(T, N..., M...)
     return BinaryRBM(a, b, w)
 end
 
-BinaryRBM(N::Union{Int,TupleN{Int}}, M::Union{Int,Tuple{Vararg{Int}}}) = BinaryRBM(Float64, N, M)
-
-Base.repeat(l::Binary, n::Int...) = Binary(repeat(l.θ, n...))
+BinaryRBM(N::Union{Int,Dims}, M::Union{Int,Dims}) = BinaryRBM(Float64, N, M)

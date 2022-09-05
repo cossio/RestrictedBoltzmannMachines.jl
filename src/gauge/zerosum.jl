@@ -14,18 +14,18 @@ function zerosum(rbm::RBM)
         ωv = mean(rbm.w; dims = 1)
         ωh = mean(rbm.w; dims = 1 + ndims(rbm.visible))
         ω = mean(rbm.w; dims = (1, 1 + ndims(rbm.visible)))
-        visible = Potts(rbm.visible.θ .- mean(rbm.visible.θ; dims = 1) .+ reshape(sum(ωh .- ω; dims = hdims), size(rbm.visible)))
-        hidden = Potts(rbm.hidden.θ .- mean(rbm.hidden.θ; dims = 1) .+ reshape(sum(ωv .- ω; dims = vdims), size(rbm.hidden)))
+        visible = Potts(; θ = rbm.visible.θ .- mean(rbm.visible.θ; dims = 1) .+ reshape(sum(ωh .- ω; dims = hdims), size(rbm.visible)))
+        hidden = Potts(; θ = rbm.hidden.θ .- mean(rbm.hidden.θ; dims = 1) .+ reshape(sum(ωv .- ω; dims = vdims), size(rbm.hidden)))
         return oftype(rbm, RBM(visible, hidden, rbm.w .- ωv .- ωh .+ ω))
     elseif rbm.visible isa Potts
         ωv = mean(rbm.w; dims = 1)
-        visible = Potts(rbm.visible.θ .- mean(rbm.visible.θ; dims = 1))
+        visible = Potts(; θ = rbm.visible.θ .- mean(rbm.visible.θ; dims = 1))
         hidden = shift_fields(rbm.hidden, reshape(sum(ωv; dims = vdims), size(rbm.hidden)))
         return oftype(rbm, RBM(visible, hidden, rbm.w .- ωv))
     elseif rbm.hidden isa Potts
         ωh = mean(rbm.w, dims = ndims(rbm.visible) + 1)
         visible = shift_fields(rbm.visible, reshape(sum(ωh; dims = hdims), size(rbm.visible)))
-        hidden = Potts(rbm.hidden.θ .- mean(rbm.hidden.θ; dims = 1))
+        hidden = Potts(; θ = rbm.hidden.θ .- mean(rbm.hidden.θ; dims = 1))
         return oftype(rbm, RBM(visible, hidden, rbm.w .- ωh))
     else
         # if the RBM doesn't have Potts layers, do nothing
@@ -33,14 +33,14 @@ function zerosum(rbm::RBM)
     end
 end
 
-shift_fields(l::Binary, a::AbstractArray) = Binary(l.θ .+ a)
-shift_fields(l::Spin, a::AbstractArray) = Spin(l.θ .+ a)
-shift_fields(l::Potts, a::AbstractArray) = Potts(l.θ .+ a)
-shift_fields(l::Gaussian, a::AbstractArray) = Gaussian(l.θ .+ a, l.γ)
-shift_fields(l::ReLU, a::AbstractArray) = ReLU(l.θ .+ a, l.γ)
-shift_fields(l::dReLU, a::AbstractArray) = dReLU(l.θp .+ a, l.θn .+ a, l.γp, l.γn)
-shift_fields(l::pReLU, a::AbstractArray) = pReLU(l.θ .+ a, l.γ, l.Δ, l.η)
-shift_fields(l::xReLU, a::AbstractArray) = xReLU(l.θ .+ a, l.γ, l.Δ, l.ξ)
+shift_fields(l::Binary, a::AbstractArray) = Binary(; θ = l.θ .+ a)
+shift_fields(l::Spin, a::AbstractArray) = Spin(; θ = l.θ .+ a)
+shift_fields(l::Potts, a::AbstractArray) = Potts(; θ = l.θ .+ a)
+shift_fields(l::Gaussian, a::AbstractArray) = Gaussian(; θ = l.θ .+ a, l.γ)
+shift_fields(l::ReLU, a::AbstractArray) = ReLU(; θ = l.θ .+ a, l.γ)
+shift_fields(l::dReLU, a::AbstractArray) = dReLU(; θp = l.θp .+ a, θn = l.θn .+ a, l.γp, l.γn)
+shift_fields(l::pReLU, a::AbstractArray) = pReLU(; θ = l.θ .+ a, l.γ, l.Δ, l.η)
+shift_fields(l::xReLU, a::AbstractArray) = xReLU(; θ = l.θ .+ a, l.γ, l.Δ, l.ξ)
 
 function shift_fields!(l::Union{Binary,Spin,Potts,Gaussian,ReLU,pReLU,xReLU}, a::AbstractArray)
     l.θ .+= a
@@ -81,13 +81,13 @@ end
 
 Projects the gradient so that it doesn't modify the zerosum gauge.
 """
-function zerosum!(∂::NamedTuple, rbm::RBM)
+function zerosum!(∂::∂RBM, rbm::RBM)
     if rbm.visible isa Potts
-        zerosum!(∂.visible.θ; dims = 1)
+        zerosum!(∂.visible; dims = 1)
         zerosum!(∂.w; dims = 1)
     end
     if rbm.hidden isa Potts
-        zerosum!(∂.hidden.θ; dims = 1)
+        zerosum!(∂.hidden; dims = 1)
         zerosum!(∂.w; dims = ndims(rbm.visible) + 1)
     end
     return ∂

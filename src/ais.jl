@@ -111,52 +111,67 @@ function anneal(rbm0::RBM, rbm1::RBM; β::Real)
     return RBM(vis, hid, w)
 end
 
-anneal(init::Binary, final::Binary; β::Real) = Binary(
-    oftype(final.θ, (1 - β) * init.θ + β * final.θ)
-)
-anneal(init::Spin, final::Spin; β::Real) = Spin(
-    oftype(final.θ, (1 - β) * init.θ + β * final.θ)
-)
-anneal(init::Potts, final::Potts; β::Real) = Potts(
-    oftype(final.θ, (1 - β) * init.θ + β * final.θ)
-)
-anneal(init::Gaussian, final::Gaussian; β::Real) = Gaussian(
-    oftype(final.θ, (1 - β) * init.θ + β * final.θ),
-    oftype(final.γ, (1 - β) * init.γ + β * final.γ)
-)
-anneal(init::ReLU, final::ReLU; β::Real) = ReLU(
-    oftype(final.θ, (1 - β) * init.θ + β * final.θ),
-    oftype(final.γ, (1 - β) * init.γ + β * final.γ)
-)
-anneal(init::dReLU, final::dReLU; β::Real) = dReLU(
-    oftype(final.θp, (1 - β) * init.θp + β * final.θp),
-    oftype(final.θn, (1 - β) * init.θn + β * final.θn),
-    oftype(final.γp, (1 - β) * init.γp + β * final.γp),
-    oftype(final.γn, (1 - β) * init.γn + β * final.γn)
-)
-anneal(init::pReLU, final::pReLU; β::Real) = pReLU(
-    oftype(final.θ, (1 - β) * init.θ + β * final.θ),
-    oftype(final.γ, (1 - β) * init.γ + β * final.γ),
-    oftype(final.Δ, (1 - β) * init.Δ + β * final.Δ),
-    oftype(final.η, (1 - β) * init.η + β * final.η)
-)
-anneal(init::xReLU, final::xReLU; β::Real) = xReLU(
-    oftype(final.θ, (1 - β) * init.θ + β * final.θ),
-    oftype(final.γ, (1 - β) * init.γ + β * final.γ),
-    oftype(final.Δ, (1 - β) * init.Δ + β * final.Δ),
-    oftype(final.ξ, (1 - β) * init.ξ + β * final.ξ)
-)
+function anneal(init::Binary, final::Binary; β::Real)
+    θ = (1 - β) * init.θ + β * final.θ
+    return Binary(; θ)
+end
+
+function anneal(init::Spin, final::Spin; β::Real)
+    θ = (1 - β) * init.θ + β * final.θ
+    return Spin(; θ)
+end
+
+function anneal(init::Potts, final::Potts; β::Real)
+    θ = (1 - β) * init.θ + β * final.θ
+    return Potts(; θ)
+end
+
+function anneal(init::Gaussian, final::Gaussian; β::Real)
+    θ = (1 - β) * init.θ + β * final.θ
+    γ = (1 - β) * init.γ + β * final.γ
+    return Gaussian(; θ, γ)
+end
+
+function anneal(init::ReLU, final::ReLU; β::Real)
+    θ = (1 - β) * init.θ + β * final.θ
+    γ = (1 - β) * init.γ + β * final.γ
+    return ReLU(; θ, γ)
+end
+
+function anneal(init::dReLU, final::dReLU; β::Real)
+    θp = (1 - β) * init.θp + β * final.θp
+    θn = (1 - β) * init.θn + β * final.θn
+    γp = (1 - β) * init.γp + β * final.γp
+    γn = (1 - β) * init.γn + β * final.γn
+    return dReLU(; θp, θn, γp, γn)
+end
+
+function anneal(init::pReLU, final::pReLU; β::Real)
+    θ = (1 - β) * init.θ + β * final.θ
+    γ = (1 - β) * init.γ + β * final.γ
+    Δ = (1 - β) * init.Δ + β * final.Δ
+    η = (1 - β) * init.η + β * final.η
+    return pReLU(; θ, γ, Δ, η)
+end
+
+function anneal(init::xReLU, final::xReLU; β::Real)
+    θ = (1 - β) * init.θ + β * final.θ
+    γ = (1 - β) * init.γ + β * final.γ
+    Δ = (1 - β) * init.Δ + β * final.Δ
+    ξ = (1 - β) * init.ξ + β * final.ξ
+    return xReLU(; θ, γ, Δ, ξ)
+end
 
 anneal_zero(init::AbstractLayer, rbm::RBM) = RBM(init, anneal_zero(rbm.hidden), Zeros(rbm.w))
 
-anneal_zero(l::Binary) = Binary(zero(l.θ))
-anneal_zero(l::Spin) = Spin(zero(l.θ))
-anneal_zero(l::Potts) = Potts(zero(l.θ))
-anneal_zero(l::Gaussian) = Gaussian(zero(l.θ), l.γ)
-anneal_zero(l::ReLU) = ReLU(zero(l.θ), l.γ)
-anneal_zero(l::dReLU) = dReLU(zero(l.θp), zero(l.θn), l.γp, l.γn)
-anneal_zero(l::pReLU) = pReLU(zero(l.θ), l.γ, zero(l.Δ), l.η)
-anneal_zero(l::xReLU) = xReLU(zero(l.θ), l.γ, zero(l.Δ), l.ξ)
+anneal_zero(l::Binary) = Binary(; θ = zero(l.θ))
+anneal_zero(l::Spin) = Spin(; θ = zero(l.θ))
+anneal_zero(l::Potts) = Potts(; θ = zero(l.θ))
+anneal_zero(l::Gaussian) = Gaussian(; θ = zero(l.θ), l.γ)
+anneal_zero(l::ReLU) = ReLU(; θ = zero(l.θ), l.γ)
+anneal_zero(l::dReLU) = dReLU(; θp = zero(l.θp), θn = zero(l.θn), l.γp, l.γn)
+anneal_zero(l::pReLU) = pReLU(; θ = zero(l.θ), l.γ, Δ = zero(l.Δ), l.η)
+anneal_zero(l::xReLU) = xReLU(; θ = zero(l.θ), l.γ, Δ = zero(l.Δ), l.ξ)
 
 """
     log_partition_zero_weight(rbm)

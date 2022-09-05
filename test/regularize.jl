@@ -1,11 +1,11 @@
-import RestrictedBoltzmannMachines as RBMs
 import Zygote
 using Test: @test, @testset
 using Statistics: mean
 using Random: bitrand
-using RestrictedBoltzmannMachines: BinaryRBM, free_energy, ∂free_energy
-using RestrictedBoltzmannMachines: Binary, Gaussian, ReLU, dReLU, pReLU, xReLU
-using RestrictedBoltzmannMachines: ∂regularize!, ∂regularize, ∂regularize_fields
+using EllipsisNotation: (..)
+using RestrictedBoltzmannMachines: BinaryRBM, free_energy, ∂free_energy,
+    Binary, Gaussian, ReLU, dReLU, pReLU, xReLU,
+    ∂regularize!, ∂regularize, ∂regularize_fields
 
 @testset "∂regularize!" begin
     rbm = BinaryRBM(randn(3,5), randn(3,2), randn(3,5,3,2))
@@ -34,8 +34,8 @@ using RestrictedBoltzmannMachines: ∂regularize!, ∂regularize, ∂regularize_
     ∂ = ∂free_energy(rbm, v)
     ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights)
 
-    @test only(gs).visible.θ ≈ ∂.visible.θ
-    @test only(gs).hidden.θ ≈ ∂.hidden.θ
+    @test only(gs).visible.par ≈ ∂.visible
+    @test only(gs).hidden.par ≈ ∂.hidden
     @test only(gs).w ≈ ∂.w
 end
 
@@ -59,59 +59,50 @@ end
     end
 
     ∂ = ∂regularize(rbm; l2_fields, l1_weights, l2_weights, l2l1_weights)
-
-    @test only(gs).visible.θ ≈ ∂.visible.θ
-    @test isnothing(only(gs).hidden) && isnothing(∂.hidden)
+    @test only(gs).visible.par ≈ ∂.visible
+    @test isnothing(only(gs).hidden) && iszero(∂.hidden)
     @test only(gs).w ≈ ∂.w
 end
 
 @testset "∂regularize_fields" begin
     l2_fields = rand()
 
-    layer = Binary(randn(3,5))
+    layer = Binary(; θ = randn(3,5))
     gs = Zygote.gradient(layer) do layer
         l2_fields/2 * sum(abs2, layer.θ)
     end
     ∂ = ∂regularize_fields(layer; l2_fields)
-    @test only(gs).θ ≈ ∂.θ
+    @test only(gs).par ≈ ∂
 
-    layer = Gaussian(randn(3,5), rand(3,5))
+    layer = Gaussian(; θ = randn(3,5), γ = rand(3,5))
     gs = Zygote.gradient(layer) do layer
         l2_fields/2 * sum(abs2, layer.θ)
     end
     ∂ = ∂regularize_fields(layer; l2_fields)
-    @test only(gs).θ ≈ ∂.θ
-    @test isnothing(only(gs).γ) && iszero(∂.γ)
+    @test only(gs).par ≈ ∂
+    @test iszero(∂[2, ..]) # ∂γ
 
-    layer = dReLU(randn(3,5), randn(3,5), rand(3,5), rand(3,5))
+    layer = dReLU(; θp = randn(3,5), θn = randn(3,5), γp = rand(3,5), γn = rand(3,5))
     gs = Zygote.gradient(layer) do layer
         l2_fields/2 * (sum(abs2, layer.θp) + sum(abs2, layer.θn))
     end
     ∂ = ∂regularize_fields(layer; l2_fields)
-    @test only(gs).θp ≈ ∂.θp
-    @test only(gs).θn ≈ ∂.θn
-    @test isnothing(only(gs).γp) && iszero(∂.γp)
-    @test isnothing(only(gs).γn) && iszero(∂.γn)
+    @test only(gs).par ≈ ∂
+    @test iszero(∂[3:4, ..]) # ∂γp, ∂γn
 
-    layer = pReLU(randn(3,5), rand(3,5), randn(3,5), rand(3,5) .- 0.5)
+    layer = pReLU(; θ = randn(3,5), γ = rand(3,5), Δ = randn(3,5), η = rand(3,5) .- 0.5)
     gs = Zygote.gradient(layer) do layer
         l2_fields/2 * sum(abs2, layer.θ)
     end
-
     ∂ = ∂regularize_fields(layer; l2_fields)
-    @test only(gs).θ ≈ ∂.θ
-    @test isnothing(only(gs).γ) && iszero(∂.γ)
-    @test isnothing(only(gs).Δ) && iszero(∂.Δ)
-    @test isnothing(only(gs).η) && iszero(∂.η)
+    @test only(gs).par ≈ ∂
+    @test iszero(∂[2:4, ..]) # ∂γ, ∂Δ, ∂η
 
-    layer = xReLU(randn(3,5), rand(3,5), randn(3,5), randn(3,5))
+    layer = xReLU(; θ = randn(3,5), γ = rand(3,5), Δ = randn(3,5), ξ = randn(3,5))
     gs = Zygote.gradient(layer) do layer
         l2_fields/2 * sum(abs2, layer.θ)
     end
-
     ∂ = ∂regularize_fields(layer; l2_fields)
-    @test only(gs).θ ≈ ∂.θ
-    @test isnothing(only(gs).γ) && iszero(∂.γ)
-    @test isnothing(only(gs).Δ) && iszero(∂.Δ)
-    @test isnothing(only(gs).ξ) && iszero(∂.ξ)
+    @test only(gs).par ≈ ∂
+    @test iszero(∂[2:4, ..]) # ∂γ, ∂Δ, ∂ξ
 end

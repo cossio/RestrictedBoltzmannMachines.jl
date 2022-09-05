@@ -2,21 +2,20 @@ import Random
 using Test: @test, @testset, @inferred
 using Statistics: mean, var
 using Random: bitrand, rand!, randn!
-using RestrictedBoltzmannMachines: RBM, Binary, free_energy
-using RestrictedBoltzmannMachines: Gaussian, ReLU, dReLU, pReLU, xReLU
-using RestrictedBoltzmannMachines: sample_v_from_v, sample_h_from_h, mean_from_inputs, var_from_inputs
-using RestrictedBoltzmannMachines: rescale_hidden!, rescale_activations!
+using RestrictedBoltzmannMachines: RBM, Binary, free_energy, Gaussian, ReLU, dReLU, pReLU, xReLU,
+    sample_v_from_v, sample_h_from_h, mean_from_inputs, var_from_inputs,
+    rescale_hidden!, rescale_activations!
 
 Random.seed!(23)
 
 @testset "rescale_activations!" begin
     N = (7,2)
     layers = (
-        Gaussian(randn(N...), randn(N...)),
-        ReLU(randn(N...), randn(N...)),
-        dReLU(randn(N...), randn(N...), randn(N...), randn(N...)),
-        pReLU(randn(N...), randn(N...), randn(N...), 2rand(N...) .- 1),
-        xReLU(randn(N...), randn(N...), randn(N...), randn(N...))
+        Gaussian(; θ = randn(N...), γ = randn(N...)),
+        ReLU(; θ = randn(N...), γ = randn(N...)),
+        dReLU(; θp = randn(N...), θn = randn(N...), γp = randn(N...), γn = randn(N...)),
+        pReLU(; θ = randn(N...), γ = randn(N...), Δ = randn(N...), η = 2rand(N...) .- 1),
+        xReLU(; θ = randn(N...), γ = randn(N...), Δ = randn(N...), ξ = randn(N...))
     )
     λ = rand(N...)
     for layer in layers
@@ -29,7 +28,7 @@ Random.seed!(23)
 end
 
 @testset "rescale_hidden!" begin
-    rbm = RBM(Binary(2), ReLU(1), randn(2,1))
+    rbm = RBM(Binary((2,)), ReLU((1,)), randn(2,1))
     randn!(rbm.visible.θ)
     randn!(rbm.hidden.θ)
     rand!(rbm.hidden.γ)

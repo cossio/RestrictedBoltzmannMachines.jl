@@ -56,3 +56,4 @@ See [a19cd5c](https://github.com/cossio/RestrictedBoltzmannMachines.jl/commit/a1
 Since now I am starting to use explicit gradients everywhere, this requirement might eventually go away.
 - **Flux 0.12.9:** `ExpDecay` with a `start` step option [#1816](https://github.com/FluxML/Flux.jl/pull/1816).
 - **Flux 0.13.4:** `Adam` instead of `ADAM` (and others) [v0.13.4](https://github.com/FluxML/Flux.jl/releases/tag/v0.13.4).
+- **MLUtils 0.2:** Using `MLUtils.stack`, not sure when it was introduced because they don't keep a Changelog. Julia 1.9 will introduce a `Base.stack` function that I can use in the future, provided it is differentiable.

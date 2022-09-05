@@ -1,46 +1,62 @@
-struct pReLU{N,Aθ,Aγ,AΔ,Aη} <: AbstractLayer{N}
-    θ::Aθ
-    γ::Aγ
-    Δ::AΔ
-    η::Aη
-    function pReLU(θ::AbstractArray, γ::AbstractArray, Δ::AbstractArray, η::AbstractArray)
-        @assert size(θ) == size(γ) == size(Δ) == size(η)
-        return new{ndims(θ), typeof(θ), typeof(γ), typeof(Δ), typeof(η)}(θ, γ, Δ, η)
+struct pReLU{N,A} <: AbstractLayer{N}
+    par::A
+    function pReLU(par::AbstractArray)
+        @assert size(par, 1) == 4 # θ, γ, Δ, η
+        N = ndims(par) - 1
+        return new{N, typeof(par)}(par)
     end
 end
 
-function pReLU(::Type{T}, n::Int...) where {T}
-    θ = zeros(T, n...)
-    γ = ones(T, n...)
-    Δ = zeros(T, n...)
-    η = zeros(T, n...)
-    return pReLU(θ, γ, Δ, η)
+function pReLU(; θ, γ, Δ, η)
+    par = vstack((θ, γ, Δ, η))
+    return pReLU(par)
 end
 
-pReLU(n::Int...) = pReLU(Float64, n...)
+function pReLU(::Type{T}, sz::Dims) where {T}
+    θ = zeros(T, sz)
+    γ = ones(T, sz)
+    Δ = zeros(T, sz)
+    η = zeros(T, sz)
+    return pReLU(; θ, γ, Δ, η)
+end
 
-Base.repeat(l::pReLU, n::Int...) = pReLU(
-    repeat(l.θ, n...), repeat(l.γ, n...), repeat(l.Δ, n...), repeat(l.η, n...)
-)
+pReLU(sz::Dims) = pReLU(Float64, sz)
+Base.propertynames(::pReLU) = (:θ, :γ, :Δ, :η)
+
+function Base.getproperty(layer::pReLU, name::Symbol)
+    if name === :θ
+        return @view getfield(layer, :par)[1, ..]
+    elseif name === :γ
+        return @view getfield(layer, :par)[2, ..]
+    elseif name === :Δ
+        return @view getfield(layer, :par)[3, ..]
+    elseif name === :η
+        return @view getfield(layer, :par)[4, ..]
+    else
+        return getfield(layer, name)
+    end
+end
 
 energies(layer::pReLU, x::AbstractArray) = energies(dReLU(layer), x)
-cfgs(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = cfgs(dReLU(layer), inputs)
-sample_from_inputs(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = sample_from_inputs(dReLU(layer), inputs)
-mean_from_inputs(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = mean_from_inputs(dReLU(layer), inputs)
-var_from_inputs(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = var_from_inputs(dReLU(layer), inputs)
-meanvar_from_inputs(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = meanvar_from_inputs(dReLU(layer), inputs)
-mode_from_inputs(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = mode_from_inputs(dReLU(layer), inputs)
-mean_abs_from_inputs(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = mean_abs_from_inputs(dReLU(layer), inputs)
-std_from_inputs(layer::pReLU, inputs::Union{Real,AbstractArray} = 0) = sqrt.(var_from_inputs(layer, inputs))
+cfgs(layer::pReLU, inputs = 0) = cfgs(dReLU(layer), inputs)
+sample_from_inputs(layer::pReLU, inputs = 0) = sample_from_inputs(dReLU(layer), inputs)
+mean_from_inputs(layer::pReLU, inputs = 0) = mean_from_inputs(dReLU(layer), inputs)
+var_from_inputs(layer::pReLU, inputs = 0) = var_from_inputs(dReLU(layer), inputs)
+meanvar_from_inputs(layer::pReLU, inputs = 0) = meanvar_from_inputs(dReLU(layer), inputs)
+mode_from_inputs(layer::pReLU, inputs = 0) = mode_from_inputs(dReLU(layer), inputs)
+mean_abs_from_inputs(layer::pReLU, inputs = 0) = mean_abs_from_inputs(dReLU(layer), inputs)
+std_from_inputs(layer::pReLU, inputs = 0) = sqrt.(var_from_inputs(layer, inputs))
 
-function ∂cfgs(layer::pReLU, inputs::Union{Real,AbstractArray} = 0)
+function ∂cfgs(layer::pReLU, inputs = 0)
     drelu = dReLU(layer)
 
-    lp = ReLU( drelu.θp, drelu.γp)
-    ln = ReLU(-drelu.θn, drelu.γn)
+    lp = ReLU(; θ =  drelu.θp, γ = drelu.γp)
+    ln = ReLU(; θ = -drelu.θn, γ = drelu.γn)
+
     Fp = cfgs(lp,  inputs)
     Fn = cfgs(ln, -inputs)
     F = -logaddexp.(-Fp, -Fn)
+
     pp = exp.(F - Fp)
     pn = exp.(F - Fn)
     μp, νp = meanvar_from_inputs(lp,  inputs)
@@ -48,45 +64,32 @@ function ∂cfgs(layer::pReLU, inputs::Union{Real,AbstractArray} = 0)
     μ2p = @. (νp + μp^2) / 2
     μ2n = @. (νn + μn^2) / 2
 
-    abs_γ = abs.(layer.γ)
-
     ∂θ = @. -(pp * μp - pn * μn)
-    ∂γ = @. (pp * μ2p / (1 + layer.η) + pn * μ2n / (1 - layer.η)) .* sign.(layer.γ)
+    ∂γ = @. sign(layer.γ) * (pp * μ2p / (1 + layer.η) + pn * μ2n / (1 - layer.η))
     ∂Δ = @. -pp * μp / (1 + layer.η) - pn * μn / (1 - layer.η)
     ∂η = @. (
-        pp * (-abs_γ * μ2p + layer.Δ * μp) / (1 + layer.η)^2 +
-        pn * ( abs_γ * μ2n - layer.Δ * μn) / (1 - layer.η)^2
+        pp * (-abs(layer.γ) * μ2p + layer.Δ * μp) / (1 + layer.η)^2 +
+        pn * ( abs(layer.γ) * μ2n - layer.Δ * μn) / (1 - layer.η)^2
     )
-    return (θ = ∂θ, γ = ∂γ, Δ = ∂Δ, η = ∂η)
+
+    return vstack((∂θ, ∂γ, ∂Δ, ∂η))
 end
 
-struct pReLUStats{A<:AbstractArray}
-    x::A; xp1::A; xn1::A; xp2::A; xn2::A;
-    function pReLUStats(layer::AbstractLayer, data::AbstractArray; wts = nothing)
-        xp = max.(data, 0)
-        xn = min.(data, 0)
-        x = batchmean(layer, data; wts)
-        xp1 = batchmean(layer, xp; wts)
-        xn1 = batchmean(layer, xn; wts)
-        xp2 = batchmean(layer, xp.^2; wts)
-        xn2 = batchmean(layer, xn.^2; wts)
-        return new{typeof(x)}(x, xp1, xn1, xp2, xn2)
-    end
-end
+function ∂energy_from_moments(layer::pReLU, moments::AbstractArray)
+    @assert size(layer.par) == size(moments)
 
-Base.size(stats::pReLUStats) = size(stats.x)
+    xp1 = @view moments[1, ..]
+    xn1 = @view moments[2, ..]
+    xp2 = @view moments[3, ..]
+    xn2 = @view moments[4, ..]
 
-function ∂energy(layer::pReLU, stats::pReLUStats)
-    @assert size(layer) == size(stats)
-    ∂γ = @. (stats.xp2 / (1 + layer.η) + stats.xn2 / (1 - layer.η)) / 2
-    ∂γ .*= sign.(layer.γ)
-    ∂Δ = @. -(stats.xp1 / (1 + layer.η) - stats.xn1 / (1 - layer.η))
-    abs_γ = abs.(layer.γ)
+    ∂θ = -(xp1 + xn1)
+    ∂γ = @. sign(layer.γ) * (xp2 / (1 + layer.η) + xn2 / (1 - layer.η)) / 2
+    ∂Δ = @. -(xp1 / (1 + layer.η) - xn1 / (1 - layer.η))
     ∂η = @. (
-        (-abs_γ * stats.xp2 / 2 + layer.Δ * stats.xp1) / (1 + layer.η)^2 +
-        ( abs_γ * stats.xn2 / 2 + layer.Δ * stats.xn1) / (1 - layer.η)^2
+        (-abs(layer.γ) * xp2 / 2 + layer.Δ * xp1) / (1 + layer.η)^2 +
+        ( abs(layer.γ) * xn2 / 2 + layer.Δ * xn1) / (1 - layer.η)^2
     )
-    return (θ = -stats.x, γ = ∂γ, Δ = ∂Δ, η = ∂η)
-end
 
-suffstats(layer::pReLU, data::AbstractArray; wts = nothing) = pReLUStats(layer, data; wts)
+    return vstack((∂θ, ∂γ, ∂Δ, ∂η))
+end
