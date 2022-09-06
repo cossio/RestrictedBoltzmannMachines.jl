@@ -102,7 +102,7 @@ end
     nupdates = 10000
     teacher = RBM(Potts((q,N)), Spin((1,)), zeros(q,N,1))
     teacher.w[1,:,1] .= range(-1, 1, length=N)
-    teacher.w[2,:,1] .= -teacher.w[1,:,1]
+    teacher.w[2,:,1] .= exp.(teacher.w[1,:,1])
     data = extensive_sample(teacher.visible)
     wts = softmax(-free_energy(teacher, data))
     @test sum(wts) ≈ 1
