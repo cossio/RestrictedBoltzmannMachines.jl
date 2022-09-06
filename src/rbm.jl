@@ -294,26 +294,15 @@ function ∂free_energy(
 end
 
 function ∂interaction_energy(rbm, v, h; wts=nothing)
-    bsz = batch_size(rbm, v, h)
-    if ndims(rbm.visible) == ndims(v) && ndims(rbm.hidden) == ndims(h)
-        wts::Nothing
-        ∂wflat = -vec(v) * vec(h)'
-    elseif ndims(rbm.visible) == ndims(v)
-        ∂wflat = -vec(v) * vec(batchmean(rbm.hidden, h; wts))'
-    elseif ndims(rbm.hidden) == ndims(h)
-        ∂wflat = -vec(batchmean(rbm.visible, v; wts)) * vec(h)'
+    @assert size(v) = (size(rbm.visible)..., last(size(v)))
+    @assert size(h) = (size(rbm.hidden)..., last(size(h)))
+    @assert last(size(v)) == last(size(h))
+    hflat = flatten(rbm.hidden, h)
+    vflat = activations_convert_maybe(hflat, flatten(rbm.visible, v))
+    if isnothing(wts)
+        ∂wflat = -vflat * hflat' / size(vflat, 2)
     else
-        hflat = flatten(rbm.hidden, h)
-        vflat = activations_convert_maybe(hflat, flatten(rbm.visible, v))
-        @assert isnothing(wts) || size(wts) == batch_size(rbm.visible, v)
-        if isnothing(wts)
-            ∂wflat = -vflat * hflat' / size(vflat, 2)
-        else
-            @assert size(wts) == bsz
-            @assert batch_size(rbm.visible, v) == batch_size(rbm.hidden, h) == size(wts)
-            ∂wflat = -vflat * Diagonal(vec(wts)) * hflat' / sum(wts)
-        end
+        ∂wflat = -vflat * Diagonal(vec(wts)) * hflat' / sum(wts)
     end
-    ∂w = reshape(∂wflat, size(rbm.w))
-    return ∂w
+    return reshape(∂wflat, size(rbm.w))
 end

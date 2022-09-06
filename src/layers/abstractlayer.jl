@@ -9,12 +9,8 @@ Base.size(layer::AbstractLayer, d::Int) = size(layer)[d]
 Returns a vectorized version of `x`.
 """
 function flatten(layer::AbstractLayer, x::AbstractArray)
-    @assert size(layer) == size(x)[1:ndims(layer)]
-    if ndims(layer) == ndims(x)
-        return vec(x)
-    else
-        return reshape(x, length(layer), prod(size(x, d) for d in (ndims(layer) + 1):ndims(x)))
-    end
+    @assert size(x) == (size(layer)..., last(size(x)))
+    return reshape(x, length(layer), last(size(x)))
 end
 
 """
@@ -23,14 +19,10 @@ end
 Layer energy, reduced over layer dimensions.
 """
 function energy(layer::AbstractLayer, x::AbstractArray)
-    @assert size(layer) == size(x)[1:ndims(layer)]
+    @assert size(x) == (size(layer)..., last(size(x)))
     Es = energies(layer, x)
-    if ndims(layer) == ndims(x)
-        return sum(Es)
-    else
-        E = sum(Es; dims = 1:ndims(layer))
-        return reshape(E, size(x)[(ndims(layer) + 1):end])
-    end
+    E = sum(Es; dims = 1:ndims(layer))
+    return vec(E)
 end
 
 """
@@ -38,14 +30,10 @@ end
 
 Cumulant generating function of layer, reduced over layer dimensions.
 """
-function cfg(layer::AbstractLayer, inputs = 0)
-    F = cfgs(layer, inputs)
-    if inputs isa Real || ndims(layer) == ndims(inputs)
-        return sum(F)
-    else
-        f = sum(F; dims = 1:ndims(layer))
-        return reshape(f, size(inputs)[(ndims(layer) + 1):end])
-    end
+function cfg(layer::AbstractLayer, inputs)
+    Fs = cfgs(layer, inputs)
+    F = sum(Fs; dims = 1:ndims(layer))
+    return vec(F)
 end
 
 """
