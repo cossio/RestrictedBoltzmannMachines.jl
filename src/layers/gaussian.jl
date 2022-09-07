@@ -72,8 +72,8 @@ end
 
 function ∂energy_from_moments(layer::Gaussian, moments::AbstractArray)
     @assert size(layer.par) == size(moments)
-    x1 = moments[1, ..]
-    x2 = moments[2, ..]
+    x1 = @view moments[1, ..]
+    x2 = @view moments[2, ..]
     ∂θ = -x1
     ∂γ = @. sign(layer.γ) * x2 / 2
     return vstack((∂θ, ∂γ))
