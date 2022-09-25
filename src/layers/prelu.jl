@@ -1,11 +1,13 @@
 struct pReLU{N,A} <: AbstractLayer{N}
     par::A
-    function pReLU(par::AbstractArray)
+    function pReLU{N,A}(par::A) where {N,A<:AbstractArray}
         @assert size(par, 1) == 4 # θ, γ, Δ, η
-        N = ndims(par) - 1
-        return new{N, typeof(par)}(par)
+        @assert ndims(par) == N + 1
+        return new(par)
     end
 end
+
+pReLU(par::AbstractArray) = pReLU{ndims(par) - 1, typeof(par)}(par)
 
 function pReLU(; θ, γ, Δ, η)
     par = vstack((θ, γ, Δ, η))

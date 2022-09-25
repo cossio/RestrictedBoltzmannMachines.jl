@@ -1,11 +1,13 @@
 struct dReLU{N,A} <: AbstractLayer{N}
     par::A
-    function dReLU(par::AbstractArray)
+    function dReLU{N,A}(par::A) where {N,A<:AbstractArray}
         @assert size(par, 1) == 4 # θp, θn, γp, γn
-        N = ndims(par) - 1
-        return new{N, typeof(par)}(par)
+        @assert ndims(par) == N + 1
+        return new(par)
     end
 end
+
+dReLU(par::AbstractArray) = dReLU{ndims(par) - 1, typeof(par)}(par)
 
 function dReLU(; θp, θn, γp, γn)
     par = vstack((θp, θn, γp, γn))

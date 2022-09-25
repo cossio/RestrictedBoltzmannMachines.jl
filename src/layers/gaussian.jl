@@ -5,12 +5,14 @@ Gaussian layer, with location parameters `θ` and scale parameters `γ`.
 """
 struct Gaussian{N,A} <: AbstractLayer{N}
     par::A
-    function Gaussian(par::AbstractArray)
+    function Gaussian{N,A}(par::A) where {N,A<:AbstractArray}
         @assert size(par, 1) == 2 # θ, γ
-        N = ndims(par) - 1
-        return new{N, typeof(par)}(par)
+        @assert ndims(par) == N + 1
+        return new(par)
     end
 end
+
+Gaussian(par::AbstractArray) = Gaussian{ndims(par) - 1, typeof(par)}(par)
 
 function Gaussian(; θ, γ)
     par = vstack((θ, γ))

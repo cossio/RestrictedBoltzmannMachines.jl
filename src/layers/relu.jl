@@ -1,16 +1,18 @@
 """
     ReLU(θ, γ)
 
-ReLU layer, with location parameters `θ` and scale parameters `γ`.
+Layer with ReLU units, with location parameters `θ` and scale parameters `γ`.
 """
 struct ReLU{N,A} <: AbstractLayer{N}
     par::A
-    function ReLU(par::AbstractArray)
+    function ReLU{N,A}(par::A) where {N,A<:AbstractArray}
         @assert size(par, 1) == 2 # θ, γ
-        N = ndims(par) - 1
-        return new{N, typeof(par)}(par)
+        @assert ndims(par) == N + 1
+        return new(par)
     end
 end
+
+ReLU(par::AbstractArray) = ReLU{ndims(par) - 1, typeof(par)}(par)
 
 function ReLU(; θ, γ)
     par = vstack((θ, γ))

@@ -5,18 +5,20 @@ BLAS linear algebra routines. =#
 """
     Potts(θ)
 
-Potts layer, with external fields `θ`.
+Layer with Potts units, with external fields `θ`.
 Encodes categorical variables as one-hot vectors.
 The number of classes is the size of the first dimension.
 """
 struct Potts{N,A} <: AbstractLayer{N}
     par::A
-    function Potts(par::AbstractArray)
+    function Potts{N,A}(par::A) where {N,A<:AbstractArray}
         @assert size(par, 1) == 1 # θ
-        N = ndims(par) - 1
-        return new{N, typeof(par)}(par)
+        @assert ndims(par) == N + 1
+        return new(par)
     end
 end
+
+Potts(par::AbstractArray) = Potts{ndims(par) - 1, typeof(par)}(par)
 
 function Potts(; θ)
     par = vstack((θ,))

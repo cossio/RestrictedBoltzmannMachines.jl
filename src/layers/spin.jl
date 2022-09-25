@@ -1,7 +1,7 @@
 @doc raw"""
     Spin(θ)
 
-Spin layer, with external fields `θ`.
+Layer with spin units, with external fields `θ`.
 The energy of a layer with units ``s_i`` is given by:
 
 ```math
@@ -12,12 +12,14 @@ where each spin ``s_i`` takes values ``\pm 1``.
 """
 struct Spin{N,A} <: AbstractLayer{N}
     par::A
-    function Spin(par::AbstractArray)
+    function Spin{N,A}(par::A) where {N,A<:AbstractArray}
         @assert size(par, 1) == 1 # θ
-        N = ndims(par) - 1
-        return new{N, typeof(par)}(par)
+        @assert ndims(par) == N + 1
+        return new(par)
     end
 end
+
+Spin(par::AbstractArray) = Spin{ndims(par) - 1, typeof(par)}(par)
 
 function Spin(; θ)
     par = vstack((θ,))
