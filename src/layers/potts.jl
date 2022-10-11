@@ -28,7 +28,7 @@ end
 Potts(::Type{T}, sz::Dims) where {T} = Potts(; θ = zeros(T, sz))
 Potts(sz::Dims) = Potts(Float64, sz)
 
-cgfs(layer::Potts, inputs = 0) = -logsumexp(layer.θ .+ inputs; dims=1)
+cgfs(layer::Potts, inputs = 0) = logsumexp(layer.θ .+ inputs; dims=1)
 mean_from_inputs(layer::Potts, inputs = 0) = softmax(layer.θ .+ inputs; dims=1)
 mean_abs_from_inputs(layer::Potts, inputs = 0) = mean_from_inputs(layer, inputs)
 std_from_inputs(layer::Potts, inputs = 0) = sqrt.(var_from_inputs(layer, inputs))

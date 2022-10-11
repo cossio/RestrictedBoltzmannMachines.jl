@@ -57,8 +57,8 @@ Free energy of visible configuration (after marginalizing hidden configurations)
 """
 function free_energy(rbm, v)
     E = energy(rbm.visible, v)
-    F = hidden_cfg(rbm, v)
-    return E + F
+    Γ = hidden_cfg(rbm, v)
+    return E - Γ
 end
 
 function hidden_cfg(rbm, v)
@@ -290,9 +290,9 @@ function ∂free_energy(
 )
     inputs = inputs_h_from_v(rbm, v)
     ∂v = ∂energy_from_moments(rbm.visible, moments)
-    ∂Γ = ∂cfgs(rbm.hidden, inputs)
+    ∂Γ = ∂cgfs(rbm.hidden, inputs)
     h = grad2ave(rbm.hidden, ∂Γ)
-    ∂h = reshape(wmean(∂Γ; wts, dims = (ndims(rbm.hidden.par) + 1):ndims(∂Γ)), size(rbm.hidden.par))
+    ∂h = reshape(wmean(-∂Γ; wts, dims = (ndims(rbm.hidden.par) + 1):ndims(∂Γ)), size(rbm.hidden.par))
     ∂w = ∂interaction_energy(rbm, v, h; wts)
     return ∂RBM(∂v, ∂h, ∂w)
 end

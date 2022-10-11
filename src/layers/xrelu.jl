@@ -55,12 +55,12 @@ function ∂cgfs(layer::xReLU, inputs = 0)
     lp = ReLU(; θ =  drelu.θp, γ = drelu.γp)
     ln = ReLU(; θ = -drelu.θn, γ = drelu.γn)
 
-    Fp = cgfs(lp,  inputs)
-    Fn = cgfs(ln, -inputs)
-    F = -logaddexp.(-Fp, -Fn)
+    Γp = cgfs(lp,  inputs)
+    Γn = cgfs(ln, -inputs)
+    Γ = logaddexp.(Γp, Γn)
 
-    pp = exp.(F - Fp)
-    pn = exp.(F - Fn)
+    pp = exp.(Γp - Γ)
+    pn = exp.(Γn - Γ)
     μp, νp = meanvar_from_inputs(lp,  inputs)
     μn, νn = meanvar_from_inputs(ln, -inputs)
     μ2p = @. νp + μp^2
@@ -68,12 +68,12 @@ function ∂cgfs(layer::xReLU, inputs = 0)
 
     η = @. layer.ξ / (1 + abs(layer.ξ))
 
-    ∂θ = @. -(pp * μp - pn * μn)
-    ∂γ = @. (pp * μ2p / (1 + η) + pn * μ2n / (1 - η)) / 2
+    ∂θ = @. pp * μp - pn * μn
+    ∂γ = @. -(pp * μ2p / (1 + η) + pn * μ2n / (1 - η)) / 2
     ∂γ .*= sign.(layer.γ)
-    ∂Δ = @. -(pp * μp / (1 + η) + pn * μn / (1 - η))
+    ∂Δ = @. (pp * μp / (1 + η) + pn * μn / (1 - η))
     abs_γ = abs.(layer.γ)
-    ∂ξ = @. (
+    ∂ξ = @. -(
         pp * (-abs_γ/2 * μ2p + layer.Δ * μp) / (1 + layer.ξ + abs(layer.ξ))^2 +
         pn * ( abs_γ/2 * μ2n - layer.Δ * μn) / (1 - layer.ξ + abs(layer.ξ))^2
     )

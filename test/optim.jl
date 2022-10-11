@@ -3,7 +3,7 @@ import Flux
 import RestrictedBoltzmannMachines as RBMs
 using Random: bitrand
 using RestrictedBoltzmannMachines: default_optimizer, minibatch_count, minibatches,
-    RBM, BinaryRBM, ∂free_energy, ∂cgf, update!, ∂RBM,
+    RBM, BinaryRBM, ∂free_energy, update!, ∂RBM,
     Binary, Spin, Potts, Gaussian, ReLU, dReLU, pReLU, xReLU
 
 @testset "default_optimizer" begin

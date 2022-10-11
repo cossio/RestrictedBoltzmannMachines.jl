@@ -54,7 +54,7 @@ end
 
 function spin_cfg(θ::Real)
     abs_θ = abs(θ)
-    return -abs_θ - log1pexp(-2abs_θ)
+    return abs_θ + log1pexp(-2abs_θ)
 end
 
 spin_rand(θ::Real, u::Real) = ifelse(u < logistic(2θ), Int8(1), Int8(-1))

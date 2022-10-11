@@ -42,7 +42,7 @@ energies(layer::Gaussian, x::AbstractArray) = gauss_energy.(layer.θ, layer.γ, 
 gauss_energy(θ::Real, γ::Real, x::Real) = (abs(γ) * x / 2 - θ) * x
 
 cgfs(layer::Gaussian, inputs = 0) = gauss_cfg.(layer.θ .+ inputs, layer.γ)
-gauss_cfg(θ::Real, γ::Real) = -θ^2 / abs(2γ) + log(abs(γ)/π/2) / 2
+gauss_cfg(θ::Real, γ::Real) = θ^2 / abs(2γ) - log(abs(γ)/π/2) / 2
 
 function sample_from_inputs(layer::Gaussian, inputs = 0)
     μ = mean_from_inputs(layer, inputs)
@@ -67,8 +67,8 @@ function mean_abs_from_inputs(layer::Gaussian, inputs = 0)
 end
 
 function ∂cgfs(layer::Gaussian, inputs = 0)
-    ∂θ = @. -(layer.θ .+ inputs) / abs(layer.γ)
-    ∂γ = @. inv(layer.γ) / 2 + sign(layer.γ) * ∂θ^2 / 2
+    ∂θ = @. (layer.θ .+ inputs) / abs(layer.γ)
+    ∂γ = @. -inv(layer.γ) / 2 - sign(layer.γ) * ∂θ^2 / 2
     return vstack((∂θ, ∂γ))
 end
 

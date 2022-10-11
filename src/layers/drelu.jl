@@ -51,7 +51,7 @@ end
 function cgfs(layer::dReLU, inputs = 0)
     θp = layer.θp .+ inputs
     θn = layer.θn .+ inputs
-    return drelu_free.(θp, θn, layer.γp, layer.γn)
+    return drelu_cgf.(θp, θn, layer.γp, layer.γn)
 end
 
 function sample_from_inputs(layer::dReLU, inputs = 0)
@@ -71,11 +71,13 @@ std_from_inputs(layer::dReLU, inputs = 0) = sqrt.(var_from_inputs(layer, inputs)
 function mean_from_inputs(layer::dReLU, inputs = 0)
     lp = ReLU(; θ =  layer.θp, γ = layer.γp)
     ln = ReLU(; θ = -layer.θn, γ = layer.γn)
-    Fp = cgfs(lp,  inputs)
-    Fn = cgfs(ln, -inputs)
-    F = -logaddexp.(-Fp, -Fn)
-    pp = exp.(F - Fp)
-    pn = exp.(F - Fn)
+
+    Γp = cgfs(lp,  inputs)
+    Γn = cgfs(ln, -inputs)
+    Γ = logaddexp.(Γp, Γn)
+
+    pp = exp.(Γp - Γ)
+    pn = exp.(Γn - Γ)
     μp = mean_from_inputs(lp,  inputs)
     μn = mean_from_inputs(ln, -inputs)
     return pp .* μp - pn .* μn
@@ -85,11 +87,12 @@ function var_from_inputs(layer::dReLU, inputs = 0)
     lp = ReLU(; θ =  layer.θp, γ = layer.γp)
     ln = ReLU(; θ = -layer.θn, γ = layer.γn)
 
-    Fp = cgfs(lp,  inputs)
-    Fn = cgfs(ln, -inputs)
-    F = -logaddexp.(-Fp, -Fn)
-    pp = exp.(F - Fp)
-    pn = exp.(F - Fn)
+    Γp = cgfs(lp,  inputs)
+    Γn = cgfs(ln, -inputs)
+    Γ = logaddexp.(Γp, Γn)
+
+    pp = exp.(Γp - Γ)
+    pn = exp.(Γn - Γ)
     μp, νp = meanvar_from_inputs(lp,  inputs)
     μn, νn = meanvar_from_inputs(ln, -inputs)
     μ = pp .* μp - pn .* μn
@@ -100,12 +103,12 @@ function meanvar_from_inputs(layer::dReLU, inputs = 0)
     lp = ReLU(; θ =  layer.θp, γ = layer.γp)
     ln = ReLU(; θ = -layer.θn, γ = layer.γn)
 
-    Fp = cgfs(lp,  inputs)
-    Fn = cgfs(ln, -inputs)
-    F = -logaddexp.(-Fp, -Fn)
+    Γp = cgfs(lp,  inputs)
+    Γn = cgfs(ln, -inputs)
+    Γ = logaddexp.(Γp, Γn)
 
-    pp = exp.(F - Fp)
-    pn = exp.(F - Fn)
+    pp = exp.(Γp - Γ)
+    pn = exp.(Γn - Γ)
     μp, νp = meanvar_from_inputs(lp,  inputs)
     μn, νn = meanvar_from_inputs(ln, -inputs)
     μ = pp .* μp - pn .* μn
@@ -117,37 +120,37 @@ function mean_abs_from_inputs(layer::dReLU, inputs = 0)
     lp = ReLU(; θ =  layer.θp, γ = layer.γp)
     ln = ReLU(; θ = -layer.θn, γ = layer.γn)
 
-    Fp = cgfs(lp,  inputs)
-    Fn = cgfs(ln, -inputs)
-    F = -logaddexp.(-Fp, -Fn)
+    Γp = cgfs(lp,  inputs)
+    Γn = cgfs(ln, -inputs)
+    Γ = logaddexp.(Γp, Γn)
 
-    pp = exp.(F - Fp)
-    pn = exp.(F - Fn)
+    pp = exp.(Γp - Γ)
+    pn = exp.(Γn - Γ)
 
     μp =  mean_from_inputs(lp,  inputs)
     μn = -mean_from_inputs(ln, -inputs)
     return pp .* μp - pn .* μn
 end
 
-function ∂cfgs(layer::dReLU, inputs = 0)
+function ∂cgfs(layer::dReLU, inputs = 0)
     lp = ReLU(; θ =  layer.θp, γ = layer.γp)
     ln = ReLU(; θ = -layer.θn, γ = layer.γn)
 
-    Fp = cgfs(lp,  inputs)
-    Fn = cgfs(ln, -inputs)
-    F = -logaddexp.(-Fp, -Fn)
+    Γp = cgfs(lp,  inputs)
+    Γn = cgfs(ln, -inputs)
+    Γ = logaddexp.(Γp, Γn)
 
-    pp = exp.(F - Fp)
-    pn = exp.(F - Fn)
+    pp = exp.(Γp - Γ)
+    pn = exp.(Γn - Γ)
     μp, νp = meanvar_from_inputs(lp,  inputs)
     μn, νn = meanvar_from_inputs(ln, -inputs)
     μ2p = @. (νp + μp^2) / 2
     μ2n = @. (νn + μn^2) / 2
 
-    ∂θp = -pp .* μp
-    ∂θn = +pn .* μn
-    ∂γp = pp .* μ2p .* sign.(layer.γp)
-    ∂γn = pn .* μ2n .* sign.(layer.γn)
+    ∂θp = +pp .* μp
+    ∂θn = -pn .* μn
+    ∂γp = -pp .* μ2p .* sign.(layer.γp)
+    ∂γn = -pn .* μ2n .* sign.(layer.γn)
     return vstack((∂θp, ∂θn, ∂γp, ∂γn))
 end
 
@@ -182,10 +185,10 @@ function drelu_energy(θp::T, θn::T, γp::S, γn::S, x::Real) where {T<:Real, S
     end
 end
 
-function drelu_free(θp::Real, θn::Real, γp::Real, γn::Real)
-    Fp = relu_cfg( θp, γp)
-    Fn = relu_cfg(-θn, γn)
-    return -logaddexp(-Fp, -Fn)
+function drelu_cgf(θp::Real, θn::Real, γp::Real, γn::Real)
+    Γp = relu_cfg( θp, γp)
+    Γn = relu_cfg(-θn, γn)
+    return logaddexp(Γp, Γn)
 end
 
 function drelu_rand(θp::Real, θn::Real, γp::Real, γn::Real)
@@ -193,10 +196,10 @@ function drelu_rand(θp::Real, θn::Real, γp::Real, γn::Real)
 end
 
 function drelu_rand(θp::T, θn::T, γp::S, γn::S) where {T<:Real, S<:Real}
-    Fp = relu_cfg(θp, γp)
-    Fn = relu_cfg(-θn, γn)
-    F = -logaddexp(-Fp, -Fn)
-    if randexp(typeof(F)) ≥ Fp - F
+    Γp = relu_cfg(θp, γp)
+    Γn = relu_cfg(-θn, γn)
+    Γ = logaddexp(Γp, Γn)
+    if randexp(typeof(Γ)) ≥ Γ - Γp
         return  relu_rand( θp, γp)
     else
         return -relu_rand(-θn, γn)

@@ -22,7 +22,7 @@ end
 Binary(::Type{T}, sz::Dims) where {T} = Binary(; θ = zeros(T, sz))
 Binary(sz::Dims) = Binary(Float64, sz)
 
-cgfs(layer::Binary, inputs = 0) = -log1pexp.(layer.θ .+ inputs)
+cgfs(layer::Binary, inputs = 0) = log1pexp.(layer.θ .+ inputs)
 mode_from_inputs(layer::Binary, inputs = 0) = layer.θ .+ inputs .> 0
 mean_from_inputs(layer::Binary, inputs = 0) = logistic.(layer.θ .+ inputs)
 mean_abs_from_inputs(layer::Binary, inputs = 0) = mean_from_inputs(layer, inputs)

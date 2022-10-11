@@ -13,7 +13,7 @@ end
 function center_gradient_v(rbm::RBM, ∂::∂RBM, λv::AbstractArray)
     @assert size(rbm.visible) == size(λv)
     @assert size(∂.w) == size(rbm.w)
-    Δh = grad2ave(rbm.hidden, ∂.hidden)
+    Δh = grad2ave(rbm.hidden, -∂.hidden)
     ∂w = reshape(∂.w, length(rbm.visible), length(rbm.hidden)) + vec(λv) * vec(Δh)'
     return ∂RBM(∂.visible, ∂.hidden, reshape(∂w, size(∂.w)))
 end
@@ -21,7 +21,7 @@ end
 function center_gradient_h(rbm::RBM, ∂::∂RBM, λh::AbstractArray)
     @assert size(rbm.hidden) == size(λh)
     @assert size(∂.w) == size(rbm.w)
-    Δv = grad2ave(rbm.visible, ∂.visible)
+    Δv = grad2ave(rbm.visible, -∂.visible)
     ∂w = reshape(∂.w, length(rbm.visible), length(rbm.hidden)) + vec(Δv) * vec(λh)'
     return ∂RBM(∂.visible, ∂.hidden, reshape(∂w, size(∂.w)))
 end
@@ -89,17 +89,17 @@ function uncenter_step(layer::dReLU, ∂::AbstractArray, shift::AbstractArray)
     return vstack((∂θp - shift, ∂θn - shift, ∂γp, ∂γn))
 end
 
-# get moments from layer gradients, e.g. <v> = -derivative w.r.t. θ
-grad2ave(::Union{Binary,Spin,Potts,Gaussian,ReLU,pReLU,xReLU}, ∂::AbstractArray) = -∂[1, ..]
-grad2ave(::dReLU, ∂::AbstractArray) = -(∂[1, ..] + ∂[2, ..])
+# get moments from layer cgf gradients, e.g. <v> = derivative of cgf w.r.t. θ
+grad2ave(::Union{Binary,Spin,Potts,Gaussian,ReLU,pReLU,xReLU}, ∂::AbstractArray) = ∂[1, ..]
+grad2ave(::dReLU, ∂::AbstractArray) = ∂[1, ..] + ∂[2, ..]
 
-grad2var(::Union{Binary,Potts}, ∂::AbstractArray) = -∂[1, ..] .* (1 .+ ∂[1, ..])
+grad2var(::Union{Binary,Potts}, ∂::AbstractArray) = ∂[1, ..] .* (1 .- ∂[1, ..])
 grad2var(::Spin, ∂::AbstractArray) = (1 .- ∂[1, ..]) .* (1 .+ ∂[1, ..])
 
 function grad2var(l::Union{Gaussian,ReLU}, ∂::AbstractArray)
     ∂θ = @view ∂[1, ..]
     ∂γ = @view ∂[2, ..]
-    return 2∂γ .* sign.(l.γ) - ∂θ.^2
+    return -2∂γ .* sign.(l.γ) - ∂θ.^2
 end
 
 function grad2var(l::dReLU, ∂::AbstractArray)
@@ -107,14 +107,14 @@ function grad2var(l::dReLU, ∂::AbstractArray)
     ∂θn = ∂[2, ..]
     ∂γp = ∂[3, ..]
     ∂γn = ∂[4, ..]
-    return 2 * (∂γp .* sign.(l.γp) + ∂γn .* sign.(l.γn)) - (∂θp + ∂θn).^2
+    return -2 * (∂γp .* sign.(l.γp) + ∂γn .* sign.(l.γn)) - (∂θp + ∂θn).^2
 end
 
 function grad2var(l::pReLU, ∂::AbstractArray)
-    ∂θ = ∂[1, ..]
-    ∂γ = ∂[2, ..]
-    ∂Δ = ∂[3, ..]
-    ∂η = ∂[4, ..]
+    ∂θ = -∂[1, ..]
+    ∂γ = -∂[2, ..]
+    ∂Δ = -∂[3, ..]
+    ∂η = -∂[4, ..]
 
     abs_γ = abs.(l.γ)
     ∂absγ = ∂γ .* sign.(l.γ)
@@ -123,10 +123,10 @@ function grad2var(l::pReLU, ∂::AbstractArray)
 end
 
 function grad2var(l::xReLU, ∂::AbstractArray)
-    ∂θ = ∂[1, ..]
-    ∂γ = ∂[2, ..]
-    ∂Δ = ∂[3, ..]
-    ∂ξ = ∂[4, ..]
+    ∂θ = -∂[1, ..]
+    ∂γ = -∂[2, ..]
+    ∂Δ = -∂[3, ..]
+    ∂ξ = -∂[4, ..]
 
     abs_γ = abs.(l.γ)
     ∂absγ = ∂γ .* sign.(l.γ)

@@ -67,8 +67,8 @@ function pcd!(
             ∂ *= batch_weight
 
             # extract hidden unit statistics from gradient
-            ave_h_batch = grad2ave(rbm.hidden, ∂d.hidden)
-            var_h_batch = grad2var(rbm.hidden, ∂d.hidden)
+            ave_h_batch = grad2ave(rbm.hidden, -∂d.hidden)
+            var_h_batch = grad2var(rbm.hidden, -∂d.hidden)
 
             #= Exponential moving average of mean and variance of hidden unit activations.
             The batchweight can be interpreted as an "effective number of updates". =#

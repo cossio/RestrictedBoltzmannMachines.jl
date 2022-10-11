@@ -39,12 +39,12 @@ end
 Cumulant generating function of layer, reduced over layer dimensions.
 """
 function cgf(layer::AbstractLayer, inputs = 0)
-    F = cgfs(layer, inputs)
+    Γ = cgfs(layer, inputs)
     if inputs isa Real || ndims(layer) == ndims(inputs)
-        return sum(F)
+        return sum(Γ)
     else
-        f = sum(F; dims = 1:ndims(layer))
-        return reshape(f, size(inputs)[(ndims(layer) + 1):end])
+        _Γ = sum(Γ; dims = 1:ndims(layer))
+        return reshape(_Γ, size(inputs)[(ndims(layer) + 1):end])
     end
 end
 
@@ -174,14 +174,14 @@ function ∂energy(layer::AbstractLayer, data::AbstractArray; wts = nothing)
 end
 
 """
-    ∂cfg(layer, inputs = 0; wts = 1)
+    ∂cgf(layer, inputs = 0; wts = 1)
 
 Unit activation moments, conjugate to layer parameters.
 These are obtained by differentiating `cgfs` with respect to the layer parameters.
 Averages over configurations (weigthed by `wts`).
 """
-function ∂cfg(layer::AbstractLayer, inputs = 0; wts = nothing)
-    ∂Fs = ∂cfgs(layer, inputs)
+function ∂cgf(layer::AbstractLayer, inputs = 0; wts = nothing)
+    ∂Fs = ∂cgfs(layer, inputs)
     ∂F = wmean(∂Fs; wts, dims = (ndims(layer.par) + 1):ndims(∂Fs))
     return reshape(∂F, size(layer.par))
 end

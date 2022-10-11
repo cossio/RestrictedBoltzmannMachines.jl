@@ -99,23 +99,23 @@ _layers = (
         end
 
         μ = @inferred mean_from_inputs(layer, x)
-        @test only(Zygote.gradient(j -> sum(cgfs(layer, j)), x)) ≈ -μ
+        @test only(Zygote.gradient(j -> sum(cgfs(layer, j)), x)) ≈ μ
     end
 
-    ∂F = @inferred ∂cgf(layer)
+    ∂Γ = @inferred ∂cgf(layer)
     gs = Zygote.gradient(layer) do layer
         cgf(layer)
     end
-    @test ∂F ≈ only(gs).par
+    @test ∂Γ ≈ only(gs).par
 
     samples = @inferred sample_from_inputs(layer, zeros(size(layer)..., 10^6))
     @test @inferred(mean_from_inputs(layer)) ≈ reshape(mean(samples; dims=3), size(layer)) rtol=0.1 atol=0.01
     @test @inferred(var_from_inputs(layer)) ≈ reshape(var(samples; dims=ndims(samples)), size(layer)) rtol=0.1
     @test @inferred(mean_abs_from_inputs(layer)) ≈ reshape(mean(abs.(samples); dims=ndims(samples)), size(layer)) rtol=0.1
 
-    ∂F = @inferred RBMs.∂cgf(layer)
+    ∂Γ = @inferred RBMs.∂cgf(layer)
     ∂E = @inferred RBMs.∂energy(layer, samples)
-    @test ∂F ≈ ∂E rtol=0.1
+    @test ∂Γ ≈ -∂E rtol=0.1
 
     gs = Zygote.gradient(layer) do layer
         sum(energies(layer, samples)) / size(samples)[end]
@@ -132,7 +132,7 @@ end
     gs = Zygote.gradient(layer) do layer
         sum(cgfs(layer))
     end
-    @test RBMs.∂cgf(layer) ≈ only(gs).par ≈ vstack((-mean_from_inputs(layer),))
+    @test RBMs.∂cgf(layer) ≈ only(gs).par ≈ vstack((mean_from_inputs(layer),))
 end
 
 @testset "Binary" begin
@@ -147,28 +147,28 @@ end
 
     layer = Binary(; θ = randn(7, 4, 5))
     var_from_inputs(layer) ≈ @. logistic(layer.θ) * logistic(-layer.θ)
-    @test cgfs(layer) ≈ -log.(sum(exp.(layer.θ .* h) for h in 0:1))
+    @test cgfs(layer) ≈ log.(sum(exp.(layer.θ .* h) for h in 0:1))
     @test sort(unique(sample_from_inputs(layer))) == [0, 1]
 
     gs = Zygote.gradient(layer) do layer
         sum(cgfs(layer))
     end
     ∂ = RBMs.∂cgf(layer)
-    @test ∂ ≈ only(gs).par ≈ vstack((-mean_from_inputs(layer),))
+    @test ∂ ≈ only(gs).par ≈ vstack((mean_from_inputs(layer),))
     @test RBMs.grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
     @test RBMs.grad2var(layer, ∂) ≈ var_from_inputs(layer)
 end
 
 @testset "Spin" begin
     layer = Spin(; θ = randn(7, 4, 5))
-    @test cgfs(layer) ≈ -log.(sum(exp.(layer.θ .* h) for h in (-1, 1)))
+    @test cgfs(layer) ≈ log.(sum(exp.(layer.θ .* h) for h in (-1, 1)))
     @test sort(unique(sample_from_inputs(layer))) == [-1, 1]
 
     gs = Zygote.gradient(layer) do layer
         sum(cgfs(layer))
     end
     ∂ = RBMs.∂cgf(layer)
-    @test ∂ ≈ only(gs).par ≈ vstack((-mean_from_inputs(layer),))
+    @test ∂ ≈ only(gs).par ≈ vstack((mean_from_inputs(layer),))
     @test RBMs.grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
     @test RBMs.grad2var(layer, ∂) ≈ var_from_inputs(layer)
 end
@@ -177,7 +177,7 @@ end
     q = 3
     N = (4, 5)
     layer = RBMs.Potts(; θ = randn(q, N...))
-    @test cgfs(layer) ≈ -log.(sum(exp.(layer.θ[h:h,:,:,:]) for h in 1:q))
+    @test cgfs(layer) ≈ log.(sum(exp.(layer.θ[h:h,:,:,:]) for h in 1:q))
     @test all(sum(mean_from_inputs(layer); dims=1) .≈ 1)
     # samples are proper one-hot
     @test sort(unique(sample_from_inputs(layer))) == [0, 1]
@@ -187,7 +187,7 @@ end
         sum(cgfs(layer))
     end
     ∂ = RBMs.∂cgf(layer)
-    @test ∂ ≈ only(gs).par ≈ vstack((-mean_from_inputs(layer),))
+    @test ∂ ≈ only(gs).par ≈ vstack((mean_from_inputs(layer),))
     @test RBMs.grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
     @test RBMs.grad2var(layer, ∂) ≈ var_from_inputs(layer)
 end
@@ -202,12 +202,12 @@ end
     x = randn(size(layer)..., B)
     @test energies(layer, x) ≈ @. abs(layer.γ) * x^2 / 2 - layer.θ * x
 
-    function quad_free(θ::Real, γ::Real)
+    function quad_cgf(θ::Real, γ::Real)
         Z, ϵ = quadgk(h -> exp(-RBMs.gauss_energy(θ, γ, h)), -Inf,  Inf)
-        return -log(Z)
+        return log(Z)
     end
 
-    @test cgfs(layer) ≈ quad_free.(layer.θ, layer.γ) rtol=1e-6
+    @test cgfs(layer) ≈ quad_cgf.(layer.θ, layer.γ) rtol=1e-6
 
     gs = Zygote.gradient(layer) do layer
         sum(cgfs(layer))
@@ -217,8 +217,8 @@ end
     μ2 = @. ν + μ^2
     ∂ = RBMs.∂cgf(layer)
     @test ∂ ≈ only(gs).par
-    @test ∂[1, ..] ≈ -μ
-    @test ∂[2, ..] ≈ sign.(layer.γ) .* μ2/2
+    @test ∂[1, ..] ≈ μ
+    @test ∂[2, ..] ≈ -sign.(layer.γ) .* μ2/2
     @test RBMs.grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
     @test RBMs.grad2var(layer, ∂) ≈ var_from_inputs(layer)
 end
@@ -233,11 +233,11 @@ end
     x = abs.(randn(size(layer)..., B))
     @test energies(layer, x) ≈ energies(Gaussian(; layer.θ, layer.γ), x)
 
-    function quad_free(θ::Real, γ::Real)
+    function quad_cgf(θ::Real, γ::Real)
         Z, ϵ = quadgk(h -> exp(-RBMs.relu_energy(θ, γ, h)), 0,  Inf)
-        return -log(Z)
+        return log(Z)
     end
-    @test cgfs(layer) ≈ @. quad_free(layer.θ, layer.γ)
+    @test cgfs(layer) ≈ @. quad_cgf(layer.θ, layer.γ)
 
     gs = Zygote.gradient(layer) do layer
         sum(cgfs(layer))
@@ -248,8 +248,8 @@ end
     ∂ = RBMs.∂cgf(layer)
 
     @test ∂ ≈ only(gs).par
-    @test ∂[1, ..] ≈ -μ
-    @test ∂[2, ..] ≈ sign.(layer.γ) .* μ2/2
+    @test ∂[1, ..] ≈ μ
+    @test ∂[2, ..] ≈ -sign.(layer.γ) .* μ2/2
     @test RBMs.grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
     @test RBMs.grad2var(layer, ∂) ≈ var_from_inputs(layer)
 end
@@ -360,11 +360,11 @@ end
     @test energy(layer, x) ≈ Ep + En
     @test iszero(energy(layer, zero(x)))
 
-    function quad_free(θp::Real, θn::Real, γp::Real, γn::Real)
+    function quad_cgf(θp::Real, θn::Real, γp::Real, γn::Real)
         Z, ϵ = quadgk(h -> exp(-RBMs.drelu_energy(θp, θn, γp, γn, h)), -Inf, Inf)
-        return -log(Z)
+        return log(Z)
     end
-    @test cgfs(layer) ≈ quad_free.(layer.θp, layer.θn, layer.γp, layer.γn)
+    @test cgfs(layer) ≈ quad_cgf.(layer.θp, layer.θn, layer.γp, layer.γn)
 
     gs = Zygote.gradient(layer) do layer
         sum(cgfs(layer))

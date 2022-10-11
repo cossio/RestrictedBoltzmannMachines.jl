@@ -74,8 +74,8 @@ end
 function RBMs.free_energy(rbm::CenteredRBM, v::AbstractArray)
     inputs = inputs_h_from_v(RBM(rbm), v .- rbm.λv)
     E = energy(rbm.visible, v) + energy(Binary(; θ = -rbm.λh), inputs)
-    F = cgf(rbm.hidden, inputs)
-    return E + F
+    Γ = cgf(rbm.hidden, inputs)
+    return E - Γ
 end
 
 ΔE(rbm::CenteredRBM) = interaction_energy(RBM(rbm), rbm.λv, rbm.λh)
@@ -194,5 +194,5 @@ end
     rbm = RBM(layer, Binary(; θ = randn(3)), randn(5,3))
     v = sample_v_from_v(rbm, randn(5,100); steps=100)
     ∂ = ∂free_energy(rbm, v)
-    @test (@inferred grad2ave(rbm.visible, ∂.visible)) ≈ dropdims(mean(v; dims=2); dims=2)
+    @test (@inferred grad2ave(rbm.visible, -∂.visible)) ≈ dropdims(mean(v; dims=2); dims=2)
 end

@@ -74,8 +74,8 @@ end
 
 function ∂cgfs(layer::ReLU, inputs = 0)
     μ, ν = meanvar_from_inputs(layer, inputs)
-    ∂θ = -μ
-    ∂γ = sign.(layer.γ) .* (ν .+ μ.^2) / 2
+    ∂θ = μ
+    ∂γ = -sign.(layer.γ) .* (ν .+ μ.^2) / 2
     return vstack((∂θ, ∂γ))
 end
 
@@ -94,7 +94,7 @@ end
 
 function relu_cfg(θ::Real, γ::Real)
     abs_γ = abs(γ)
-    return -logerfcx(-θ / √(2abs_γ)) + log(2abs_γ/π) / 2
+    return logerfcx(-θ / √(2abs_γ)) - log(2abs_γ/π) / 2
 end
 
 function relu_rand(θ::Real, γ::Real)
