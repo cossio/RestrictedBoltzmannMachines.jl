@@ -63,7 +63,7 @@ end
 
 function hidden_cfg(rbm, v)
     inputs = inputs_h_from_v(rbm, v)
-    return cfg(rbm.hidden, inputs)
+    return cgf(rbm.hidden, inputs)
 end
 
 """

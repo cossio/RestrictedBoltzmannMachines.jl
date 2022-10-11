@@ -178,7 +178,7 @@ anneal_zero(l::xReLU) = xReLU(; θ = zero(l.θ), l.γ, Δ = zero(l.Δ), l.ξ)
 
 Log-partition function of a zero-weight version of `rbm`.
 """
-log_partition_zero_weight(rbm) = -cfg(rbm.visible) - cfg(rbm.hidden)
+log_partition_zero_weight(rbm) = -cgf(rbm.visible) - cgf(rbm.hidden)
 
 """
     logmeanexp(A; dims=:)

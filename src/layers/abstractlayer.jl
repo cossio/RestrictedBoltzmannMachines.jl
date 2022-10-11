@@ -34,12 +34,12 @@ function energy(layer::AbstractLayer, x::AbstractArray)
 end
 
 """
-    cfg(layer, inputs = 0)
+    cgf(layer, inputs = 0)
 
 Cumulant generating function of layer, reduced over layer dimensions.
 """
-function cfg(layer::AbstractLayer, inputs = 0)
-    F = cfgs(layer, inputs)
+function cgf(layer::AbstractLayer, inputs = 0)
+    F = cgfs(layer, inputs)
     if inputs isa Real || ndims(layer) == ndims(inputs)
         return sum(F)
     else
@@ -177,7 +177,7 @@ end
     ∂cfg(layer, inputs = 0; wts = 1)
 
 Unit activation moments, conjugate to layer parameters.
-These are obtained by differentiating `cfgs` with respect to the layer parameters.
+These are obtained by differentiating `cgfs` with respect to the layer parameters.
 Averages over configurations (weigthed by `wts`).
 """
 function ∂cfg(layer::AbstractLayer, inputs = 0; wts = nothing)

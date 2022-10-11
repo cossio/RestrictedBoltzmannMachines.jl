@@ -34,7 +34,7 @@ function energy(layer::_FieldLayers, x::AbstractArray)
     end
 end
 
-function ∂cfgs(layer::_FieldLayers, inputs = 0)
+function ∂cgfs(layer::_FieldLayers, inputs = 0)
     ∂θ = -mean_from_inputs(layer, inputs)
     return vstack((∂θ,))
 end

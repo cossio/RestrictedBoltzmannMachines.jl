@@ -35,7 +35,7 @@ We also overlay the analytical PDF.
 fig = Figure(resolution=(700,500))
 ax = Axis(fig[1,1])
 xs = repeat(reshape(range(minimum(data), maximum(data), 100), 1, 1, 100), size(layer)...)
-ps = exp.(RBMs.cfgs(layer) .- RBMs.energies(layer, xs))
+ps = exp.(RBMs.cgfs(layer) .- RBMs.energies(layer, xs))
 for (iθ, θ) in enumerate(θs), (iγ, γ) in enumerate(γs)
     hist!(ax, data[iθ, iγ, :], normalization=:pdf, label="θ=$θ, γ=$γ")
     lines!(xs[iθ, iγ, :], ps[iθ, iγ, :], linewidth=2)

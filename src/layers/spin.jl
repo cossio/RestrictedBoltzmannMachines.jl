@@ -29,7 +29,7 @@ end
 Spin(::Type{T}, sz::Dims) where {T} = Spin(; θ = zeros(T, sz))
 Spin(sz::Dims) = Spin(Float64, sz)
 
-cfgs(layer::Spin, inputs = 0) = spin_cfg.(layer.θ .+ inputs)
+cgfs(layer::Spin, inputs = 0) = spin_cfg.(layer.θ .+ inputs)
 mode_from_inputs(layer::Spin, inputs = 0) = ifelse.(layer.θ .+ inputs .> 0, Int8(1), Int8(-1))
 mean_from_inputs(layer::Spin, inputs = 0) = tanh.(layer.θ .+ inputs)
 mean_abs_from_inputs(layer::Spin, _ = 0) = Ones{Int8}(size(layer))

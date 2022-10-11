@@ -40,7 +40,7 @@ function Base.getproperty(layer::xReLU, name::Symbol)
 end
 
 energies(layer::xReLU, x::AbstractArray) = energies(dReLU(layer), x)
-cfgs(layer::xReLU, inputs = 0) = cfgs(dReLU(layer), inputs)
+cgfs(layer::xReLU, inputs = 0) = cgfs(dReLU(layer), inputs)
 sample_from_inputs(layer::xReLU, inputs = 0) = sample_from_inputs(dReLU(layer), inputs)
 mode_from_inputs(layer::xReLU, inputs = 0) = mode_from_inputs(dReLU(layer), inputs)
 mean_from_inputs(layer::xReLU, inputs = 0) = mean_from_inputs(dReLU(layer), inputs)
@@ -49,14 +49,14 @@ meanvar_from_inputs(layer::xReLU, inputs = 0) = meanvar_from_inputs(dReLU(layer)
 std_from_inputs(layer::xReLU, inputs = 0) = sqrt.(var_from_inputs(layer, inputs))
 mean_abs_from_inputs(layer::xReLU, inputs = 0) = mean_abs_from_inputs(dReLU(layer), inputs)
 
-function ∂cfgs(layer::xReLU, inputs = 0)
+function ∂cgfs(layer::xReLU, inputs = 0)
     drelu = dReLU(layer)
 
     lp = ReLU(; θ =  drelu.θp, γ = drelu.γp)
     ln = ReLU(; θ = -drelu.θn, γ = drelu.γn)
 
-    Fp = cfgs(lp,  inputs)
-    Fn = cfgs(ln, -inputs)
+    Fp = cgfs(lp,  inputs)
+    Fn = cgfs(ln, -inputs)
     F = -logaddexp.(-Fp, -Fn)
 
     pp = exp.(F - Fp)
