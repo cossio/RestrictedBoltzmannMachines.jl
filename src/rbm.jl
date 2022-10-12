@@ -47,7 +47,6 @@ function inputs_v_from_h(rbm, h)
 end
 
 # compat
-inputs_v_to_h(rbm, v) = inputs_h_from_v(rbm, v)
 inputs_h_to_v(rbm, h) = inputs_v_from_h(rbm, h)
 
 """
