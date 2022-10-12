@@ -7,7 +7,7 @@ using LogExpFunctions: logsumexp
 using QuadGK: quadgk
 using EllipsisNotation: (..)
 using RestrictedBoltzmannMachines: RBM, BinaryRBM, HopfieldRBM, Binary, Spin, Gaussian,
-    energy, interaction_energy, free_energy, log_likelihood, hidden_cfg, cgf,
+    energy, interaction_energy, free_energy, log_likelihood, hidden_cgf, cgf,
     inputs_h_from_v, inputs_v_from_h, batch_size,
     mean_from_inputs, sample_v_from_v, sample_h_from_v, sample_h_from_h, sample_v_from_h,
     batchmean, ∂interaction_energy, log_partition, var_from_inputs,
@@ -212,7 +212,7 @@ end
     hs = [[0,0], [0,1], [1,0], [1,1]]
     @test -free_energy(rbm, v) ≈ logsumexp(-energy(rbm, v, h) for h in hs)
 
-    @test @inferred(hidden_cfg(rbm, v)) ≈ cgf(rbm.hidden, inputs_h_from_v(rbm, v))
+    @test @inferred(hidden_cgf(rbm, v)) ≈ cgf(rbm.hidden, inputs_h_from_v(rbm, v))
 end
 
 @testset "Gaussian-Gaussian RBM, 1-dimension" begin

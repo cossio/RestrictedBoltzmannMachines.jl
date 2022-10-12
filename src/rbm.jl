@@ -53,11 +53,11 @@ Free energy of visible configuration (after marginalizing hidden configurations)
 """
 function free_energy(rbm, v)
     E = energy(rbm.visible, v)
-    Γ = hidden_cfg(rbm, v)
+    Γ = hidden_cgf(rbm, v)
     return E - Γ
 end
 
-function hidden_cfg(rbm, v)
+function hidden_cgf(rbm, v)
     inputs = inputs_h_from_v(rbm, v)
     return cgf(rbm.hidden, inputs)
 end
