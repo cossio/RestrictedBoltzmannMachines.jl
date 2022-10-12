@@ -46,9 +46,6 @@ function inputs_v_from_h(rbm, h)
     return reshape(iflat, size(rbm.visible)..., batch_size(rbm.hidden, h)...)
 end
 
-# compat
-inputs_h_to_v(rbm, h) = inputs_v_from_h(rbm, h)
-
 """
     free_energy(rbm, v)
 

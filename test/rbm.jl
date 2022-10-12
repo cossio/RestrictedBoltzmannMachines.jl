@@ -8,7 +8,7 @@ using QuadGK: quadgk
 using EllipsisNotation: (..)
 using RestrictedBoltzmannMachines: RBM, BinaryRBM, HopfieldRBM, Binary, Spin, Gaussian,
     energy, interaction_energy, free_energy, log_likelihood, hidden_cfg, cgf,
-    inputs_h_from_v, inputs_v_from_h, inputs_h_to_v, batch_size,
+    inputs_h_from_v, inputs_v_from_h, batch_size,
     mean_from_inputs, sample_v_from_v, sample_h_from_v, sample_h_from_h, sample_v_from_h,
     batchmean, ∂interaction_energy, log_partition, var_from_inputs,
     mean_h_from_v, mean_v_from_h, mode_h_from_v, mode_v_from_h, var_h_from_v, var_v_from_h,
@@ -25,7 +25,6 @@ using RestrictedBoltzmannMachines: RBM, BinaryRBM, HopfieldRBM, Binary, Spin, Ga
 
     @test size(inputs_h_from_v(rbm, v)) == (size(rbm.hidden)...,  Bv...)
     @test size(inputs_v_from_h(rbm, h)) == (size(rbm.visible)..., Bh...)
-    @test inputs_v_from_h(rbm, h) == inputs_h_to_v(rbm, h)
 
     if length(Bv) == length(Bh) == 0
         @test interaction_energy(rbm, v, h) isa Number
