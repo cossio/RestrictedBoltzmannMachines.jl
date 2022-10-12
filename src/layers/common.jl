@@ -25,10 +25,10 @@ end
 
 function energy(layer::_FieldLayers, x::AbstractArray)
     @assert size(layer) == size(x)[1:ndims(layer)]
-    xconv = activations_convert_maybe(layer.θ, x)
     if ndims(layer) == ndims(x)
         return -dot(layer.θ, x)
     else
+        xconv = activations_convert_maybe(layer.θ, x)
         Eflat = -vec(layer.θ)' * flatten(layer, xconv)
         return reshape(Eflat, batch_size(layer, x))
     end
