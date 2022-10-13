@@ -71,6 +71,9 @@ activations_convert_maybe(::AbstractArray{T}, x::AbstractArray{T}) where {T<:Abs
 activations_convert_maybe(::AbstractArray{T}, x::AbstractArray) where {T<:AbstractFloat} = map(T, x)
 activations_convert_maybe(::AbstractArray, x::AbstractArray) = x
 
+convert_eltype(A::AbstractArray, ::Type{T}) where {T} = T.(A)
+convert_eltype(A::AbstractArray{T}, ::Type{T}) where {T} = A
+
 """
     reshape_maybe(x, shape)
 

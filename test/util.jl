@@ -4,7 +4,7 @@ using Test: @test, @testset, @inferred
 using Statistics: mean, var, cov
 using LinearAlgebra: dot
 using EllipsisNotation: (..)
-using RestrictedBoltzmannMachines: sizedims, moving_average, vstack
+using RestrictedBoltzmannMachines: sizedims, moving_average, vstack, convert_eltype
 
 @testset "two" begin
     @test RBMs.two(1) === RBMs.two(Int) === 2
@@ -128,4 +128,21 @@ end
     @test size(Z) == (2,3,4)
     @test Z[1,..] == X
     @test Z[2,..] == Y
+end
+
+@testset "convert_eltype" begin
+    A = ones(Float32, 5, 4)
+    B = @inferred convert_eltype(A, Float32)
+    @test B == A
+    @test eltype(B) == Float32
+    B .= 0
+    @test iszero(A) && iszero(B)
+
+    A = ones(Float32, 5, 4)
+    B = @inferred convert_eltype(A, Float64)
+    @test B ≈ A
+    @test eltype(B) == Float64
+    B .= 0
+    @test iszero(B)
+    @test !iszero(A)
 end
