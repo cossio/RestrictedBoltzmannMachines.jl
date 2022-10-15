@@ -37,7 +37,8 @@ In addition, we consider only one kind of digit so that training is faster.
 =#
 
 Float = Float32
-train_x, train_y = MLDatasets.MNIST.traindata()
+train_x = MLDatasets.MNIST(split=:train)[:].features
+train_y = MLDatasets.MNIST(split=:train)[:].targets
 train_x = Array{Float}(train_x[:, :, train_y .== 0] .≥ 0.5)
 nothing #hide
 
