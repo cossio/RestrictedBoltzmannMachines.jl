@@ -43,24 +43,24 @@ nothing #hide
 
 # Train using Zygote gradients
 
-rbm_ad = BinaryRBM(Float, (28,28), 128)
-@time cdad!(rbm_ad, train_x) # warm-up run so as to not consider pre-compilation times
-initialize!(rbm_ad, train_x)
-history_ad = MVHistory()
-time_0 = time()
-@time cdad!(
-    rbm_ad, train_x; epochs, batchsize,
-    callback = function(@nospecialize(args...); @nospecialize(kw...))
-        push!(history_ad, :t, time() - time_0)
-    end
-)
-nothing #hide
+# rbm_ad = BinaryRBM(Float, (28,28), 128)
+# @time cdad!(rbm_ad, train_x) # warm-up run so as to not consider pre-compilation times
+# initialize!(rbm_ad, train_x)
+# history_ad = MVHistory()
+# time_0 = time()
+# @time cdad!(
+#     rbm_ad, train_x; epochs, batchsize,
+#     callback = function(@nospecialize(args...); @nospecialize(kw...))
+#         push!(history_ad, :t, time() - time_0)
+#     end
+# )
+# nothing #hide
 
 # Compare timings
 
 fig = Makie.Figure(resolution=(600, 400))
 ax = Makie.Axis(fig[1,1], xlabel="batch", ylabel="seconds")
 Makie.lines!(ax, get(history_∂s, :t)..., label="manual")
-Makie.lines!(ax, get(history_ad, :t)..., label="zygote")
+#Makie.lines!(ax, get(history_ad, :t)..., label="zygote")
 Makie.axislegend(ax, position=:rt)
 fig
