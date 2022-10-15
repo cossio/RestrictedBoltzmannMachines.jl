@@ -12,7 +12,7 @@ import RestrictedBoltzmannMachines as RBMs
 using Statistics: mean, std, var
 using Random: bitrand
 using ValueHistories: MVHistory
-using RestrictedBoltzmannMachines: visible, BinaryRBM, sample_from_inputs, minibatch_count
+using RestrictedBoltzmannMachines: BinaryRBM, sample_from_inputs, minibatch_count
 using RestrictedBoltzmannMachines: initialize!, log_pseudolikelihood, pcd!
 nothing #hide
 
