@@ -23,11 +23,11 @@ Now initialize our dReLU layer, with unit parameters spanning an interesting ran
 θns = [-3.0; 3.0]
 γps = [0.5; 1.0]
 γns = [0.5; 1.0]
-layer = RBMs.dReLU(
-    [θp for θp in θps, θn in θns, γp in γps, γn in γns],
-    [θn for θp in θps, θn in θns, γp in γps, γn in γns],
-    [γp for θp in θps, θn in θns, γp in γps, γn in γns],
-    [γn for θp in θps, θn in θns, γp in γps, γn in γns]
+layer = RBMs.dReLU(;
+    θp = [θp for θp in θps, θn in θns, γp in γps, γn in γns],
+    θn = [θn for θp in θps, θn in θns, γp in γps, γn in γns],
+    γp = [γp for θp in θps, θn in θns, γp in γps, γn in γns],
+    γn = [γn for θp in θps, θn in θns, γp in γps, γn in γns]
 )
 nothing #hide
 
