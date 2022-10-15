@@ -15,7 +15,7 @@ function center_gradient_v(rbm::RBM, ∂::∂RBM, λv::AbstractArray)
     @assert size(∂.w) == size(rbm.w)
     Δh = grad2ave(rbm.hidden, -∂.hidden)
     ∂w = reshape(∂.w, length(rbm.visible), length(rbm.hidden)) + vec(λv) * vec(Δh)'
-    return ∂RBM(∂.visible, ∂.hidden, reshape(∂w, size(∂.w)))
+    return ∂RBM(∂.visible, ∂.hidden, oftype(∂.w, reshape(∂w, size(∂.w))))
 end
 
 function center_gradient_h(rbm::RBM, ∂::∂RBM, λh::AbstractArray)
@@ -23,7 +23,7 @@ function center_gradient_h(rbm::RBM, ∂::∂RBM, λh::AbstractArray)
     @assert size(∂.w) == size(rbm.w)
     Δv = grad2ave(rbm.visible, -∂.visible)
     ∂w = reshape(∂.w, length(rbm.visible), length(rbm.hidden)) + vec(Δv) * vec(λh)'
-    return ∂RBM(∂.visible, ∂.hidden, reshape(∂w, size(∂.w)))
+    return ∂RBM(∂.visible, ∂.hidden, oftype(∂.w, reshape(∂w, size(∂.w))))
 end
 
 """
@@ -52,14 +52,14 @@ end
 function uncenter_step(layer::Union{Binary,Spin,Potts}, ∂::AbstractArray, shift::AbstractArray)
     @assert size(layer.par) == size(∂)
     ∂θ = ∂[1, ..]
-    return vstack((∂θ - shift,))
+    return oftype(∂, vstack((∂θ - shift,)))
 end
 
 function uncenter_step(layer::Union{Gaussian,ReLU}, ∂::AbstractArray, shift::AbstractArray)
     @assert size(layer.par) == size(∂)
     ∂θ = ∂[1, ..]
     ∂γ = ∂[2, ..]
-    return vstack((∂θ - shift, ∂γ))
+    return oftype(∂, vstack((∂θ - shift, ∂γ)))
 end
 
 function uncenter_step(layer::pReLU, ∂::AbstractArray, shift::AbstractArray)
@@ -68,7 +68,7 @@ function uncenter_step(layer::pReLU, ∂::AbstractArray, shift::AbstractArray)
     ∂γ = ∂[2, ..]
     ∂Δ = ∂[3, ..]
     ∂η = ∂[4, ..]
-    return vstack((∂θ - shift, ∂γ, ∂Δ, ∂η))
+    return oftype(∂, vstack((∂θ - shift, ∂γ, ∂Δ, ∂η)))
 end
 
 function uncenter_step(layer::xReLU, ∂::AbstractArray, shift::AbstractArray)
@@ -77,7 +77,7 @@ function uncenter_step(layer::xReLU, ∂::AbstractArray, shift::AbstractArray)
     ∂γ = ∂[2, ..]
     ∂Δ = ∂[3, ..]
     ∂ξ = ∂[4, ..]
-    return vstack((∂θ - shift, ∂γ, ∂Δ, ∂ξ))
+    return oftype(∂, vstack((∂θ - shift, ∂γ, ∂Δ, ∂ξ)))
 end
 
 function uncenter_step(layer::dReLU, ∂::AbstractArray, shift::AbstractArray)
@@ -86,7 +86,7 @@ function uncenter_step(layer::dReLU, ∂::AbstractArray, shift::AbstractArray)
     ∂θn = ∂[2, ..]
     ∂γp = ∂[3, ..]
     ∂γn = ∂[4, ..]
-    return vstack((∂θp - shift, ∂θn - shift, ∂γp, ∂γn))
+    return oftype(∂, vstack((∂θp - shift, ∂θn - shift, ∂γp, ∂γn)))
 end
 
 # get moments from layer cgf gradients, e.g. <v> = derivative of cgf w.r.t. θ
