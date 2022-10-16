@@ -8,12 +8,11 @@ We load MNIST via the MLDatasets.jl package.
 import Makie
 import CairoMakie
 import MLDatasets
-import Flux
 import RestrictedBoltzmannMachines as RBMs
 using Statistics: mean, std, var
 using Random: bitrand
 using ValueHistories: MVHistory
-using RestrictedBoltzmannMachines: visible, BinaryRBM, sample_from_inputs, minibatch_count
+using RestrictedBoltzmannMachines: BinaryRBM, sample_from_inputs, minibatch_count
 using RestrictedBoltzmannMachines: initialize!, log_pseudolikelihood, pcd!
 nothing #hide
 
@@ -38,7 +37,8 @@ In addition, we consider only one kind of digit so that training is faster.
 =#
 
 Float = Float32
-train_x, train_y = MLDatasets.MNIST.traindata()
+train_x = MLDatasets.MNIST(split=:train)[:].features
+train_y = MLDatasets.MNIST(split=:train)[:].targets
 train_x = Array{Float}(train_x[:, :, train_y .== 0] .≥ 0.5)
 nothing #hide
 

@@ -24,10 +24,18 @@ freqs = Dict(v => c / sum(values(counts)) for (v,c) in counts);
 𝒱 = [BitVector(digits(Bool, x; base=2, pad=N)) for x in 0:(2^N - 1)];
 ℱ = free_energy.(Ref(rbm), 𝒱);
 
+# Commenting this until https://github.com/MakieOrg/Makie.jl/issues/2045 gets resolved.
+# fig = Makie.Figure()
+# ax = Makie.Axis(fig[1,1], xlabel="empirical freqs.", ylabel="log(p)", xscale=log10, yscale=log10)
+# Makie.scatter!(ax, [get(freqs, v, 0.0) for v in 𝒱], exp.(-β * ℱ .- logsumexp(-β * ℱ)))
+# Makie.scatter!(ax, [get(freqs, v, 0.0) for v in 𝒱], exp.(-ℱ .- logsumexp(-ℱ)))
+# Makie.abline!(ax, 0, 1, color=:red)
+# fig
+
 fig = Makie.Figure()
-ax = Makie.Axis(fig[1,1], xlabel="empirical freqs.", ylabel="log(p)", xscale=log10, yscale=log10)
-Makie.scatter!(ax, [get(freqs, v, 0.0) for v in 𝒱], exp.(-β * ℱ .- logsumexp(-β * ℱ)))
-Makie.scatter!(ax, [get(freqs, v, 0.0) for v in 𝒱], exp.(-ℱ .- logsumexp(-ℱ)))
+ax = Makie.Axis(fig[1,1], xlabel="empirical freqs. (log)", ylabel="log(p)")
+Makie.scatter!(ax, log.([get(freqs, v, 0.0) for v in 𝒱]), -β * ℱ .- logsumexp(-β * ℱ))
+Makie.scatter!(ax, log.([get(freqs, v, 0.0) for v in 𝒱]), -ℱ .- logsumexp(-ℱ))
 Makie.abline!(ax, 0, 1, color=:red)
 fig
 

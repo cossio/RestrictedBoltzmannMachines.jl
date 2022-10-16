@@ -19,7 +19,7 @@ Now initialize our ReLU layer, with unit parameters spanning an interesting rang
 
 θs = [0; 10]
 γs = [5; 10]
-layer = RBMs.ReLU([θ for θ in θs, γ in γs], [γ for θ in θs, γ in γs])
+layer = RBMs.ReLU(; θ = [θ for θ in θs, γ in γs], γ = [γ for θ in θs, γ in γs])
 nothing #hide
 
 #=
@@ -37,7 +37,7 @@ We also overlay the analytical PDF.
 fig = Figure(resolution=(700,500))
 ax = Axis(fig[1,1])
 xs = repeat(reshape(range(minimum(data), maximum(data), 100), 1, 1, 100), size(layer)...)
-ps = exp.(RBMs.free_energies(layer) .- RBMs.energies(layer, xs))
+ps = exp.(RBMs.cgfs(layer) .- RBMs.energies(layer, xs))
 for (iθ, θ) in enumerate(θs), (iγ, γ) in enumerate(γs)
     hist!(ax, data[iθ, iγ, :], normalization=:pdf, label="θ=$θ, γ=$γ")
     lines!(xs[iθ, iγ, :], ps[iθ, iγ, :], linewidth=2)

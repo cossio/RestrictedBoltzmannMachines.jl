@@ -10,7 +10,6 @@ using LinearAlgebra: dot
 using ValueHistories: MVHistory
 import Makie
 import CairoMakie
-import Flux
 import MLDatasets
 using RestrictedBoltzmannMachines: BinaryRBM, initialize!, pcd!, log_pseudolikelihood, minibatch_count
 using RestrictedBoltzmannMachines: free_energy, sample_v_from_v, mean_h_from_v, default_optimizer

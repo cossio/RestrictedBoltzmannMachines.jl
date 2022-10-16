@@ -30,7 +30,7 @@ nothing #hide
 
 # Get some equilibrated samples from model
 v = train_x[:, :, rand(1:size(train_x, 3), 1000)]
-sample_v_from_v(rbm, v; steps=1000)
+v = sample_v_from_v(rbm, v; steps=1000)
 nothing #hide
 
 # Estimate Z with AIS and reverse AIS.
@@ -39,7 +39,7 @@ nsamples=100
 ndists = [10, 100, 1000, 10_000, 100_000]
 R_ais = Vector{Float64}[]
 R_rev = Vector{Float64}[]
-init = initialize!(Binary(zero(rbm.visible.θ)), v)
+init = initialize!(Binary(; θ = zero(rbm.visible.θ)), v)
 nothing #hide
 
 for nbetas in ndists

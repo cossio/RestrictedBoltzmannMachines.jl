@@ -31,7 +31,7 @@ nhidden = 64
 batchsize = 64
 nupdates = 20000
 epochs = training_epochs(; nsamples = size(train_x, 3), nupdates, batchsize)
-rbm = RBM(Binary(Float,28,28), Binary(Float,nhidden), randn(Float,28,28,nhidden)/28)
+rbm = RBM(Binary(Float,(28,28)), Binary(Float,(nhidden,)), randn(Float,(28,28,nhidden))/28)
 initialize!(rbm, train_x);
 lpls = Float64[]
 Fm = zeros(batchsize, epochs * minibatch_count(train_x; batchsize))
@@ -50,7 +50,7 @@ end
 @time pcd!(
     rbm, train_x;
     epochs, batchsize, callback=mycb, l2_weights=1e-4,
-    optim=Flux.ADAM(5e-4, (0.9, 0.999))
+    optim=Flux.Adam(5e-4, (0.9, 0.999))
 );
 
 # Plot log_pseudolikelihood during training
