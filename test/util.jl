@@ -132,14 +132,14 @@ end
 
 @testset "convert_eltype" begin
     A = ones(Float32, 5, 4)
-    B = @inferred convert_eltype(A, Float32)
+    B = @inferred convert_eltype(Float32, A)
     @test B == A
     @test eltype(B) == Float32
     B .= 0
     @test iszero(A) && iszero(B)
 
     A = ones(Float32, 5, 4)
-    B = @inferred convert_eltype(A, Float64)
+    B = @inferred convert_eltype(Float64, A)
     @test B ≈ A
     @test eltype(B) == Float64
     B .= 0

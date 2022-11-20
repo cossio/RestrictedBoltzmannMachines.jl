@@ -29,7 +29,7 @@ Interaction inputs from visible to hidden layer.
 """
 function inputs_h_from_v(rbm, v)
     wflat = flat_w(rbm)
-    vflat = activations_convert_maybe(wflat, flat_v(rbm, v))
+    vflat = with_eltype_of(wflat, flat_v(rbm, v))
     iflat = wflat' * vflat
     return reshape(iflat, size(rbm.hidden)..., batch_size(rbm.visible, v)...)
 end
@@ -41,7 +41,7 @@ Interaction inputs from hidden to visible layer.
 """
 function inputs_v_from_h(rbm, h)
     wflat = flat_w(rbm)
-    hflat = activations_convert_maybe(wflat, flat_h(rbm, h))
+    hflat = with_eltype_of(wflat, flat_h(rbm, h))
     iflat = wflat * hflat
     return reshape(iflat, size(rbm.visible)..., batch_size(rbm.hidden, h)...)
 end
@@ -82,7 +82,10 @@ Weight mediated interaction energy.
 function interaction_energy(rbm, v, h)
     bsz = batch_size(rbm, v, h)
     if ndims(rbm.visible) == ndims(v) || ndims(rbm.hidden) == ndims(h)
-        E = -flat_v(rbm, v)' * flat_w(rbm) * flat_h(rbm, h)
+        w_flat = flat_w(rbm)
+        v_flat = with_eltype_of(w_flat, flat_v(rbm, v))
+        h_flat = with_eltype_of(w_flat, flat_h(rbm, h))
+        E = -v_flat' * w_flat * with_eltype_of(w_flat, flat_h(rbm, h))
     elseif length(rbm.visible) ≥ length(rbm.hidden)
         inputs = inputs_h_from_v(rbm, v)
         E = -sum(inputs .* h; dims = 1:ndims(rbm.hidden))
@@ -304,7 +307,7 @@ function ∂interaction_energy(rbm, v, h; wts=nothing)
         ∂wflat = -vec(batchmean(rbm.visible, v; wts)) * vec(h)'
     else
         hflat = flatten(rbm.hidden, h)
-        vflat = activations_convert_maybe(hflat, flatten(rbm.visible, v))
+        vflat = with_eltype_of(hflat, flatten(rbm.visible, v))
         @assert isnothing(wts) || size(wts) == batch_size(rbm.visible, v)
         if isnothing(wts)
             ∂wflat = -vflat * hflat' / size(vflat, 2)

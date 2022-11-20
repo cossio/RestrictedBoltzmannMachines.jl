@@ -66,14 +66,9 @@ Broadcasts `A` into the size of `A .+ B .+ ...` (without actually doing a sum).
 broadlike(A, B...) = first_argument.(A, B...)
 first_argument(x, y...) = x
 
-# convert to common eltype before matrix multiply, to make sure we hit BLAS
-activations_convert_maybe(::AbstractArray{T}, x::AbstractArray{T}) where {T<:AbstractFloat} = x
-activations_convert_maybe(::AbstractArray{T}, x::AbstractArray) where {T<:AbstractFloat} = map(T, x)
-activations_convert_maybe(::AbstractArray, x::AbstractArray) = x
-
-# TODO: use convert_eltype instead of activations_convert_maybe
-convert_eltype(A::AbstractArray, ::Type{T}) where {T} = T.(A)
-convert_eltype(A::AbstractArray{T}, ::Type{T}) where {T} = A
+# convert eltype before matrix multiply, to make sure we hit BLAS
+convert_eltype(::Type{T}, A::AbstractArray) where {T} = convert(AbstractArray{T}, A)
+with_eltype_of(X::AbstractArray, Y::AbstractArray) = convert_eltype(eltype(X), Y)
 
 """
     reshape_maybe(x, shape)

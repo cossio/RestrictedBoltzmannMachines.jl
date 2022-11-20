@@ -28,7 +28,7 @@ function energy(layer::_FieldLayers, x::AbstractArray)
     if ndims(layer) == ndims(x)
         return -dot(layer.θ, x)
     else
-        xconv = activations_convert_maybe(layer.θ, x)
+        xconv = with_eltype_of(layer.θ, x)
         Eflat = -vec(layer.θ)' * flatten(layer, xconv)
         return reshape(Eflat, batch_size(layer, x))
     end
