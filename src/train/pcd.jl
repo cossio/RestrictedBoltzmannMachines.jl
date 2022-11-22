@@ -85,5 +85,5 @@ function pcd!(
 
         callback(; rbm, optim, iter, vm, vd, wd)
     end
-    return rbm
+    return rbm, state
 end
