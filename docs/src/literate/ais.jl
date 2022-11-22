@@ -25,7 +25,7 @@ nothing #hide
 
 rbm = BinaryRBM(Float, (28,28), 128)
 initialize!(rbm, train_x)
-@time pcd!(rbm, train_x; epochs=100, batchsize=128)
+@time pcd!(rbm, train_x; iters=10000, batchsize=128)
 nothing #hide
 
 # Get some equilibrated samples from model

@@ -1,4 +1,3 @@
-import Zygote
 using Test: @inferred, @test, @testset, @test_throws
 using Random: bitrand, randn!
 using Statistics: mean
@@ -6,13 +5,14 @@ using LinearAlgebra: logdet, diag, diagm, dot, isposdef
 using LogExpFunctions: logsumexp
 using QuadGK: quadgk
 using EllipsisNotation: (..)
+using Zygote: gradient
 using RestrictedBoltzmannMachines: RBM, BinaryRBM, HopfieldRBM, Binary, Spin, Gaussian,
     energy, interaction_energy, free_energy, log_likelihood, hidden_cgf, cgf,
-    inputs_h_from_v, inputs_v_from_h, batch_size,
+    inputs_h_from_v, inputs_v_from_h, batch_size, ∂free_energy,
     mean_from_inputs, sample_v_from_v, sample_h_from_v, sample_h_from_h, sample_v_from_h,
     batchmean, ∂interaction_energy, log_partition, var_from_inputs,
     mean_h_from_v, mean_v_from_h, mode_h_from_v, mode_v_from_h, var_h_from_v, var_v_from_h,
-    reconstruction_error, mirror
+    reconstruction_error, mirror, wmean
 
 @testset "batches, n=$n, m=$m, Bv=$Bv, Bh=$Bh" for n in (5, (5,2)), m in (2, (3,4)), Bv in ((), (3,2)), Bh in ((), (3,2))
     rbm = BinaryRBM(randn(n...), randn(m...), randn(n..., m...))
@@ -57,7 +57,7 @@ using RestrictedBoltzmannMachines: RBM, BinaryRBM, HopfieldRBM, Binary, Spin, Ga
     @inferred inputs_v_from_h(rbm, h)
     @inferred interaction_energy(rbm, v, h)
     @inferred energy(rbm, v, h)
-    gs = Zygote.gradient(rbm) do rbm
+    gs = gradient(rbm) do rbm
         mean(energy(rbm, v, h))
     end
     ∂w = @inferred ∂interaction_energy(rbm, v, h)
@@ -267,7 +267,7 @@ end
     Fv = sum(-(rbm.hidden.θ .+ inputs_h_from_v(rbm, v)).^2 ./ 2rbm.hidden.γ)
     @test only(free_energy(rbm, v)) ≈ Ev + Fv - sum(log.(2π ./ rbm.hidden.γ)) / 2
 
-    gs = Zygote.gradient(rbm) do rbm
+    gs = gradient(rbm) do rbm
         log_partition(rbm)
     end
     ∂θv = vec(only(gs).visible.par[1, ..])
@@ -290,4 +290,30 @@ end
     rbm = BinaryRBM(randn(5), randn(0), randn(5,0))
     v = bitrand(5)
     @test free_energy(rbm, v) ≈ energy(rbm.visible, v)
+end
+
+@testset "∂free_energy(rbm, v)" begin
+    rbm = BinaryRBM(randn(5,2), randn(4,3), randn(5,2,4,3))
+    v = bitrand(size(rbm.visible)..., 7)
+    gs = gradient(rbm) do rbm
+        mean(free_energy(rbm, v))
+    end
+    ∂F = ∂free_energy(rbm, v)
+    @test ∂F.visible ≈ only(gs).visible.par
+    @test ∂F.hidden ≈ only(gs).hidden.par
+    @test ∂F.w ≈ only(gs).w
+
+    gλ = 2.3 * ∂F
+    @test gλ.visible ≈ ∂F.visible * 2.3
+    @test gλ.hidden ≈ ∂F.hidden * 2.3
+    @test gλ.w ≈ ∂F.w * 2.3
+
+    wts = rand(7)
+    gs = gradient(rbm) do rbm
+        wmean(free_energy(rbm, v); wts)
+    end
+    ∂F = ∂free_energy(rbm, v; wts)
+    @test ∂F.visible ≈ only(gs).visible.par
+    @test ∂F.hidden ≈ only(gs).hidden.par
+    @test ∂F.w ≈ only(gs).w
 end

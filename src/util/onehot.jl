@@ -1,9 +1,3 @@
-#=
-See also:
-https://github.com/FluxML/Flux.jl/blob/master/src/onehot.jl
-https://github.com/cossio/OneHot.jl
-=#
-
 """
     onehot_encode(A, code)
 

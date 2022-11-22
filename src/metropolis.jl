@@ -1,8 +1,8 @@
 """
     metropolis(rbm, v; β = 1, steps = 1)
 
-Metropolis-Hastings sampling from `rbm` at inverse temperature β, starting from
-configuration `v`.
+Metropolis-Hastings sampling from `rbm` at inverse temperature `β`, starting from
+configuration `v`. Moves are proposed by normal Gibbs sampling.
 """
 function metropolis(rbm::RBM, v::AbstractArray; β::Real = 1, steps::Int = 1)
     @assert size(v)[1:ndims(rbm.visible)] == size(rbm.visible)

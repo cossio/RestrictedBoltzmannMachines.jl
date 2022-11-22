@@ -7,10 +7,10 @@ function pcd!(
     rbm::RBM,
     data::AbstractArray;
     batchsize::Int = 1,
-    epochs::Int = 1,
+    iters::Int = 1, # number of gradient updates
     wts::Union{AbstractVector, Nothing} = nothing, # data weights
     steps::Int = 1, # MC steps to update fantasy chains
-    optim = default_optimizer(_nobs(data), batchsize, epochs), # optimization algorithm
+    optim::AbstractRule = Adam(), # optimizer rule
     moments = moments_from_samples(rbm.visible, data; wts), # sufficient statistics for visible layer
 
     # regularization
@@ -21,26 +21,25 @@ function pcd!(
 
     # gauge
     zerosum::Bool = true, # zerosum gauge for Potts layers
-    rescale::Bool = true, # normalize hidden units to var(h) = 1
-    center::Bool = true, # center gradients
+    rescale::Bool = true, # normalize continuous hidden units to var(h) = 1
 
     # momentum for hidden activity statistics tracking
     ρh::Real = 99//100,
     ϵh::Real = 1//100, # prevent vanishing var(h) estimate
 
-    callback = empty_callback, # called for every batch
-    mode::Symbol = :pcd, # :pcd, :cd, or :exact
+    callback = Returns(nothing), # called for every batch
 
-    vm = fantasy_init(rbm.visible; batchsize, mode), # fantasy chains
+    # init fantasy chains
+    vm = sample_from_inputs(rbm.visible, falses(size(rbm.visible)..., batchsize)),
+
     shuffle::Bool = true
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert isnothing(wts) || size(data)[end] == length(wts)
     @assert ϵh ≥ 0
 
-    # we center layers with their average activities
-    ave_v = batchmean(rbm.visible, data; wts)
-    ave_h, var_h = total_meanvar_from_inputs(rbm.hidden, inputs_h_from_v(rbm, data); wts)
+    # used to scale hidden unit activities
+    var_h = total_var_from_inputs(rbm.hidden, inputs_h_from_v(rbm, data); wts)
     @assert all(var_h .+ ϵh .> 0)
 
     # gauge constraints
@@ -50,116 +49,41 @@ function pcd!(
     # store average weight of each data point
     wts_mean = isnothing(wts) ? 1 : mean(wts)
 
-    for epoch in 1:epochs
-        batches = minibatches(data, wts; batchsize, shuffle)
-        for (batch_idx, (vd, wd)) in enumerate(batches)
-            # compute positive gradient from data
-            ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
+    # define parameters for Optimisers
+    ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w)
+    state = setup(optim, ps)
 
-            # compute negative gradient
-            ∂m = ∂logpartition(rbm; vd, vm, wd, mode, steps)
+    for (iter, (vd, wd)) in zip(1:iters, infinite_minibatches(data, wts; batchsize, shuffle))
+        # update fantasy chains
+        vm = sample_v_from_v(rbm, vm; steps)
 
-            # likelihood gradient is the difference of positive and negative parts
-            ∂ = ∂d - ∂m
+        # compute gradient
+        ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
+        ∂m = ∂free_energy(rbm, vm)
+        ∂ = ∂d - ∂m
 
-            # correct weighted minibatch bias
-            batch_weight = isnothing(wts) ? 1 : mean(wd) / wts_mean
-            ∂ *= batch_weight
+        # weight decay
+        ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum)
 
-            # extract hidden unit statistics from gradient
-            ave_h_batch = grad2ave(rbm.hidden, -∂d.hidden)
-            var_h_batch = grad2var(rbm.hidden, -∂d.hidden)
+        # feed gradient to Optimiser rule
+        gs = (; visible = ∂.visible, hidden = ∂.hidden, w = ∂.w)
+        state, ps = update!(state, ps, gs)
 
-            #= Exponential moving average of mean and variance of hidden unit activations.
-            The batchweight can be interpreted as an "effective number of updates". =#
-            ρh_eff = ρh ^ batch_weight # effective damp after 'batch_weight' updates
-            ave_h .= ρh_eff * ave_h .+ (1 - ρh_eff) * ave_h_batch
-            var_h .= ρh_eff * var_h .+ (1 - ρh_eff) * var_h_batch
-            @assert all(var_h .+ ϵh .> 0)
+        # correct weighted minibatch bias
+        batch_weight = isnothing(wts) ? 1 : mean(wd) / wts_mean
+        ∂ *= batch_weight
 
-            # weight decay
-            ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum)
+        # Exponential moving average of variance of hidden unit activations.
+        ρh_eff = ρh ^ batch_weight # effective damp after 'batch_weight' updates
+        var_h_batch = grad2var(rbm.hidden, -∂d.hidden) # extract hidden unit statistics from gradient
+        var_h .= ρh_eff * var_h .+ (1 - ρh_eff) * var_h_batch
+        @assert all(var_h .+ ϵh .> 0)
 
-            if center
-                # gradient of the centered RBM (Melchior et al 2016)
-                ∂ = center_gradient(rbm, ∂, ave_v, ave_h)
-            end
+        # reset gauge
+        rescale && rescale_hidden!(rbm, sqrt.(var_h .+ ϵh))
+        zerosum && zerosum!(rbm)
 
-            # compute parameter update step from gradient, according to optimizer algorithm
-            update!(∂, rbm, optim)
-
-            if center
-                # transform step in centered coordinates to uncentered coordinates
-                ∂ = uncenter_step(rbm, ∂, ave_v, ave_h)
-            end
-
-            # update parameters with update step computed above
-            update!(rbm, ∂)
-
-            # reset gauge
-            zerosum && zerosum!(rbm)
-            rescale && rescale_hidden!(rbm, sqrt.(var_h .+ ϵh))
-
-            callback(; rbm, optim, epoch, batch_idx, vm, vd, wd)
-        end
+        callback(; rbm, optim, iter, vm, vd, wd)
     end
     return rbm
-end
-
-# init fantasy chains
-function fantasy_init(layer::AbstractLayer; batchsize::Int, mode::Symbol = :pcd)
-    @assert mode ∈ (:pcd, :cd, :exact)
-    if mode === :exact
-        @warn "Running extensive sampling; this can take a lot of RAM and time"
-        return extensive_sample(layer)
-    else
-        return sample_from_inputs(layer, falses(size(layer)..., batchsize))
-    end
-end
-
-empty_callback(@nospecialize(args...); @nospecialize(kw...)) = nothing
-
-function ∂logpartition(
-    rbm::RBM;
-    vd::AbstractArray,
-    vm::AbstractArray,
-    wd::Union{AbstractArray, Nothing},
-    mode::Symbol,
-    steps::Int
-)
-    @assert mode ∈ (:pcd, :cd, :exact)
-    if mode === :pcd
-        # update persistent fantasy chains
-        vm .= sample_v_from_v(rbm, vm; steps)
-        return ∂free_energy(rbm, vm)
-    elseif mode === :cd
-        # chains re-initialized from data
-        vm .= sample_v_from_v(rbm, vd; steps)
-        return ∂free_energy(rbm, vm; wts = wd)
-    elseif mode === :exact
-        # use exact RBM probabilities (assuming `vm` is an extensive sample)
-        p = softmax(-free_energy(rbm, vm))
-        return ∂free_energy(rbm, vm; wts = p)
-    end
-end
-
-function extensive_sample(layer::Binary; maxlen::Int = 12)
-    @assert length(layer) ≤ maxlen
-    N = length(layer)
-    v = reduce(hcat, BitVector.(digits.(Bool, 0:(2^N - 1), base=2, pad=N)))
-    return reshape(v, size(layer)..., :)
-end
-
-function extensive_sample(layer::Spin; maxlen::Int = 12)
-    σ = extensive_sample(Binary(; layer.θ); maxlen)
-    return Int8(2) * σ .- Int8(1)
-end
-
-function extensive_sample(layer::Potts; maxlen::Int = 12)
-    q = size(layer, 1)
-    N = prod(tail(size(layer)))
-    @assert N * log2(q) ≤ maxlen && q < typemax(Int8)
-    potts = reduce(hcat, digits.(Int8, 0:(q^N - 1), base=q, pad=N))
-    onehot = reshape(potts, 1, :) .== 0:(q - 1)
-    return reshape(onehot, size(layer)..., :)
 end
