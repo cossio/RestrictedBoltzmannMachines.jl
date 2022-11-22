@@ -11,7 +11,7 @@ import MLDatasets
 using Statistics: mean, std, var
 using Random: bitrand
 using ValueHistories: MVHistory, @trace
-using RestrictedBoltzmannMachines: BinaryRBM, sample_from_inputs, minibatch_count,
+using RestrictedBoltzmannMachines: BinaryRBM, sample_from_inputs,
     initialize!, log_pseudolikelihood, pcd!, free_energy, sample_v_from_v
 nothing #hide
 
@@ -70,7 +70,6 @@ Now we train the RBM on the data.
 =#
 
 batchsize = 256
-batchcount = minibatch_count(train_x; batchsize)
 iters = 10000
 history = MVHistory()
 @time pcd!(
