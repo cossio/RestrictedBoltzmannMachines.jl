@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+## [v2.0.0]
+
 - This CHANGELOG file.
 - Rescale weights to norm 1, instead of hidden unit activities to unit variances (https://github.com/cossio/RestrictedBoltzmannMachines.jl/commit/4cae554013d7b6ab97a900910ff67d2a43d263b0). This is a simpler way to settle the scale degeneracy between weights and hidden unit activities for continuous hidden units.
     * Introduce `rescale_weights!(rbm)` to normalize weights attached to each hidden units.
