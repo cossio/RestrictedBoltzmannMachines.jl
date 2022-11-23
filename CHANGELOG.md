@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
-## [v2.0.1]
+## [v2.0.1](https://github.com/cossio/RestrictedBoltzmannMachines.jl/releases/tag/v2.0.1)
 
 - Close CUDA issue [#20](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/20).
 
