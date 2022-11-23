@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [v2.0.1]
 
-- Close CUDA issue [#20].
+- Close CUDA issue [#20](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/20).
 
 ## [v2.0.0](https://github.com/cossio/RestrictedBoltzmannMachines.jl/releases/tag/v2.0.0)
 
