@@ -2,9 +2,10 @@ import Random
 using Test: @test, @testset, @inferred
 using Statistics: mean, var
 using Random: bitrand, rand!, randn!
+using LinearAlgebra: norm
 using RestrictedBoltzmannMachines: RBM, Binary, free_energy, Gaussian, ReLU, dReLU, pReLU, xReLU,
     sample_v_from_v, sample_h_from_h, mean_from_inputs, var_from_inputs,
-    rescale_hidden!, rescale_activations!
+    rescale_hidden!, rescale_activations!, rescale_weights!,  weight_norms
 
 Random.seed!(23)
 
@@ -54,4 +55,20 @@ end
     @test mean(h; dims=2) ≈ ave_h ./ λ rtol=0.1
     @test var(v; dims=2) ≈ var_v rtol=0.1
     @test var(h; dims=2) ≈ var_h ./ λ.^2 rtol=0.1
+end
+
+@testset "rescale_weights!" begin
+    rbm = RBM(Binary((2,)), ReLU((1,)), randn(2,1))
+    randn!(rbm.visible.θ)
+    randn!(rbm.hidden.θ)
+    rand!(rbm.hidden.γ)
+    rbm.hidden.γ .+= 0.5
+
+    v = sample_v_from_v(rbm, bitrand(size(rbm.visible)..., 1000); steps=100)
+    F = free_energy(rbm, v)
+
+    ω = @inferred weight_norms(rbm)
+    @test ω ≈ [norm(rbm.w)]
+    @inferred rescale_weights!(rbm)
+    @test free_energy(rbm, v) ≈ F .- sum(log, ω)
 end

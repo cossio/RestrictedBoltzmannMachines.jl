@@ -21,11 +21,7 @@ function pcd!(
 
     # gauge
     zerosum::Bool = true, # zerosum gauge for Potts layers
-    rescale::Bool = true, # normalize continuous hidden units to var(h) = 1
-
-    # momentum for hidden activity statistics tracking
-    ρh::Real = 99//100,
-    ϵh::Real = 1//100, # prevent vanishing var(h) estimate
+    rescale::Bool = true, # normalize weights to unit norm (for continuous hidden units only)
 
     callback = Returns(nothing), # called for every batch
 
@@ -36,15 +32,10 @@ function pcd!(
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert isnothing(wts) || size(data)[end] == length(wts)
-    @assert ϵh ≥ 0
-
-    # used to scale hidden unit activities
-    var_h = total_var_from_inputs(rbm.hidden, inputs_h_from_v(rbm, data); wts)
-    @assert all(var_h .+ ϵh .> 0)
 
     # gauge constraints
     zerosum && zerosum!(rbm)
-    rescale && rescale_hidden!(rbm, sqrt.(var_h .+ ϵh))
+    rescale && rescale_weights!(rbm)
 
     # store average weight of each data point
     wts_mean = isnothing(wts) ? 1 : mean(wts)
@@ -73,14 +64,8 @@ function pcd!(
         batch_weight = isnothing(wts) ? 1 : mean(wd) / wts_mean
         ∂ *= batch_weight
 
-        # Exponential moving average of variance of hidden unit activations.
-        ρh_eff = ρh ^ batch_weight # effective damp after 'batch_weight' updates
-        var_h_batch = grad2var(rbm.hidden, -∂d.hidden) # extract hidden unit statistics from gradient
-        var_h .= ρh_eff * var_h .+ (1 - ρh_eff) * var_h_batch
-        @assert all(var_h .+ ϵh .> 0)
-
         # reset gauge
-        rescale && rescale_hidden!(rbm, sqrt.(var_h .+ ϵh))
+        rescale && rescale_weights!(rbm)
         zerosum && zerosum!(rbm)
 
         callback(; rbm, optim, iter, vm, vd, wd)
