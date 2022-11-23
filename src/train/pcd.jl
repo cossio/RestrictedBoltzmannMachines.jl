@@ -28,7 +28,11 @@ function pcd!(
     # init fantasy chains
     vm = sample_from_inputs(rbm.visible, falses(size(rbm.visible)..., batchsize)),
 
-    shuffle::Bool = true
+    shuffle::Bool = true,
+
+    # parameters to optimize
+    ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w),
+    state = setup(optim, ps) # initialize optimiser state
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert isnothing(wts) || size(data)[end] == length(wts)
@@ -39,10 +43,6 @@ function pcd!(
 
     # store average weight of each data point
     wts_mean = isnothing(wts) ? 1 : mean(wts)
-
-    # define parameters for Optimisers
-    ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w)
-    state = setup(optim, ps)
 
     for (iter, (vd, wd)) in zip(1:iters, infinite_minibatches(data, wts; batchsize, shuffle))
         # update fantasy chains
@@ -70,5 +70,5 @@ function pcd!(
 
         callback(; rbm, optim, iter, vm, vd, wd)
     end
-    return rbm, state
+    return state, ps
 end

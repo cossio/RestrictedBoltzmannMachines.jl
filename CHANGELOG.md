@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file. The format 
     * Now `pcd!(...; rescale=true, ...)` uses `rescale_weights!`, instead of scaling hidden unit activities to unit variances.
     * BREAKING: Removed `ρh`, `ϵh` keyword arguments from `pcd!`, which used to control the tracking of hidden unit variances during training.
     * BREAKING: `grad2var` has been removed.
+- Allow passing `ps`, `state` to `pcd!` to control which parameters are optimized. Now `pcd!` returns `state, ps`, which can be breaking.
 
 ## [v1.0.0]
 
