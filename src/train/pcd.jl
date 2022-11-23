@@ -26,7 +26,7 @@ function pcd!(
     callback = Returns(nothing), # called for every batch
 
     # init fantasy chains
-    vm = sample_from_inputs(rbm.visible, falses(size(rbm.visible)..., batchsize)),
+    vm = sample_from_inputs(rbm.visible, Falses(size(rbm.visible)..., batchsize)),
 
     shuffle::Bool = true,
 
