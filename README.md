@@ -28,6 +28,10 @@ import RestrictedBoltzmannMachines as RBMs
 
 ## Related packages
 
+Use RBMs on the GPU (CUDA):
+
+- https://github.com/cossio/CudaRBMs.jl
+
 Other packages implementing Restricted Boltzmann Machines in Julia:
 
 - https://github.com/dfdx/Boltzmann.jl
