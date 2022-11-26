@@ -40,3 +40,9 @@ Other packages implementing Restricted Boltzmann Machines in Julia:
 
 - https://github.com/dfdx/Boltzmann.jl
 - https://github.com/stefan-m-lenz/BoltzmannMachines.jl
+
+## Citation
+
+If you use this code, please cite:
+
+* Fernandez-de-Cossio-Diaz, Jorge, Simona Cocco, and Remi Monasson. "Disentangling representations in Restricted Boltzmann Machines without adversaries." arXiv preprint arXiv:2206.11600 (2022)
