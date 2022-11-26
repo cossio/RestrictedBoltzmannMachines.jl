@@ -32,6 +32,10 @@ Use RBMs on the GPU (CUDA):
 
 - https://github.com/cossio/CudaRBMs.jl
 
+Centered RBMs:
+
+- https://github.com/cossio/CenteredRBMs.jl
+
 Other packages implementing Restricted Boltzmann Machines in Julia:
 
 - https://github.com/dfdx/Boltzmann.jl
