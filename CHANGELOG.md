@@ -21,3 +21,7 @@ All notable changes to this project will be documented in this file. The format 
 ## [v1.0.0](https://github.com/cossio/RestrictedBoltzmannMachines.jl/commit/9eeb7cf313362258d2cb8a83f725c382049a9d44)
 
 - Release v1.0.0.
+
+## [0.39]
+
+- Now `pcd!(...; iters=n, ...)` performs `n` gradient updates. This replaces the `epochs` setting.
