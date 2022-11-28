@@ -53,16 +53,16 @@ function pcd!(
         ∂m = ∂free_energy(rbm, vm)
         ∂ = ∂d - ∂m
 
+        # correct weighted minibatch bias
+        batch_weight = isnothing(wts) ? 1 : mean(wd) / wts_mean
+        ∂ *= batch_weight
+
         # weight decay
         ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum)
 
         # feed gradient to Optimiser rule
         gs = (; visible = ∂.visible, hidden = ∂.hidden, w = ∂.w)
         state, ps = update!(state, ps, gs)
-
-        # correct weighted minibatch bias
-        batch_weight = isnothing(wts) ? 1 : mean(wd) / wts_mean
-        ∂ *= batch_weight
 
         # reset gauge
         rescale && rescale_weights!(rbm)
