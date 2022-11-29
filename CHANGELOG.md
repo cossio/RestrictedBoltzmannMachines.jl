@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [Unreleased]
 
+## [v2.0.4]
+
+- Always convert to weights eltype in ∂interaction_energy (previously, converted only in some cases).
+
 ## [v2.0.3]
 
 - Convert to weights eltype in ∂interaction_energy (fix #10).
