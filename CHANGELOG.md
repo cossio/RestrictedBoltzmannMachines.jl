@@ -34,6 +34,9 @@ All notable changes to this project will be documented in this file. The format 
 
 - Release v1.0.0.
 
-## [0.39]
+## [v0.39]
 
 - Now `pcd!(...; iters=n, ...)` performs `n` gradient updates. This replaces the `epochs` setting.
+- `pcd` now uses the Optimisers framework instead of Flux. In particular, `optim` expects a `Optimisers.AbstractRule`.
+
+## [v0.38]
