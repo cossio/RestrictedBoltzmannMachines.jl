@@ -1,8 +1,5 @@
 using Test: @test, @testset, @inferred
-import RestrictedBoltzmannMachines as RBMs
-using Random: bitrand
-using RestrictedBoltzmannMachines: RBM, BinaryRBM, ∂free_energy, ∂RBM,
-    Binary, Spin, Potts, Gaussian, ReLU, dReLU, pReLU, xReLU
+using RestrictedBoltzmannMachines: ∂RBM
 
 @testset "∂ operations" begin
     ∂1 = ∂RBM(randn(1,3), randn(1,2), randn(3,2))
