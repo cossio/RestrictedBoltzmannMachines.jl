@@ -306,14 +306,12 @@ function ∂interaction_energy(rbm, v, h; wts=nothing)
     elseif ndims(rbm.hidden) == ndims(h)
         ∂wflat = -vec(batchmean(rbm.visible, v; wts)) * vec(h)'
     else
-        hflat = flatten(rbm.hidden, h)
-        vflat = with_eltype_of(hflat, flatten(rbm.visible, v))
-        @assert isnothing(wts) || size(wts) == batch_size(rbm.visible, v)
+        hflat = with_eltype_of(rbm.w, flatten(rbm.hidden, h))
+        vflat = with_eltype_of(rbm.w, flatten(rbm.visible, v))
         if isnothing(wts)
             ∂wflat = -vflat * hflat' / size(vflat, 2)
         else
             @assert size(wts) == bsz
-            @assert batch_size(rbm.visible, v) == batch_size(rbm.hidden, h) == size(wts)
             ∂wflat = -vflat * Diagonal(vec(wts)) * hflat' / sum(wts)
         end
     end
