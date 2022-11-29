@@ -296,18 +296,24 @@ function ∂free_energy(
     return ∂RBM(∂v, ∂h, ∂w)
 end
 
-function ∂interaction_energy(rbm, v, h; wts=nothing)
+function ∂interaction_energy(rbm::RBM, v::AbstractArray, h::AbstractArray; wts=nothing)
     bsz = batch_size(rbm, v, h)
     if ndims(rbm.visible) == ndims(v) && ndims(rbm.hidden) == ndims(h)
         wts::Nothing
-        ∂wflat = -vec(v) * vec(h)'
+        vflat = with_eltype_of(rbm.w, vec(v))
+        hflat = with_eltype_of(rbm.w, vec(h))
+        ∂wflat = -vflat * hflat'
     elseif ndims(rbm.visible) == ndims(v)
-        ∂wflat = -vec(v) * vec(batchmean(rbm.hidden, h; wts))'
+        vflat = with_eltype_of(rbm.w, vec(v))
+        hflat = with_eltype_of(rbm.w, vec(batchmean(rbm.hidden, h; wts)))
+        ∂wflat = -vflat * hflat'
     elseif ndims(rbm.hidden) == ndims(h)
-        ∂wflat = -vec(batchmean(rbm.visible, v; wts)) * vec(h)'
+        vflat = with_eltype_of(rbm.w, vec(batchmean(rbm.visible, v; wts)))
+        hflat = with_eltype_of(rbm.w, vec(h))
+        ∂wflat = -vflat * hflat'
     else
-        hflat = with_eltype_of(rbm.w, flatten(rbm.hidden, h))
         vflat = with_eltype_of(rbm.w, flatten(rbm.visible, v))
+        hflat = with_eltype_of(rbm.w, flatten(rbm.hidden, h))
         if isnothing(wts)
             ∂wflat = -vflat * hflat' / size(vflat, 2)
         else
