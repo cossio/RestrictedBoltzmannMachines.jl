@@ -2,17 +2,17 @@
 
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## Unreleased
 
-## [v2.0.4]
+## v2.0.4
 
 - Always convert to weights eltype in ∂interaction_energy (previously, converted only in some cases).
 
-## [v2.0.3]
+## v2.0.3
 
 - Convert to weights eltype in ∂interaction_energy (fix #10).
 
-## [v2.0.2]
+## v2.0.2
 
 - Fix batch weight correction (https://github.com/cossio/RestrictedBoltzmannMachines.jl/commit/355b5faae78d268f083787c7f92a0e995eee6116).
 
@@ -34,9 +34,9 @@ All notable changes to this project will be documented in this file. The format 
 
 - Release v1.0.0.
 
-## [v0.39]
+## v0.39
 
 - Now `pcd!(...; iters=n, ...)` performs `n` gradient updates. This replaces the `epochs` setting.
 - `pcd` now uses the Optimisers framework instead of Flux. In particular, `optim` expects a `Optimisers.AbstractRule`.
 
-## [v0.38]
+## v0.38
