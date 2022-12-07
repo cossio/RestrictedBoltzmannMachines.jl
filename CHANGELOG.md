@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+## v2.1.0
+
+- Allow division of ∂RBM by a scalar.
+
 ## v2.0.4
 
 - Always convert to weights eltype in ∂interaction_energy (previously, converted only in some cases).
