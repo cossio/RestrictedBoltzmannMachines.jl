@@ -271,8 +271,13 @@ end
 Returns a new RBM with visible and hidden layers flipped.
 """
 function mirror(rbm)
-    p(i::Int) = i ≤ ndims(rbm.visible) ? i + ndims(rbm.hidden) : i - ndims(rbm.visible)
-    perm = ntuple(p, ndims(rbm.w))
+    perm = ntuple(Val(ndims(rbm.w))) do i
+        if i ≤ ndims(rbm.visible)
+            i + ndims(rbm.hidden)
+        else
+            i - ndims(rbm.visible)
+        end
+    end
     w = permutedims(rbm.w, perm)
     return RBM(rbm.hidden, rbm.visible, w)
 end
