@@ -46,7 +46,7 @@ function pcd!(
 
     for (iter, (vd, wd)) in zip(1:iters, infinite_minibatches(data, wts; batchsize, shuffle))
         # update fantasy chains
-        vm = sample_v_from_v(rbm, vm; steps)
+        vm .= sample_v_from_v(rbm, vm; steps)
 
         # compute gradient
         ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
