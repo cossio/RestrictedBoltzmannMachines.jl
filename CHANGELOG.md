@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+## v2.2.0
+
+- Initialization from data for dReLU, pReLU, xReLU.
+
 ## v2.1.1
 
 - Fix mirror.
