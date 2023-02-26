@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+## v2.1.1
+
+- Fix mirror.
+
 ## v2.1.0
 
 - Allow division of ∂RBM by a scalar.
