@@ -1,6 +1,6 @@
 using Test: @test, @testset
 using Statistics: mean, std
-using RestrictedBoltzmannMachines: RBM, Binary, Spin, Potts, Gaussian,
+using RestrictedBoltzmannMachines: RBM, Binary, Spin, Potts, Gaussian, dReLU, pReLU, xReLU,
     mean_from_inputs, std_from_inputs, initialize!, onehot_decode, onehot_encode
 
 @testset "initialization Binary" begin
@@ -28,6 +28,30 @@ end
 @testset "initialization Gaussian" begin
     data = 0.5randn(5, 10^6) .+ 1
     rbm = RBM(Gaussian((5,)), Binary((0,)), randn(5,0))
+    initialize!(rbm, data)
+    @test mean_from_inputs(rbm.visible) ≈ reshape(mean(data; dims=2), size(rbm.visible)) rtol=0.01
+    @test std_from_inputs(rbm.visible) ≈ reshape(std(data; dims=2), size(rbm.visible)) rtol=0.01
+end
+
+@testset "initialization dReLU" begin
+    data = 0.5randn(5, 10^6) .+ 1
+    rbm = RBM(dReLU((5,)), Binary((0,)), randn(5,0))
+    initialize!(rbm, data)
+    @test mean_from_inputs(rbm.visible) ≈ reshape(mean(data; dims=2), size(rbm.visible)) rtol=0.01
+    @test std_from_inputs(rbm.visible) ≈ reshape(std(data; dims=2), size(rbm.visible)) rtol=0.01
+end
+
+@testset "initialization pReLU" begin
+    data = 0.5randn(5, 10^6) .+ 1
+    rbm = RBM(pReLU((5,)), Binary((0,)), randn(5,0))
+    initialize!(rbm, data)
+    @test mean_from_inputs(rbm.visible) ≈ reshape(mean(data; dims=2), size(rbm.visible)) rtol=0.01
+    @test std_from_inputs(rbm.visible) ≈ reshape(std(data; dims=2), size(rbm.visible)) rtol=0.01
+end
+
+@testset "initialization xReLU" begin
+    data = 0.5randn(5, 10^6) .+ 1
+    rbm = RBM(xReLU((5,)), Binary((0,)), randn(5,0))
     initialize!(rbm, data)
     @test mean_from_inputs(rbm.visible) ≈ reshape(mean(data; dims=2), size(rbm.visible)) rtol=0.01
     @test std_from_inputs(rbm.visible) ≈ reshape(std(data; dims=2), size(rbm.visible)) rtol=0.01
