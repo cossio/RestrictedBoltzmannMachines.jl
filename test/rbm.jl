@@ -194,7 +194,12 @@ end
     @test size(@inferred reconstruction_error(rbm, v)) == (7,)
     @test (@inferred free_energy(rbm, v[:,:,1])) isa Real
     @test (@inferred reconstruction_error(rbm, v[:,:,1])) isa Real
+end
 
+@testset "mirror" begin
+    rbm = BinaryRBM(randn(5,2), randn(7,4,3), randn(5,2,7,4,3))
+    v = rand(Bool, size(rbm.visible)..., 13)
+    h = rand(Bool, size(rbm.hidden)..., 13)
     @inferred mirror(rbm)
     @test mirror(rbm).visible == rbm.hidden
     @test mirror(rbm).hidden == rbm.visible
