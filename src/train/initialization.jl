@@ -66,6 +66,39 @@ function initialize!(layer::Gaussian, data::AbstractArray; ϵ::Real=1e-6, wts=no
     return layer
 end
 
+function initialize!(layer::xReLU, data::AbstractArray; ϵ::Real=1e-6, wts=nothing)
+    @assert size(layer) == size(data)[1:ndims(layer)]
+    @assert 0 < ϵ < 1/2
+    μ = batchmean(layer, data; wts)
+    ν = batchmean(layer, (data .- μ).^2; wts)
+    layer.γ .= inv.(ν .+ ϵ)
+    layer.θ .= μ .* layer.γ
+    layer.Δ .= layer.ξ .= 0
+    return layer
+end
+
+function initialize!(layer::pReLU, data::AbstractArray; ϵ::Real=1e-6, wts=nothing)
+    @assert size(layer) == size(data)[1:ndims(layer)]
+    @assert 0 < ϵ < 1/2
+    μ = batchmean(layer, data; wts)
+    ν = batchmean(layer, (data .- μ).^2; wts)
+    layer.γ .= inv.(ν .+ ϵ)
+    layer.θ .= μ .* layer.γ
+    layer.Δ .= layer.η .= 0
+    return layer
+end
+
+function initialize!(layer::dReLU, data::AbstractArray; ϵ::Real=1e-6, wts=nothing)
+    @assert size(layer) == size(data)[1:ndims(layer)]
+    @assert 0 < ϵ < 1/2
+    μ = batchmean(layer, data; wts)
+    ν = batchmean(layer, (data .- μ).^2; wts)
+    # initilize as Gaussian
+    layer.γp .= layer.γn .= inv.(ν .+ ϵ)
+    layer.θp .= layer.θn .= μ .* layer.γp
+    return layer
+end
+
 function initialize!(layer::Union{Potts, Binary, Spin})
     layer.θ .= 0
     return layer
