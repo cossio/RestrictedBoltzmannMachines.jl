@@ -36,6 +36,10 @@ Centered RBMs:
 
 - https://github.com/cossio/CenteredRBMs.jl
 
+Adversarially constrained RBMs:
+
+- https://github.com/cossio/AdvRBMs.jl
+
 ## Citation
 
 This code is released as part of the supporting materials of https://arxiv.org/abs/2206.11600. If you use this package in a publication, please cite:
