@@ -2,15 +2,16 @@
     rescale_hidden!(rbm, λ::AbstractArray)
 
 For continuous hidden units with a scale parameter, scales parameters such that hidden
-unit activations are divided by `λ`. For other hidden units does nothing. The resulting RBM
-is equivalent to the original one.
+unit activations are divided by `λ`, and returns `true`. For other hidden units does
+nothing and returns `false`. The modified RBM is equivalent to the original one.
 """
 function rescale_hidden!(rbm::RBM, λ::AbstractArray)
     @assert size(rbm.hidden) == size(λ)
     if rescale_activations!(rbm.hidden, λ)
         rbm.w .*= reshape(λ, map(one, size(rbm.visible))..., size(rbm.hidden)...)
+        return true
     end
-    return rbm
+    return false
 end
 
 """
@@ -20,8 +21,7 @@ For continuous hidden units with a scale parameter, scales parameters such that 
 attached to each hidden unit have norm 1.
 """
 function rescale_weights!(rbm::RBM)
-    ω = weight_norms(rbm)
-    λ = inv.(ω)
+    λ = inv.(weight_norms(rbm))
     return rescale_hidden!(rbm, λ)
 end
 

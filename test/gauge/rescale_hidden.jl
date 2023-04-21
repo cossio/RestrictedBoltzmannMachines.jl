@@ -44,7 +44,7 @@ end
     F = free_energy(rbm, v)
 
     λ = [1 + rand()]
-    rescale_hidden!(rbm, λ)
+    @test rescale_hidden!(rbm, λ)
 
     @test free_energy(rbm, v) ≈ F .+ sum(log, λ)
 

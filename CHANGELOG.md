@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+## v3.0.0
+
+- BREAKING: `rescale_hidden!` returns `true` or `false` depending on whether the hidden units were rescaled or not.
 ## v2.2.0
 
 - Initialization from data for dReLU, pReLU, xReLU.
