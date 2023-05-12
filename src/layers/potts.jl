@@ -1,7 +1,3 @@
-#= As in Binary units, we prefer to encode binary states with
-floats 0.0 / 1.0 instead of Booleans, because they hit faster
-BLAS linear algebra routines. =#
-
 """
     Potts(θ)
 
