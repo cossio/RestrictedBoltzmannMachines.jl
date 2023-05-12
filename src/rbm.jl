@@ -57,9 +57,22 @@ function free_energy(rbm, v)
     return E - Γ
 end
 
+free_energy_v(rbm, v) = free_energy(rbm, v)
+
+function free_energy_h(rbm, h)
+    E = energy(rbm.hidden, h)
+    Γ = visible_cgf(rbm, h)
+    return E - Γ
+end
+
 function hidden_cgf(rbm, v)
     inputs = inputs_h_from_v(rbm, v)
     return cgf(rbm.hidden, inputs)
+end
+
+function visible_cgf(rbm, h)
+    inputs = inputs_v_from_h(rbm, h)
+    return cgf(rbm.visible, inputs)
 end
 
 """
@@ -280,52 +293,4 @@ function mirror(rbm)
     end
     w = permutedims(rbm.w, perm)
     return RBM(rbm.hidden, rbm.visible, w)
-end
-
-"""
-    ∂free_energy(rbm, v)
-
-Gradient of `free_energy(rbm, v)` with respect to model parameters.
-If `v` consists of multiple samples (batches), then an average is taken.
-"""
-function ∂free_energy(
-    rbm::RBM, v::AbstractArray; wts = nothing,
-    moments = moments_from_samples(rbm.visible, v; wts)
-)
-    inputs = inputs_h_from_v(rbm, v)
-    ∂v = ∂energy_from_moments(rbm.visible, moments)
-    ∂Γ = ∂cgfs(rbm.hidden, inputs)
-    h = grad2ave(rbm.hidden, ∂Γ)
-    ∂h = reshape(wmean(-∂Γ; wts, dims = (ndims(rbm.hidden.par) + 1):ndims(∂Γ)), size(rbm.hidden.par))
-    ∂w = ∂interaction_energy(rbm, v, h; wts)
-    return ∂RBM(∂v, ∂h, ∂w)
-end
-
-function ∂interaction_energy(rbm::RBM, v::AbstractArray, h::AbstractArray; wts=nothing)
-    bsz = batch_size(rbm, v, h)
-    if ndims(rbm.visible) == ndims(v) && ndims(rbm.hidden) == ndims(h)
-        wts::Nothing
-        vflat = with_eltype_of(rbm.w, vec(v))
-        hflat = with_eltype_of(rbm.w, vec(h))
-        ∂wflat = -vflat * hflat'
-    elseif ndims(rbm.visible) == ndims(v)
-        vflat = with_eltype_of(rbm.w, vec(v))
-        hflat = with_eltype_of(rbm.w, vec(batchmean(rbm.hidden, h; wts)))
-        ∂wflat = -vflat * hflat'
-    elseif ndims(rbm.hidden) == ndims(h)
-        vflat = with_eltype_of(rbm.w, vec(batchmean(rbm.visible, v; wts)))
-        hflat = with_eltype_of(rbm.w, vec(h))
-        ∂wflat = -vflat * hflat'
-    else
-        vflat = with_eltype_of(rbm.w, flatten(rbm.visible, v))
-        hflat = with_eltype_of(rbm.w, flatten(rbm.hidden, h))
-        if isnothing(wts)
-            ∂wflat = -vflat * hflat' / size(vflat, 2)
-        else
-            @assert size(wts) == bsz
-            ∂wflat = -vflat * Diagonal(vec(wts)) * hflat' / sum(wts)
-        end
-    end
-    ∂w = reshape(∂wflat, size(rbm.w))
-    return ∂w
 end

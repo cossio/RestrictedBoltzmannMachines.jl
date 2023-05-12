@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+- `visible_cgf`, `free_energy_h`, `free_energy_v`.
+
 ## v3.0.0
 
 - BREAKING: `rescale_hidden!` returns `true` or `false` depending on whether the hidden units were rescaled or not.

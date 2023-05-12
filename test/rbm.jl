@@ -7,8 +7,10 @@ using QuadGK: quadgk
 using EllipsisNotation: (..)
 using Zygote: gradient
 using RestrictedBoltzmannMachines: RBM, BinaryRBM, HopfieldRBM, Binary, Spin, Gaussian,
-    energy, interaction_energy, free_energy, log_likelihood, hidden_cgf, cgf,
-    inputs_h_from_v, inputs_v_from_h, batch_size, ∂free_energy,
+    energy, interaction_energy, log_likelihood, hidden_cgf, visible_cgf, cgf,
+    free_energy, free_energy_v, free_energy_h,
+    inputs_h_from_v, inputs_v_from_h, batch_size,
+    ∂free_energy, ∂free_energy_v, ∂free_energy_h,
     mean_from_inputs, sample_v_from_v, sample_h_from_v, sample_h_from_h, sample_v_from_h,
     batchmean, ∂interaction_energy, log_partition, var_from_inputs,
     mean_h_from_v, mean_v_from_h, mode_h_from_v, mode_v_from_h, var_h_from_v, var_v_from_h,
@@ -204,6 +206,9 @@ end
     @test mirror(rbm).visible == rbm.hidden
     @test mirror(rbm).hidden == rbm.visible
     @test energy(mirror(rbm), h, v) ≈ energy(rbm, v, h)
+
+    @test free_energy(rbm, v) ≈ @inferred free_energy_v(rbm, v)
+    @test free_energy(mirror(rbm), h) ≈ @inferred free_energy_h(rbm, h)
 end
 
 @testset "binary free energy" begin
@@ -217,7 +222,9 @@ end
     hs = [[0,0], [0,1], [1,0], [1,1]]
     @test -free_energy(rbm, v) ≈ logsumexp(-energy(rbm, v, h) for h in hs)
 
+    h = bitrand(2)
     @test @inferred(hidden_cgf(rbm, v)) ≈ cgf(rbm.hidden, inputs_h_from_v(rbm, v))
+    @test @inferred(visible_cgf(rbm, h)) ≈ cgf(rbm.visible, inputs_v_from_h(rbm, h))
 end
 
 @testset "Gaussian-Gaussian RBM, 1-dimension" begin
