@@ -35,6 +35,21 @@ function ∂free_energy(
     return ∂RBM(∂v, ∂h, ∂w)
 end
 
+∂free_energy_v(rbm::RBM, v::AbstractArray; kwargs...) = ∂free_energy(rbm, v; kwargs...)
+
+function ∂free_energy_h(
+    rbm::RBM, h::AbstractArray; wts = nothing,
+    moments = moments_from_samples(rbm.hidden, h; wts)
+)
+    inputs = inputs_v_from_h(rbm, h)
+    ∂Γ = ∂cgfs(rbm.visible, inputs)
+    v = grad2ave(rbm.visible, ∂Γ)
+    ∂v = -reshape(wmean(∂Γ; wts, dims = (ndims(rbm.visible.par) + 1):ndims(∂Γ)), size(rbm.visible.par))
+    ∂h = ∂energy_from_moments(rbm.hidden, moments)
+    ∂w = ∂interaction_energy(rbm, v, h; wts)
+    return ∂RBM(∂v, ∂h, ∂w)
+end
+
 function ∂interaction_energy(rbm::RBM, v::AbstractArray, h::AbstractArray; wts=nothing)
     bsz = batch_size(rbm, v, h)
     if ndims(rbm.visible) == ndims(v) && ndims(rbm.hidden) == ndims(h)

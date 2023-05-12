@@ -304,21 +304,27 @@ end
     @test free_energy(rbm, v) ≈ energy(rbm.visible, v)
 end
 
-@testset "∂free_energy(rbm, v)" begin
+@testset "∂free_energy" begin
     rbm = BinaryRBM(randn(5,2), randn(4,3), randn(5,2,4,3))
     v = bitrand(size(rbm.visible)..., 7)
+    h = bitrand(size(rbm.hidden)..., 7)
+
     gs = gradient(rbm) do rbm
         mean(free_energy(rbm, v))
     end
-    ∂F = ∂free_energy(rbm, v)
+    ∂F = @inferred ∂free_energy(rbm, v)
+    ∂Fv = @inferred ∂free_energy_v(rbm, v)
+    @test ∂F.visible ≈ ∂Fv.visible ≈ only(gs).visible.par
+    @test ∂F.hidden ≈ ∂Fv.hidden ≈ only(gs).hidden.par
+    @test ∂F.w ≈ ∂Fv.w ≈ only(gs).w
+
+    gs = gradient(rbm) do rbm
+        mean(free_energy_h(rbm, h))
+    end
+    ∂F = @inferred ∂free_energy_h(rbm, h)
     @test ∂F.visible ≈ only(gs).visible.par
     @test ∂F.hidden ≈ only(gs).hidden.par
     @test ∂F.w ≈ only(gs).w
-
-    gλ = 2.3 * ∂F
-    @test gλ.visible ≈ ∂F.visible * 2.3
-    @test gλ.hidden ≈ ∂F.hidden * 2.3
-    @test gλ.w ≈ ∂F.w * 2.3
 
     wts = rand(7)
     gs = gradient(rbm) do rbm
@@ -328,4 +334,10 @@ end
     @test ∂F.visible ≈ only(gs).visible.par
     @test ∂F.hidden ≈ only(gs).hidden.par
     @test ∂F.w ≈ only(gs).w
+
+    # ∂ algebra
+    gλ = 2.3 * ∂F
+    @test gλ.visible ≈ ∂F.visible * 2.3
+    @test gλ.hidden ≈ ∂F.hidden * 2.3
+    @test gλ.w ≈ ∂F.w * 2.3
 end
