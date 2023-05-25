@@ -98,7 +98,7 @@ function interaction_energy(rbm, v, h)
         w_flat = flat_w(rbm)
         v_flat = with_eltype_of(w_flat, flat_v(rbm, v))
         h_flat = with_eltype_of(w_flat, flat_h(rbm, h))
-        E = -v_flat' * w_flat * with_eltype_of(w_flat, flat_h(rbm, h))
+        E = -v_flat' * w_flat * h_flat
     elseif length(rbm.visible) ≥ length(rbm.hidden)
         inputs = inputs_h_from_v(rbm, v)
         E = -sum(inputs .* h; dims = 1:ndims(rbm.hidden))
