@@ -68,7 +68,7 @@ function pcd!(
         rescale && rescale_weights!(rbm)
         zerosum && zerosum!(rbm)
 
-        callback(; rbm, optim, iter, vm, vd, wd)
+        callback(; rbm, optim, state, iter, vm, vd, wd)
     end
     return state, ps
 end
