@@ -7,7 +7,8 @@ Base.propertynames(::_FieldLayers) = (:θ,)
 
 function Base.getproperty(layer::_FieldLayers, name::Symbol)
     if name === :θ
-        return @view getfield(layer, :par)[1, ..]
+        #return @view getfield(layer, :par)[1, ..] # https://github.com/JuliaGPU/CUDA.jl/issues/1957
+        return dropdims(getfield(layer, :par); dims=1)
     else
         return getfield(layer, name)
     end
