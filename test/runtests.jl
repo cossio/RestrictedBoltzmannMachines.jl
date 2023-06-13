@@ -18,3 +18,5 @@ using SafeTestsets: @safetestset
 @time @safetestset "zerosum" begin include("gauge/zerosum.jl") end
 @time @safetestset "rescale_hidden" begin include("gauge/rescale_hidden.jl") end
 @time @safetestset "pcd" begin include("pcd.jl") end
+
+module shift_fields_tests include("shift_fields.jl") end
