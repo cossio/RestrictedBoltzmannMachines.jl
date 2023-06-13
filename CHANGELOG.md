@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+## v3.2.0
+
+- Patch CUDA issue with Potts due to https://github.com/JuliaGPU/CUDA.jl/issues/1957.
+- `callback` now receives `state` too.
+
 ## v3.1.0
 
 - `visible_cgf`, `free_energy_h`, `free_energy_v`, and gradients.
