@@ -1,4 +1,4 @@
-using Test: @testset, @test
+using Test: @testset, @test, @inferred
 using RestrictedBoltzmannMachines: Binary, Spin, Potts, Gaussian, ReLU, dReLU, pReLU, xReLU,
     energy, sample_from_inputs, shift_fields!, shift_fields
 
