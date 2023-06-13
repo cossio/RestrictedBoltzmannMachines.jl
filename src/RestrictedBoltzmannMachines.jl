@@ -47,6 +47,7 @@ include("train/infinite_minibatches.jl")
 
 include("gauge/zerosum.jl")
 include("gauge/rescale_hidden.jl")
+include("gauge/shift_fields.jl")
 
 include("regularize.jl")
 
