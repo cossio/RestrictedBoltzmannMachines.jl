@@ -30,9 +30,10 @@ Use RBMs on the GPU (CUDA):
 
 - https://github.com/cossio/CudaRBMs.jl
 
-Centered RBMs:
+Centered and standardized RBMs:
 
 - https://github.com/cossio/CenteredRBMs.jl
+- https://github.com/cossio/StandardizedRestrictedBoltzmannMachines.jl
 
 Adversarially constrained RBMs:
 
