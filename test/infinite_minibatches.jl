@@ -41,4 +41,9 @@ end
         append!(track, x)
     end
     @test track == repeat(1:9, 8)
+
+    data = 1:3
+    for (i, (x,)) in zip(1:24, infinite_minibatches(data; batchsize=3, shuffle=false))
+        @test x == 1:3
+    end
 end
