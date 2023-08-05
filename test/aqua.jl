@@ -7,6 +7,7 @@ using Test: @testset
     Aqua.test_all(
         RestrictedBoltzmannMachines;
         stale_deps=(ignore=[:DiffRules],),
-        ambiguities=(exclude=[reshape],)
+        ambiguities=(exclude=[reshape],),
+        project_toml_formatting=false
     )
 end
