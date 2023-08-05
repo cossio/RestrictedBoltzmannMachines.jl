@@ -1,22 +1,24 @@
 using SafeTestsets: @safetestset
 
-@time @safetestset "util" begin include("util.jl") end
-@time @safetestset "linalg" begin include("linalg.jl") end
-@time @safetestset "onehot" begin include("onehot.jl") end
-@time @safetestset "rbm" begin include("rbm.jl") end
-@time @safetestset "layers" begin include("layers.jl") end
-@time @safetestset "pseudolikelihood" begin include("pseudolikelihood.jl") end
-#@time @safetestset "minibatches" begin include("minibatches.jl") end
-@time @safetestset "infinite_minibatches" begin include("infinite_minibatches.jl") end
-@time @safetestset "initialization" begin include("initialization.jl") end
-@time @safetestset "regularize" begin include("regularize.jl") end
-@time @safetestset "truncnorm" begin include("truncnorm.jl") end
-@time @safetestset "optim" begin include("optim.jl") end
-@time @safetestset "partition" begin include("partition.jl") end
-@time @safetestset "metropolis" begin include("metropolis.jl") end
+module util_tests include("util.jl") end
+module linalg_tests include("linalg.jl") end
+module onehot_tests include("onehot.jl") end
+module rbm_tests include("rbm.jl") end
+module layers_tests include("layers.jl") end
+module pseudolikelihood_tests include("pseudolikelihood.jl") end
+# module minibatches include("minibatches.jl") end
+module infinite_minibatches_tests include("infinite_minibatches.jl") end
+module initialization_tests include("initialization.jl") end
+module regularize_tests include("regularize.jl") end
+module truncnorm_tests include("truncnorm.jl") end
+module optim_tests include("optim.jl") end
+module partition_tests include("partition.jl") end
+module metropolis_tests include("metropolis.jl") end
 
-@time @safetestset "zerosum" begin include("gauge/zerosum.jl") end
-@time @safetestset "rescale_hidden" begin include("gauge/rescale_hidden.jl") end
-@time @safetestset "pcd" begin include("pcd.jl") end
+module zerosum_tests include("gauge/zerosum.jl") end
+module rescale_hidden_tests include("gauge/rescale_hidden.jl") end
+module pcd_tests include("pcd.jl") end
 
 module shift_fields_tests include("shift_fields.jl") end
+
+module aqua_tests include("aqua.jl") end

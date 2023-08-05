@@ -1,6 +1,6 @@
 import Statistics
 import RestrictedBoltzmannMachines as RBMs
-using Test: @test, @testset, @inferred
+using Test: @test, @testset, @inferred, @test_throws
 using Statistics: mean, var, cov
 using LinearAlgebra: dot
 using EllipsisNotation: (..)
