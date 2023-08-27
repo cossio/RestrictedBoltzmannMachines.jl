@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+## 3.2.5 - 2023-08-26
+
+- Compat with Optimisers v0.3.
+
 ## 3.2.0
 
 - Patch CUDA issue with Potts due to https://github.com/JuliaGPU/CUDA.jl/issues/1957.
