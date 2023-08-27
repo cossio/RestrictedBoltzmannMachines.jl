@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
-## 3.2.5 - 2023-08-26
+## 3.2.5
 
 - Compat with Optimisers v0.3.
 
