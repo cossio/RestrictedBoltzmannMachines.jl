@@ -26,9 +26,9 @@ digits = reshape(train_x[:,:,idx], 28, 28, ncols, nrows)
 Makie.image!(ax, imggrid(digits), colorrange=(1,0))
 Makie.hidedecorations!(ax)
 Makie.hidespines!(ax)
-fig</code></pre><img src="aec733a3.png" alt="Example block output"/><p>Initialize an RBM with 400 hidden units.</p><pre><code class="language-julia hljs">rbm = BinaryRBM(Float, (28,28), 400)
-initialize!(rbm, train_x) # match single-site statistics</code></pre><p>Initially, the RBM assigns a poor pseudolikelihood to the data.</p><pre><code class="language-julia hljs">println(&quot;log(PL) = &quot;, mean(@time log_pseudolikelihood(rbm, train_x)))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">  1.697764 seconds (3.86 M allocations: 314.205 MiB, 9.01% gc time, 87.81% compilation time)
-log(PL) = -0.24515527</code></pre><p>Now we train the RBM on the data.</p><pre><code class="language-julia hljs">batchsize = 256
+fig</code></pre><img src="97cb33d9.png" alt="Example block output"/><p>Initialize an RBM with 400 hidden units.</p><pre><code class="language-julia hljs">rbm = BinaryRBM(Float, (28,28), 400)
+initialize!(rbm, train_x) # match single-site statistics</code></pre><p>Initially, the RBM assigns a poor pseudolikelihood to the data.</p><pre><code class="language-julia hljs">println(&quot;log(PL) = &quot;, mean(@time log_pseudolikelihood(rbm, train_x)))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">  1.721849 seconds (3.86 M allocations: 314.205 MiB, 9.21% gc time, 88.62% compilation time)
+log(PL) = -0.25632498</code></pre><p>Now we train the RBM on the data.</p><pre><code class="language-julia hljs">batchsize = 256
 iters = 10000
 history = MVHistory()
 @time pcd!(
@@ -39,25 +39,25 @@ history = MVHistory()
             @trace history iter lpl
         end
     end
-)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">194.479592 seconds (15.20 M allocations: 205.517 GiB, 1.58% gc time, 2.68% compilation time)</code></pre><p>After training, the pseudolikelihood score of the data improves significantly. Plot of log-pseudolikelihood of trian data during learning.</p><pre><code class="language-julia hljs">fig = Makie.Figure(resolution=(500,300))
+)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">201.598015 seconds (15.21 M allocations: 205.518 GiB, 1.47% gc time, 2.59% compilation time)</code></pre><p>After training, the pseudolikelihood score of the data improves significantly. Plot of log-pseudolikelihood of trian data during learning.</p><pre><code class="language-julia hljs">fig = Makie.Figure(resolution=(500,300))
 ax = Makie.Axis(fig[1,1], xlabel = &quot;train time&quot;, ylabel=&quot;pseudolikelihood&quot;)
 Makie.lines!(ax, get(history, :lpl)...)
-fig</code></pre><img src="7b721f53.png" alt="Example block output"/><p>Sample digits from the RBM starting from a random condition.</p><pre><code class="language-julia hljs">nsteps = 3000
+fig</code></pre><img src="53d5a4f3.png" alt="Example block output"/><p>Sample digits from the RBM starting from a random condition.</p><pre><code class="language-julia hljs">nsteps = 3000
 fantasy_F = zeros(nrows*ncols, nsteps)
 fantasy_x = bitrand(28,28,nrows*ncols)
 fantasy_F[:,1] .= free_energy(rbm, fantasy_x)
 @time for t in 2:nsteps
     fantasy_x .= sample_v_from_v(rbm, fantasy_x)
     fantasy_F[:,t] .= free_energy(rbm, fantasy_x)
-end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"> 16.700313 seconds (483.06 k allocations: 12.023 GiB, 1.26% gc time, 0.64% compilation time)</code></pre><p>Check equilibration of sampling</p><pre><code class="language-julia hljs">fig = Makie.Figure(resolution=(400,300))
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"> 17.788038 seconds (483.05 k allocations: 12.023 GiB, 1.16% gc time, 0.58% compilation time)</code></pre><p>Check equilibration of sampling</p><pre><code class="language-julia hljs">fig = Makie.Figure(resolution=(400,300))
 ax = Makie.Axis(fig[1,1], xlabel=&quot;sampling time&quot;, ylabel=&quot;free energy&quot;)
 fantasy_F_μ = vec(mean(fantasy_F; dims=1))
 fantasy_F_σ = vec(std(fantasy_F; dims=1))
 Makie.band!(ax, 1:nsteps, fantasy_F_μ - fantasy_F_σ/2, fantasy_F_μ + fantasy_F_σ/2)
 Makie.lines!(ax, 1:nsteps, fantasy_F_μ)
-fig</code></pre><img src="e2e0901b.png" alt="Example block output"/><p>Plot the sampled digits.</p><pre><code class="language-julia hljs">fig = Makie.Figure(resolution=(40ncols, 40nrows))
+fig</code></pre><img src="5bb4ec3b.png" alt="Example block output"/><p>Plot the sampled digits.</p><pre><code class="language-julia hljs">fig = Makie.Figure(resolution=(40ncols, 40nrows))
 ax = Makie.Axis(fig[1,1], yreversed=true)
 Makie.image!(ax, imggrid(reshape(fantasy_x, 28, 28, ncols, nrows)), colorrange=(1,0))
 Makie.hidedecorations!(ax)
 Makie.hidespines!(ax)
-fig</code></pre><img src="175cc056.png" alt="Example block output"/><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../">« Home</a><a class="docs-footer-nextpage" href="../layers/Gaussian/">Gaussian »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.1.2 on <span class="colophon-date" title="Thursday 9 November 2023 13:11">Thursday 9 November 2023</span>. Using Julia version 1.9.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+fig</code></pre><img src="da249f09.png" alt="Example block output"/><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../">« Home</a><a class="docs-footer-nextpage" href="../layers/Gaussian/">Gaussian »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="auto">Automatic (OS)</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.1.2 on <span class="colophon-date" title="Tuesday 14 November 2023 07:55">Tuesday 14 November 2023</span>. Using Julia version 1.9.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
