@@ -17,12 +17,13 @@ jobs:
       matrix:
         version: ['1']
     steps:
-      - uses: actions/checkout@v4
-      - uses: julia-actions/setup-julia@v1
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+      - uses: julia-actions/setup-julia@a1561e938c17e7aaf8236334d6d533e774c71dcd
         with:
           version: ${{ matrix.version }}
       - uses: cjdoris/julia-downgrade-compat-action@v1
         with:
           skip: Statistics,Random,LinearAlgebra,Test
-      - uses: julia-actions/julia-buildpkg@v1
-      - uses: julia-actions/julia-runtest@v1
+      - uses: julia-actions/cache@dc1a3cdeacb521b0ca93cfc66143fcadb15a5bd0
+      - uses: julia-actions/julia-buildpkg@90dd6f23eb49626e4e6612cb9d64d456f86e6a1c
+      - uses: julia-actions/julia-runtest@79a7e100883947123f8263c5f06e6c0ea3eb972f
