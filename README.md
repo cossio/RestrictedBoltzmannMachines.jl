@@ -38,6 +38,10 @@ Save RBMs to HDF5 files:
 
 - https://github.com/cossio/RestrictedBoltzmannMachinesHDF5.jl
 
+Stacked tempering:
+
+- https://github.com/2024stacktemperingrbm/StackedTempering.jl
+
 ## Citation
 
 If you use this package in a publication, please cite:
