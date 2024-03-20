@@ -32,6 +32,7 @@ include("rbm.jl")
 
 include("rbms/hopfield.jl")
 include("rbms/binary.jl")
+include("rbms/spin.jl")
 include("rbms/gaussian.jl")
 
 include("pseudolikelihood.jl")
