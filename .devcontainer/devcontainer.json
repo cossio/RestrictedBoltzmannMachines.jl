@@ -1,5 +1,9 @@
 {
 	"image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+	"runArgs": [
+        "-v", "/etc/timezone:/etc/timezone:ro",
+        "-v", "/etc/localtime:/etc/localtime:ro"
+    ],
 	"features": {
 		"ghcr.io/devcontainers/features/github-cli:1": {},
 		"ghcr.io/devcontainers/features/common-utils:2": {
@@ -20,5 +24,9 @@
 			}
 		}
 	},
-	"onCreateCommand": "bash .devcontainer/onCreate.sh"
+	"onCreateCommand": "bash .devcontainer/onCreate.sh",
+	"postCreateCommand": "bash .devcontainer/postCreate.sh",
+	"mounts": [
+		"source=${localEnv:MY_DEVCONTAINERS_SECRETS_DIR},target=/home/vscode/secrets,type=bind,ro,consistency=cached"
+	]
 }

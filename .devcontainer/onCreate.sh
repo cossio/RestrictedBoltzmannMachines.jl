@@ -11,8 +11,8 @@ mkdir -p ~/.oh-my-zsh/completions
 echo "autoload -U compinit" >> ~/.zshrc
 echo "compinit -i" >> ~/.zshrc
 
-# Directory to store Rfam data (set in LocalPreferences.toml)
-mkdir -p ~/data/Rfam
-
 # Install Julia packages, registries, ...
 /home/vscode/.juliaup/bin/julia .devcontainer/onCreate.jl
+
+# Fix permissions for Julia Base, stdlibs (see https://github.com/JuliaLang/juliaup/issues/865, https://github.com/JuliaLang/julia/pull/51150/files)
+find /home/vscode/.julia/juliaup/*/share/julia/{base,stdlib} -type f -name '*.jl' -exec chmod 444 {} \;
