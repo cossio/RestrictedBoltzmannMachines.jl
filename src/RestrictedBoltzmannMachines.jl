@@ -3,7 +3,7 @@ module RestrictedBoltzmannMachines
 import ChainRulesCore
 import LinearAlgebra
 using Base: front, tail
-using Random: AbstractRNG, GLOBAL_RNG, randexp, randn!, rand!, shuffle!, randperm
+using Random: AbstractRNG, default_rng, randexp, randn!, rand!, shuffle!, randperm
 using LinearAlgebra: Diagonal, logdet, I, dot, norm
 using Statistics: mean, std
 using EllipsisNotation: (..)

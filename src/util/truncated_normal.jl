@@ -16,7 +16,7 @@ Random standard normal lower truncated at `a` (that is, Z ≥ a).
 """
 randnt(rng::AbstractRNG, a::Real) = randnt(rng, float(a))
 randnt(rng::AbstractRNG, a::BigFloat) = randnt(rng, Float64(a))
-randnt(a::Real) = randnt(GLOBAL_RNG, a)
+randnt(a::Real) = randnt(default_rng(), a)
 
 function randnt(rng::AbstractRNG, a::Base.IEEEFloat)
     if a ≤ 0
@@ -63,7 +63,7 @@ function randnt_half(rng::AbstractRNG, μ::Real, σ::Real)
     return μ + σ * z
 end
 
-randnt_half(μ::Real, σ::Real) = randnt_half(GLOBAL_RNG, μ, σ)
+randnt_half(μ::Real, σ::Real) = randnt_half(default_rng(), μ, σ)
 
 """
     tnmean(a)
