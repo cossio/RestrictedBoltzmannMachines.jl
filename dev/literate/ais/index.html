@@ -11,7 +11,7 @@ train_x, train_y = MLDatasets.MNIST.traindata()
 train_x = Array{Float}(train_x[:, :, train_y .== 0] .&gt; 0.5)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">┌ Warning: MNIST.traindata() is deprecated, use `MNIST(split=:train)[:]` instead.
 └ @ MLDatasets ~/.julia/packages/MLDatasets/0MkOE/src/datasets/vision/mnist.jl:187</code></pre><p>Train an RBM</p><pre><code class="language-julia hljs">rbm = BinaryRBM(Float, (28,28), 128)
 initialize!(rbm, train_x)
-@time pcd!(rbm, train_x; iters=10000, batchsize=128)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"> 72.957393 seconds (2.48 M allocations: 69.156 GiB, 23.40% gc time, 0.41% compilation time)</code></pre><p>Get some equilibrated samples from model</p><pre><code class="language-julia hljs">v = train_x[:, :, rand(1:size(train_x, 3), 1000)]
+@time pcd!(rbm, train_x; iters=10000, batchsize=128)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"> 70.292659 seconds (2.54 M allocations: 69.159 GiB, 23.24% gc time, 0.49% compilation time)</code></pre><p>Get some equilibrated samples from model</p><pre><code class="language-julia hljs">v = train_x[:, :, rand(1:size(train_x, 3), 1000)]
 v = sample_v_from_v(rbm, v; steps=1000)</code></pre><p>Estimate Z with AIS and reverse AIS.</p><pre><code class="language-julia hljs">nsamples=100
 ndists = [10, 100, 1000, 10_000, 100_000]
 R_ais = Vector{Float64}[]
@@ -25,16 +25,16 @@ for nbetas in ndists
     push!(R_rev,
         @time raise(rbm; nbetas, init, v=v[:,:,rand(1:size(v, 3), nsamples)])
     )
-end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">  5.597122 seconds (9.03 M allocations: 518.371 MiB, 0.94% gc time, 99.41% compilation time)
-  0.351924 seconds (416.62 k allocations: 81.784 MiB, 7.57% gc time, 83.85% compilation time)
-  0.416841 seconds (12.82 k allocations: 703.543 MiB, 10.46% gc time)
-  0.373868 seconds (12.80 k allocations: 731.346 MiB, 9.65% gc time)
-  4.077965 seconds (129.82 k allocations: 6.979 GiB, 7.25% gc time)
-  3.672409 seconds (129.81 k allocations: 7.269 GiB, 8.00% gc time)
- 40.537991 seconds (1.30 M allocations: 69.899 GiB, 6.77% gc time)
- 36.356161 seconds (1.30 M allocations: 72.818 GiB, 7.37% gc time)
-403.806285 seconds (13.00 M allocations: 699.103 GiB, 6.49% gc time)
-359.971723 seconds (13.00 M allocations: 728.305 GiB, 7.10% gc time)</code></pre><p>Plots</p><pre><code class="language-julia hljs">fig = Makie.Figure()
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">  5.446821 seconds (9.03 M allocations: 518.352 MiB, 0.85% gc time, 99.37% compilation time)
+  0.400687 seconds (416.62 k allocations: 81.734 MiB, 20.05% gc time, 71.26% compilation time)
+  0.701766 seconds (12.82 k allocations: 703.543 MiB, 45.56% gc time)
+  0.351391 seconds (12.80 k allocations: 731.346 MiB, 7.61% gc time)
+  4.078043 seconds (129.82 k allocations: 6.979 GiB, 6.20% gc time)
+  3.569426 seconds (129.81 k allocations: 7.269 GiB, 6.90% gc time)
+ 40.726650 seconds (1.30 M allocations: 69.899 GiB, 6.03% gc time)
+ 35.766252 seconds (1.30 M allocations: 72.818 GiB, 7.03% gc time)
+408.295937 seconds (13.00 M allocations: 699.103 GiB, 6.06% gc time)
+357.072089 seconds (13.00 M allocations: 728.305 GiB, 7.03% gc time)</code></pre><p>Plots</p><pre><code class="language-julia hljs">fig = Makie.Figure()
 ax = Makie.Axis(
     fig[1,1], width=700, height=400, xscale=log10, xlabel=&quot;interpolating distributions&quot;, ylabel=&quot;log(Z)&quot;
 )
@@ -59,4 +59,4 @@ Makie.hlines!(ax, middle(mean(R_ais[end]), mean(R_rev[end])), linestyle=:dash, c
 Makie.xlims!(extrema(ndists)...)
 Makie.axislegend(ax, position=:rb)
 Makie.resize_to_layout!(fig)
-fig</code></pre><img src="5e47b645.png" alt="Example block output"/><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../layers/dReLU/">« dReLU</a><a class="docs-footer-nextpage" href="../metropolis/">Metropolis »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.7.0 on <span class="colophon-date" title="Monday 21 October 2024 21:48">Monday 21 October 2024</span>. Using Julia version 1.11.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+fig</code></pre><img src="8202f00b.png" alt="Example block output"/><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../layers/dReLU/">« dReLU</a><a class="docs-footer-nextpage" href="../metropolis/">Metropolis »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.7.0 on <span class="colophon-date" title="Monday 21 October 2024 21:57">Monday 21 October 2024</span>. Using Julia version 1.11.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
