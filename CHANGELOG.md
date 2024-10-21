@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## 3.4.1
 
-- Use `default_rng` in place of `GLOBAL_RNG`, which fixes an issue with CUDA (https://github.com/cossio/RestrictedBoltzmannMachines.jl/commit/e84438a9d0ef04ad981cd552184c79a1d90dd45f).
+- Use `default_rng` in place of `GLOBAL_RNG`, which fixes an issue with CUDA [e84438a](https://github.com/cossio/RestrictedBoltzmannMachines.jl/commit/e84438a9d0ef04ad981cd552184c79a1d90dd45f).
 
 ## 3.2.5
 
