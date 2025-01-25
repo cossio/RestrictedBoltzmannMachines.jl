@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+## 3.5.0
+
+- Move functionality from `CudaRBMs.jl` to this package, through the Extensions mechanism.
+- Move `PottsGumbel` to this package.
+
 ## 3.4.1
 
 - Use `default_rng` in place of `GLOBAL_RNG`, which fixes an issue with CUDA [e84438a](https://github.com/cossio/RestrictedBoltzmannMachines.jl/commit/e84438a9d0ef04ad981cd552184c79a1d90dd45f).
