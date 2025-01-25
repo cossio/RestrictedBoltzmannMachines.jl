@@ -56,4 +56,7 @@ include("metropolis.jl")
 
 include("layers/pottsgumbel.jl")
 
+function cpu end
+function gpu end
+
 end # module
