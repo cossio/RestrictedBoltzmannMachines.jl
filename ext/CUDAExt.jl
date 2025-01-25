@@ -1,3 +1,5 @@
+module CUDAExt
+
 using CUDA: cu
 using Adapt: adapt
 using RestrictedBoltzmannMachines: RBM
@@ -9,6 +11,7 @@ using RestrictedBoltzmannMachines: ReLU
 using RestrictedBoltzmannMachines: dReLU
 using RestrictedBoltzmannMachines: pReLU
 using RestrictedBoltzmannMachines: xReLU
+using RestrictedBoltzmannMachines: PottsGumbel
 using RestrictedBoltzmannMachines: ∂RBM
 
 gpu(x::AbstractArray) = cu(x)
@@ -43,3 +46,8 @@ cpu(layer::pReLU) = pReLU(cpu(layer.par))
 
 gpu(layer::xReLU) = xReLU(gpu(layer.par))
 cpu(layer::xReLU) = xReLU(cpu(layer.par))
+
+gpu(layer::PottsGumbel) = PottsGumbel(gpu(layer.par))
+cpu(layer::PottsGumbel) = PottsGumbel(cpu(layer.par))
+
+end
