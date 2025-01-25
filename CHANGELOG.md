@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+## 3.7.0-DEV
+
+- Move functionality from `StandardizedRestrictedBoltzmannMachines.jl` to this package, through the Extensions mechanism.
+
 ## 3.6.0
 
 - Move functionality from `RestrictedBoltzmannMachinesHDF5.jl` to this package, through the Extensions mechanism.
