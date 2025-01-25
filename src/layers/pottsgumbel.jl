@@ -112,6 +112,12 @@ function potts_to_gumbel(rbm::RBM)
     return RBM(visible, hidden, rbm.w)
 end
 
+function potts_to_gumbel(rbm::StandardizedRBM)
+    visible = potts_to_gumbel(rbm.visible)
+    hidden = potts_to_gumbel(rbm.hidden)
+    return StandardizedRBM(visible, hidden, rbm.w, rbm.offset_v, rbm.offset_h, rbm.scale_v, rbm.scale_h)
+end
+
 """
     gumbel_to_potts(rbm)
 
@@ -121,6 +127,12 @@ function gumbel_to_potts(rbm::RBM)
     visible = gumbel_to_potts(rbm.visible)
     hidden = gumbel_to_potts(rbm.hidden)
     return RBM(visible, hidden, rbm.w)
+end
+
+function gumbel_to_potts(rbm::StandardizedRBM)
+    visible = gumbel_to_potts(rbm.visible)
+    hidden = gumbel_to_potts(rbm.hidden)
+    return StandardizedRBM(visible, hidden, rbm.w, rbm.offset_v, rbm.offset_h, rbm.scale_v, rbm.scale_h)
 end
 
 function potts_to_gumbel(layer::AbstractLayer)
