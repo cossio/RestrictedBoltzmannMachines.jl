@@ -6,10 +6,10 @@ using HDF5: h5open
 using RestrictedBoltzmannMachines: Binary
 using RestrictedBoltzmannMachines: Gaussian
 using RestrictedBoltzmannMachines: Potts
+using RestrictedBoltzmannMachines: PottsGumbel
 using RestrictedBoltzmannMachines: RBM
 using RestrictedBoltzmannMachines: Spin
 using RestrictedBoltzmannMachines: xReLU
-using RestrictedBoltzmannMachines: PottsGumbel
 
 # Version of the file format used to save/load RBMs
 const FILE_FORMAT_VERSION = v"1.0.0"
@@ -22,7 +22,7 @@ const FILE_FORMAT_HEADER = "rbm_hdf5_file_format_version"
 
 Load an RBM from an HDF5 file at `path`.
 """
-load_rbm(path::AbstractString) = h5open(path, "r") do file
+RestrictedBoltzmannMachines.load_rbm(path::AbstractString) = h5open(path, "r") do file
     format_version = read(file, FILE_FORMAT_HEADER)
     if format_version == string(FILE_FORMAT_VERSION)
         rbm_type = read(file, "rbm_type")
@@ -30,6 +30,28 @@ load_rbm(path::AbstractString) = h5open(path, "r") do file
     else
         error("Unsupported format version: $format_version")
     end
+end
+
+"""
+    save_rbm(path, rbm; overwrite=false)
+
+Save an RBM to an HDF5 file at `path`. If `overwrite` is `false` (the default),
+an error is thrown if the file already exists.
+"""
+function RestrictedBoltzmannMachines.save_rbm(path::AbstractString, rbm::RBM; overwrite::Bool=false)
+    if !overwrite && isfile(path)
+        error("File already exists: $path")
+    end
+    h5open(path, "w") do file
+        write(file, FILE_FORMAT_HEADER, string(FILE_FORMAT_VERSION))
+        write(file, "rbm_type", "RBM")
+        write(file, "weights", rbm.w)
+        write(file, "visible_par", rbm.visible.par)
+        write(file, "hidden_par", rbm.hidden.par)
+        write(file, "visible_type", layer_type(rbm.visible))
+        write(file, "hidden_type", layer_type(rbm.hidden))
+    end
+    return path
 end
 
 layer_type(::Binary) = "Binary"
@@ -53,28 +75,6 @@ function _load_rbm(file::HDF5.File, ::Val{:RBM})
     visible = construct_layer(read(file, "visible_type"), read(file, "visible_par"))
     hidden = construct_layer(read(file, "hidden_type"), read(file, "hidden_par"))
     return RBM(visible, hidden, w)
-end
-
-"""
-    save_rbm(path, rbm; overwrite=false)
-
-Save an RBM to an HDF5 file at `path`. If `overwrite` is `false` (the default),
-an error is thrown if the file already exists.
-"""
-function save_rbm(path::AbstractString, rbm::RBM; overwrite::Bool=false)
-    if !overwrite && isfile(path)
-        error("File already exists: $path")
-    end
-    h5open(path, "w") do file
-        write(file, FILE_FORMAT_HEADER, string(FILE_FORMAT_VERSION))
-        write(file, "rbm_type", "RBM")
-        write(file, "weights", rbm.w)
-        write(file, "visible_par", rbm.visible.par)
-        write(file, "hidden_par", rbm.hidden.par)
-        write(file, "visible_type", layer_type(rbm.visible))
-        write(file, "hidden_type", layer_type(rbm.hidden))
-    end
-    return path
 end
 
 end

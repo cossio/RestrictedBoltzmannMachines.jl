@@ -17,4 +17,5 @@ module rescale_hidden_tests include("gauge/rescale_hidden.jl") end
 module pcd_tests include("pcd.jl") end
 module shift_fields_tests include("shift_fields.jl") end
 module pottsgumbel_tests include("pottsgumbel.jl") end
+module hdf5_tests include("hdf5.jl") end
 module aqua_tests include("aqua.jl") end

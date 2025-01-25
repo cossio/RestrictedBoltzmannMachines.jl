@@ -58,5 +58,7 @@ include("layers/pottsgumbel.jl")
 
 function cpu end
 function gpu end
+function save_rbm end
+function load_rbm end
 
 end # module
