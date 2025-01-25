@@ -18,4 +18,5 @@ module pcd_tests include("pcd.jl") end
 module shift_fields_tests include("shift_fields.jl") end
 module pottsgumbel_tests include("pottsgumbel.jl") end
 module hdf5_tests include("hdf5.jl") end
+module standardized_tests include("standardized.jl") end
 module aqua_tests include("aqua.jl") end

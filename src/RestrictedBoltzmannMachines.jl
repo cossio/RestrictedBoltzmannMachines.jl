@@ -56,6 +56,8 @@ include("metropolis.jl")
 
 include("layers/pottsgumbel.jl")
 
+include("standardized.jl")
+
 function cpu end
 function gpu end
 function save_rbm end
