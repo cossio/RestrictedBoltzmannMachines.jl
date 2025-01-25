@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
-## 3.7.0-DEV
+## 3.7.0
 
 - Move functionality from `StandardizedRestrictedBoltzmannMachines.jl` to this package, through the Extensions mechanism.
 
