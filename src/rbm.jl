@@ -294,3 +294,25 @@ function mirror(rbm)
     w = permutedims(rbm.w, perm)
     return RBM(rbm.hidden, rbm.visible, w)
 end
+
+"""
+    potts_to_gumbel(rbm)
+
+Converts Potts layers to PottsGumbel layers.
+"""
+function potts_to_gumbel(rbm::RBM)
+    visible = potts_to_gumbel(rbm.visible)
+    hidden = potts_to_gumbel(rbm.hidden)
+    return RBM(visible, hidden, rbm.w)
+end
+
+"""
+    gumbel_to_potts(rbm)
+
+Converts PottsGumbel layers to Potts layers.
+"""
+function gumbel_to_potts(rbm::RBM)
+    visible = gumbel_to_potts(rbm.visible)
+    hidden = gumbel_to_potts(rbm.hidden)
+    return RBM(visible, hidden, rbm.w)
+end

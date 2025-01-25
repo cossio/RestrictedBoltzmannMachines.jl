@@ -71,14 +71,6 @@ end
 
 anneal_zero(l::PottsGumbel) = PottsGumbel(; θ = zero(l.θ))
 
-function substitution_matrix_sites(rbm::RBM{<:PottsGumbel}, v::AbstractArray, sites::AbstractArray{<:CartesianIndex})
-    substitution_matrix_sites(RBM(Potts(rbm.visible), rbm.hidden, rbm.w), v, sites)
-end
-
-function substitution_matrix_exhaustive(rbm::RBM{<:PottsGumbel}, v::AbstractArray)
-    substitution_matrix_exhaustive(RBM(Potts(rbm.visible), rbm.hidden, rbm.w), v)
-end
-
 function ∂regularize_fields!(∂::AbstractArray, layer::PottsGumbel; l2_fields::Real = 0)
     ∂regularize_fields!(∂, Potts(layer); l2_fields )
 end
@@ -92,40 +84,6 @@ end
 function initialize!(layer::PottsGumbel)
     layer.θ .= 0
     return layer
-end
-
-"""
-    potts_to_gumbel(rbm)
-
-Converts Potts layers to PottsGumbel layers.
-"""
-function potts_to_gumbel(rbm::RBM)
-    visible = potts_to_gumbel(rbm.visible)
-    hidden = potts_to_gumbel(rbm.hidden)
-    return RBM(visible, hidden, rbm.w)
-end
-
-function potts_to_gumbel(rbm::StandardizedRBM)
-    visible = potts_to_gumbel(rbm.visible)
-    hidden = potts_to_gumbel(rbm.hidden)
-    return StandardizedRBM(visible, hidden, rbm.w, rbm.offset_v, rbm.offset_h, rbm.scale_v, rbm.scale_h)
-end
-
-"""
-    gumbel_to_potts(rbm)
-
-Converts PottsGumbel layers to Potts layers.
-"""
-function gumbel_to_potts(rbm::RBM)
-    visible = gumbel_to_potts(rbm.visible)
-    hidden = gumbel_to_potts(rbm.hidden)
-    return RBM(visible, hidden, rbm.w)
-end
-
-function gumbel_to_potts(rbm::StandardizedRBM)
-    visible = gumbel_to_potts(rbm.visible)
-    hidden = gumbel_to_potts(rbm.hidden)
-    return StandardizedRBM(visible, hidden, rbm.w, rbm.offset_v, rbm.offset_h, rbm.scale_v, rbm.scale_h)
 end
 
 function potts_to_gumbel(layer::AbstractLayer)
@@ -143,39 +101,3 @@ function gumbel_to_potts(layer::AbstractLayer)
         return layer
     end
 end
-
-function zerosum(rbm::RBM{<:PottsGumbel, <:PottsGumbel})
-    return potts_to_gumbel(zerosum(gumbel_to_potts(rbm)))
-end
-
-function zerosum(rbm::RBM{<:PottsGumbel,<:AbstractLayer})
-    _rbm = zerosum(gumbel_to_potts(rbm))
-    return RBM(PottsGumbel(_rbm.visible), _rbm.hidden, _rbm.w)
-end
-
-function zerosum(rbm::RBM{<:AbstractLayer,<:PottsGumbel})
-    _rbm = zerosum(gumbel_to_potts(rbm))
-    return RBM(_rbm.visible, PottsGumbel(_rbm.hidden), _rbm.w)
-end
-
-function zerosum!(rbm::RBM{<:PottsGumbel,<:PottsGumbel})
-    return potts_to_gumbel(zerosum!(gumbel_to_potts(rbm)))
-end
-
-function zerosum!(rbm::RBM{<:PottsGumbel,<:AbstractLayer})
-    _rbm = zerosum!(gumbel_to_potts(rbm))
-    return RBM(PottsGumbel(_rbm.visible), _rbm.hidden, _rbm.w)
-end
-
-function zerosum!(rbm::RBM{<:AbstractLayer,<:PottsGumbel})
-    _rbm = zerosum!(gumbel_to_potts(rbm))
-    return RBM(_rbm.visible, PottsGumbel(_rbm.hidden), _rbm.w)
-end
-
-zerosum!(∂::∂RBM, rbm::RBM{<:PottsGumbel,<:PottsGumbel}) = zerosum!(∂, gumbel_to_potts(rbm))
-zerosum!(∂::∂RBM, rbm::RBM{<:AbstractLayer,<:PottsGumbel}) = zerosum!(∂, gumbel_to_potts(rbm))
-zerosum!(∂::∂RBM, rbm::RBM{<:PottsGumbel,<:AbstractLayer}) = zerosum!(∂, gumbel_to_potts(rbm))
-
-zerosum_weights(weights::AbstractArray, rbm::RBM{<:PottsGumbel,<:PottsGumbel}) = zerosum_weights(weights, gumbel_to_potts(rbm))
-zerosum_weights(weights::AbstractArray, rbm::RBM{<:AbstractLayer,<:PottsGumbel}) = zerosum_weights(weights, gumbel_to_potts(rbm))
-zerosum_weights(weights::AbstractArray, rbm::RBM{<:PottsGumbel,<:AbstractLayer}) = zerosum_weights(weights, gumbel_to_potts(rbm))

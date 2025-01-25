@@ -248,6 +248,18 @@ function hidden_statistics_from_inputs(layer::AbstractLayer, inputs::AbstractArr
     return (; μ, ν)
 end
 
+function potts_to_gumbel(rbm::StandardizedRBM)
+    visible = potts_to_gumbel(rbm.visible)
+    hidden = potts_to_gumbel(rbm.hidden)
+    return StandardizedRBM(visible, hidden, rbm.w, rbm.offset_v, rbm.offset_h, rbm.scale_v, rbm.scale_h)
+end
+
+function gumbel_to_potts(rbm::StandardizedRBM)
+    visible = gumbel_to_potts(rbm.visible)
+    hidden = gumbel_to_potts(rbm.hidden)
+    return StandardizedRBM(visible, hidden, rbm.w, rbm.offset_v, rbm.offset_h, rbm.scale_v, rbm.scale_h)
+end
+
 function pcd!(
     rbm::StandardizedRBM,
     data::AbstractArray;

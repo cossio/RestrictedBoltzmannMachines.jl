@@ -136,6 +136,10 @@ function substitution_matrix_sites(
     return E_ .- reshape(E, 1, batch_size(rbm.visible, v)...)
 end
 
+function substitution_matrix_sites(rbm::RBM{<:PottsGumbel}, v::AbstractArray, sites::AbstractArray{<:CartesianIndex})
+    substitution_matrix_sites(RBM(Potts(rbm.visible), rbm.hidden, rbm.w), v, sites)
+end
+
 """
     substitution_matrix_exhaustive(rbm, v)
 
@@ -203,6 +207,10 @@ function substitution_matrix_exhaustive(rbm::RBM{<:Potts}, v::AbstractArray)
     c = onehot_decode(v)
     E = [E_[c[k], k] for k in CartesianIndices(c)]
     return E_ .- reshape(E, 1, size(E)...)
+end
+
+function substitution_matrix_exhaustive(rbm::RBM{<:PottsGumbel}, v::AbstractArray)
+    substitution_matrix_exhaustive(RBM(Potts(rbm.visible), rbm.hidden, rbm.w), v)
 end
 
 #= ***

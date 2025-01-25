@@ -26,6 +26,7 @@ include("layers/relu.jl")
 include("layers/drelu.jl")
 include("layers/prelu.jl")
 include("layers/xrelu.jl")
+include("layers/pottsgumbel.jl")
 include("layers/common.jl")
 
 include("rbm.jl")
@@ -56,7 +57,6 @@ include("metropolis.jl")
 
 include("standardized.jl")
 include("centered.jl")
-include("layers/pottsgumbel.jl")
 
 function cpu end
 function gpu end
