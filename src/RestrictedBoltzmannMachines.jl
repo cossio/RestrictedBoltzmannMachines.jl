@@ -54,4 +54,6 @@ include("regularize.jl")
 
 include("metropolis.jl")
 
+include("layers/pottsgumbel.jl")
+
 end # module

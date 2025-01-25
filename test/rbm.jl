@@ -1,22 +1,60 @@
-using Test: @inferred, @test, @testset, @test_throws
-using Random: bitrand, randn!
-using Statistics: mean
-using LinearAlgebra: logdet, diag, diagm, dot, isposdef
+using EllipsisNotation: (..)
+using LinearAlgebra: diag
+using LinearAlgebra: diagm
+using LinearAlgebra: dot
+using LinearAlgebra: isposdef
+using LinearAlgebra: logdet
 using LogExpFunctions: logsumexp
 using QuadGK: quadgk
-using EllipsisNotation: (..)
+using Random: bitrand
+using Random: randn!
+using RestrictedBoltzmannMachines: ∂free_energy
+using RestrictedBoltzmannMachines: ∂free_energy_h
+using RestrictedBoltzmannMachines: ∂free_energy_v
+using RestrictedBoltzmannMachines: ∂interaction_energy
+using RestrictedBoltzmannMachines: batch_size
+using RestrictedBoltzmannMachines: batchmean
+using RestrictedBoltzmannMachines: Binary
+using RestrictedBoltzmannMachines: BinaryRBM
+using RestrictedBoltzmannMachines: cgf
+using RestrictedBoltzmannMachines: energy
+using RestrictedBoltzmannMachines: free_energy
+using RestrictedBoltzmannMachines: free_energy_h
+using RestrictedBoltzmannMachines: free_energy_v
+using RestrictedBoltzmannMachines: Gaussian
+using RestrictedBoltzmannMachines: hidden_cgf
+using RestrictedBoltzmannMachines: HopfieldRBM
+using RestrictedBoltzmannMachines: inputs_h_from_v
+using RestrictedBoltzmannMachines: inputs_v_from_h
+using RestrictedBoltzmannMachines: interaction_energy
+using RestrictedBoltzmannMachines: log_likelihood
+using RestrictedBoltzmannMachines: log_partition
+using RestrictedBoltzmannMachines: mean_from_inputs
+using RestrictedBoltzmannMachines: mean_h_from_v
+using RestrictedBoltzmannMachines: mean_v_from_h
+using RestrictedBoltzmannMachines: mirror
+using RestrictedBoltzmannMachines: mode_h_from_v
+using RestrictedBoltzmannMachines: mode_v_from_h
+using RestrictedBoltzmannMachines: RBM
+using RestrictedBoltzmannMachines: reconstruction_error
+using RestrictedBoltzmannMachines: sample_h_from_h
+using RestrictedBoltzmannMachines: sample_h_from_v
+using RestrictedBoltzmannMachines: sample_v_from_h
+using RestrictedBoltzmannMachines: sample_v_from_v
+using RestrictedBoltzmannMachines: Spin
+using RestrictedBoltzmannMachines: var_from_inputs
+using RestrictedBoltzmannMachines: var_h_from_v
+using RestrictedBoltzmannMachines: var_v_from_h
+using RestrictedBoltzmannMachines: visible_cgf
+using RestrictedBoltzmannMachines: wmean
+using Statistics: mean
+using Test: @inferred
+using Test: @test
+using Test: @test_throws
+using Test: @testset
 using Zygote: gradient
-using RestrictedBoltzmannMachines: RBM, BinaryRBM, HopfieldRBM, Binary, Spin, Gaussian,
-    energy, interaction_energy, log_likelihood, hidden_cgf, visible_cgf, cgf,
-    free_energy, free_energy_v, free_energy_h,
-    inputs_h_from_v, inputs_v_from_h, batch_size,
-    ∂free_energy, ∂free_energy_v, ∂free_energy_h,
-    mean_from_inputs, sample_v_from_v, sample_h_from_v, sample_h_from_h, sample_v_from_h,
-    batchmean, ∂interaction_energy, log_partition, var_from_inputs,
-    mean_h_from_v, mean_v_from_h, mode_h_from_v, mode_v_from_h, var_h_from_v, var_v_from_h,
-    reconstruction_error, mirror, wmean
 
-@testset "batches, n=$n, m=$m, Bv=$Bv, Bh=$Bh" for n in (5, (5,2)), m in (2, (3,4)), Bv in ((), (3,2)), Bh in ((), (3,2))
+@testset "batches, n=$n, m=$m, Bv=$Bv, Bh=$Bh" for n = (5, (5,2)), m = (2, (3,4)), Bv = ((), (3,2)), Bh = ((), (3,2))
     rbm = BinaryRBM(randn(n...), randn(m...), randn(n..., m...))
     wmat = reshape(rbm.w, length(rbm.visible), length(rbm.hidden))
     v = bitrand(n..., Bv...)
