@@ -4,9 +4,13 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+## 3.8.0
+
+- Move functionality from `CenteredRBMs.jl` to this package.
+
 ## 3.7.0
 
-- Move functionality from `StandardizedRestrictedBoltzmannMachines.jl` to this package, through the Extensions mechanism.
+- Move functionality from `StandardizedRestrictedBoltzmannMachines.jl` to this package.
 
 ## 3.6.0
 
