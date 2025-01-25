@@ -50,7 +50,7 @@ with offset parameters $c_i,d_\mu$. Typically $c_i,d_\mu$ are set to approximate
 
 ## StandardizedRBM
 
-Train and sample a *standardized* Restricted Boltzmann machine in Julia. The energy is given by:
+Train and sample a *standardized* Restricted Boltzmann machine in Julia. This is a generalization of the [Melchior et al, Montavon et al] centered RBMs. The energy is given by:
 
 $$E(\mathbf{v},\mathbf{h}) = - \sum_{i}\theta_{i}v_{i} - \sum_{\mu}\theta_{\mu}h_{\mu} - \sum_{i\mu}w_{i\mu} \frac{v_{i} - \lambda_{i}}{\sigma_{i}}\frac{h_{\mu} - \lambda_{\mu}}{\sigma_{\mu}}$$
 
