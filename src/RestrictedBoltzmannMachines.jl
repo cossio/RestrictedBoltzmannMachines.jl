@@ -55,6 +55,7 @@ include("regularize.jl")
 include("metropolis.jl")
 
 include("standardized.jl")
+include("centered.jl")
 include("layers/pottsgumbel.jl")
 
 function cpu end

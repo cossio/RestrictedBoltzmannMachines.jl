@@ -40,26 +40,23 @@ rbm = cpu(rbm_cuda)
 
 ## Related packages
 
-Use RBMs on the GPU (CUDA):
-
-- https://github.com/cossio/CudaRBMs.jl
-
-Centered and standardized RBMs:
-
-- https://github.com/cossio/CenteredRBMs.jl
-- https://github.com/cossio/StandardizedRestrictedBoltzmannMachines.jl
-
 Adversarially constrained RBMs:
 
 - https://github.com/cossio/AdvRBMs.jl
 
-Save RBMs to HDF5 files:
-
-- https://github.com/cossio/RestrictedBoltzmannMachinesHDF5.jl
-
 Stacked tempering:
 
 - https://github.com/2024stacktemperingrbm/StackedTempering.jl
+
+## CenteredRBM
+
+Train and sample centered Restricted Boltzmann machines in Julia. See [Melchior et al] for the definition of *centered*. Consider an RBM with binary units. Then the centered variant has energy defined by:
+
+$$
+E(v,h) = -\sum_i a_i v_i - \sum_\mu b_\mu h_\mu - \sum_{i\mu} w_{i\mu} (v_i - c_i) (h_\mu - d_\mu)
+$$
+
+with offset parameters $c_i,d_\mu$. Typically $c_i,d_\mu$ are set to approximate the average activities of $v_i$ and $h_\mu$, respectively, as this seems to help training (see [Montavon et al]).
 
 ## StandardizedRBM
 
@@ -76,3 +73,8 @@ If you use this package in a publication, please cite:
 * Jorge Fernandez-de-Cossio-Diaz, Simona Cocco, and Remi Monasson. "Disentangling representations in Restricted Boltzmann Machines without adversaries." [Physical Review X 13, 021003 (2023)](https://journals.aps.org/prx/abstract/10.1103/PhysRevX.13.021003).
 
 Or you can use the included [CITATION.bib](https://github.com/cossio/RestrictedBoltzmannMachines.jl/blob/master/CITATION.bib).
+
+## References
+
+* Montavon, Grégoire, and Klaus-Robert Müller. "Deep Boltzmann machines and the centering trick." Neural networks: tricks of the trade. Springer, Berlin, Heidelberg, 2012. 621-637.
+* Melchior, Jan, Asja Fischer, and Laurenz Wiskott. "How to center deep Boltzmann machines." The Journal of Machine Learning Research 17.1 (2016): 3387-3447.

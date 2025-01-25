@@ -8,11 +8,13 @@ using LogExpFunctions: logistic
 using EllipsisNotation: (..)
 using QuadGK: quadgk
 using RestrictedBoltzmannMachines: RBM, Binary, Spin, Potts, Gaussian, ReLU, dReLU, xReLU, pReLU,
-    flatten, batch_size, batchmean, batchvar, batchcov, grad2ave, drelu_energy,
+    flatten, batch_size, batchmean, batchvar, batchcov, drelu_energy,
     mean_from_inputs, var_from_inputs, meanvar_from_inputs, batchdims, gauss_energy, relu_energy,
     std_from_inputs, mean_abs_from_inputs, sample_from_inputs, mode_from_inputs,
     energy, cgf, free_energy, cgfs, energies, ∂cgf, vstack, ∂energy, ∂free_energy, binary_rand,
     total_meanvar_from_inputs, total_mean_from_inputs, total_var_from_inputs, sample_v_from_v
+using RestrictedBoltzmannMachines: grad2ave
+using RestrictedBoltzmannMachines: grad2var
 
 Random.seed!(2)
 
@@ -156,6 +158,7 @@ end
     ∂ = ∂cgf(layer)
     @test ∂ ≈ only(gs).par ≈ vstack((mean_from_inputs(layer),))
     @test grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
+    @test grad2var(layer, ∂) ≈ var_from_inputs(layer)
 end
 
 @testset "Spin" begin
@@ -169,6 +172,7 @@ end
     ∂ = ∂cgf(layer)
     @test ∂ ≈ only(gs).par ≈ vstack((mean_from_inputs(layer),))
     @test grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
+    @test grad2var(layer, ∂) ≈ var_from_inputs(layer)
 end
 
 @testset "Potts" begin
@@ -187,6 +191,7 @@ end
     ∂ = ∂cgf(layer)
     @test ∂ ≈ only(gs).par ≈ vstack((mean_from_inputs(layer),))
     @test grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
+    @test grad2var(layer, ∂) ≈ var_from_inputs(layer)
 end
 
 @testset "Gaussian" begin
@@ -217,6 +222,7 @@ end
     @test ∂[1, ..] ≈ μ
     @test ∂[2, ..] ≈ -sign.(layer.γ) .* μ2/2
     @test grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
+    @test grad2var(layer, ∂) ≈ var_from_inputs(layer)
 end
 
 @testset "ReLU" begin
@@ -247,6 +253,7 @@ end
     @test ∂[1, ..] ≈ μ
     @test ∂[2, ..] ≈ -sign.(layer.γ) .* μ2/2
     @test grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
+    @test grad2var(layer, ∂) ≈ var_from_inputs(layer)
 end
 
 @testset "pReLU / xReLU / dReLU convert" begin
@@ -367,6 +374,7 @@ end
     ∂ = @inferred ∂cgf(layer)
     @test ∂ ≈ only(gs).par
     @test grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
+    @test grad2var(layer, ∂) ≈ var_from_inputs(layer)
 
     # check law of total variance
     inputs = randn(size(layer)..., 1000)
@@ -392,6 +400,7 @@ end
     ∂ = ∂cgf(layer)
     @test ∂ ≈ only(gs).par
     @test grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
+    @test grad2var(layer, ∂) ≈ var_from_inputs(layer)
 end
 
 @testset "xReLU" begin
@@ -403,6 +412,7 @@ end
     ∂ = ∂cgf(layer)
     @test ∂ ≈ only(gs).par
     @test grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
+    @test grad2var(layer, ∂) ≈ var_from_inputs(layer)
 end
 
 @testset "grad2ave $Layer" for Layer in _layers

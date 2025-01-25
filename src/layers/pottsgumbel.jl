@@ -94,13 +94,6 @@ function initialize!(layer::PottsGumbel)
     return layer
 end
 
-shift_fields(l::PottsGumbel, a::AbstractArray) = PottsGumbel(; θ = l.θ .+ a)
-
-function shift_fields!(l::PottsGumbel, a::AbstractArray)
-    l.θ .+= a
-    return l
-end
-
 """
     potts_to_gumbel(rbm)
 
