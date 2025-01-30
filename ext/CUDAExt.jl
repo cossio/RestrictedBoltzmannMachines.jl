@@ -43,12 +43,12 @@ RestrictedBoltzmannMachines.cpu(layer::xReLU) = xReLU(cpu(layer.par))
 RestrictedBoltzmannMachines.gpu(layer::PottsGumbel) = PottsGumbel(gpu(layer.par))
 RestrictedBoltzmannMachines.cpu(layer::PottsGumbel) = PottsGumbel(cpu(layer.par))
 
-CudaRBMs.gpu(rbm::StandardizedRBM) = StandardizedRBM(
+RestrictedBoltzmannMachines.gpu(rbm::StandardizedRBM) = StandardizedRBM(
     gpu(rbm.visible), gpu(rbm.hidden), gpu(rbm.w),
     gpu(rbm.offset_v), gpu(rbm.offset_h), gpu(rbm.scale_v), gpu(rbm.scale_h)
 )
 
-CudaRBMs.cpu(rbm::StandardizedRBM) = StandardizedRBM(
+RestrictedBoltzmannMachines.cpu(rbm::StandardizedRBM) = StandardizedRBM(
     cpu(rbm.visible), cpu(rbm.hidden), cpu(rbm.w),
     cpu(rbm.offset_v), cpu(rbm.offset_h), cpu(rbm.scale_v), cpu(rbm.scale_h)
 )
