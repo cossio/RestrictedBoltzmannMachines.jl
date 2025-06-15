@@ -72,6 +72,14 @@ function free_energy(rbm::StandardizedRBM, v::AbstractArray)
     return E + F - ΔE
 end
 
+function free_energy_h(rbm::StandardizedRBM, h::AbstractArray)
+    E = energy(rbm.hidden, h)
+    inputs = inputs_v_from_h(rbm, h)
+    F = -cgf(rbm.visible, inputs)
+    ΔE = energy(Binary(; θ = rbm.offset_v), inputs)
+    return E + F - ΔE
+end
+
 function ∂free_energy(
     rbm::StandardizedRBM, v::AbstractArray;
     wts = nothing, moments = moments_from_samples(rbm.visible, v; wts)
@@ -358,4 +366,11 @@ end
 function SpinStandardizedRBM(a::AbstractArray, b::AbstractArray, w::AbstractArray)
     rbm = SpinRBM(a, b, w)
     return standardize(rbm)
+end
+
+function log_partition(rbm::StandardizedRBM)
+    v = ChainRulesCore.ignore_derivatives() do
+        collect_states(rbm.visible)
+    end
+    return logsumexp(-free_energy(rbm, v))
 end

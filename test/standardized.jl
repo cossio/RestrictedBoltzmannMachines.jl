@@ -1,6 +1,7 @@
 using LinearAlgebra: I
 using LinearAlgebra: norm
 using Random: bitrand
+using StatsBase: proportionmap
 using RestrictedBoltzmannMachines: ∂free_energy
 using RestrictedBoltzmannMachines: Binary
 using RestrictedBoltzmannMachines: BinaryRBM
@@ -9,12 +10,17 @@ using RestrictedBoltzmannMachines: delta_energy
 using RestrictedBoltzmannMachines: dReLU
 using RestrictedBoltzmannMachines: energy
 using RestrictedBoltzmannMachines: free_energy
+using RestrictedBoltzmannMachines: free_energy_h
+using RestrictedBoltzmannMachines: free_energy_v
 using RestrictedBoltzmannMachines: Gaussian
+using RestrictedBoltzmannMachines: generate_sequences
 using RestrictedBoltzmannMachines: inputs_h_from_v
 using RestrictedBoltzmannMachines: inputs_v_from_h
 using RestrictedBoltzmannMachines: interaction_energy
+using RestrictedBoltzmannMachines: log_partition
 using RestrictedBoltzmannMachines: mean_h_from_v
 using RestrictedBoltzmannMachines: mean_v_from_h
+using RestrictedBoltzmannMachines: mirror
 using RestrictedBoltzmannMachines: pcd!
 using RestrictedBoltzmannMachines: Potts
 using RestrictedBoltzmannMachines: pReLU
@@ -22,6 +28,8 @@ using RestrictedBoltzmannMachines: RBM
 using RestrictedBoltzmannMachines: ReLU
 using RestrictedBoltzmannMachines: rescale_hidden_activations!
 using RestrictedBoltzmannMachines: sample_from_inputs
+using RestrictedBoltzmannMachines: sample_h_from_h
+using RestrictedBoltzmannMachines: sample_v_from_v
 using RestrictedBoltzmannMachines: shift_fields
 using RestrictedBoltzmannMachines: shift_fields!
 using RestrictedBoltzmannMachines: Spin
@@ -235,4 +243,39 @@ end
     # The fields are not exactly zero because centering introduces minor numerical fluctuations.
     @test norm(rbm.visible.θ) < 1e-13
     @test iszero(rbm.hidden.θ)
+end
+
+@testset "exact enumeration of configurations" begin
+    rbm = BinaryStandardizedRBM(
+        randn(2), randn(2), randn(2,2),
+        randn(2), randn(2), randn(2), randn(2)
+    )
+    vs = generate_sequences(2, 0:1)
+    hs = generate_sequences(2, 0:1)
+
+    for v = vs
+        @test free_energy(rbm, v) ≈ -log(sum(exp(-energy(rbm, v, h)) for h = hs))
+        @test free_energy(rbm, v) == free_energy_v(rbm, v)
+    end
+
+    for h = hs
+        @test free_energy_h(rbm, h) ≈ -log(sum(exp(-energy(rbm, v, h)) for v = vs))
+        @test free_energy_h(rbm, h) == free_energy(mirror(rbm), h)
+    end
+
+    sample_v = sample_v_from_v(rbm, bitrand(2, 10000); steps=10000)
+    sample_h = sample_h_from_h(rbm, bitrand(2, 10000); steps=10000)
+
+    empirical_probs_v = proportionmap(eachcol(sample_v))
+    empirical_probs_h = proportionmap(eachcol(sample_h))
+
+    logZ = log_partition(rbm)
+    @test logZ ≈ log(sum(exp(-free_energy_h(rbm, h)) for h = hs))
+    @test logZ ≈ log(sum(exp(-free_energy_v(rbm, v)) for v = vs))
+
+    exact_probs_v = [exp.(-free_energy_v(rbm, v) .- logZ) for v = vs]
+    exact_probs_h = [exp.(-free_energy_h(rbm, h) .- logZ) for h = hs]
+
+    @test vec(exact_probs_v) ≈ vec([empirical_probs_v[v] for v = vs]) rtol=0.05
+    @test vec(exact_probs_h) ≈ vec([empirical_probs_h[h] for h = hs]) rtol=0.05
 end
