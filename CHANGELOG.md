@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+## 3.9.0
+
+- Support Julia LTS (v1.10).
+- Add `∂free_energy_h` method for standardized RBMs.
+
 ## 3.8.0
 
 - Move functionality from `CenteredRBMs.jl` to this package.
