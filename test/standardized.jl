@@ -3,6 +3,8 @@ using LinearAlgebra: norm
 using Random: bitrand
 using StatsBase: proportionmap
 using RestrictedBoltzmannMachines: ∂free_energy
+using RestrictedBoltzmannMachines: ∂free_energy_v
+using RestrictedBoltzmannMachines: ∂free_energy_h
 using RestrictedBoltzmannMachines: Binary
 using RestrictedBoltzmannMachines: BinaryRBM
 using RestrictedBoltzmannMachines: BinaryStandardizedRBM
@@ -185,13 +187,26 @@ end
         randn(3), randn(2), rand(3), rand(2)
     )
     v = bitrand(size(rbm.visible)..., 10)
-    gs = gradient(rbm) do rbm
-        mean(free_energy(rbm, v))
+    h = bitrand(size(rbm.hidden)..., 10)
+
+    @test free_energy_v(rbm, v) == free_energy(rbm, v)
+    @test ∂free_energy_v(rbm, v) == ∂free_energy(rbm, v)
+
+    gs_v = gradient(rbm) do rbm
+        mean(free_energy_v(rbm, v))
     end
-    ∂ = ∂free_energy(rbm, v)
-    @test ∂.visible ≈ only(gs).visible.par
-    @test ∂.hidden ≈ only(gs).hidden.par
-    @test ∂.w ≈ only(gs).w
+    ∂v = ∂free_energy_v(rbm, v)
+    @test ∂v.visible ≈ only(gs_v).visible.par
+    @test ∂v.hidden ≈ only(gs_v).hidden.par
+    @test ∂v.w ≈ only(gs_v).w
+
+    gs_h = gradient(rbm) do rbm
+        mean(free_energy_h(rbm, h))
+    end
+    ∂h = ∂free_energy_h(rbm, h)
+    @test ∂h.visible ≈ only(gs_h).visible.par
+    @test ∂h.hidden ≈ only(gs_h).hidden.par
+    @test ∂h.w ≈ only(gs_h).w
 end
 
 @testset "standardized constructor" begin

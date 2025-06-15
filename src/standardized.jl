@@ -95,6 +95,26 @@ function ∂free_energy(
     return ∂RBM(∂v, ∂h, ∂w)
 end
 
+function ∂free_energy_v(rbm::StandardizedRBM, v::AbstractArray; kwargs...)
+    return ∂free_energy(rbm, v; kwargs...)
+end
+
+function ∂free_energy_h(
+    rbm::StandardizedRBM, h::AbstractArray;
+    wts = nothing, moments = moments_from_samples(rbm.hidden, h; wts)
+)
+    inputs = inputs_v_from_h(rbm, h)
+    ∂h = ∂energy_from_moments(rbm.hidden, moments)
+    ∂Γ = ∂cgfs(rbm.visible, inputs)
+    v = grad2ave(rbm.visible, ∂Γ)
+
+    ∂v = reshape(wmean(-∂Γ; wts, dims = (ndims(rbm.visible.par) + 1):ndims(∂Γ)), size(rbm.visible.par))
+    ∂w = ∂interaction_energy(rbm, v, h; wts)
+
+    return ∂RBM(∂v, ∂h, ∂w)
+end
+
+
 function ∂interaction_energy(
     rbm::StandardizedRBM, v::AbstractArray, h::AbstractArray; wts = nothing
 )
