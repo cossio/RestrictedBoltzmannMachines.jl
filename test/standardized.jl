@@ -232,7 +232,7 @@ end
         ϵv=1f-1, ϵh=0f0, damping=1f-1
     )
 
-    # The fields are not exaclty zero because centering introduces minor numerical fluctuations.
+    # The fields are not exactly zero because centering introduces minor numerical fluctuations.
     @test norm(rbm.visible.θ) < 1e-13
     @test iszero(rbm.hidden.θ)
 end
