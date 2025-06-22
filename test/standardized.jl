@@ -291,6 +291,6 @@ end
     exact_probs_v = [exp.(-free_energy_v(rbm, v) .- logZ) for v = vs]
     exact_probs_h = [exp.(-free_energy_h(rbm, h) .- logZ) for h = hs]
 
-    @test vec(exact_probs_v) ≈ vec([empirical_probs_v[v] for v = vs]) rtol=0.05
-    @test vec(exact_probs_h) ≈ vec([empirical_probs_h[h] for h = hs]) rtol=0.05
+    @test vec(exact_probs_v) ≈ vec([get(empirical_probs_v, v, 0.) for v = vs]) rtol=0.05
+    @test vec(exact_probs_h) ≈ vec([get(empirical_probs_h, h, 0.) for h = hs]) rtol=0.05
 end
