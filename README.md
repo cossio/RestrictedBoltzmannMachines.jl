@@ -38,6 +38,8 @@ rbm_cu = gpu(rbm)
 rbm = cpu(rbm_cuda)
 ```
 
+See this [Google Colab notebook](https://colab.research.google.com/drive/1lfY5t6m-j8n19EXHLnV-lRBBfJ_jLk8y?usp=sharing) for a full example of training and sampling an RBM with GPU.
+
 ## CenteredRBM
 
 Train and sample centered Restricted Boltzmann machines in Julia. See [Melchior et al] for the definition of *centered*. Consider an RBM with binary units. Then the centered variant has energy defined by:
