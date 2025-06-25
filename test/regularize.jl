@@ -1,11 +1,20 @@
 import Zygote
-using Test: @test, @testset
-using Statistics: mean
-using Random: bitrand
 using EllipsisNotation: (..)
-using RestrictedBoltzmannMachines: BinaryRBM, free_energy, ∂free_energy,
-    Binary, Gaussian, ReLU, dReLU, pReLU, xReLU,
-    ∂regularize!, ∂regularize, ∂regularize_fields
+using Random: bitrand
+using RestrictedBoltzmannMachines: ∂free_energy
+using RestrictedBoltzmannMachines: ∂regularize
+using RestrictedBoltzmannMachines: ∂regularize_fields
+using RestrictedBoltzmannMachines: ∂regularize!
+using RestrictedBoltzmannMachines: Binary
+using RestrictedBoltzmannMachines: BinaryRBM
+using RestrictedBoltzmannMachines: dReLU
+using RestrictedBoltzmannMachines: free_energy
+using RestrictedBoltzmannMachines: Gaussian
+using RestrictedBoltzmannMachines: pReLU
+using RestrictedBoltzmannMachines: ReLU
+using RestrictedBoltzmannMachines: xReLU
+using Statistics: mean
+using Test: @test, @testset
 
 @testset "∂regularize!" begin
     rbm = BinaryRBM(randn(3,5), randn(3,2), randn(3,5,3,2))
