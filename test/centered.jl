@@ -178,7 +178,7 @@ end
     @test only(gs).w ≈ ∂.w
 end
 
-@testset "∂regularize! centered RBM" beginx``
+@testset "∂regularize! centered RBM" begin
     rbm = CenteredRBM(
         ReLU(; θ=randn(3), γ=rand(3)), Binary(; θ=randn(2)), randn(3,2),
         randn(3), randn(2)
