@@ -35,7 +35,7 @@ rbm_cu = gpu(rbm)
 # ... do some things with rbm_cu on the GPU (e.g. training, sampling)
 
 # copy back to CPU
-rbm = cpu(rbm_cuda)
+rbm = cpu(rbm_cu)
 ```
 
 See this [Google Colab notebook](https://colab.research.google.com/drive/1lfY5t6m-j8n19EXHLnV-lRBBfJ_jLk8y?usp=sharing) for a full example of training and sampling an RBM with GPU.
