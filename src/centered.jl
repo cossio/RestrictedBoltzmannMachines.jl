@@ -207,11 +207,31 @@ function center(rbm::RBM, offset_v::AbstractArray, offset_h::AbstractArray)
 end
 
 function center(rbm::CenteredRBM, offset_v::AbstractArray, offset_h::AbstractArray)
-    center!(deepcopy(rbm), offset_v, offset_h)
+    rbm1 = center_visible(rbm, offset_v)
+    return center_hidden(rbm1, offset_h)
 end
 
-center(rbm::CenteredRBM) = center!(deepcopy(rbm))
+function center(rbm::CenteredRBM)
+    offset_v = Zeros{eltype(rbm.w)}(size(rbm.visible))
+    offset_h = Zeros{eltype(rbm.w)}(size(rbm.hidden))
+    return center(rbm, offset_v, offset_h)
+end
+
+function center_visible(rbm::CenteredRBM, offset_v::AbstractArray)
+    inputs = inputs_h_from_v(rbm, offset_v)
+    hidden = shift_fields(rbm.hidden, inputs)
+    return CenteredRBM(rbm.visible, hidden, rbm.w, offset_v, rbm.offset_h)
+end
+
+function center_hidden(rbm::CenteredRBM, offset_h::AbstractArray)
+    inputs = inputs_v_from_h(rbm, offset_h)
+    visible = shift_fields(rbm.visible, inputs)
+    return CenteredRBM(visible, rbm.hidden, rbm.w, rbm.offset_v, offset_h)
+end
+
 center(rbm::RBM) = CenteredRBM(rbm)
+center_visible(rbm::RBM, offset_v::AbstractArray) = center_visible(center(rbm), offset_v)
+center_hidden(rbm::RBM, offset_h::AbstractArray) = center_hidden(center(rbm), offset_h)
 
 """
     center!(centered_rbm, offset_v = 0, offset_h = 0)
@@ -278,8 +298,39 @@ function initialize!(rbm::CenteredRBM, data::AbstractArray; ϵ::Real = 1e-6)
     return rbm
 end
 
-function ∂regularize!(∂::∂RBM, rbm::CenteredRBM; kwargs...)
-    ∂regularize!(∂, RBM(rbm); kwargs...)
+function ∂regularize!(
+    ∂::∂RBM, rbm::CenteredRBM;
+    l2_fields::Real = 0,
+    l1_weights::Real = 0,
+    l2_weights::Real = 0,
+    l2l1_weights::Real = 0,
+)
+    urbm = uncenter(rbm)
+    offset_h = reshape(rbm.offset_h, map(one, size(rbm.offset_v))..., size(rbm.offset_h)...)
+
+    if !iszero(l2_fields)
+        visible_reg = ∂regularize_fields(urbm.visible; l2_fields)
+        ∂.visible .+= visible_reg
+        ∂regularize_add_visible_offset!(∂, visible_reg, offset_h, rbm.visible)
+    end
+    if !iszero(l1_weights)
+        ∂.w .+= l1_weights * sign.(urbm.w)
+    end
+    if !iszero(l2_weights)
+        ∂.w .+= l2_weights * urbm.w
+    end
+    if !iszero(l2l1_weights)
+        dims = ntuple(identity, ndims(rbm.visible))
+        ∂.w .+= l2l1_weights * sign.(urbm.w) .* mean(abs, urbm.w; dims)
+    end
+end
+
+function ∂regularize_add_visible_offset!(∂::∂RBM, visible_regularization::AbstractArray, offset_h::AbstractArray, ::dReLU)
+    ∂.w .-= (visible_regularization[1, ..] + visible_regularization[2, ..]) .* offset_h
+end
+
+function ∂regularize_add_visible_offset!(∂::∂RBM, visible_regularization::AbstractArray, offset_h::AbstractArray, ::Union{Binary,Spin,Potts,Gaussian,ReLU,xReLU,pReLU})
+    ∂.w .-= visible_regularization[1, ..] .* offset_h
 end
 
 function sample_h_from_v(rbm::CenteredRBM, v::AbstractArray)

@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+## 4.0.0
+
+- BREAKING: Changed the way regularization works for standardized and centered RBMs. Now regularization acts as if it was applied to the equivalent normal RBM parameters.
+
 ## 3.9.0
 
 - Support Julia LTS (v1.10).
