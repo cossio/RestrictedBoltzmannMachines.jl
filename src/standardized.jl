@@ -128,8 +128,47 @@ function log_pseudolikelihood(rbm::StandardizedRBM, v::AbstractArray)
     return log_pseudolikelihood(unstandardize(rbm), v)
 end
 
-function ∂regularize!(∂::∂RBM, rbm::StandardizedRBM; kwargs...)
-    ∂regularize!(∂, RBM(rbm); kwargs...)
+# function ∂regularize!(∂::∂RBM, rbm::StandardizedRBM; kwargs...)
+#     ∂regularize!(∂, RBM(rbm); kwargs...)
+# end
+
+function ∂regularize!(
+    ∂::∂RBM, rbm::StandardizedRBM;
+    l2_fields::Real = 0,
+    l1_weights::Real = 0,
+    l2_weights::Real = 0,
+    l2l1_weights::Real = 0,
+)
+    urbm = unstandardize(rbm)
+
+    offset_h = reshape(rbm.offset_h, map(one, size(rbm.scale_v))..., size(rbm.scale_h)...)
+    scale_v = reshape(rbm.scale_v, size(rbm.scale_v)..., map(one, size(rbm.scale_h))...)
+    scale_h = reshape(rbm.scale_h, map(one, size(rbm.scale_v))..., size(rbm.scale_h)...)
+    scale_w = scale_v .* scale_h
+
+    if !iszero(l2_fields)
+        visible_reg = ∂regularize_fields(urbm.visible; l2_fields)
+        ∂.visible .+= visible_reg
+        ∂regularize_add_visible_offset!(∂, visible_reg, offset_h, scale_w, rbm.visible)
+    end
+    if !iszero(l1_weights)
+        ∂.w .+= l1_weights * sign.(urbm.w) ./ scale_w
+    end
+    if !iszero(l2_weights)
+        ∂.w .+= l2_weights * urbm.w ./ scale_w
+    end
+    if !iszero(l2l1_weights)
+        dims = ntuple(identity, ndims(rbm.visible))
+        ∂.w .+= l2l1_weights * sign.(urbm.w) .* mean(abs, urbm.w; dims) ./ scale_w
+    end
+end
+
+function ∂regularize_add_visible_offset!(∂::∂RBM, visible_regularization::AbstractArray, offset_h::AbstractArray, scale_w::AbstractArray, ::dReLU)
+    ∂.w .-= (visible_regularization[1, ..] + visible_regularization[2, ..]) .* offset_h ./ scale_w
+end
+
+function ∂regularize_add_visible_offset!(∂::∂RBM, visible_regularization::AbstractArray, offset_h::AbstractArray, scale_w::AbstractArray, ::Union{Binary,Spin,Potts,Gaussian,ReLU,xReLU,pReLU})
+    ∂.w .-= visible_regularization[1, ..] .* offset_h ./ scale_w
 end
 
 function rescale_hidden_activations!(rbm::StandardizedRBM)

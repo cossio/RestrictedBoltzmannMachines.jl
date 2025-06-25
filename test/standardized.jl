@@ -3,8 +3,9 @@ using LinearAlgebra: norm
 using Random: bitrand
 using StatsBase: proportionmap
 using RestrictedBoltzmannMachines: ∂free_energy
-using RestrictedBoltzmannMachines: ∂free_energy_v
 using RestrictedBoltzmannMachines: ∂free_energy_h
+using RestrictedBoltzmannMachines: ∂free_energy_v
+using RestrictedBoltzmannMachines: ∂regularize!
 using RestrictedBoltzmannMachines: Binary
 using RestrictedBoltzmannMachines: BinaryRBM
 using RestrictedBoltzmannMachines: BinaryStandardizedRBM
@@ -293,4 +294,119 @@ end
 
     @test vec(exact_probs_v) ≈ vec([get(empirical_probs_v, v, 0.) for v = vs]) rtol=0.05
     @test vec(exact_probs_h) ≈ vec([get(empirical_probs_h, h, 0.) for h = hs]) rtol=0.05
+end
+
+@testset "∂regularize! standardized RBM" begin
+    rbm = BinaryStandardizedRBM(
+        randn(3), randn(2), randn(3,2),
+        randn(3), randn(2), rand(3), rand(2)
+    )
+    v = bitrand(3, 100)
+    vdims = ntuple(identity, ndims(rbm.visible))
+    N = length(rbm.visible)
+
+    l2_fields = rand()
+    l1_weights = rand()
+    l2_weights = rand()
+    l2l1_weights = rand()
+
+    gs = gradient(rbm) do rbm
+        F = mean(free_energy(rbm, v))
+        urbm = unstandardize(rbm)
+        L2_fields = sum(abs2, urbm.visible.θ)
+        L1_weights = sum(abs, urbm.w)
+        L2_weights = sum(abs2, urbm.w)
+        L2L1_weights = sum(abs2, sum(abs, urbm.w; dims=vdims))
+        return (
+            F + l2_fields/2 * L2_fields +
+            l1_weights * L1_weights +
+            l2_weights/2 * L2_weights +
+            l2l1_weights/(2N) * L2L1_weights
+        )
+    end
+
+    ∂ = ∂free_energy(rbm, v)
+    ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights)
+
+    @test only(gs).visible.par ≈ ∂.visible
+    @test only(gs).hidden.par ≈ ∂.hidden
+    @test only(gs).w ≈ ∂.w
+end
+
+@testset "∂regularize! standardized RBM" begin
+    rbm = StandardizedRBM(
+        ReLU(; θ=randn(3), γ=rand(3)),
+        Binary(; θ=randn(2)),
+        randn(3,2),
+        randn(3), randn(2), rand(3), rand(2)
+    )
+    v = rand(3, 100)
+    vdims = ntuple(identity, ndims(rbm.visible))
+    N = length(rbm.visible)
+
+    l2_fields = rand()
+    l1_weights = rand()
+    l2_weights = rand()
+    l2l1_weights = rand()
+
+    gs = gradient(rbm) do rbm
+        F = mean(free_energy(rbm, v))
+        urbm = unstandardize(rbm)
+        L2_fields = sum(abs2, urbm.visible.θ)
+        L1_weights = sum(abs, urbm.w)
+        L2_weights = sum(abs2, urbm.w)
+        L2L1_weights = sum(abs2, sum(abs, urbm.w; dims=vdims))
+        return (
+            F + l2_fields/2 * L2_fields +
+            l1_weights * L1_weights +
+            l2_weights/2 * L2_weights +
+            l2l1_weights/(2N) * L2L1_weights
+        )
+    end
+
+    ∂ = ∂free_energy(rbm, v)
+    ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights)
+
+    @test only(gs).visible.par ≈ ∂.visible
+    @test only(gs).hidden.par ≈ ∂.hidden
+    @test only(gs).w ≈ ∂.w
+end
+
+@testset "∂regularize! standardized RBM" begin
+    rbm = StandardizedRBM(
+        dReLU(; θp=randn(3), θn=randn(3), γp=rand(3), γn=rand(3)),
+        Binary(; θ=randn(2)),
+        randn(3,2),
+        randn(3), randn(2), rand(3), rand(2)
+    )
+    v = randn(3, 100)
+    vdims = ntuple(identity, ndims(rbm.visible))
+    N = length(rbm.visible)
+
+    l2_fields = rand()
+    l1_weights = rand()
+    l2_weights = rand()
+    l2l1_weights = rand()
+
+    gs = gradient(rbm) do rbm
+        F = mean(free_energy(rbm, v))
+        urbm = unstandardize(rbm)
+        L2_fields = sum(abs2, urbm.visible.θp) + sum(abs2, urbm.visible.θn)
+        L1_weights = sum(abs, urbm.w)
+        L2_weights = sum(abs2, urbm.w)
+        L2L1_weights = sum(abs2, sum(abs, urbm.w; dims=vdims))
+        return (
+            F + l2_fields/2 * L2_fields +
+            l1_weights * L1_weights +
+            l2_weights/2 * L2_weights +
+            l2l1_weights/(2N) * L2L1_weights
+        )
+    end
+
+    ∂ = ∂free_energy(rbm, v)
+    ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights)
+
+    @test only(gs).visible.par ≈ ∂.visible
+    @test only(gs).hidden.par ≈ ∂.hidden
+    @test only(gs).w ≈ ∂.w
 end
