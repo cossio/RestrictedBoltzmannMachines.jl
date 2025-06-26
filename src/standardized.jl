@@ -375,9 +375,6 @@ function pcd!(
         # update fantasy chains
         vm .= sample_v_from_v(rbm, vm; steps)
 
-        # update standardization
-        standardize_hidden_from_v!(rbm, vd; damping, ϵ=ϵh)
-
         # compute gradient
         ∂d = ∂free_energy(rbm, vd; moments)
         ∂m = ∂free_energy(rbm, vm)
@@ -389,6 +386,9 @@ function pcd!(
         # feed gradient to Optimiser rule
         gs = (; visible = ∂.visible, hidden = ∂.hidden, w = ∂.w)
         state, ps = update!(state, ps, gs)
+
+        # update standardization
+        standardize_hidden_from_v!(rbm, vd; damping, ϵ=ϵh)
 
         rescale_hidden && rescale_hidden_activations!(rbm)
         zerosum && zerosum!(rbm)
