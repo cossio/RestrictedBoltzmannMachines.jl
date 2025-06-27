@@ -1,7 +1,7 @@
 #=
 # dReLU layer
 
-The dReLU hidden units are defined by the hidde unit potential function:
+The dReLU hidden units are defined by the hidden unit potential function:
 
 ```math
 \mathcal{U}_{\mu} (h) = \frac{1}{2} \gamma_{\mu}^{+} h_{+}^{2} + \frac{1}{2}\gamma_{\mu}^{-} h_{-}^{2} + \theta_{\mu}^{+} h_{+} + \theta_{\mu}^{-} h_{-}
