@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>MNIST · RestrictedBoltzmannMachines.jl</title><meta name="title" content="MNIST · RestrictedBoltzmannMachines.jl"/><meta property="og:title" content="MNIST · RestrictedBoltzmannMachines.jl"/><meta property="twitter:title" content="MNIST · RestrictedBoltzmannMachines.jl"/><meta name="description" content="Documentation for RestrictedBoltzmannMachines.jl."/><meta property="og:description" content="Documentation for RestrictedBoltzmannMachines.jl."/><meta property="twitter:description" content="Documentation for RestrictedBoltzmannMachines.jl."/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">RestrictedBoltzmannMachines.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><span class="tocitem">Examples</span><ul><li class="is-active"><a class="tocitem" href>MNIST</a></li><li><input class="collapse-toggle" id="menuitem-2-2" type="checkbox"/><label class="tocitem" for="menuitem-2-2"><span class="docs-label">Layers</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../layers/Gaussian/">Gaussian</a></li><li><a class="tocitem" href="../layers/ReLU/">ReLU</a></li><li><a class="tocitem" href="../layers/dReLU/">dReLU</a></li></ul></li><li><a class="tocitem" href="../ais/">AIS</a></li><li><a class="tocitem" href="../metropolis/">Metropolis</a></li></ul></li><li><a class="tocitem" href="../../reference/">Reference</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>MNIST</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>MNIST</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/cossio/RestrictedBoltzmannMachines.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/cossio/RestrictedBoltzmannMachines.jl/blob/master/docs/src/literate/MNIST.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="MNIST"><a class="docs-heading-anchor" href="#MNIST">MNIST</a><a id="MNIST-1"></a><a class="docs-heading-anchor-permalink" href="#MNIST" title="Permalink"></a></h1><p>We begin by importing the required packages. We load MNIST via the MLDatasets.jl package.</p><pre><code class="language-julia hljs">import Makie
+import CairoMakie
+import MLDatasets
+using Statistics: mean, std, var
+using Random: bitrand
+using ValueHistories: MVHistory, @trace
+using RestrictedBoltzmannMachines: BinaryRBM, sample_from_inputs,
+    initialize!, log_pseudolikelihood, pcd!, free_energy, sample_v_from_v</code></pre><p>Useful function to plot grids of MNIST digits.</p><pre><code class="language-julia hljs">&quot;&quot;&quot;
+    imggrid(A)
+
+Given a four dimensional tensor `A` of size `(width, height, ncols, nrows)`
+containing `width x height` images in a grid of `nrows x ncols`, this returns
+a matrix of size `(width * ncols, height * nrows)`, that can be plotted in a heatmap
+to display all images.
+&quot;&quot;&quot;
+imggrid(A::AbstractArray{&lt;:Any,4}) =
+    reshape(permutedims(A, (1,3,2,4)), size(A,1)*size(A,3), size(A,2)*size(A,4))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Main.imggrid</code></pre><p>Load the MNIST dataset. We will train an RBM with binary (0,1) visible and hidden units. Therefore we binarize the data. In addition, we consider only one kind of digit so that training is faster.</p><pre><code class="language-julia hljs">Float = Float32
+train_x = MLDatasets.MNIST(split=:train)[:].features
+train_y = MLDatasets.MNIST(split=:train)[:].targets
+train_x = Array{Float}(train_x[:, :, train_y .== 0] .≥ 0.5)</code></pre><p>Let&#39;s visualize some random digits.</p><pre><code class="language-julia hljs">nrows, ncols = 10, 15
+fig = Makie.Figure(resolution=(40ncols, 40nrows))
+ax = Makie.Axis(fig[1,1], yreversed=true)
+idx = rand(1:size(train_x,3), nrows * ncols) # random indices of digits
+digits = reshape(train_x[:,:,idx], 28, 28, ncols, nrows)
+Makie.image!(ax, imggrid(digits), colorrange=(1,0))
+Makie.hidedecorations!(ax)
+Makie.hidespines!(ax)
+fig</code></pre><img src="c44ed6a5.png" alt="Example block output"/><p>Initialize an RBM with 400 hidden units.</p><pre><code class="language-julia hljs">rbm = BinaryRBM(Float, (28,28), 400)
+initialize!(rbm, train_x) # match single-site statistics</code></pre><p>Initially, the RBM assigns a poor pseudolikelihood to the data.</p><pre><code class="language-julia hljs">println(&quot;log(PL) = &quot;, mean(@time log_pseudolikelihood(rbm, train_x)))</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">  2.122280 seconds (8.48 M allocations: 480.289 MiB, 6.20% gc time, 90.32% compilation time)
+log(PL) = -0.24965516</code></pre><p>Now we train the RBM on the data.</p><pre><code class="language-julia hljs">batchsize = 256
+iters = 10000
+history = MVHistory()
+@time pcd!(
+    rbm, train_x; iters, batchsize,
+    callback = function(; iter, _...)
+        if iszero(iter % 100)
+            lpl = mean(log_pseudolikelihood(rbm, train_x))
+            @trace history iter lpl
+        end
+    end
+)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">271.709962 seconds (19.85 M allocations: 205.540 GiB, 21.07% gc time, 6.31% compilation time)</code></pre><p>After training, the pseudolikelihood score of the data improves significantly. Plot of log-pseudolikelihood of trian data during learning.</p><pre><code class="language-julia hljs">fig = Makie.Figure(resolution=(500,300))
+ax = Makie.Axis(fig[1,1], xlabel = &quot;train time&quot;, ylabel=&quot;pseudolikelihood&quot;)
+Makie.lines!(ax, get(history, :lpl)...)
+fig</code></pre><img src="1e6b4854.png" alt="Example block output"/><p>Sample digits from the RBM starting from a random condition.</p><pre><code class="language-julia hljs">nsteps = 3000
+fantasy_F = zeros(nrows*ncols, nsteps)
+fantasy_x = bitrand(28,28,nrows*ncols)
+fantasy_F[:,1] .= free_energy(rbm, fantasy_x)
+@time for t in 2:nsteps
+    fantasy_x .= sample_v_from_v(rbm, fantasy_x)
+    fantasy_F[:,t] .= free_energy(rbm, fantasy_x)
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"> 18.416629 seconds (244.20 k allocations: 11.988 GiB, 3.01% gc time, 1.15% compilation time)</code></pre><p>Check equilibration of sampling</p><pre><code class="language-julia hljs">fig = Makie.Figure(resolution=(400,300))
+ax = Makie.Axis(fig[1,1], xlabel=&quot;sampling time&quot;, ylabel=&quot;free energy&quot;)
+fantasy_F_μ = vec(mean(fantasy_F; dims=1))
+fantasy_F_σ = vec(std(fantasy_F; dims=1))
+Makie.band!(ax, 1:nsteps, fantasy_F_μ - fantasy_F_σ/2, fantasy_F_μ + fantasy_F_σ/2)
+Makie.lines!(ax, 1:nsteps, fantasy_F_μ)
+fig</code></pre><img src="6e3e7c00.png" alt="Example block output"/><p>Plot the sampled digits.</p><pre><code class="language-julia hljs">fig = Makie.Figure(resolution=(40ncols, 40nrows))
+ax = Makie.Axis(fig[1,1], yreversed=true)
+Makie.image!(ax, imggrid(reshape(fantasy_x, 28, 28, ncols, nrows)), colorrange=(1,0))
+Makie.hidedecorations!(ax)
+Makie.hidespines!(ax)
+fig</code></pre><img src="27c2f46a.png" alt="Example block output"/><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../">« Home</a><a class="docs-footer-nextpage" href="../layers/Gaussian/">Gaussian »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.13.0 on <span class="colophon-date" title="Friday 27 June 2025 15:49">Friday 27 June 2025</span>. Using Julia version 1.11.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
