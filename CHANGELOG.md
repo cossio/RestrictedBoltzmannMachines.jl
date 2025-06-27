@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+## 5.0.0-DEV
+
+- BREAKING: removed `hidden_statistics_from_inputs`, which was a duplicate of `total_meanvar_from_inputs`.
+
 ## 4.2.0
 
 - Added `regularization_penalty`.
