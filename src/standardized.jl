@@ -347,6 +347,9 @@ function pcd!(
     l2_weights::Real = 0, # weights L2 regularization
     l2l1_weights::Real = 0, # weights L2/L1 regularization
 
+    # adds a loss terms λ_h * <h>^2 + λ_varh * (var(h)-1)^2 driving <h> to zero and var(h) to one
+    λ_h::Real = 0, λ_varh::Real = 0,
+
     # "pseudocount" for estimating variances of v and h and damping
     damping::Real = 1//100,
     ϵv::Real = 0, ϵh::Real = 0,
@@ -358,7 +361,7 @@ function pcd!(
 
     # Absorb the scale_h into the hidden unit activation (for continuous hidden units).
     # Results in hidden units with var(h) ~ 1.
-    rescale_hidden::Bool = true,
+    rescale_hidden::Bool = iszero(λ_varh),
 
     zerosum::Bool = true, # zerosum gauge for Potts layers
 
@@ -371,7 +374,10 @@ function pcd!(
     standardize_visible_from_data!(rbm, data; ϵ = ϵv)
     zerosum && zerosum!(rbm)
 
-    for (iter, (vd,)) in zip(1:iters, infinite_minibatches(data; batchsize, shuffle))
+    minibatches = infinite_minibatches(data; batchsize, shuffle)
+    minibatches_other = infinite_minibatches(data; batchsize, shuffle)
+
+    for (iter, (vd,), (vd_other,)) in zip(1:iters, minibatches, minibatches_other)
         # update fantasy chains
         vm .= sample_v_from_v(rbm, vm; steps)
 
