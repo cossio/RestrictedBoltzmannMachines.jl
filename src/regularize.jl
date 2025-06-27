@@ -117,6 +117,6 @@ function regularization_penalty(rbm::RBM; l1_weights::Real = 0, l2_weights::Real
 end
 
 regularization_penalty_fields(layer::dReLU) = sum(abs2, layer.θp) + sum(abs2, layer.θn)
-function regularization_penalty_fields(layer::Union{Binary,Spin,Potts,Gaussian,ReLU,pReLU,xReLU})
+function regularization_penalty_fields(layer::Union{Binary,Spin,Potts,PottsGumbel,Gaussian,ReLU,pReLU,xReLU})
     return sum(abs2, layer.θ)
 end
