@@ -13,14 +13,13 @@ using RestrictedBoltzmannMachines: Gaussian
 using RestrictedBoltzmannMachines: pReLU
 using RestrictedBoltzmannMachines: ReLU
 using RestrictedBoltzmannMachines: xReLU
+using RestrictedBoltzmannMachines: regularization_penalty
 using Statistics: mean
 using Test: @test, @testset
 
 @testset "∂regularize!" begin
     rbm = BinaryRBM(randn(3,5), randn(3,2), randn(3,5,3,2))
     v = bitrand(3,5,100)
-    vdims = ntuple(identity, ndims(rbm.visible))
-    N = length(rbm.visible)
 
     l2_fields = rand()
     l1_weights = rand()
@@ -28,16 +27,7 @@ using Test: @test, @testset
     l2l1_weights = rand()
 
     gs = Zygote.gradient(rbm) do rbm
-        F = mean(free_energy(rbm, v))
-        L2_fields = sum(abs2, rbm.visible.θ)
-        L1_weights = sum(abs, rbm.w)
-        L2_weights = sum(abs2, rbm.w)
-        L2L1_weights = sum(abs2, sum(abs, rbm.w; dims=vdims))
-        return (
-            F + l2_fields/2 * L2_fields + l1_weights * L1_weights +
-            l2_weights/2 * L2_weights +
-            l2l1_weights/(2N) * L2L1_weights
-        )
+        mean(free_energy(rbm, v)) + regularization_penalty(rbm; l2_fields, l1_weights, l2_weights, l2l1_weights)
     end
 
     ∂ = ∂free_energy(rbm, v)
@@ -50,8 +40,6 @@ end
 
 @testset "∂regularize" begin
     rbm = BinaryRBM(randn(3,5), randn(3,2), randn(3,5,3,2))
-    dims = ntuple(identity, ndims(rbm.visible))
-    N = length(rbm.visible)
 
     l2_fields = rand()
     l1_weights = rand()
@@ -59,12 +47,7 @@ end
     l2l1_weights = rand()
 
     gs = Zygote.gradient(rbm) do rbm
-        return (
-            l2_fields/2 * sum(abs2, rbm.visible.θ) +
-            l1_weights * sum(abs, rbm.w) +
-            l2_weights/2 * sum(abs2, rbm.w) +
-            l2l1_weights/(2N) * sum(abs2, sum(abs, rbm.w; dims))
-        )
+        regularization_penalty(rbm; l2_fields, l1_weights, l2_weights, l2l1_weights)
     end
 
     ∂ = ∂regularize(rbm; l2_fields, l1_weights, l2_weights, l2l1_weights)

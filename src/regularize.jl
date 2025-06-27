@@ -103,3 +103,15 @@ function ∂regularize_weights(
     ∂l2 = l2_weights * rbm.w
     return ∂l2l1 + ∂l1 + ∂l2
 end
+
+function regularization_penalty(rbm::RBM; l1_weights::Real = 0, l2_weights::Real = 0, l2l1_weights::Real = 0, l2_fields::Real = 0)
+    dims = ntuple(identity, ndims(rbm.visible))
+    N = length(rbm.visible)
+
+    reg_fields = l2_fields/2 * sum(abs2, rbm.visible.θ)
+    reg_l1_weights = l1_weights * sum(abs, rbm.w)
+    reg_l2_weights = l2_weights/2 * sum(abs2, rbm.w)
+    reg_l2l1_weights = l2l1_weights/(2N) * sum(abs2, sum(abs, rbm.w; dims))
+
+    return reg_fields + reg_l1_weights + reg_l2_weights + reg_l2l1_weights
+end
