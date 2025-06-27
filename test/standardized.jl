@@ -1,7 +1,6 @@
 using LinearAlgebra: I
 using LinearAlgebra: norm
 using Random: bitrand
-using StatsBase: proportionmap
 using RestrictedBoltzmannMachines: ∂free_energy
 using RestrictedBoltzmannMachines: ∂free_energy_h
 using RestrictedBoltzmannMachines: ∂free_energy_v
@@ -28,6 +27,7 @@ using RestrictedBoltzmannMachines: pcd!
 using RestrictedBoltzmannMachines: Potts
 using RestrictedBoltzmannMachines: pReLU
 using RestrictedBoltzmannMachines: RBM
+using RestrictedBoltzmannMachines: regularization_penalty
 using RestrictedBoltzmannMachines: ReLU
 using RestrictedBoltzmannMachines: rescale_hidden_activations!
 using RestrictedBoltzmannMachines: sample_from_inputs
@@ -48,6 +48,7 @@ using RestrictedBoltzmannMachines: unstandardize
 using RestrictedBoltzmannMachines: var_h_from_v
 using RestrictedBoltzmannMachines: var_v_from_h
 using RestrictedBoltzmannMachines: xReLU
+using StatsBase: proportionmap
 using Statistics: mean
 using Test: @inferred
 using Test: @test
@@ -296,7 +297,7 @@ end
     @test vec(exact_probs_h) ≈ vec([get(empirical_probs_h, h, 0.) for h = hs]) rtol=0.05
 end
 
-@testset "∂regularize! standardized RBM" begin
+@testset "∂regularize! standardized RBM with Binary" begin
     rbm = BinaryStandardizedRBM(
         randn(3), randn(2), randn(3,2),
         randn(3), randn(2), rand(3), rand(2)
@@ -312,17 +313,8 @@ end
 
     gs = gradient(rbm) do rbm
         F = mean(free_energy(rbm, v))
-        urbm = unstandardize(rbm)
-        L2_fields = sum(abs2, urbm.visible.θ)
-        L1_weights = sum(abs, urbm.w)
-        L2_weights = sum(abs2, urbm.w)
-        L2L1_weights = sum(abs2, sum(abs, urbm.w; dims=vdims))
-        return (
-            F + l2_fields/2 * L2_fields +
-            l1_weights * L1_weights +
-            l2_weights/2 * L2_weights +
-            l2l1_weights/(2N) * L2L1_weights
-        )
+        R = regularization_penalty(rbm; l1_weights, l2_weights, l2l1_weights, l2_fields)
+        return F + R
     end
 
     ∂ = ∂free_energy(rbm, v)
@@ -333,7 +325,7 @@ end
     @test only(gs).w ≈ ∂.w
 end
 
-@testset "∂regularize! standardized RBM" begin
+@testset "∂regularize! standardized RBM with ReLU" begin
     rbm = StandardizedRBM(
         ReLU(; θ=randn(3), γ=rand(3)),
         Binary(; θ=randn(2)),
@@ -351,17 +343,8 @@ end
 
     gs = gradient(rbm) do rbm
         F = mean(free_energy(rbm, v))
-        urbm = unstandardize(rbm)
-        L2_fields = sum(abs2, urbm.visible.θ)
-        L1_weights = sum(abs, urbm.w)
-        L2_weights = sum(abs2, urbm.w)
-        L2L1_weights = sum(abs2, sum(abs, urbm.w; dims=vdims))
-        return (
-            F + l2_fields/2 * L2_fields +
-            l1_weights * L1_weights +
-            l2_weights/2 * L2_weights +
-            l2l1_weights/(2N) * L2L1_weights
-        )
+        R = regularization_penalty(rbm; l1_weights, l2_weights, l2l1_weights, l2_fields)
+        return F + R
     end
 
     ∂ = ∂free_energy(rbm, v)
@@ -372,7 +355,7 @@ end
     @test only(gs).w ≈ ∂.w
 end
 
-@testset "∂regularize! standardized RBM" begin
+@testset "∂regularize! standardized RBM with dReLU" begin
     rbm = StandardizedRBM(
         dReLU(; θp=randn(3), θn=randn(3), γp=rand(3), γn=rand(3)),
         Binary(; θ=randn(2)),
@@ -390,17 +373,19 @@ end
 
     gs = gradient(rbm) do rbm
         F = mean(free_energy(rbm, v))
-        urbm = unstandardize(rbm)
-        L2_fields = sum(abs2, urbm.visible.θp) + sum(abs2, urbm.visible.θn)
-        L1_weights = sum(abs, urbm.w)
-        L2_weights = sum(abs2, urbm.w)
-        L2L1_weights = sum(abs2, sum(abs, urbm.w; dims=vdims))
-        return (
-            F + l2_fields/2 * L2_fields +
-            l1_weights * L1_weights +
-            l2_weights/2 * L2_weights +
-            l2l1_weights/(2N) * L2L1_weights
-        )
+        R = regularization_penalty(rbm; l1_weights, l2_weights, l2l1_weights, l2_fields)
+        return F + R
+        # urbm = unstandardize(rbm)
+        # L2_fields = sum(abs2, urbm.visible.θp) + sum(abs2, urbm.visible.θn)
+        # L1_weights = sum(abs, urbm.w)
+        # L2_weights = sum(abs2, urbm.w)
+        # L2L1_weights = sum(abs2, sum(abs, urbm.w; dims=vdims))
+        # return (
+        #     F + l2_fields/2 * L2_fields +
+        #     l1_weights * L1_weights +
+        #     l2_weights/2 * L2_weights +
+        #     l2l1_weights/(2N) * L2L1_weights
+        # )
     end
 
     ∂ = ∂free_energy(rbm, v)

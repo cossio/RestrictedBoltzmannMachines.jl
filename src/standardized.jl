@@ -128,10 +128,6 @@ function log_pseudolikelihood(rbm::StandardizedRBM, v::AbstractArray)
     return log_pseudolikelihood(unstandardize(rbm), v)
 end
 
-# function ∂regularize!(∂::∂RBM, rbm::StandardizedRBM; kwargs...)
-#     ∂regularize!(∂, RBM(rbm); kwargs...)
-# end
-
 function ∂regularize!(
     ∂::∂RBM, rbm::StandardizedRBM;
     l2_fields::Real = 0,
@@ -169,6 +165,14 @@ end
 
 function ∂regularize_add_visible_offset!(∂::∂RBM, visible_regularization::AbstractArray, offset_h::AbstractArray, scale_w::AbstractArray, ::Union{Binary,Spin,Potts,Gaussian,ReLU,xReLU,pReLU})
     ∂.w .-= visible_regularization[1, ..] .* offset_h ./ scale_w
+end
+
+function regularization_penalty(
+    rbm::StandardizedRBM;
+    l1_weights::Real = 0, l2_weights::Real = 0, l2l1_weights::Real = 0, l2_fields::Real = 0
+)
+    urbm = unstandardize(rbm)
+    return regularization_penalty(urbm; l1_weights, l2_weights, l2l1_weights, l2_fields)
 end
 
 function rescale_hidden_activations!(rbm::StandardizedRBM)

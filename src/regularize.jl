@@ -108,10 +108,15 @@ function regularization_penalty(rbm::RBM; l1_weights::Real = 0, l2_weights::Real
     dims = ntuple(identity, ndims(rbm.visible))
     N = length(rbm.visible)
 
-    reg_fields = l2_fields/2 * sum(abs2, rbm.visible.θ)
+    reg_fields = l2_fields/2 * regularization_penalty_fields(rbm.visible)
     reg_l1_weights = l1_weights * sum(abs, rbm.w)
     reg_l2_weights = l2_weights/2 * sum(abs2, rbm.w)
     reg_l2l1_weights = l2l1_weights/(2N) * sum(abs2, sum(abs, rbm.w; dims))
 
     return reg_fields + reg_l1_weights + reg_l2_weights + reg_l2l1_weights
+end
+
+regularization_penalty_fields(layer::dReLU) = sum(abs2, layer.θp) + sum(abs2, layer.θn)
+function regularization_penalty_fields(layer::Union{Binary,Spin,Potts,Gaussian,ReLU,pReLU,xReLU})
+    return sum(abs2, layer.θ)
 end
