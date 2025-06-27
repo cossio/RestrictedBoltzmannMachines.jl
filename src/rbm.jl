@@ -353,7 +353,7 @@ end
 Total variance of unit activations from given hidden activities.
 """
 function total_var_v_from_h(rbm, h::AbstractArray; wts = nothing)
-    inputs = inputs_h_from_v(rbm, h)
+    inputs = inputs_v_from_h(rbm, h)
     return total_var_from_inputs(rbm.visible, inputs; wts)
 end
 
@@ -373,6 +373,6 @@ end
 Total mean and total variance of visible unit activations from hidden activities.
 """
 function total_meanvar_v_from_h(rbm, h::AbstractArray; wts = nothing)
-    inputs = inputs_h_from_v(rbm, h)
+    inputs = inputs_v_from_h(rbm, h)
     return total_meanvar_from_inputs(rbm.visible, inputs; wts)
 end

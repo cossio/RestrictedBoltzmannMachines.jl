@@ -47,7 +47,14 @@ using RestrictedBoltzmannMachines: var_h_from_v
 using RestrictedBoltzmannMachines: var_v_from_h
 using RestrictedBoltzmannMachines: visible_cgf
 using RestrictedBoltzmannMachines: wmean
+using RestrictedBoltzmannMachines: total_mean_h_from_v
+using RestrictedBoltzmannMachines: total_mean_v_from_h
+using RestrictedBoltzmannMachines: total_var_h_from_v
+using RestrictedBoltzmannMachines: total_var_v_from_h
+using RestrictedBoltzmannMachines: total_meanvar_h_from_v
+using RestrictedBoltzmannMachines: total_meanvar_v_from_h
 using Statistics: mean
+using Statistics: var
 using Test: @inferred
 using Test: @test
 using Test: @test_throws
@@ -378,4 +385,24 @@ end
     @test gλ.visible ≈ ∂F.visible * 2.3
     @test gλ.hidden ≈ ∂F.hidden * 2.3
     @test gλ.w ≈ ∂F.w * 2.3
+end
+
+@testset "total_mean_h_from_v, total_mean_v_from_h, etc." begin
+    rbm = BinaryRBM(randn(5), randn(4), randn(5,4))
+    v = bitrand(size(rbm.visible)..., 10)
+    h = bitrand(size(rbm.hidden)..., 10)
+
+    @test dropdims(mean(mean_h_from_v(rbm, v); dims=2); dims=2) ≈ @inferred total_mean_h_from_v(rbm, v)
+    @test dropdims(mean(mean_v_from_h(rbm, h); dims=2); dims=2) ≈ @inferred total_mean_v_from_h(rbm, h)
+
+    @test dropdims(var(sample_h_from_v(rbm, repeat(v, 1, 1, 1000)); dims=(2,3)); dims=(2,3)) ≈ @inferred(total_var_h_from_v(rbm, v)) rtol=0.1
+    @test dropdims(var(sample_v_from_h(rbm, repeat(h, 1, 1, 1000)); dims=(2,3)); dims=(2,3)) ≈ @inferred(total_var_v_from_h(rbm, h)) rtol=0.1
+
+    μ, ν = total_meanvar_h_from_v(rbm, v)
+    @test μ ≈ total_mean_h_from_v(rbm, v)
+    @test ν ≈ total_var_h_from_v(rbm, v)
+
+    μ, ν = total_meanvar_v_from_h(rbm, h)
+    @test μ ≈ total_mean_v_from_h(rbm, h)
+    @test ν ≈ total_var_v_from_h(rbm, h)
 end
