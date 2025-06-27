@@ -375,17 +375,6 @@ end
         F = mean(free_energy(rbm, v))
         R = regularization_penalty(rbm; l1_weights, l2_weights, l2l1_weights, l2_fields)
         return F + R
-        # urbm = unstandardize(rbm)
-        # L2_fields = sum(abs2, urbm.visible.θp) + sum(abs2, urbm.visible.θn)
-        # L1_weights = sum(abs, urbm.w)
-        # L2_weights = sum(abs2, urbm.w)
-        # L2L1_weights = sum(abs2, sum(abs, urbm.w; dims=vdims))
-        # return (
-        #     F + l2_fields/2 * L2_fields +
-        #     l1_weights * L1_weights +
-        #     l2_weights/2 * L2_weights +
-        #     l2l1_weights/(2N) * L2L1_weights
-        # )
     end
 
     ∂ = ∂free_energy(rbm, v)
