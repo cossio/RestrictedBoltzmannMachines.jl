@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+## 4.2.0
+
+- Added `regularization_penalty`.
+
 ## 4.1.0
 
 - Added methods: `total_mean_h_from_v`, `total_mean_v_from_h`, `total_var_h_from_v`, `total_var_v_from_h`.
