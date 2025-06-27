@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+## 4.1.0
+
+- Added methods: `total_mean_h_from_v`, `total_mean_v_from_h`, `total_var_h_from_v`, `total_var_v_from_h`.
+
 ## 4.0.0
 
 - BREAKING: Changed the way regularization works for standardized and centered RBMs. Now regularization acts as if it was applied to the equivalent normal RBM parameters, whereas before it was applied directly to the weights of the standardized/centered parameterizations.
