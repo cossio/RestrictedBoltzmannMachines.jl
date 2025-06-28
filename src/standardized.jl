@@ -114,7 +114,6 @@ function ∂free_energy_h(
     return ∂RBM(∂v, ∂h, ∂w)
 end
 
-
 function ∂interaction_energy(
     rbm::StandardizedRBM, v::AbstractArray, h::AbstractArray; wts = nothing
 )
@@ -441,11 +440,42 @@ function log_partition(rbm::StandardizedRBM)
     return logsumexp(-free_energy(rbm, v))
 end
 
+"""
+    rescale_weights!(rbm::StandardizedRBM)
+
+Rescale weights so that the unstandardized weights have norm 1, by re-scaling hidden units.
+This assumes the hidden units have a scale parameter, otherwise it does nothing.
+Note that the standardized weights are invariant under such rescaling of hidden unit activities,
+and therefore cannot be constrained to have unit norm. So the only sensible choice is to
+rescale the unstandardized weights to have unit norm, as we do here.
+"""
 function rescale_weights!(rbm::StandardizedRBM)
     λ = inv.(weight_norms(rbm))
     return rescale_hidden!(rbm, λ)
 end
 
+"""
+    rescale_hidden!(rbm::StandardizedRBM, λ::AbstractArray)
+
+Rescale hidden unit activities by `λ`, which should be an array of the same size as the hidden units.
+This assumes the hidden units have a scale parameter, otherwise it does nothing and returns `false`.
+"""
+function rescale_hidden!(rbm::StandardizedRBM, λ::AbstractArray)
+    @assert size(rbm.hidden) == size(λ)
+    if rescale_activations!(rbm.hidden, λ)
+        rbm.scale_h ./= λ
+        rbm.offset_h ./= λ
+        return true
+    end
+    return false
+end
+
+"""
+    weight_norms(std_rbm::StandardizedRBM)
+
+Computes the norms of the unstandardized weights for each hidden unit. If you want the norms
+of the standardized weights, use `weight_norms(RBM(std_rbm))`.
+"""
 function weight_norms(rbm::StandardizedRBM)
     w = unstandardized_weights(rbm)
     w2 = sum(abs2, w; dims=1:ndims(rbm.visible))

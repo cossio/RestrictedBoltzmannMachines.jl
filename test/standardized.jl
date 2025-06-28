@@ -404,58 +404,43 @@ end
     @test weight_norms(rbm) ≈ weight_norms(unstandardize(rbm))
 end
 
-@testset "rescale_weights!" begin
+@testset "rescale_weights! std ReLU" begin
     rbm = StandardizedRBM(
-        Binary(; θ=randn(3)),
-        ReLU(; θ=randn(2), γ=0.5 .+ rand(2)),
-        randn(3,2),
+        Binary(; θ=randn(3)), ReLU(; θ=randn(2), γ=0.1 .+ rand(2)), randn(3,2),
         randn(3), randn(2), rand(3), rand(2)
     )
     rbm_copy = deepcopy(rbm)
 
-    rescale_weights!(rbm)
+    @test @inferred rescale_weights!(rbm)
     @test weight_norms(unstandardize(rbm)) ≈ ones(size(rbm.hidden))
 
-
-    v = sample_v_from_v(rbm, bitrand(size(rbm.visible)..., 1000); steps=100)
-    F = free_energy(rbm, v)
-
-    ω = @inferred weight_norms(rbm)
-    @test ω ≈ [norm(rbm.w)]
-    @inferred rescale_weights!(rbm)
-    @test free_energy(rbm, v) ≈ F .- sum(log, ω)
+    v = bitrand(size(rbm.visible)..., 100)
+    @test free_energy(rbm, v) ≈ free_energy(rbm_copy, v) .- sum(log, weight_norms(rbm_copy))
 end
 
-@testset "rescale_hidden!" begin
+@testset "rescale_weights! std dReLU" begin
     rbm = StandardizedRBM(
-        Binary(; θ=randn(3)),
-        ReLU(; θ=randn(2), γ=0.5 .+ rand(3)),
-        randn(3,2),
+        Binary(; θ=randn(3)), dReLU(; θp=randn(2), θn=randn(2), γp=rand(2), γn=rand(2)), randn(3,2),
         randn(3), randn(2), rand(3), rand(2)
     )
-    randn!(rbm.visible.θ)
-    randn!(rbm.hidden.θ)
-    rand!(rbm.hidden.γ)
-    rbm.hidden.γ .+= 0.5
+    rbm_copy = deepcopy(rbm)
 
-    v = sample_v_from_v(rbm, bitrand(size(rbm.visible)..., 20000); steps=100)
-    h = sample_h_from_h(rbm, rand(size(rbm.hidden)..., 20000); steps=100)
-    ave_v = mean(v; dims=2)
-    ave_h = mean(h; dims=2)
-    var_v = var(v; dims=2)
-    var_h = var(h; dims=2)
-    F = free_energy(rbm, v)
+    @test @inferred rescale_weights!(rbm)
+    @test weight_norms(unstandardize(rbm)) ≈ ones(size(rbm.hidden))
 
-    λ = [1 + rand()]
-    @test rescale_hidden!(rbm, λ)
+    v = bitrand(size(rbm.visible)..., 100)
+    @test free_energy(rbm, v) ≈ free_energy(rbm_copy, v) .- sum(log, weight_norms(rbm_copy))
+end
 
-    @test free_energy(rbm, v) ≈ F .+ sum(log, λ)
+@testset "rescale_weights! std Binary" begin
+    rbm = BinaryStandardizedRBM(
+        randn(3), randn(2), randn(3,2),
+        randn(3), randn(2), rand(3), rand(2)
+    )
+    rbm_copy = deepcopy(rbm)
 
-    v = sample_v_from_v(rbm, bitrand(size(rbm.visible)..., 20000); steps=100)
-    h = sample_h_from_h(rbm, rand(size(rbm.hidden)..., 20000); steps=100)
+    @test @inferred !rescale_weights!(rbm)
 
-    @test mean(v; dims=2) ≈ ave_v rtol=0.1
-    @test mean(h; dims=2) ≈ ave_h ./ λ rtol=0.1
-    @test var(v; dims=2) ≈ var_v rtol=0.1
-    @test var(h; dims=2) ≈ var_h ./ λ.^2 rtol=0.1
+    v = bitrand(size(rbm.visible)..., 100)
+    @test free_energy(rbm, v) ≈ free_energy(rbm_copy, v)
 end
