@@ -134,7 +134,13 @@ function ∂regularize!(
     l1_weights::Real = 0,
     l2_weights::Real = 0,
     l2l1_weights::Real = 0,
+    regularize_unstandardized::Bool = true
 )
+    if !regularize_unstandardized
+        ∂regularize!(∂, RBM(rbm); l2_fields, l1_weights, l2_weights, l2l1_weights)
+        return nothing
+    end
+
     urbm = unstandardize(rbm)
 
     offset_h = reshape(rbm.offset_h, map(one, size(rbm.scale_v))..., size(rbm.scale_h)...)
@@ -309,6 +315,12 @@ function standardize_hidden_from_v!(rbm::StandardizedRBM, v::AbstractArray; wts 
     standardize_hidden_from_inputs!(rbm, inputs; damping, wts, ϵ)
 end
 
+function unstandardized_weights(rbm::StandardizedRBM)
+    cv = reshape(rbm.scale_v, size(rbm.visible)..., map(one, size(rbm.hidden))...)
+    ch = reshape(rbm.scale_h, map(one, size(rbm.visible))..., size(rbm.hidden)...)
+    return rbm.w ./ (cv .* ch)
+end
+
 function potts_to_gumbel(rbm::StandardizedRBM)
     visible = potts_to_gumbel(rbm.visible)
     hidden = potts_to_gumbel(rbm.hidden)
@@ -342,8 +354,10 @@ function pcd!(
     l2l1_weights::Real = 0, # weights L2/L1 regularization
 
     # "pseudocount" for estimating variances of v and h and damping
-    damping::Real = 1//100,
-    ϵv::Real = 0, ϵh::Real = 0,
+    damping::Real = 1//100, ϵv::Real = 0, ϵh::Real = 0,
+
+    # whether regularization applies to unstandardized model parameters
+    regularize_unstandardized::Bool = true,
 
     # optimiser
     optim::AbstractRule = Adam(),
@@ -376,7 +390,7 @@ function pcd!(
         ∂ = ∂d - ∂m
 
         # weight decay
-        ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights)
+        ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, regularize_unstandardized)
 
         # feed gradient to Optimiser rule
         gs = (; visible = ∂.visible, hidden = ∂.hidden, w = ∂.w)
@@ -427,4 +441,15 @@ function log_partition(rbm::StandardizedRBM)
         collect_states(rbm.visible)
     end
     return logsumexp(-free_energy(rbm, v))
+end
+
+function rescale_weights!(rbm::StandardizedRBM)
+    λ = inv.(weight_norms(rbm))
+    return rescale_hidden!(rbm, λ)
+end
+
+function weight_norms(rbm::StandardizedRBM)
+    w = unstandardized_weights(rbm)
+    w2 = sum(abs2, w; dims=1:ndims(rbm.visible))
+    return reshape(sqrt.(w2), size(rbm.hidden))
 end

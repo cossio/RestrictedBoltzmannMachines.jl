@@ -6,9 +6,11 @@ using RestrictedBoltzmannMachines: ∂free_energy_h
 using RestrictedBoltzmannMachines: ∂free_energy_v
 using RestrictedBoltzmannMachines: ∂regularize!
 using RestrictedBoltzmannMachines: Binary
+using RestrictedBoltzmannMachines: weight_norms
 using RestrictedBoltzmannMachines: BinaryRBM
 using RestrictedBoltzmannMachines: BinaryStandardizedRBM
 using RestrictedBoltzmannMachines: delta_energy
+using RestrictedBoltzmannMachines: rescale_weights!
 using RestrictedBoltzmannMachines: dReLU
 using RestrictedBoltzmannMachines: energy
 using RestrictedBoltzmannMachines: free_energy
@@ -45,6 +47,7 @@ using RestrictedBoltzmannMachines: standardize_visible!
 using RestrictedBoltzmannMachines: standardize!
 using RestrictedBoltzmannMachines: StandardizedRBM
 using RestrictedBoltzmannMachines: unstandardize
+using RestrictedBoltzmannMachines: unstandardized_weights
 using RestrictedBoltzmannMachines: var_h_from_v
 using RestrictedBoltzmannMachines: var_v_from_h
 using RestrictedBoltzmannMachines: xReLU
@@ -383,4 +386,76 @@ end
     @test only(gs).visible.par ≈ ∂.visible
     @test only(gs).hidden.par ≈ ∂.hidden
     @test only(gs).w ≈ ∂.w
+end
+
+@testset "unstandardized_weights" begin
+    rbm = BinaryStandardizedRBM(
+        randn(3), randn(2), randn(3,2),
+        randn(3), randn(2), rand(3), rand(2)
+    )
+    @test unstandardized_weights(rbm) ≈ unstandardize(rbm).w
+end
+
+@testset "weight_norms" begin
+    rbm = BinaryStandardizedRBM(
+        randn(3), randn(2), randn(3,2),
+        randn(3), randn(2), rand(3), rand(2)
+    )
+    @test weight_norms(rbm) ≈ weight_norms(unstandardize(rbm))
+end
+
+@testset "rescale_weights!" begin
+    rbm = StandardizedRBM(
+        Binary(; θ=randn(3)),
+        ReLU(; θ=randn(2), γ=0.5 .+ rand(2)),
+        randn(3,2),
+        randn(3), randn(2), rand(3), rand(2)
+    )
+    rbm_copy = deepcopy(rbm)
+
+    rescale_weights!(rbm)
+    @test weight_norms(unstandardize(rbm)) ≈ ones(size(rbm.hidden))
+
+
+    v = sample_v_from_v(rbm, bitrand(size(rbm.visible)..., 1000); steps=100)
+    F = free_energy(rbm, v)
+
+    ω = @inferred weight_norms(rbm)
+    @test ω ≈ [norm(rbm.w)]
+    @inferred rescale_weights!(rbm)
+    @test free_energy(rbm, v) ≈ F .- sum(log, ω)
+end
+
+@testset "rescale_hidden!" begin
+    rbm = StandardizedRBM(
+        Binary(; θ=randn(3)),
+        ReLU(; θ=randn(2), γ=0.5 .+ rand(3)),
+        randn(3,2),
+        randn(3), randn(2), rand(3), rand(2)
+    )
+    randn!(rbm.visible.θ)
+    randn!(rbm.hidden.θ)
+    rand!(rbm.hidden.γ)
+    rbm.hidden.γ .+= 0.5
+
+    v = sample_v_from_v(rbm, bitrand(size(rbm.visible)..., 20000); steps=100)
+    h = sample_h_from_h(rbm, rand(size(rbm.hidden)..., 20000); steps=100)
+    ave_v = mean(v; dims=2)
+    ave_h = mean(h; dims=2)
+    var_v = var(v; dims=2)
+    var_h = var(h; dims=2)
+    F = free_energy(rbm, v)
+
+    λ = [1 + rand()]
+    @test rescale_hidden!(rbm, λ)
+
+    @test free_energy(rbm, v) ≈ F .+ sum(log, λ)
+
+    v = sample_v_from_v(rbm, bitrand(size(rbm.visible)..., 20000); steps=100)
+    h = sample_h_from_h(rbm, rand(size(rbm.hidden)..., 20000); steps=100)
+
+    @test mean(v; dims=2) ≈ ave_v rtol=0.1
+    @test mean(h; dims=2) ≈ ave_h ./ λ rtol=0.1
+    @test var(v; dims=2) ≈ var_v rtol=0.1
+    @test var(h; dims=2) ≈ var_h ./ λ.^2 rtol=0.1
 end
