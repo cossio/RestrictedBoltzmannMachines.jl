@@ -99,7 +99,7 @@ function initialize!(layer::dReLU, data::AbstractArray; ϵ::Real=1e-6, wts=nothi
     return layer
 end
 
-function initialize!(layer::Union{Potts, Binary, Spin})
+function initialize!(layer::Union{Binary,Spin,Potts,PottsGumbel})
     layer.θ .= 0
     return layer
 end

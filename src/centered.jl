@@ -325,7 +325,7 @@ function ∂regularize_add_visible_offset!(∂::∂RBM, visible_regularization::
     ∂.w .-= (visible_regularization[1, ..] + visible_regularization[2, ..]) .* offset_h
 end
 
-function ∂regularize_add_visible_offset!(∂::∂RBM, visible_regularization::AbstractArray, offset_h::AbstractArray, ::Union{Binary,Spin,Potts,Gaussian,ReLU,xReLU,pReLU})
+function ∂regularize_add_visible_offset!(∂::∂RBM, visible_regularization::AbstractArray, offset_h::AbstractArray, ::Union{Binary,Spin,Potts,PottsGumbel,Gaussian,ReLU,xReLU,pReLU,nsReLU})
     ∂.w .-= visible_regularization[1, ..] .* offset_h
 end
 

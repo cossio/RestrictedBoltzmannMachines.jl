@@ -1,7 +1,7 @@
-Base.size(layer::Union{Binary, Spin, Potts, Gaussian, ReLU, pReLU, xReLU}) = size(layer.θ)
-Base.length(layer::Union{Binary, Spin, Potts, Gaussian, ReLU, pReLU, xReLU}) = length(layer.θ)
+Base.size(layer::Union{Binary,Spin,Potts,PottsGumbel,Gaussian,ReLU,pReLU,xReLU,nsReLU}) = size(layer.θ)
+Base.length(layer::Union{Binary,Spin,Potts,PottsGumbel,Gaussian,ReLU,pReLU,xReLU,nsReLU}) = length(layer.θ)
 
-const _FieldLayers = Union{Binary, Spin, Potts}
+const _FieldLayers = Union{Binary,Spin,Potts,PottsGumbel}
 
 Base.propertynames(::_FieldLayers) = (:θ,)
 

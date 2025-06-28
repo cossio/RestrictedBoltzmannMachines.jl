@@ -20,4 +20,5 @@ module pottsgumbel_tests include("pottsgumbel.jl") end
 module hdf5_tests include("hdf5.jl") end
 module centered_tests include("centered.jl") end
 module standardized_tests include("standardized.jl") end
+module nsReLU_tests include("layers/nsReLU.jl") end
 module aqua_tests include("aqua.jl") end

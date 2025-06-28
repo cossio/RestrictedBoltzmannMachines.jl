@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+## 5.1.0
+
+- Added `nsReLU` layer.
+
 ## 5.0.0
 
 - BREAKING: removed `hidden_statistics_from_inputs`. This was a duplicate of `total_meanvar_from_inputs`.

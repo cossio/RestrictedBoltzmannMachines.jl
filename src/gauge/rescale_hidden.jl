@@ -36,7 +36,7 @@ end
 For continuous layers with scale parameters, re-parameterizes such that unit activations
 are divided by `λ`, and returns `true`. For other layers, does nothing and returns `false`.
 """
-rescale_activations!(layer::Union{Binary,Spin,Potts}, λ::AbstractArray) = false
+rescale_activations!(::Union{Binary,Spin,Potts,PottsGumbel,nsReLU}, ::AbstractArray) = false
 
 #= Note that λ < 0 can lead to trouble, e.g. for ReLU which
 must have positive activations. So we dissallow it below. =#

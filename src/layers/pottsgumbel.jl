@@ -35,22 +35,6 @@ function sample_from_inputs(layer::PottsGumbel, inputs = 0)
     return onehot_encode(c, 1:size(layer, 1))
 end
 
-# From common.jl
-
-Base.size(layer::PottsGumbel) = size(layer.θ)
-Base.length(layer::PottsGumbel) = length(layer.θ)
-Base.propertynames(::PottsGumbel) = (:θ,)
-
-function Base.getproperty(layer::PottsGumbel, name::Symbol)
-    if name === :θ
-        # https://github.com/JuliaGPU/CUDA.jl/issues/1957
-        # return @view getfield(layer, :par)[1, ..]
-        return dropdims(getfield(layer, :par); dims=1)
-    else
-        return getfield(layer, name)
-    end
-end
-
 energies(layer::PottsGumbel, x::AbstractArray) = energies(Potts(layer), x)
 energy(layer::PottsGumbel, x::AbstractArray) = energy(Potts(layer), x)
 ∂cgfs(layer::PottsGumbel, inputs = 0) = ∂cgfs(Potts(layer), inputs)
@@ -60,10 +44,6 @@ colors(layer::PottsGumbel) = size(layer, 1)
 sitedims(layer::PottsGumbel) = ndims(layer) - 1
 sitesize(layer::PottsGumbel) = size(layer)[2:end]
 
-# other stuff
-
-grad2ave(l::PottsGumbel, ∂::AbstractArray) = grad2ave(Potts(l), ∂)
-
 function anneal(init::PottsGumbel, final::PottsGumbel; β::Real)
     θ = (1 - β) * init.θ + β * final.θ
     return PottsGumbel(; θ)
@@ -71,19 +51,8 @@ end
 
 anneal_zero(l::PottsGumbel) = PottsGumbel(; θ = zero(l.θ))
 
-function ∂regularize_fields!(∂::AbstractArray, layer::PottsGumbel; l2_fields::Real = 0)
-    ∂regularize_fields!(∂, Potts(layer); l2_fields )
-end
-
-rescale_activations!(layer::PottsGumbel, λ::AbstractArray) = false
-
 function initialize!(layer::PottsGumbel, data::AbstractArray; ϵ::Real=1e-6, wts=nothing)
     PottsGumbel(initialize!(Potts(layer), data; ϵ, wts))
-end
-
-function initialize!(layer::PottsGumbel)
-    layer.θ .= 0
-    return layer
 end
 
 function potts_to_gumbel(layer::AbstractLayer)

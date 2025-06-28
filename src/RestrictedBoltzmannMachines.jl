@@ -52,6 +52,7 @@ include("layers/relu.jl")
 include("layers/drelu.jl")
 include("layers/prelu.jl")
 include("layers/xrelu.jl")
+include("layers/nsReLU.jl")
 include("layers/pottsgumbel.jl")
 include("layers/common.jl")
 
