@@ -198,10 +198,7 @@ end
 Compute the (constant) energy shift with respect to the equivalent normal RBM.
 """
 delta_energy(rbm::RBM) = 0
-
-function delta_energy(rbm::StandardizedRBM)
-    return interaction_energy(rbm, zero(rbm.offset_v), zero(rbm.offset_h))
-end
+delta_energy(rbm::StandardizedRBM) = interaction_energy(rbm, zero(rbm.offset_v), zero(rbm.offset_h))
 
 unstandardize(rbm::StandardizedRBM) = RBM(standardize(rbm))
 unstandardize(rbm::RBM) = rbm
