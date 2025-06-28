@@ -121,8 +121,8 @@ function mean_v_from_h(rbm::CenteredRBM, h::AbstractArray)
 end
 
 function ∂free_energy(
-    rbm::CenteredRBM, v::AbstractArray; wts = nothing,
-    moments = moments_from_samples(rbm.visible, v; wts)
+    rbm::CenteredRBM, v::AbstractArray;
+    wts = nothing, moments = moments_from_samples(rbm.visible, v; wts)
 )
     inputs = inputs_h_from_v(rbm, v)
     ∂v = ∂energy_from_moments(rbm.visible, moments)
@@ -137,9 +137,7 @@ function ∂free_energy(
     return ∂RBM(∂v, ∂h, ∂w)
 end
 
-function ∂interaction_energy(
-    rbm::CenteredRBM, v::AbstractArray, h::AbstractArray; wts = nothing
-)
+function ∂interaction_energy(rbm::CenteredRBM, v::AbstractArray, h::AbstractArray; wts = nothing)
     centered_v = v .- rbm.offset_v
     centered_h = h .- rbm.offset_h
     ∂w = ∂interaction_energy(RBM(rbm), centered_v, centered_h; wts)
