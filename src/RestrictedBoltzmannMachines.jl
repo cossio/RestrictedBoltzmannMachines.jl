@@ -2,41 +2,15 @@ module RestrictedBoltzmannMachines
 
 import ChainRulesCore
 import LinearAlgebra
-using Base: front
-using Base: tail
+using Base: front, tail
 using EllipsisNotation: (..)
-using FillArrays: Falses
-using FillArrays: Fill
-using FillArrays: Ones
-using FillArrays: Trues
-using FillArrays: Zeros
-using LinearAlgebra: Diagonal
-using LinearAlgebra: dot
-using LinearAlgebra: I
-using LinearAlgebra: logdet
-using LinearAlgebra: norm
-using LogExpFunctions: log1pexp
-using LogExpFunctions: logaddexp
-using LogExpFunctions: logistic
-using LogExpFunctions: logsubexp
-using LogExpFunctions: logsumexp
-using LogExpFunctions: softmax
-using Optimisers: AbstractRule
-using Optimisers: Adam
-using Optimisers: setup
-using Optimisers: update!
-using Random: AbstractRNG
-using Random: default_rng
-using Random: rand!
-using Random: randexp
-using Random: randn!
-using Random: randperm
-using Random: shuffle!
-using SpecialFunctions: erf
-using SpecialFunctions: erfcx
-using SpecialFunctions: logerfcx
-using Statistics: mean
-using Statistics: std
+using FillArrays: Fill, Falses, Trues, Zeros, Ones
+using LinearAlgebra: Diagonal, dot, I, logdet, norm
+using LogExpFunctions: log1pexp, logaddexp, logistic, logsubexp, logsumexp, softmax
+using Optimisers: AbstractRule, Adam, setup, update!
+using Random: AbstractRNG, default_rng, rand!, randexp, randn!, randperm, shuffle!
+using SpecialFunctions: erf, erfcx, logerfcx
+using Statistics: mean, std
 
 include("util/util.jl")
 include("util/onehot.jl")
