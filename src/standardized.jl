@@ -124,9 +124,7 @@ function ∂interaction_energy(
     return ∂w
 end
 
-function log_pseudolikelihood(rbm::StandardizedRBM, v::AbstractArray)
-    return log_pseudolikelihood(unstandardize(rbm), v)
-end
+log_pseudolikelihood(rbm::StandardizedRBM, v::AbstractArray) = log_pseudolikelihood(unstandardize(rbm), v)
 
 function ∂regularize!(
     ∂::∂RBM, rbm::StandardizedRBM;
