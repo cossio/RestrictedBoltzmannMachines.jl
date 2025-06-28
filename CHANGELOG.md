@@ -4,9 +4,10 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
-## 5.0.0-DEV
+## 5.0.0
 
-- BREAKING: removed `hidden_statistics_from_inputs`, which was a duplicate of `total_meanvar_from_inputs`.
+- BREAKING: removed `hidden_statistics_from_inputs`. This was a duplicate of `total_meanvar_from_inputs`.
+- Added `rescale_weights!` for `StandardizedRBM`. This normalizes the unstandardized weights attached to each hidden unit.
 
 ## 4.2.0
 
