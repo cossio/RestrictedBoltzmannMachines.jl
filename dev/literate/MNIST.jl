@@ -5,14 +5,22 @@ We begin by importing the required packages.
 We load MNIST via the MLDatasets.jl package.
 =#
 
-import Makie
 import CairoMakie
+import Makie
 import MLDatasets
-using Statistics: mean, std, var
 using Random: bitrand
-using ValueHistories: MVHistory, @trace
-using RestrictedBoltzmannMachines: BinaryRBM, sample_from_inputs,
-    initialize!, log_pseudolikelihood, pcd!, free_energy, sample_v_from_v
+using RestrictedBoltzmannMachines: BinaryRBM
+using RestrictedBoltzmannMachines: free_energy
+using RestrictedBoltzmannMachines: initialize!
+using RestrictedBoltzmannMachines: log_pseudolikelihood
+using RestrictedBoltzmannMachines: pcd!
+using RestrictedBoltzmannMachines: sample_from_inputs
+using RestrictedBoltzmannMachines: sample_v_from_v
+using Statistics: mean
+using Statistics: std
+using Statistics: var
+using ValueHistories: @trace
+using ValueHistories: MVHistory
 nothing #hide
 
 # Useful function to plot grids of MNIST digits.
