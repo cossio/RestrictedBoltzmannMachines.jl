@@ -29,10 +29,10 @@ function StandardizedRBM(
 end
 
 function StandardizedRBM(rbm::RBM)
-    offset_v = (similar(rbm.w, size(rbm.visible)) .= 0)
-    offset_h = (similar(rbm.w, size(rbm.hidden)) .= 0)
-    scale_v = (similar(rbm.w, size(rbm.visible)) .= 1)
-    scale_h = (similar(rbm.w, size(rbm.hidden)) .= 1)
+    offset_v = zeros_like(rbm.w, size(rbm.visible))
+    offset_h = zeros_like(rbm.w, size(rbm.hidden))
+    scale_v = ones_like(rbm.w, size(rbm.visible))
+    scale_h = ones_like(rbm.w, size(rbm.hidden))
     return StandardizedRBM(rbm, offset_v, offset_h, scale_v, scale_h)
 end
 
@@ -198,12 +198,12 @@ end
 Compute the (constant) energy shift with respect to the equivalent normal RBM.
 """
 delta_energy(rbm::RBM) = 0
-delta_energy(rbm::StandardizedRBM) = interaction_energy(rbm, zero(rbm.offset_v), zero(rbm.offset_h))
+delta_energy(rbm::StandardizedRBM) = interaction_energy(rbm, Zeros(rbm.offset_v), Zeros(rbm.offset_h))
 
 unstandardize(rbm::StandardizedRBM) = RBM(standardize(rbm))
 unstandardize(rbm::RBM) = rbm
 
-standardize(rbm::StandardizedRBM) = standardize(rbm, zero.(rbm.offset_v), zero.(rbm.offset_h), one.(rbm.scale_v), one.(rbm.scale_h))
+standardize(rbm::StandardizedRBM) = standardize(rbm, Zeros(rbm.offset_v), Zeros(rbm.offset_h), Ones(rbm.scale_v), Ones(rbm.scale_h))
 standardize(rbm::RBM) = StandardizedRBM(rbm)
 
 function standardize(
@@ -217,14 +217,19 @@ function standardize(
     return standardize_hidden(std_rbm, offset_h, scale_h)
 end
 
-standardize(
-    rbm::RBM, offset_v::AbstractArray, offset_h::AbstractArray, scale_v::AbstractArray, scale_h::AbstractArray
-) = standardize(standardize(rbm), offset_v, offset_h, scale_v, scale_h)
+function standardize(
+    rbm::RBM,
+    offset_v::AbstractArray, offset_h::AbstractArray,
+    scale_v::AbstractArray, scale_h::AbstractArray
+)
+    std_rbm = standardize(rbm)
+    return standardize(std_rbm, offset_v, offset_h, scale_v, scale_h)
+end
 
 function standardize_visible(std_rbm::StandardizedRBM, offset_v::AbstractArray, scale_v::AbstractArray)
     @assert size(std_rbm.visible) == size(offset_v) == size(scale_v)
 
-    cv = reshape(scale_v ./ std_rbm.scale_v, size(std_rbm.visible)..., map(one, size(std_rbm.hidden))...)
+    cv = reshape(scale_v ./ std_rbm.scale_v, (size(std_rbm.visible)..., map(one, size(std_rbm.hidden))...))
     Δθ = inputs_h_from_v(std_rbm, offset_v)
 
     hid = shift_fields(std_rbm.hidden, Δθ)
@@ -237,7 +242,7 @@ end
 function standardize_hidden(std_rbm::StandardizedRBM, offset_h::AbstractArray, scale_h::AbstractArray)
     @assert size(std_rbm.hidden) == size(offset_h) == size(scale_h)
 
-    ch = reshape(scale_h ./ std_rbm.scale_h, map(one, size(std_rbm.visible))..., size(std_rbm.hidden)...)
+    ch = reshape(scale_h ./ std_rbm.scale_h, (map(one, size(std_rbm.visible))..., size(std_rbm.hidden)...))
     Δθ = inputs_v_from_h(std_rbm, offset_h)
 
     vis = shift_fields(std_rbm.visible, Δθ)

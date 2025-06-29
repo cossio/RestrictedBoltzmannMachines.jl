@@ -121,3 +121,6 @@ end
 Adds a singleton dimension on the left.
 """
 vwiden(x::AbstractArray) = reshape(x, 1, size(x)...)
+
+zeros_like(A::AbstractArray, size) = zero(similar(A, size))
+ones_like(A::AbstractArray, size) = one.(similar(A, size))
