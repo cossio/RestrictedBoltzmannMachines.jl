@@ -1,4 +1,11 @@
-# nsReLU : not scaled dReLU units (without a free γ parameter, which is fixed to 1)
+#= nsReLU : a variant of dReLU units without scale parameter γ (which is fixed at 1) =#
+
+"""
+    nsReLU
+
+A variant of `dReLU` units without scale parameter γ (which is fixed at 1). This is done
+to remove the gauge invariance between the weights and the hidden units scale.
+"""
 struct nsReLU{N,A} <: RestrictedBoltzmannMachines.AbstractLayer{N}
     par::A
     function nsReLU{N,A}(par::A) where {N,A<:AbstractArray}
