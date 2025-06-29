@@ -18,11 +18,7 @@ using RestrictedBoltzmannMachines: sample_h_from_v
 using RestrictedBoltzmannMachines: sample_v_from_v
 using RestrictedBoltzmannMachines: xReLU
 using RestrictedBoltzmannMachines: standardize
-using Statistics: cor
-using Statistics: cov
-using Statistics: mean
-using Statistics: std
-using Statistics: var
+using Statistics: cor, cov, mean, std, var
 
 train_x = MNIST(split=:train).features .> 0.5
 train_y = MNIST(split=:train).targets
