@@ -1,61 +1,27 @@
-using LinearAlgebra: I
-using LinearAlgebra: norm
+using LinearAlgebra: I, norm
 using Random: bitrand
-using RestrictedBoltzmannMachines: ∂free_energy
-using RestrictedBoltzmannMachines: ∂free_energy_h
-using RestrictedBoltzmannMachines: ∂free_energy_v
-using RestrictedBoltzmannMachines: ∂regularize!
-using RestrictedBoltzmannMachines: Binary
+using RestrictedBoltzmannMachines: ∂free_energy, ∂free_energy_h, ∂free_energy_v, ∂regularize!
+using RestrictedBoltzmannMachines: Binary, Spin, dReLU, Gaussian, Potts, ReLU, pReLU, xReLU
+using RestrictedBoltzmannMachines: RBM, StandardizedRBM
+using RestrictedBoltzmannMachines: BinaryRBM, BinaryStandardizedRBM, SpinStandardizedRBM
 using RestrictedBoltzmannMachines: weight_norms
-using RestrictedBoltzmannMachines: BinaryRBM
-using RestrictedBoltzmannMachines: BinaryStandardizedRBM
 using RestrictedBoltzmannMachines: delta_energy
-using RestrictedBoltzmannMachines: rescale_weights!
-using RestrictedBoltzmannMachines: dReLU
-using RestrictedBoltzmannMachines: energy
-using RestrictedBoltzmannMachines: free_energy
-using RestrictedBoltzmannMachines: free_energy_h
-using RestrictedBoltzmannMachines: free_energy_v
-using RestrictedBoltzmannMachines: Gaussian
+using RestrictedBoltzmannMachines: rescale_weights!, rescale_hidden_activations!
+using RestrictedBoltzmannMachines: energy, interaction_energy, free_energy, free_energy_h, free_energy_v
 using RestrictedBoltzmannMachines: generate_sequences
-using RestrictedBoltzmannMachines: inputs_h_from_v
-using RestrictedBoltzmannMachines: inputs_v_from_h
-using RestrictedBoltzmannMachines: interaction_energy
+using RestrictedBoltzmannMachines: inputs_h_from_v, inputs_v_from_h
 using RestrictedBoltzmannMachines: log_partition
-using RestrictedBoltzmannMachines: mean_h_from_v
-using RestrictedBoltzmannMachines: mean_v_from_h
+using RestrictedBoltzmannMachines: mean_h_from_v, mean_v_from_h, var_h_from_v, var_v_from_h
 using RestrictedBoltzmannMachines: mirror
 using RestrictedBoltzmannMachines: pcd!
-using RestrictedBoltzmannMachines: Potts
-using RestrictedBoltzmannMachines: pReLU
-using RestrictedBoltzmannMachines: RBM
 using RestrictedBoltzmannMachines: regularization_penalty
-using RestrictedBoltzmannMachines: ReLU
-using RestrictedBoltzmannMachines: rescale_hidden_activations!
-using RestrictedBoltzmannMachines: sample_from_inputs
-using RestrictedBoltzmannMachines: sample_h_from_h
-using RestrictedBoltzmannMachines: sample_v_from_v
-using RestrictedBoltzmannMachines: shift_fields
-using RestrictedBoltzmannMachines: shift_fields!
-using RestrictedBoltzmannMachines: Spin
-using RestrictedBoltzmannMachines: SpinStandardizedRBM
-using RestrictedBoltzmannMachines: standardize
-using RestrictedBoltzmannMachines: standardize_hidden
-using RestrictedBoltzmannMachines: standardize_hidden!
-using RestrictedBoltzmannMachines: standardize_visible
-using RestrictedBoltzmannMachines: standardize_visible!
-using RestrictedBoltzmannMachines: standardize!
-using RestrictedBoltzmannMachines: StandardizedRBM
-using RestrictedBoltzmannMachines: unstandardize
-using RestrictedBoltzmannMachines: unstandardized_weights
-using RestrictedBoltzmannMachines: var_h_from_v
-using RestrictedBoltzmannMachines: var_v_from_h
-using RestrictedBoltzmannMachines: xReLU
+using RestrictedBoltzmannMachines: sample_h_from_h, sample_v_from_v, sample_from_inputs
+using RestrictedBoltzmannMachines: shift_fields, shift_fields!
+using RestrictedBoltzmannMachines: standardize, unstandardize, standardize!, unstandardized_weights
+using RestrictedBoltzmannMachines: standardize_hidden, standardize_hidden!, standardize_visible, standardize_visible!
 using StatsBase: proportionmap
 using Statistics: mean
-using Test: @inferred
-using Test: @test
-using Test: @testset
+using Test: @inferred, @test, @testset
 using Zygote: gradient
 
 function energy_shift(offset::AbstractArray, x::AbstractArray)
@@ -314,18 +280,20 @@ end
     l2_weights = rand()
     l2l1_weights = rand()
 
-    gs = gradient(rbm) do rbm
-        F = mean(free_energy(rbm, v))
-        R = regularization_penalty(rbm; l1_weights, l2_weights, l2l1_weights, l2_fields)
-        return F + R
+    for regularize_unstandardized = (false, true)
+        gs = gradient(rbm) do rbm
+            F = mean(free_energy(rbm, v))
+            R = regularization_penalty(rbm; regularize_unstandardized, l1_weights, l2_weights, l2l1_weights, l2_fields)
+            return F + R
+        end
+
+        ∂ = ∂free_energy(rbm, v)
+        ∂regularize!(∂, rbm; regularize_unstandardized, l2_fields, l1_weights, l2_weights, l2l1_weights)
+
+        @test only(gs).visible.par ≈ ∂.visible
+        @test only(gs).hidden.par ≈ ∂.hidden
+        @test only(gs).w ≈ ∂.w
     end
-
-    ∂ = ∂free_energy(rbm, v)
-    ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights)
-
-    @test only(gs).visible.par ≈ ∂.visible
-    @test only(gs).hidden.par ≈ ∂.hidden
-    @test only(gs).w ≈ ∂.w
 end
 
 @testset "∂regularize! standardized RBM with ReLU" begin
@@ -344,18 +312,20 @@ end
     l2_weights = rand()
     l2l1_weights = rand()
 
-    gs = gradient(rbm) do rbm
-        F = mean(free_energy(rbm, v))
-        R = regularization_penalty(rbm; l1_weights, l2_weights, l2l1_weights, l2_fields)
-        return F + R
+    for regularize_unstandardized = (false, true)
+        gs = gradient(rbm) do rbm
+            F = mean(free_energy(rbm, v))
+            R = regularization_penalty(rbm; regularize_unstandardized, l1_weights, l2_weights, l2l1_weights, l2_fields)
+            return F + R
+        end
+
+        ∂ = ∂free_energy(rbm, v)
+        ∂regularize!(∂, rbm; regularize_unstandardized, l2_fields, l1_weights, l2_weights, l2l1_weights)
+
+        @test only(gs).visible.par ≈ ∂.visible
+        @test only(gs).hidden.par ≈ ∂.hidden
+        @test only(gs).w ≈ ∂.w
     end
-
-    ∂ = ∂free_energy(rbm, v)
-    ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights)
-
-    @test only(gs).visible.par ≈ ∂.visible
-    @test only(gs).hidden.par ≈ ∂.hidden
-    @test only(gs).w ≈ ∂.w
 end
 
 @testset "∂regularize! standardized RBM with dReLU" begin
@@ -374,18 +344,20 @@ end
     l2_weights = rand()
     l2l1_weights = rand()
 
-    gs = gradient(rbm) do rbm
-        F = mean(free_energy(rbm, v))
-        R = regularization_penalty(rbm; l1_weights, l2_weights, l2l1_weights, l2_fields)
-        return F + R
+    for regularize_unstandardized = (false, true)
+        gs = gradient(rbm) do rbm
+            F = mean(free_energy(rbm, v))
+            R = regularization_penalty(rbm; regularize_unstandardized, l1_weights, l2_weights, l2l1_weights, l2_fields)
+            return F + R
+        end
+
+        ∂ = ∂free_energy(rbm, v)
+        ∂regularize!(∂, rbm; regularize_unstandardized, l2_fields, l1_weights, l2_weights, l2l1_weights)
+
+        @test only(gs).visible.par ≈ ∂.visible
+        @test only(gs).hidden.par ≈ ∂.hidden
+        @test only(gs).w ≈ ∂.w
     end
-
-    ∂ = ∂free_energy(rbm, v)
-    ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights)
-
-    @test only(gs).visible.par ≈ ∂.visible
-    @test only(gs).hidden.par ≈ ∂.hidden
-    @test only(gs).w ≈ ∂.w
 end
 
 @testset "unstandardized_weights" begin

@@ -126,39 +126,40 @@ end
 log_pseudolikelihood(rbm::StandardizedRBM, v::AbstractArray) = log_pseudolikelihood(unstandardize(rbm), v)
 
 function ∂regularize!(
-    ∂::∂RBM, rbm::StandardizedRBM;
+    ∂::∂RBM, std_rbm::StandardizedRBM;
     l2_fields::Real = 0,
     l1_weights::Real = 0,
     l2_weights::Real = 0,
     l2l1_weights::Real = 0,
     regularize_unstandardized::Bool = true
 )
-    if !regularize_unstandardized
-        ∂regularize!(∂, RBM(rbm); l2_fields, l1_weights, l2_weights, l2l1_weights)
-        return nothing
-    end
+    if regularize_unstandardized
+        # regularization applies the unstandardized parameters
+        rbm = unstandardize(std_rbm)
 
-    urbm = unstandardize(rbm)
+        offset_h = reshape(std_rbm.offset_h, map(one, size(std_rbm.scale_v))..., size(std_rbm.scale_h)...)
+        scale_v = reshape(std_rbm.scale_v, size(std_rbm.scale_v)..., map(one, size(std_rbm.scale_h))...)
+        scale_h = reshape(std_rbm.scale_h, map(one, size(std_rbm.scale_v))..., size(std_rbm.scale_h)...)
+        scale_w = scale_v .* scale_h
 
-    offset_h = reshape(rbm.offset_h, map(one, size(rbm.scale_v))..., size(rbm.scale_h)...)
-    scale_v = reshape(rbm.scale_v, size(rbm.scale_v)..., map(one, size(rbm.scale_h))...)
-    scale_h = reshape(rbm.scale_h, map(one, size(rbm.scale_v))..., size(rbm.scale_h)...)
-    scale_w = scale_v .* scale_h
-
-    if !iszero(l2_fields)
-        visible_reg = ∂regularize_fields(urbm.visible; l2_fields)
-        ∂.visible .+= visible_reg
-        ∂regularize_add_visible_offset!(∂, visible_reg, offset_h, scale_w, rbm.visible)
-    end
-    if !iszero(l1_weights)
-        ∂.w .+= l1_weights * sign.(urbm.w) ./ scale_w
-    end
-    if !iszero(l2_weights)
-        ∂.w .+= l2_weights * urbm.w ./ scale_w
-    end
-    if !iszero(l2l1_weights)
-        dims = ntuple(identity, ndims(rbm.visible))
-        ∂.w .+= l2l1_weights * sign.(urbm.w) .* mean(abs, urbm.w; dims) ./ scale_w
+        if !iszero(l2_fields)
+            visible_reg = ∂regularize_fields(rbm.visible; l2_fields)
+            ∂.visible .+= visible_reg
+            ∂regularize_add_visible_offset!(∂, visible_reg, offset_h, scale_w, std_rbm.visible)
+        end
+        if !iszero(l1_weights)
+            ∂.w .+= l1_weights * sign.(rbm.w) ./ scale_w
+        end
+        if !iszero(l2_weights)
+            ∂.w .+= l2_weights * rbm.w ./ scale_w
+        end
+        if !iszero(l2l1_weights)
+            dims = ntuple(identity, ndims(std_rbm.visible))
+            ∂.w .+= l2l1_weights * sign.(rbm.w) .* mean(abs, rbm.w; dims) ./ scale_w
+        end
+    else
+        # regularization applies directly to standardized parameters
+        ∂regularize!(∂, RBM(std_rbm); l2_fields, l1_weights, l2_weights, l2l1_weights)
     end
 end
 
@@ -171,11 +172,15 @@ function ∂regularize_add_visible_offset!(∂::∂RBM, visible_regularization::
 end
 
 function regularization_penalty(
-    rbm::StandardizedRBM;
-    l1_weights::Real = 0, l2_weights::Real = 0, l2l1_weights::Real = 0, l2_fields::Real = 0
+    std_rbm::StandardizedRBM; regularize_unstandardized::Bool = true,
+    l1_weights::Real = 0, l2_weights::Real = 0, l2l1_weights::Real = 0, l2_fields::Real = 0,
 )
-    urbm = unstandardize(rbm)
-    return regularization_penalty(urbm; l1_weights, l2_weights, l2l1_weights, l2_fields)
+    if regularize_unstandardized
+        rbm = unstandardize(std_rbm)
+        return regularization_penalty(rbm; l1_weights, l2_weights, l2l1_weights, l2_fields)
+    else
+        return regularization_penalty(RBM(std_rbm); l1_weights, l2_weights, l2l1_weights, l2_fields)
+    end
 end
 
 function rescale_hidden_activations!(rbm::StandardizedRBM)
@@ -355,7 +360,8 @@ function pcd!(
     # "pseudocount" for estimating variances of v and h and damping
     damping::Real = 1//100, ϵv::Real = 0, ϵh::Real = 0,
 
-    # whether regularization applies to unstandardized model parameters
+    # whether regularization applies to unstandardized model parameters (default),
+    # or to the parameters of the standardized model
     regularize_unstandardized::Bool = true,
 
     # optimiser
