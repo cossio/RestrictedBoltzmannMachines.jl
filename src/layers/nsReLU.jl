@@ -1,9 +1,7 @@
-#= nsReLU : a variant of dReLU units without scale parameter γ (which is fixed at 1) =#
-
 """
     nsReLU
 
-A variant of `dReLU` units without scale parameter γ (which is fixed at 1). This is done
+A variant of `xReLU` units without scale parameter γ (which is fixed at 1). This is done
 to remove the gauge invariance between the weights and the hidden units scale.
 """
 struct nsReLU{N,A} <: RestrictedBoltzmannMachines.AbstractLayer{N}
