@@ -18,7 +18,7 @@ using RestrictedBoltzmannMachines: regularization_penalty
 using RestrictedBoltzmannMachines: sample_h_from_h, sample_v_from_v, sample_from_inputs
 using RestrictedBoltzmannMachines: shift_fields, shift_fields!
 using RestrictedBoltzmannMachines: standardize, unstandardize, standardize!, unstandardized_weights
-using RestrictedBoltzmannMachines: standardize_hidden, standardize_hidden!, standardize_visible, standardize_visible!
+using RestrictedBoltzmannMachines: standardize_hidden, standardize_visible
 using StatsBase: proportionmap
 using Statistics: mean
 using Test: @inferred, @test, @testset
