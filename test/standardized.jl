@@ -1,11 +1,10 @@
 using LinearAlgebra: I, norm
 using Random: bitrand
 using RestrictedBoltzmannMachines: ∂free_energy, ∂free_energy_h, ∂free_energy_v, ∂regularize!
-using RestrictedBoltzmannMachines: Binary, Spin, dReLU, Gaussian, Potts, ReLU, pReLU, xReLU
+using RestrictedBoltzmannMachines: Binary, Spin, dReLU, Gaussian, Potts, ReLU, nsReLU, pReLU, xReLU
 using RestrictedBoltzmannMachines: RBM, StandardizedRBM
 using RestrictedBoltzmannMachines: BinaryRBM, BinaryStandardizedRBM, SpinStandardizedRBM
-using RestrictedBoltzmannMachines: weight_norms
-using RestrictedBoltzmannMachines: delta_energy
+using RestrictedBoltzmannMachines: weight_norms, delta_energy
 using RestrictedBoltzmannMachines: rescale_weights!, rescale_hidden_activations!
 using RestrictedBoltzmannMachines: energy, interaction_energy, free_energy, free_energy_h, free_energy_v
 using RestrictedBoltzmannMachines: generate_sequences
@@ -13,8 +12,7 @@ using RestrictedBoltzmannMachines: inputs_h_from_v, inputs_v_from_h
 using RestrictedBoltzmannMachines: log_partition
 using RestrictedBoltzmannMachines: mean_h_from_v, mean_v_from_h, var_h_from_v, var_v_from_h
 using RestrictedBoltzmannMachines: mirror
-using RestrictedBoltzmannMachines: pcd!
-using RestrictedBoltzmannMachines: regularization_penalty
+using RestrictedBoltzmannMachines: pcd!, regularization_penalty
 using RestrictedBoltzmannMachines: sample_h_from_h, sample_v_from_v, sample_from_inputs
 using RestrictedBoltzmannMachines: shift_fields, shift_fields!
 using RestrictedBoltzmannMachines: standardize, unstandardize, standardize!, unstandardized_weights
@@ -159,6 +157,34 @@ end
     )
     v = bitrand(size(rbm.visible)..., 10)
     h = bitrand(size(rbm.hidden)..., 10)
+
+    @test free_energy_v(rbm, v) == free_energy(rbm, v)
+    @test ∂free_energy_v(rbm, v) == ∂free_energy(rbm, v)
+
+    gs_v = gradient(rbm) do rbm
+        mean(free_energy_v(rbm, v))
+    end
+    ∂v = ∂free_energy_v(rbm, v)
+    @test ∂v.visible ≈ only(gs_v).visible.par
+    @test ∂v.hidden ≈ only(gs_v).hidden.par
+    @test ∂v.w ≈ only(gs_v).w
+
+    gs_h = gradient(rbm) do rbm
+        mean(free_energy_h(rbm, h))
+    end
+    ∂h = ∂free_energy_h(rbm, h)
+    @test ∂h.visible ≈ only(gs_h).visible.par
+    @test ∂h.hidden ≈ only(gs_h).hidden.par
+    @test ∂h.w ≈ only(gs_h).w
+end
+
+@testset "∂free_energy nsReLU" begin
+    rbm = standardize(
+        RBM(Binary(; θ=randn(3)), nsReLU(; θ=randn(2), ξ=randn(2), Δ=randn(2)), randn(3,2)),
+        randn(3), randn(2), 0.1 .+ rand(3), 0.1 .+ rand(2)
+    )
+    v = bitrand(size(rbm.visible)..., 10)
+    h = randn(size(rbm.hidden)..., 10)
 
     @test free_energy_v(rbm, v) == free_energy(rbm, v)
     @test ∂free_energy_v(rbm, v) == ∂free_energy(rbm, v)
