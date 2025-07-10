@@ -379,7 +379,7 @@ function pcd!(
     ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w),
     state = setup(optim, ps),
 
-    # Absorb the scale_h into the hidden unit activation (for continuous hidden units).
+    # Absorb the scale_h into the hidden unit activation (for hidden units with scale parameter).
     # Results in hidden units with var(h) ~ 1.
     rescale_hidden::Bool = true,
 
