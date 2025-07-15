@@ -54,8 +54,8 @@ function inputs_h_from_v(rbm::StandardizedRBM, v::AbstractArray)
 end
 
 function inputs_v_from_h(rbm::StandardizedRBM, h::AbstractArray)
-    scaled_h = standardize_h(rbm, h)
-    inputs = inputs_v_from_h(RBM(rbm), scaled_h)
+    std_h = standardize_h(rbm, h)
+    inputs = inputs_v_from_h(RBM(rbm), std_h)
     return inputs ./ rbm.scale_v
 end
 
