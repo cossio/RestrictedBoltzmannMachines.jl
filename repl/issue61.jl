@@ -12,7 +12,7 @@ rbm = BinaryRBM(N, M)
 randn!(rbm.w); randn!(rbm.visible.θ); randn!(rbm.hidden.θ);
 
 inter1(rbm, v, h) = interaction_energy(rbm, v, h)
-inter2(rbm, v, h) = -v' * rbm.w * h
+inter2(rbm, v, h) = -(v' * rbm.w * h)
 
 function foo()
     rbm = BinaryRBM(N, M)
