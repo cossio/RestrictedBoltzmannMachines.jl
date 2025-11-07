@@ -13,6 +13,7 @@ randn!(rbm.w); randn!(rbm.visible.θ); randn!(rbm.hidden.θ);
 
 inter1(rbm, v, h) = interaction_energy(rbm, v, h)
 inter2(rbm, v, h) = -(v' * rbm.w * h)
+inter3(rbm, v, h) = interaction_energy(rbm, float(v), float(h))
 
 function foo()
     rbm = BinaryRBM(N, M)
@@ -30,33 +31,42 @@ println(" --- now with rand(Bool) --- ")
 
 v = rand(Bool, N, T)
 h = rand(Bool, M)
-@test inter1(rbm, v, h) ≈ inter2(rbm, v, h)
+
+@test inter1(rbm, v, h) ≈ inter2(rbm, v, h) ≈ inter3(rbm, v, h)
 @inferred inter1(rbm, v, h)
 @inferred inter2(rbm, v, h)
+@inferred inter3(rbm, v, h)
 
 @btime inter1($rbm, $v, $h);
 @btime inter2($rbm, $v, $h);
+@btime inter3($rbm, $v, $h);
 
 println(" --- now with bitrand --- ")
 
 v = bitrand(N, T)
 h = bitrand(M)
-@test inter1(rbm, v, h) ≈ inter2(rbm, v, h)
+
+@test inter1(rbm, v, h) ≈ inter2(rbm, v, h) ≈ inter3(rbm, v, h)
 @inferred inter1(rbm, v, h)
 @inferred inter2(rbm, v, h)
+@inferred inter3(rbm, v, h)
 
 @btime inter1($rbm, $v, $h);
 @btime inter2($rbm, $v, $h);
+@btime inter3($rbm, $v, $h);
 
 println(" --- now with float --- ")
 
 v = float(bitrand(N, T))
 h = float(bitrand(M))
-@test inter1(rbm, v, h) ≈ inter2(rbm, v, h)
+
+@test inter1(rbm, v, h) ≈ inter2(rbm, v, h) ≈ inter3(rbm, v, h)
 @inferred inter1(rbm, v, h)
 @inferred inter2(rbm, v, h)
+@inferred inter3(rbm, v, h)
 
 @btime inter1($rbm, $v, $h);
 @btime inter2($rbm, $v, $h);
+@btime inter3($rbm, $v, $h);
 
 println("done")
