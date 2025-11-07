@@ -59,7 +59,7 @@ function generate_sequences(n::Int, A = 0:1)
 end
 
 """
-    broadlike(A, B...)
+    broadlike(A, B, ...)
 
 Broadcasts `A` into the size of `A .+ B .+ ...` (without actually doing a sum).
 """
