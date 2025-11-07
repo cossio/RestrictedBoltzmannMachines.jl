@@ -5,7 +5,7 @@ using Random: bitrand, randn!
 using Test: @test, @inferred
 
 N = 500
-M = 2
+M = 200
 T = 1000
 
 rbm = BinaryRBM(N, M)
@@ -16,11 +16,11 @@ inter2(rbm, v, h) = -(v' * rbm.w * h)
 
 function foo()
     rbm = BinaryRBM(N, M)
-    randn!(rbm.w); randn!(rbm.visible.θ); randn!(rbm.hidden.θ);
-    v = bitrand(N, T)
-    h = bitrand(M)
-    results = zeros(Float64, 10000000)
-    for t = 1:5
+    results = zeros(Float64, 1000)
+    for t = eachindex(results)
+        randn!(rbm.w); randn!(rbm.visible.θ); randn!(rbm.hidden.θ);
+        v = bitrand(N, T)
+        h = bitrand(M)
         results[t] = sum(inter1(rbm, v, h))
     end
     return results
