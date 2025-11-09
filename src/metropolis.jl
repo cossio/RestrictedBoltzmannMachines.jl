@@ -18,7 +18,7 @@ function metropolis_once(rbm::RBM, v::AbstractArray; β::Real = 1)
     ΔE = (β - 1) * (free_energy(rbm, v_new) - free_energy(rbm, v))
     ℐ = CartesianIndices(size(rbm.visible)) # index span of visible layer
     for n in CartesianIndices(ΔE)
-        if ΔE[n] ≤ 0 || randexp() > ΔE[n]
+        if ΔE[n] ≤ 0 || ΔE[n] < randexp()
             continue # accept move
         else
             v_new[ℐ, n] .= v[ℐ, n] # do not accept move
