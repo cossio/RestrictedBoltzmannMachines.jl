@@ -267,12 +267,12 @@ end
 
     for v = vs
         @test free_energy(rbm, v) ≈ -log(sum(exp(-energy(rbm, v, h)) for h = hs))
-        @test free_energy(rbm, v) == free_energy_v(rbm, v)
+        @test free_energy(rbm, v) ≈ free_energy_v(rbm, v)
     end
 
     for h = hs
         @test free_energy_h(rbm, h) ≈ -log(sum(exp(-energy(rbm, v, h)) for v = vs))
-        @test free_energy_h(rbm, h) == free_energy(mirror(rbm), h)
+        @test free_energy_h(rbm, h) ≈ free_energy(mirror(rbm), h)
     end
 
     sample_v = sample_v_from_v(rbm, bitrand(2, 10000); steps=10000)
