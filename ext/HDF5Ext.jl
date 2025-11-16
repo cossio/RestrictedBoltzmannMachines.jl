@@ -11,6 +11,7 @@ using RestrictedBoltzmannMachines: RBM
 using RestrictedBoltzmannMachines: Spin
 using RestrictedBoltzmannMachines: StandardizedRBM
 using RestrictedBoltzmannMachines: xReLU
+using RestrictedBoltzmannMachines: nsReLU
 
 # Version of the file format used to save/load RBMs
 const FILE_FORMAT_VERSION = v"1.0.0"
@@ -80,6 +81,7 @@ layer_type(::Spin) = "Spin"
 layer_type(::Potts) = "Potts"
 layer_type(::Gaussian) = "Gaussian"
 layer_type(::xReLU) = "xReLU"
+layer_type(::nsReLU) = "nsReLU"
 layer_type(::PottsGumbel) = "PottsGumbel"
 
 construct_layer(layer_type::AbstractString, par::AbstractArray) = construct_layer(Val(Symbol(layer_type)), par)
@@ -89,6 +91,7 @@ construct_layer(::Val{:Spin}, par::AbstractArray) = Spin(par)
 construct_layer(::Val{:Potts}, par::AbstractArray) = Potts(par)
 construct_layer(::Val{:Gaussian}, par::AbstractArray) = Gaussian(par)
 construct_layer(::Val{:xReLU}, par::AbstractArray) = xReLU(par)
+construct_layer(::Val{:nsReLU}, par::AbstractArray) = nsReLU(par)
 construct_layer(::Val{:PottsGumbel}, par::AbstractArray) = PottsGumbel(par)
 
 function _load_rbm(file::HDF5.File, ::Val{:RBM})

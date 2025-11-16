@@ -10,6 +10,7 @@ using RestrictedBoltzmannMachines: Spin
 using RestrictedBoltzmannMachines: standardize
 using RestrictedBoltzmannMachines: StandardizedRBM
 using RestrictedBoltzmannMachines: xReLU
+using RestrictedBoltzmannMachines: nsReLU
 using Test: @test
 using Test: @testset
 
@@ -25,7 +26,7 @@ using Test: @testset
 end
 
 @testset "layers" begin
-    for Layer in (Binary, Spin, Potts)
+    for Layer = (Binary, Spin, Potts)
         rbm = RBM(Layer(; θ=randn(2,3)), xReLU(; θ=randn(4), γ=randn(4), Δ=randn(4), ξ=randn(4)), randn(2,3,4))
         path = save_rbm(tempname(), rbm)
         loaded_rbm = load_rbm(path)
@@ -50,6 +51,19 @@ end
     @test loaded_rbm.visible.θ == rbm.visible.θ
     @test loaded_rbm.hidden.θ == rbm.hidden.θ
     @test loaded_rbm.hidden.γ == rbm.hidden.γ
+end
+
+@testset "nsReLU" begin
+    rbm = RBM(Binary(; θ=randn(2,3)), nsReLU(; θ=randn(4), Δ=randn(4), ξ=randn(4)), randn(2,3,4))
+    path = save_rbm(tempname(), rbm)
+    loaded_rbm = load_rbm(path)
+    @test loaded_rbm.visible isa Binary
+    @test loaded_rbm.hidden isa nsReLU
+    @test loaded_rbm.w == rbm.w
+    @test loaded_rbm.visible.θ == rbm.visible.θ
+    @test loaded_rbm.hidden.θ == rbm.hidden.θ
+    @test loaded_rbm.hidden.Δ == rbm.hidden.Δ
+    @test loaded_rbm.hidden.ξ == rbm.hidden.ξ
 end
 
 @testset "PottsGumbel" begin
