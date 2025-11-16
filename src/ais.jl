@@ -162,6 +162,13 @@ function anneal(init::xReLU, final::xReLU; β::Real)
     return xReLU(; θ, γ, Δ, ξ)
 end
 
+function anneal(init::nsReLU, final::nsReLU; β::Real)
+    θ = (1 - β) * init.θ + β * final.θ
+    Δ = (1 - β) * init.Δ + β * final.Δ
+    ξ = (1 - β) * init.ξ + β * final.ξ
+    return nsReLU(; θ, Δ, ξ)
+end
+
 anneal_zero(init::AbstractLayer, rbm::RBM) = RBM(init, anneal_zero(rbm.hidden), Zeros(rbm.w))
 
 anneal_zero(l::Binary) = Binary(; θ = zero(l.θ))
@@ -172,6 +179,7 @@ anneal_zero(l::ReLU) = ReLU(; θ = zero(l.θ), l.γ)
 anneal_zero(l::dReLU) = dReLU(; θp = zero(l.θp), θn = zero(l.θn), l.γp, l.γn)
 anneal_zero(l::pReLU) = pReLU(; θ = zero(l.θ), l.γ, Δ = zero(l.Δ), l.η)
 anneal_zero(l::xReLU) = xReLU(; θ = zero(l.θ), l.γ, Δ = zero(l.Δ), l.ξ)
+anneal_zero(l::nsReLU) = nsReLU(; θ = zero(l.θ), Δ = zero(l.Δ), l.ξ)
 
 """
     log_partition_zero_weight(rbm)

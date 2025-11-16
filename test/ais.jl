@@ -2,7 +2,8 @@ using Test: @test, @testset, @inferred
 using Statistics: mean, std, var
 using Random: randn!, bitrand
 using LogExpFunctions: logsumexp
-using RestrictedBoltzmannMachines: RBM, BinaryRBM, Binary, Spin, Potts, Gaussian, ReLU, dReLU, xReLU, pReLU,
+using RestrictedBoltzmannMachines: RBM, BinaryRBM, Binary, Spin, Potts, Gaussian, ReLU, dReLU,
+    xReLU, pReLU, nsReLU,
     energy, free_energy, sample_from_inputs, sample_v_from_v,
     anneal, anneal_zero, ais, aise, raise, log_partition_zero_weight,
     logmeanexp, logvarexp, logstdexp, log_partition
@@ -82,6 +83,11 @@ end
 
     init = xReLU(; θ = randn(N), γ = rand(N), Δ = randn(N), ξ = randn(N))
     final = xReLU(; θ = randn(N), init.γ, Δ = randn(N), init.ξ)
+    x = sample_from_inputs(final)
+    @test energy(anneal(init, final; β), x) ≈ (1 - β) * energy(init, x) + β * energy(final, x)
+
+    init = nsReLU(; θ = randn(N), Δ = randn(N), ξ = randn(N))
+    final = nsReLU(; θ = randn(N), Δ = randn(N), init.ξ)
     x = sample_from_inputs(final)
     @test energy(anneal(init, final; β), x) ≈ (1 - β) * energy(init, x) + β * energy(final, x)
 end
