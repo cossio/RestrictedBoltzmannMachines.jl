@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+## 5.2.0
+
+- Added AIS support for `nsReLU` layer.
+
 ## 5.1.0
 
 - Added `nsReLU` layer.
