@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>AIS · RestrictedBoltzmannMachines.jl</title><meta name="title" content="AIS · RestrictedBoltzmannMachines.jl"/><meta property="og:title" content="AIS · RestrictedBoltzmannMachines.jl"/><meta property="twitter:title" content="AIS · RestrictedBoltzmannMachines.jl"/><meta name="description" content="Documentation for RestrictedBoltzmannMachines.jl."/><meta property="og:description" content="Documentation for RestrictedBoltzmannMachines.jl."/><meta property="twitter:description" content="Documentation for RestrictedBoltzmannMachines.jl."/><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../search_index.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">RestrictedBoltzmannMachines.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="../MNIST/">MNIST</a></li><li><input class="collapse-toggle" id="menuitem-2-2" type="checkbox"/><label class="tocitem" for="menuitem-2-2"><span class="docs-label">Layers</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../layers/Gaussian/">Gaussian</a></li><li><a class="tocitem" href="../layers/ReLU/">ReLU</a></li><li><a class="tocitem" href="../layers/dReLU/">dReLU</a></li></ul></li><li class="is-active"><a class="tocitem" href>AIS</a></li><li><a class="tocitem" href="../metropolis/">Metropolis</a></li></ul></li><li><a class="tocitem" href="../../reference/">Reference</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>AIS</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>AIS</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/cossio/RestrictedBoltzmannMachines.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/cossio/RestrictedBoltzmannMachines.jl/blob/master/docs/src/literate/ais.jl" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Annealed-importance-sampling"><a class="docs-heading-anchor" href="#Annealed-importance-sampling">Annealed importance sampling</a><a id="Annealed-importance-sampling-1"></a><a class="docs-heading-anchor-permalink" href="#Annealed-importance-sampling" title="Permalink"></a></h1><p>We can compute the partition function of the RBM (and hence the log-likelihood) with annealed importance sampling (AIS).</p><pre><code class="language-julia hljs">import MLDatasets
+import Makie
+import CairoMakie
+import RestrictedBoltzmannMachines as RBMs
+using Statistics: mean, std, middle
+using ValueHistories: MVHistory
+using RestrictedBoltzmannMachines: Binary, BinaryRBM, initialize!, pcd!,
+    aise, raise, logmeanexp, logstdexp, sample_v_from_v</code></pre><p>Load MNIST (0 digit only).</p><pre><code class="language-julia hljs">Float = Float32
+train_x, train_y = MLDatasets.MNIST.traindata()
+train_x = Array{Float}(train_x[:, :, train_y .== 0] .&gt; 0.5)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">┌ Warning: MNIST.traindata() is deprecated, use `MNIST(split=:train)[:]` instead.
+└ @ MLDatasets ~/.julia/packages/MLDatasets/0MkOE/src/datasets/vision/mnist.jl:187</code></pre><p>Train an RBM</p><pre><code class="language-julia hljs">rbm = BinaryRBM(Float, (28,28), 128)
+initialize!(rbm, train_x)
+@time pcd!(rbm, train_x; iters=10000, batchsize=128)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"> 70.419258 seconds (2.61 M allocations: 69.162 GiB, 27.76% gc time, 0.28% compilation time)</code></pre><p>Get some equilibrated samples from model</p><pre><code class="language-julia hljs">v = train_x[:, :, rand(1:size(train_x, 3), 1000)]
+v = sample_v_from_v(rbm, v; steps=1000)</code></pre><p>Estimate Z with AIS and reverse AIS.</p><pre><code class="language-julia hljs">nsamples=100
+ndists = [10, 100, 1000, 10_000, 100_000]
+R_ais = Vector{Float64}[]
+R_rev = Vector{Float64}[]
+init = initialize!(Binary(; θ = zero(rbm.visible.θ)), v)
+
+for nbetas in ndists
+    push!(R_ais,
+        @time aise(rbm; nbetas, nsamples, init)
+    )
+    push!(R_rev,
+        @time raise(rbm; nbetas, init, v=v[:,:,rand(1:size(v, 3), nsamples)])
+    )
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">  3.337223 seconds (5.52 M allocations: 328.855 MiB, 0.87% gc time, 99.04% compilation time)
+  0.291632 seconds (440.21 k allocations: 81.905 MiB, 90.68% compilation time)
+  0.423793 seconds (13.12 k allocations: 703.575 MiB, 15.22% gc time)
+  0.349593 seconds (13.10 k allocations: 731.379 MiB, 9.94% gc time)
+  3.923687 seconds (132.82 k allocations: 6.979 GiB, 7.97% gc time)
+  3.474157 seconds (132.80 k allocations: 7.269 GiB, 8.50% gc time)
+ 39.166166 seconds (1.33 M allocations: 69.903 GiB, 7.62% gc time)
+ 34.806956 seconds (1.33 M allocations: 72.821 GiB, 8.38% gc time)
+392.678830 seconds (13.30 M allocations: 699.135 GiB, 7.67% gc time)
+349.013297 seconds (13.30 M allocations: 728.338 GiB, 8.38% gc time)</code></pre><p>Plots</p><pre><code class="language-julia hljs">fig = Makie.Figure()
+ax = Makie.Axis(
+    fig[1,1], width=700, height=400, xscale=log10, xlabel=&quot;interpolating distributions&quot;, ylabel=&quot;log(Z)&quot;
+)
+Makie.band!(
+    ax, ndists,
+    mean.(R_ais) - std.(R_ais),
+    mean.(R_ais) + std.(R_ais);
+    color=(:blue, 0.25)
+)
+Makie.band!(
+    ax, ndists,
+    mean.(R_rev) - std.(R_rev),
+    mean.(R_rev) + std.(R_rev);
+    color=(:black, 0.25)
+)
+Makie.lines!(ax, ndists, mean.(R_ais); color=:blue, label=&quot;AIS&quot;)
+Makie.lines!(ax, ndists, mean.(R_rev); color=:black, label=&quot;reverse AIS&quot;)
+Makie.lines!(ax, ndists, logmeanexp.(R_ais); color=:blue, linestyle=:dash)
+Makie.lines!(ax, ndists, logmeanexp.(R_rev); color=:black, linestyle=:dash)
+Makie.lines!(ax, ndists, -logmeanexp.(-R_rev); color=:orange, linestyle=:dash)
+Makie.hlines!(ax, middle(mean(R_ais[end]), mean(R_rev[end])), linestyle=:dash, color=:red, label=&quot;limiting estimate&quot;)
+Makie.xlims!(extrema(ndists)...)
+Makie.axislegend(ax, position=:rb)
+Makie.resize_to_layout!(fig)
+fig</code></pre><img src="4cb820b0.png" alt="Example block output"/><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../layers/dReLU/">« dReLU</a><a class="docs-footer-nextpage" href="../metropolis/">Metropolis »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.15.0 on <span class="colophon-date" title="Sunday 16 November 2025 09:38">Sunday 16 November 2025</span>. Using Julia version 1.12.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
