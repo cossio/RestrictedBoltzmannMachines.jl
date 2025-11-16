@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+## 5.3.0
+
 - Added HDF5 support for `nsReLU` layer.
 
 ## 5.2.0
