@@ -94,7 +94,22 @@ Weight mediated interaction energy.
 """
 function interaction_energy(rbm, v, h)
     bsz = batch_size(rbm, v, h)
-    if ndims(rbm.visible) == ndims(v) || ndims(rbm.hidden) == ndims(h)
+    if ndims(rbm.visible) == ndims(v) && ndims(rbm.hidden) == ndims(h)
+        # Both v and h are single samples: use full matrix multiply
+        w_flat = flat_w(rbm)
+        v_flat = with_eltype_of(w_flat, flat_v(rbm, v))
+        h_flat = with_eltype_of(w_flat, flat_h(rbm, h))
+        E = -(v_flat' * w_flat * h_flat)
+    elseif ndims(rbm.hidden) == ndims(h)
+        # v is batched, h is single: compute w*h first (small), then v'*(w*h)
+        # This avoids converting the large batched v array to match w's eltype.
+        w_flat = flat_w(rbm)
+        h_flat = with_eltype_of(w_flat, flat_h(rbm, h))
+        wh = w_flat * h_flat
+        v_flat = flat_v(rbm, v)
+        E = -(v_flat' * wh)
+    elseif ndims(rbm.visible) == ndims(v)
+        # h is batched, v is single: v is small so original approach is efficient
         w_flat = flat_w(rbm)
         v_flat = with_eltype_of(w_flat, flat_v(rbm, v))
         h_flat = with_eltype_of(w_flat, flat_h(rbm, h))
