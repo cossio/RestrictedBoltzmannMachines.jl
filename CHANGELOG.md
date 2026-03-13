@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+## 5.3.1-DEV
+
+- Speed up `log_pseudolikelihood` by reusing hidden inputs and local free-energy updates [d01bacb](https://github.com/cossio/RestrictedBoltzmannMachines.jl/commit/d01bacbec488d32fece46d15655ea97933265b14).
+
 ## 5.3.0
 
 - Added HDF5 support for `nsReLU` layer.
