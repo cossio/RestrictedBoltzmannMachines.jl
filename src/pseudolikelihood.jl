@@ -25,10 +25,11 @@ close to the exact value of the pseudolikelihood.
 """
 function log_pseudolikelihood_stoch(rbm::RBM, v::AbstractArray)
     @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
-    sites = [
+    batch_sz = batch_size(rbm.visible, v)
+    sites = reshape([
         rand(CartesianIndices(sitesize(rbm.visible)))
-        for _ in CartesianIndices(batch_size(rbm.visible, v))
-    ]
+        for _ in 1:prod(batch_sz)
+    ], batch_sz)
     return log_pseudolikelihood_sites(rbm, v, sites)
 end
 
@@ -68,6 +69,18 @@ function log_pseudolikelihood_exact(rbm::RBM, v::AbstractArray)
     lPL = mean(lPLsites; dims=2:(sitedims(rbm.visible) + 1))
     return reshape(lPL, batch_size(rbm.visible, v))
 end
+
+function _pseudolikelihood_context(rbm::RBM, v::AbstractArray)
+    batch_sz = batch_size(rbm.visible, v)
+    B = prod(batch_sz)
+    inputs = inputs_h_from_v(rbm, v)
+    Iflat = reshape(flatten(rbm.hidden, inputs), length(rbm.hidden), B)
+    Γ = cgf(rbm.hidden, inputs)
+    Γ0 = isempty(batch_sz) ? fill(Γ, 1) : vec(Γ)
+    return batch_sz, B, Iflat, Γ0
+end
+
+@inline _potts_site_index(x::Integer, i::CartesianIndex) = (x, Tuple(i)...)
 
 """
     substitution_matrix_sites(rbm, v, sites)
@@ -213,34 +226,206 @@ function substitution_matrix_exhaustive(rbm::RBM{<:PottsGumbel}, v::AbstractArra
     substitution_matrix_exhaustive(RBM(Potts(rbm.visible), rbm.hidden, rbm.w), v)
 end
 
-#= ***
-For Binary and Spin layers, a specialized log_pseudolikelihood_sites is a bit faster.
-*** =#
-
 function log_pseudolikelihood_sites(
     rbm::RBM{<:Binary}, v::AbstractArray, sites::AbstractArray{<:CartesianIndex}
 )
     @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
     @assert size(sites) == batch_size(rbm.visible, v)
-    v_ = copy(v)
-    for (b, i) in pairs(sites)
-        v_[i, b] = 1 - v_[i, b]
+    batch_sz, B, Iflat, Γ0 = _pseudolikelihood_context(rbm, v)
+    vbatch = reshape(v, size(rbm.visible)..., B)
+    sitesvec = reshape(sites, B)
+    site_linear = LinearIndices(size(rbm.visible))
+    buffer = similar(Iflat, size(Iflat, 1))
+    out = similar(Γ0, B)
+    buffer_hidden = reshape(buffer, size(rbm.hidden))
+    wflat = flat_w(rbm)
+
+    @views for b in 1:B
+        i = sitesvec[b]
+        j = site_linear[i]
+        δ = ifelse(vbatch[i, b] > 0, -1, 1)
+        wrow = view(wflat, j, :)
+        icol = view(Iflat, :, b)
+        @. buffer = icol + δ * wrow
+        ΔΓ = cgf(rbm.hidden, buffer_hidden) - Γ0[b]
+        ΔF = -rbm.visible.θ[i] * δ - ΔΓ
+        out[b] = -log1pexp(-ΔF)
     end
-    F = free_energy(rbm, v)
-    F_ = free_energy(rbm, v_)
-    return -log1pexp.(F - F_)
+    return reshape(out, batch_sz)
 end
 
 function log_pseudolikelihood_sites(
-    rbm::RBM{<:Spin}, v::AbstractArray, sites::AbstractVector{<:CartesianIndex}
+    rbm::RBM{<:Spin}, v::AbstractArray, sites::AbstractArray{<:CartesianIndex}
 )
     @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
     @assert size(sites) == batch_size(rbm.visible, v)
-    v_ = copy(v)
-    for (b, i) in pairs(sites)
-        v_[i, b] = -v_[i, b]
+    batch_sz, B, Iflat, Γ0 = _pseudolikelihood_context(rbm, v)
+    vbatch = reshape(v, size(rbm.visible)..., B)
+    sitesvec = reshape(sites, B)
+    site_linear = LinearIndices(size(rbm.visible))
+    buffer = similar(Iflat, size(Iflat, 1))
+    out = similar(Γ0, B)
+    buffer_hidden = reshape(buffer, size(rbm.hidden))
+    wflat = flat_w(rbm)
+
+    @views for b in 1:B
+        i = sitesvec[b]
+        j = site_linear[i]
+        δ = ifelse(vbatch[i, b] > 0, -2, 2)
+        wrow = view(wflat, j, :)
+        icol = view(Iflat, :, b)
+        @. buffer = icol + δ * wrow
+        ΔΓ = cgf(rbm.hidden, buffer_hidden) - Γ0[b]
+        ΔF = -rbm.visible.θ[i] * δ - ΔΓ
+        out[b] = -log1pexp(-ΔF)
     end
-    F = free_energy(rbm, v)
-    F_ = free_energy(rbm, v_)
-    return -log1pexp.(F - F_)
+    return reshape(out, batch_sz)
+end
+
+function log_pseudolikelihood_sites(
+    rbm::RBM{<:Potts}, v::AbstractArray, sites::AbstractArray{<:CartesianIndex}
+)
+    @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
+    @assert size(sites) == batch_size(rbm.visible, v)
+    batch_sz, B, Iflat, Γ0 = _pseudolikelihood_context(rbm, v)
+    q = colors(rbm.visible)
+    cats = reshape(onehot_decode(v), sitesize(rbm.visible)..., B)
+    sitesvec = reshape(sites, B)
+    visible_linear = LinearIndices(size(rbm.visible))
+    buffer = similar(Iflat, size(Iflat, 1))
+    ΔF = similar(Γ0, q)
+    out = similar(Γ0, B)
+    buffer_hidden = reshape(buffer, size(rbm.hidden))
+    wflat = flat_w(rbm)
+
+    @views for b in 1:B
+        i = sitesvec[b]
+        old = cats[i, b]
+        old_idx = _potts_site_index(old, i)
+        old_row = visible_linear[old_idx...]
+        old_w = view(wflat, old_row, :)
+        old_field = rbm.visible.θ[old_idx...]
+        icol = view(Iflat, :, b)
+        for x in 1:q
+            if x == old
+                ΔF[x] = zero(eltype(ΔF))
+            else
+                x_idx = _potts_site_index(x, i)
+                x_row = visible_linear[x_idx...]
+                x_w = view(wflat, x_row, :)
+                @. buffer = icol + x_w - old_w
+                ΔΓ = cgf(rbm.hidden, buffer_hidden) - Γ0[b]
+                ΔF[x] = old_field - rbm.visible.θ[x_idx...] - ΔΓ
+            end
+        end
+        out[b] = -logsumexp(-ΔF)
+    end
+
+    return reshape(out, batch_sz)
+end
+
+function log_pseudolikelihood_sites(
+    rbm::RBM{<:PottsGumbel}, v::AbstractArray, sites::AbstractArray{<:CartesianIndex}
+)
+    return log_pseudolikelihood_sites(RBM(Potts(rbm.visible), rbm.hidden, rbm.w), v, sites)
+end
+
+function log_pseudolikelihood_exact(rbm::RBM{<:Binary}, v::AbstractArray)
+    @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
+    batch_sz, B, Iflat, Γ0 = _pseudolikelihood_context(rbm, v)
+    vbatch = reshape(v, size(rbm.visible)..., B)
+    site_linear = LinearIndices(size(rbm.visible))
+    buffer = similar(Iflat, size(Iflat, 1))
+    lPL = zeros(eltype(Γ0), B)
+    buffer_hidden = reshape(buffer, size(rbm.hidden))
+    wflat = flat_w(rbm)
+
+    @views for i in CartesianIndices(size(rbm.visible))
+        j = site_linear[i]
+        θi = rbm.visible.θ[i]
+        wrow = view(wflat, j, :)
+        for b in 1:B
+            δ = ifelse(vbatch[i, b] > 0, -1, 1)
+            icol = view(Iflat, :, b)
+            @. buffer = icol + δ * wrow
+            ΔΓ = cgf(rbm.hidden, buffer_hidden) - Γ0[b]
+            ΔF = -θi * δ - ΔΓ
+            lPL[b] += -log1pexp(-ΔF)
+        end
+    end
+
+    lPL ./= prod(sitesize(rbm.visible))
+    return reshape(lPL, batch_sz)
+end
+
+function log_pseudolikelihood_exact(rbm::RBM{<:Spin}, v::AbstractArray)
+    @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
+    batch_sz, B, Iflat, Γ0 = _pseudolikelihood_context(rbm, v)
+    vbatch = reshape(v, size(rbm.visible)..., B)
+    site_linear = LinearIndices(size(rbm.visible))
+    buffer = similar(Iflat, size(Iflat, 1))
+    lPL = zeros(eltype(Γ0), B)
+    buffer_hidden = reshape(buffer, size(rbm.hidden))
+    wflat = flat_w(rbm)
+
+    @views for i in CartesianIndices(size(rbm.visible))
+        j = site_linear[i]
+        θi = rbm.visible.θ[i]
+        wrow = view(wflat, j, :)
+        for b in 1:B
+            δ = ifelse(vbatch[i, b] > 0, -2, 2)
+            icol = view(Iflat, :, b)
+            @. buffer = icol + δ * wrow
+            ΔΓ = cgf(rbm.hidden, buffer_hidden) - Γ0[b]
+            ΔF = -θi * δ - ΔΓ
+            lPL[b] += -log1pexp(-ΔF)
+        end
+    end
+
+    lPL ./= prod(sitesize(rbm.visible))
+    return reshape(lPL, batch_sz)
+end
+
+function log_pseudolikelihood_exact(rbm::RBM{<:Potts}, v::AbstractArray)
+    @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
+    batch_sz, B, Iflat, Γ0 = _pseudolikelihood_context(rbm, v)
+    q = colors(rbm.visible)
+    cats = reshape(onehot_decode(v), sitesize(rbm.visible)..., B)
+    visible_linear = LinearIndices(size(rbm.visible))
+    buffer = similar(Iflat, size(Iflat, 1))
+    ΔF = similar(Γ0, q)
+    lPL = zeros(eltype(Γ0), B)
+    buffer_hidden = reshape(buffer, size(rbm.hidden))
+    wflat = flat_w(rbm)
+
+    @views for i in CartesianIndices(sitesize(rbm.visible))
+        for b in 1:B
+            old = cats[i, b]
+            old_idx = _potts_site_index(old, i)
+            old_row = visible_linear[old_idx...]
+            old_w = view(wflat, old_row, :)
+            old_field = rbm.visible.θ[old_idx...]
+            icol = view(Iflat, :, b)
+            for x in 1:q
+                if x == old
+                    ΔF[x] = zero(eltype(ΔF))
+                else
+                    x_idx = _potts_site_index(x, i)
+                    x_row = visible_linear[x_idx...]
+                    x_w = view(wflat, x_row, :)
+                    @. buffer = icol + x_w - old_w
+                    ΔΓ = cgf(rbm.hidden, buffer_hidden) - Γ0[b]
+                    ΔF[x] = old_field - rbm.visible.θ[x_idx...] - ΔΓ
+                end
+            end
+            lPL[b] += -logsumexp(-ΔF)
+        end
+    end
+
+    lPL ./= prod(sitesize(rbm.visible))
+    return reshape(lPL, batch_sz)
+end
+
+function log_pseudolikelihood_exact(rbm::RBM{<:PottsGumbel}, v::AbstractArray)
+    return log_pseudolikelihood_exact(RBM(Potts(rbm.visible), rbm.hidden, rbm.w), v)
 end
