@@ -47,6 +47,7 @@ Documenter.makedocs(
     sitename = "RestrictedBoltzmannMachines.jl",
     pages = [
         "Home" => "index.md",
+        "Layer Types" => "layers.md",
         "Examples" => [
             "MNIST" => "literate/MNIST.md",
             "Layers" => [
