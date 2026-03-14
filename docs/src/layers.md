@@ -75,22 +75,38 @@ This is a truncated Gaussian: conditioned on the other layer, each unit follows 
 
 Constructed with [`ReLU`](@ref).
 
-### dReLU
+### dReLU, pReLU, xReLU
 
-Double Rectified Linear Units take values in ``\mathbb{R}``. The potential function decomposes into positive and negative parts:
+These three layer types represent the **same family of asymmetric piecewise-quadratic distributions**, differing only in parameterization.
+They can be converted to each other without loss of information.
+
+The distribution is defined by a potential that allows different curvatures and locations
+for positive and negative values of ``x``:
 
 ```math
-U(\mathbf{x}) = \sum_i \left(\frac{\gamma_i^+}{2} (x_i^+)^2 + \theta_i^+ x_i^+\right) + \left(\frac{\gamma_i^-}{2} (x_i^-)^2 + \theta_i^- x_i^-\right)
+U(x) = \begin{cases}
+\frac{\gamma^+}{2} x^2 + \theta^+ x & \text{if } x \geq 0 \\[4pt]
+\frac{\gamma^-}{2} x^2 + \theta^- x & \text{if } x < 0
+\end{cases}
 ```
 
-where ``x^+ = \max(0, x)`` and ``x^- = \min(0, x)``.
-This allows asymmetric distributions with different curvatures for positive and negative values.
+The three types differ in how they parameterize this distribution:
 
-Constructed with [`dReLU`](@ref).
+| Type | Parameters | Notes |
+|------|-----------|-------|
+| [`dReLU`](@ref) | ``\theta^+, \theta^-, \gamma^+, \gamma^-`` | Separate parameters for positive and negative parts. Direct but redundant. |
+| [`pReLU`](@ref) | ``\theta, \gamma, \Delta, \eta`` | Shared scale ``\gamma`` with asymmetry ratio ``\eta \in (-1, 1)``. |
+| [`xReLU`](@ref) | ``\theta, \gamma, \Delta, \xi`` | Like pReLU but with unbounded ``\xi \in \mathbb{R}`` (related to ``\eta`` by ``\xi = \eta / (1 - |\eta|)``). |
 
-### pReLU, xReLU
+The conversions between parameterizations are given by:
 
-Parametric and extended ReLU variants with additional parameters for more flexible distributions. See [`pReLU`](@ref) and [`xReLU`](@ref).
+```math
+\gamma = \frac{2|\gamma^+|\,|\gamma^-|}{|\gamma^+| + |\gamma^-|}, \qquad
+\eta = \frac{|\gamma^-| - |\gamma^+|}{|\gamma^+| + |\gamma^-|}
+```
+
+Use whichever parameterization is most convenient; `dReLU` is the most explicit,
+while `pReLU` and `xReLU` separate the overall scale from the asymmetry.
 
 ## Constructing an RBM
 
