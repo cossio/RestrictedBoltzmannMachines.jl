@@ -1,6 +1,7 @@
 # RestrictedBoltzmannMachines.jl
 
 [![Docs (stable)](https://img.shields.io/badge/docs-stable-blue.svg)](https://cossio.github.io/RestrictedBoltzmannMachines.jl/stable)
+[![Docs (dev)](https://img.shields.io/badge/docs-dev-blue.svg)](https://cossio.github.io/RestrictedBoltzmannMachines.jl/dev)
 
 A Julia package for training and sampling [Restricted Boltzmann Machines](https://en.wikipedia.org/wiki/Restricted_Boltzmann_machine) (RBMs) — a class of probabilistic generative models with a bipartite structure of visible and hidden units. This package supports a wide range of unit types (binary, spin, Potts, Gaussian, ReLU variants), GPU acceleration via CUDA, and advanced techniques like centered and standardized RBMs.
 
