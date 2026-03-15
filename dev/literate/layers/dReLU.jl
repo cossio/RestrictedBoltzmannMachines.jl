@@ -1,18 +1,27 @@
 #=
-# dReLU layer
+# [dReLU layer](@id drelu_layer)
 
-The dReLU hidden units are defined by the hidden unit potential function:
+The dReLU (double Rectified Linear Unit) layer defines continuous hidden units
+with values in ``\mathbb{R}``. Unlike the standard ReLU, it can model
+asymmetric distributions by using separate parameters for the positive
+and negative parts of the distribution.
+
+The potential function is:
 
 ```math
-\mathcal{U}_{\mu} (h) = \frac{1}{2} \gamma_{\mu}^{+} h_{+}^{2} + \frac{1}{2}\gamma_{\mu}^{-} h_{-}^{2} + \theta_{\mu}^{+} h_{+} + \theta_{\mu}^{-} h_{-}
+U(h) = \frac{\gamma^+}{2} (h^+)^2 + \theta^+ h^+ + \frac{\gamma^-}{2} (h^-)^2 + \theta^- h^-
 ```
 
-where ``h_{+} = \max\{0,h\}`` and ``h_{-} = \min\{0,h\}``.
+where ``h^+ = \max(0, h)`` and ``h^- = \min(0, h)``.
+The parameters ``\gamma^+, \gamma^-`` control the curvature (precision) of
+the positive and negative sides independently, while ``\theta^+, \theta^-``
+control the location.
 
-In this example we look at what the dReLU layer hidden units look like,
-for different parameter values.
+In this example we visualize the distribution of dReLU units
+for different parameter combinations, showing how the asymmetric
+parameterization allows for a rich variety of distribution shapes.
 
-First load some packages.
+First load the required packages.
 =#
 
 import RestrictedBoltzmannMachines as RBMs
@@ -21,9 +30,7 @@ import CairoMakie
 using Statistics
 nothing #hide
 
-#=
-Now initialize our dReLU layer, with unit parameters spanning an interesting range.
-=#
+# Initialize a dReLU layer spanning a grid of parameter values.
 
 θps = [-3.0; 3.0]
 θns = [-3.0; 3.0]
@@ -37,25 +44,24 @@ layer = RBMs.dReLU(;
 )
 nothing #hide
 
-#=
-Now we sample our layer to collect some data.
-=#
+# Sample from the layer (with zero input from the other layer).
 
 data = RBMs.sample_from_inputs(layer, zeros(size(layer)..., 10^6))
 nothing #hide
 
 #=
-Let's plot the resulting histogram of the activations of each unit.
-We also overlay the analytical PDF.
+Each subplot corresponds to a different ``(\theta^+, \theta^-)`` combination.
+Within each subplot, different curves show different ``(\gamma^+, \gamma^-)``
+combinations, illustrating how the curvature parameters shape the distribution.
 =#
 
 fig = Makie.Figure(resolution=(1000, 700))
 xs = repeat(reshape(range(minimum(data), maximum(data), 100), 1,1,1,1,100), size(layer)...)
 ps = exp.(-RBMs.cgfs(layer) .- RBMs.energies(layer, xs))
 for (iθp, θp) in enumerate(θps), (iθn, θn) in enumerate(θns)
-    ax = Makie.Axis(fig[iθp,iθn], title="θp=$θp, θn=$θn", xlabel="h", ylabel="P(h)")
+    ax = Makie.Axis(fig[iθp,iθn], title="θ⁺=$θp, θ⁻=$θn", xlabel="h", ylabel="P(h)")
     for (iγp, γp) in enumerate(γps), (iγn, γn) in enumerate(γns)
-        Makie.hist!(ax, data[iθp, iθn, iγp, iγn, :], normalization=:pdf, bins=30, label="γp=$γp, γn=$γn")
+        Makie.hist!(ax, data[iθp, iθn, iγp, iγn, :], normalization=:pdf, bins=30, label="γ⁺=$γp, γ⁻=$γn")
         Makie.lines!(ax, xs[iθp, iθn, iγp, iγn, :], ps[iθp, iθn, iγp, iγn, :], linewidth=2)
     end
     if iθp == iθn == 1
