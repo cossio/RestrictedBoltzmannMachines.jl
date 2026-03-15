@@ -1,3 +1,9 @@
+"""
+    GaussianRBM(θv, γv, θh, γh, w)
+
+Construct an RBM with Gaussian visible and hidden units.
+Equivalent to `RBM(Gaussian(θv, γv), Gaussian(θh, γh), w)`.
+"""
 function GaussianRBM(θv::AbstractArray, γv::AbstractArray, θh::AbstractArray, γh::AbstractArray, w::AbstractArray)
     @assert size(θv) == size(γv)
     @assert size(θh) == size(γh)

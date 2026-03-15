@@ -1,3 +1,8 @@
+"""
+    pReLU(; θ, γ, Δ, η)
+
+Parametric ReLU layer, with shared scale and asymmetry ratio.
+"""
 struct pReLU{N,A} <: AbstractLayer{N}
     par::A
     function pReLU{N,A}(par::A) where {N,A<:AbstractArray}

@@ -1,3 +1,8 @@
+"""
+    xReLU(; θ, γ, Δ, ξ)
+
+Extended ReLU layer, like pReLU but with unbounded asymmetry parameter.
+"""
 struct xReLU{N,A} <: AbstractLayer{N}
     par::A
     function xReLU{N,A}(par::A) where {N,A<:AbstractArray}

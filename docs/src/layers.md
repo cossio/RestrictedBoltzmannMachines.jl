@@ -1,3 +1,7 @@
+```@meta
+CurrentModule = RestrictedBoltzmannMachines
+```
+
 # [Layer Types](@id layer_types)
 
 An RBM is composed of a visible layer and a hidden layer, each of which can be any of the types listed below. The RBM energy function is:

@@ -1,3 +1,9 @@
+"""
+    SpinRBM(a, b, w)
+
+Construct an RBM with spin visible and hidden units.
+Equivalent to `RBM(Spin(a), Spin(b), w)`.
+"""
 function SpinRBM(a::AbstractArray, b::AbstractArray, w::AbstractArray)
     @assert size(w) == (size(a)..., size(b)...)
     visible = Spin(; θ = a)

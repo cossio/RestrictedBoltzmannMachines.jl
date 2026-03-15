@@ -1,4 +1,8 @@
-# Like Potts, but uses Gumbel trick which is GPU-friendly
+"""
+    PottsGumbel(; θ)
+
+Like Potts, but uses the Gumbel-softmax trick for GPU-friendly sampling.
+"""
 struct PottsGumbel{N,A} <: AbstractLayer{N}
     par::A
     function PottsGumbel{N,A}(par::A) where {N,A<:AbstractArray}

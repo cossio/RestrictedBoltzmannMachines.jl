@@ -1,3 +1,8 @@
+"""
+    dReLU(; θp, θn, γp, γn)
+
+Double ReLU layer, with separate parameters for positive and negative parts.
+"""
 struct dReLU{N,A} <: AbstractLayer{N}
     par::A
     function dReLU{N,A}(par::A) where {N,A<:AbstractArray}

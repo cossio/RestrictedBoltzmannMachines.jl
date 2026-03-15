@@ -1,3 +1,7 @@
+```@meta
+CurrentModule = RestrictedBoltzmannMachines
+```
+
 # Reference
 
 This is the full API reference for RestrictedBoltzmannMachines.jl.

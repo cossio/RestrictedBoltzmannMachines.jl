@@ -1,3 +1,7 @@
+```@meta
+CurrentModule = RestrictedBoltzmannMachines
+```
+
 # RestrictedBoltzmannMachines.jl
 
 A Julia package for training and sampling [Restricted Boltzmann Machines](https://en.wikipedia.org/wiki/Restricted_Boltzmann_machine) (RBMs).
@@ -63,7 +67,7 @@ samples = RBMs.sample_v_from_v(rbm, train_x[:, :, 1:100]; steps=1000)
 
 ## Documentation guide
 
-- **[Layer Types](@ref)**: Overview of all supported layer types with their energy functions and parameters.
+- **[Layer Types](@ref layer_types)**: Overview of all supported layer types with their energy functions and parameters.
 - **Examples**: Step-by-step tutorials showing how to train an RBM on [MNIST](@ref), estimate the partition function with [Annealed Importance Sampling](@ref annealed_importance_sampling), and sample with [Metropolis-Hastings](@ref metropolis_sampling). Also includes visualizations of individual layer distributions ([Gaussian](@ref gaussian_layer), [ReLU](@ref relu_layer), [dReLU](@ref drelu_layer)).
 - **[Reference](@ref)**: Full API reference with docstrings for all functions and types.
 

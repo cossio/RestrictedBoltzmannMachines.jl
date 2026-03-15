@@ -4,6 +4,10 @@
 Layer with Potts units, with external fields `θ`.
 Encodes categorical variables as one-hot vectors.
 The number of classes is the size of the first dimension.
+
+!!! note
+    Sampling from `Potts` layers is not GPU-friendly. For GPU usage,
+    use [`PottsGumbel`](@ref) instead, which uses the Gumbel-softmax trick.
 """
 struct Potts{N,A} <: AbstractLayer{N}
     par::A
