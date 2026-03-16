@@ -22,6 +22,7 @@ using RestrictedBoltzmannMachines: free_energy
 using RestrictedBoltzmannMachines: free_energy_h
 using RestrictedBoltzmannMachines: free_energy_v
 using RestrictedBoltzmannMachines: Gaussian
+using RestrictedBoltzmannMachines: GaussianRBM
 using RestrictedBoltzmannMachines: hidden_cgf
 using RestrictedBoltzmannMachines: HopfieldRBM
 using RestrictedBoltzmannMachines: inputs_h_from_v
@@ -42,6 +43,7 @@ using RestrictedBoltzmannMachines: sample_h_from_v
 using RestrictedBoltzmannMachines: sample_v_from_h
 using RestrictedBoltzmannMachines: sample_v_from_v
 using RestrictedBoltzmannMachines: Spin
+using RestrictedBoltzmannMachines: SpinRBM
 using RestrictedBoltzmannMachines: var_from_inputs
 using RestrictedBoltzmannMachines: var_h_from_v
 using RestrictedBoltzmannMachines: var_v_from_h
@@ -405,4 +407,63 @@ end
     μ, ν = total_meanvar_v_from_h(rbm, h)
     @test μ ≈ total_mean_v_from_h(rbm, h)
     @test ν ≈ total_var_v_from_h(rbm, h)
+end
+
+@testset "SpinRBM convenience constructors" begin
+    rbm = SpinRBM(Float32, 5, 3)
+    @test rbm.visible isa Spin
+    @test rbm.hidden isa Spin
+    @test size(rbm.w) == (5, 3)
+    @test eltype(rbm.w) == Float32
+    @test iszero(rbm.visible.θ)
+    @test iszero(rbm.hidden.θ)
+    @test iszero(rbm.w)
+
+    rbm = SpinRBM(5, 3)
+    @test rbm.visible isa Spin
+    @test rbm.hidden isa Spin
+    @test size(rbm.w) == (5, 3)
+    @test eltype(rbm.w) == Float64
+end
+
+@testset "GaussianRBM convenience constructors" begin
+    θv = randn(5)
+    γv = rand(5) .+ 1
+    θh = randn(3)
+    γh = rand(3) .+ 1
+    w = randn(5, 3)
+    rbm = GaussianRBM(θv, γv, θh, γh, w)
+    @test rbm.visible isa Gaussian
+    @test rbm.hidden isa Gaussian
+    @test rbm.visible.θ ≈ θv
+    @test rbm.visible.γ ≈ γv
+    @test rbm.hidden.θ ≈ θh
+    @test rbm.hidden.γ ≈ γh
+    @test rbm.w ≈ w
+
+    rbm2 = GaussianRBM(θv, γv, w)
+    @test rbm2.visible isa Gaussian
+    @test rbm2.hidden isa Gaussian
+    @test rbm2.visible.θ ≈ θv
+    @test rbm2.visible.γ ≈ γv
+    @test iszero(rbm2.hidden.θ)
+    @test rbm2.hidden.γ == ones(3)
+    @test rbm2.w ≈ w
+end
+
+@testset "HopfieldRBM type/dims constructors" begin
+    rbm = HopfieldRBM(Float32, 5, 3)
+    @test rbm.visible isa Spin
+    @test rbm.hidden isa Gaussian
+    @test size(rbm.w) == (5, 3)
+    @test eltype(rbm.w) == Float32
+    @test iszero(rbm.visible.θ)
+    @test iszero(rbm.hidden.θ)
+    @test rbm.hidden.γ == ones(Float32, 3)
+
+    rbm = HopfieldRBM(5, 3)
+    @test rbm.visible isa Spin
+    @test rbm.hidden isa Gaussian
+    @test size(rbm.w) == (5, 3)
+    @test eltype(rbm.w) == Float64
 end

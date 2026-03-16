@@ -8,7 +8,7 @@ function GaussianRBM(θv::AbstractArray, γv::AbstractArray, θh::AbstractArray,
     @assert size(θv) == size(γv)
     @assert size(θh) == size(γh)
     @assert size(w) == (size(θv)..., size(θh)...)
-    return RBM(Gaussian(θv, γv), Gaussian(θh, γh), w)
+    return RBM(Gaussian(; θ = θv, γ = γv), Gaussian(; θ = θh, γ = γh), w)
 end
 
 function GaussianRBM(θv::AbstractArray, γv::AbstractArray, w::AbstractArray)

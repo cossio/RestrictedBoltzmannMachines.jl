@@ -1,7 +1,7 @@
 using Test: @test, @testset
 using Statistics: mean, std
-using RestrictedBoltzmannMachines: RBM, Binary, Spin, Potts, Gaussian, dReLU, pReLU, xReLU,
-    mean_from_inputs, std_from_inputs, initialize!, onehot_decode, onehot_encode
+using RestrictedBoltzmannMachines: RBM, Binary, Spin, Potts, PottsGumbel, Gaussian, ReLU, dReLU, pReLU, xReLU,
+    mean_from_inputs, std_from_inputs, var_from_inputs, initialize!, onehot_decode, onehot_encode
 
 @testset "initialization Binary" begin
     data = rand(2, 3, 10^6) .≤ 3/4
@@ -55,4 +55,41 @@ end
     initialize!(rbm, data)
     @test mean_from_inputs(rbm.visible) ≈ reshape(mean(data; dims=2), size(rbm.visible)) rtol=0.01
     @test std_from_inputs(rbm.visible) ≈ reshape(std(data; dims=2), size(rbm.visible)) rtol=0.01
+end
+
+@testset "initialize! layers without data" begin
+    layers = [
+        Binary((3,)), Spin((3,)), Potts((3,2)), PottsGumbel((3,2)),
+        Gaussian((3,)), ReLU((3,)), dReLU((3,)), pReLU((3,)), xReLU((3,)),
+    ]
+    for layer in layers
+        initialize!(layer)
+        if layer isa dReLU
+            @test all(iszero, layer.θp)
+            @test all(iszero, layer.θn)
+            @test all(isone, layer.γp)
+            @test all(isone, layer.γn)
+        else
+            @test all(iszero, layer.θ)
+            if layer isa Union{Gaussian, ReLU}
+                @test all(isone, layer.γ)
+            elseif layer isa pReLU
+                @test all(isone, layer.γ)
+                @test all(iszero, layer.Δ)
+                @test all(iszero, layer.η)
+            elseif layer isa xReLU
+                @test all(isone, layer.γ)
+                @test all(iszero, layer.Δ)
+                @test all(iszero, layer.ξ)
+            end
+        end
+    end
+end
+
+@testset "initialize! RBM without data" begin
+    rbm = RBM(Binary((5,)), Binary((3,)), zeros(5,3))
+    @test initialize!(rbm) === rbm
+    @test all(iszero, rbm.visible.θ)
+    @test all(iszero, rbm.hidden.θ)
+    @test !all(iszero, rbm.w)
 end

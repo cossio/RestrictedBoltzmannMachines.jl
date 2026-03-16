@@ -167,3 +167,94 @@ end
     ∂ = ∂free_energy(rbm, v)
     @test (@inferred grad2ave(rbm.visible, -∂.visible)) ≈ dropdims(mean(v; dims=2); dims=2)
 end
+
+using RestrictedBoltzmannMachines: Potts, PottsGumbel, anneal, anneal_zero,
+    initialize!, moments_from_samples, colors, sitedims, sitesize,
+    potts_to_gumbel, gumbel_to_potts, Spin, onehot_encode, onehot_decode
+
+@testset "Potts(PottsGumbel) and PottsGumbel(Potts) conversion" begin
+    q = 3
+    N = (4, 5)
+    potts = Potts(; θ = randn(q, N...))
+    gumbel = PottsGumbel(potts)
+    @test gumbel isa PottsGumbel
+    @test gumbel.par ≈ potts.par
+    @test size(gumbel) == size(potts)
+
+    potts2 = Potts(gumbel)
+    @test potts2 isa Potts
+    @test potts2.par ≈ potts.par
+end
+
+@testset "PottsGumbel moments_from_samples, colors, sitedims, sitesize" begin
+    q = 3
+    N = (4, 5)
+    layer = PottsGumbel(; θ = randn(q, N...))
+    @test colors(layer) == q
+    @test sitedims(layer) == ndims(layer) - 1
+    @test sitesize(layer) == N
+
+    # moments_from_samples should delegate to Potts
+    data = sample_from_inputs(layer, zeros(q, N..., 100))
+    m_gumbel = moments_from_samples(layer, data)
+    m_potts = moments_from_samples(Potts(layer), data)
+    @test m_gumbel ≈ m_potts
+end
+
+@testset "PottsGumbel anneal" begin
+    q = 3
+    N = (4, 5)
+    β = 0.3
+    init = PottsGumbel(; θ = randn(q, N...))
+    final = PottsGumbel(; θ = randn(q, N...))
+    annealed = anneal(init, final; β)
+    @test annealed isa PottsGumbel
+    @test annealed.θ ≈ (1 - β) * init.θ + β * final.θ
+
+    x = sample_from_inputs(final)
+    @test energy(annealed, x) ≈ (1 - β) * energy(init, x) + β * energy(final, x)
+end
+
+@testset "PottsGumbel anneal_zero" begin
+    q = 3
+    N = (4, 5)
+    layer = PottsGumbel(; θ = randn(q, N...))
+    z = anneal_zero(layer)
+    @test z isa PottsGumbel
+    @test iszero(z.θ)
+end
+
+@testset "PottsGumbel initialize!" begin
+    q = 3
+    N = (2, 3)
+    layer = PottsGumbel(; θ = randn(q, N...))
+    data = onehot_encode(onehot_decode(rand(q, N..., 10^5) .- rand(q, N..., 1)), 1:q)
+    @assert all(sum(data; dims=1) .== 1)
+    initialize!(layer, data)
+    @test mean_from_inputs(layer) ≈ reshape(mean(data; dims=4), size(layer)) rtol=0.05
+end
+
+@testset "potts_to_gumbel / gumbel_to_potts on non-matching layers" begin
+    # potts_to_gumbel on a non-Potts layer should be a no-op
+    binary = Binary(; θ = randn(5))
+    @test potts_to_gumbel(binary) === binary
+
+    spin = Spin(; θ = randn(5))
+    @test potts_to_gumbel(spin) === spin
+
+    # gumbel_to_potts on a non-PottsGumbel layer should be a no-op
+    @test gumbel_to_potts(binary) === binary
+    @test gumbel_to_potts(spin) === spin
+
+    # potts_to_gumbel on Potts should convert to PottsGumbel
+    potts = Potts(; θ = randn(3, 4))
+    converted = potts_to_gumbel(potts)
+    @test converted isa PottsGumbel
+    @test converted.par ≈ potts.par
+
+    # gumbel_to_potts on PottsGumbel should convert to Potts
+    gumbel = PottsGumbel(; θ = randn(3, 4))
+    converted2 = gumbel_to_potts(gumbel)
+    @test converted2 isa Potts
+    @test converted2.par ≈ gumbel.par
+end
