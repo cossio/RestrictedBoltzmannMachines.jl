@@ -148,7 +148,7 @@ end
     end
 
     layer = Binary(; θ = randn(7, 4, 5))
-    var_from_inputs(layer) ≈ @. logistic(layer.θ) * logistic(-layer.θ)
+    @test var_from_inputs(layer) ≈ @. logistic(layer.θ) * logistic(-layer.θ)
     @test cgfs(layer) ≈ log.(sum(exp.(layer.θ .* h) for h in 0:1))
     @test sort(unique(sample_from_inputs(layer))) == [0, 1]
 

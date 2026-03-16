@@ -195,7 +195,7 @@ function mean_h_from_v(rbm, v)
 end
 
 """
-    mean_v_from_h(rbm, v)
+    mean_v_from_h(rbm, h)
 
 Mean unit activation values, conditioned on the other layer, <v | h>.
 """
@@ -205,7 +205,7 @@ function mean_v_from_h(rbm, h)
 end
 
 """
-    var_v_from_h(rbm, v)
+    var_v_from_h(rbm, h)
 
 Variance of unit activation values, conditioned on the other layer, var(v | h).
 """

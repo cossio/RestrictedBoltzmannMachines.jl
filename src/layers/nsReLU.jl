@@ -49,9 +49,9 @@ function ∂cgfs(layer::nsReLU, inputs = 0)
 end
 
 function ∂energy_from_moments(layer::nsReLU, moments::AbstractArray)
+    @assert size(moments) == (4, size(layer)...)
     ∂ = ∂energy_from_moments(xReLU(layer), moments)
     return ∂[[1,3,4], ..] # skip γ
-    @assert size(layer.par) == size(moments)
 end
 
 xReLU(layer::nsReLU) = xReLU(; layer.θ, γ=ones(size(layer.θ)), layer.Δ, layer.ξ)

@@ -85,7 +85,7 @@ function zerosum_weights(weights::AbstractArray, rbm::RBM)
         return oftype(weights, weights .- ωv)
     elseif rbm.hidden isa Potts
         ωh = mean(weights, dims = ndims(rbm.visible) + 1)
-        return oftype(weights, rbm.w .- ωh)
+        return oftype(weights, weights .- ωh)
     else
         # if the RBM doesn't have Potts layers, do nothing
         return weights
