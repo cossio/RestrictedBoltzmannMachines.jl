@@ -26,8 +26,9 @@ struct InfiniteMinibatchIterator{T}
 end
 
 function Base.iterate(iter::InfiniteMinibatchIterator)
+    iter.batchsize > 0 || throw(ArgumentError("batchsize must be positive"))
     n = nobs(iter.data...)
-    if isnothing(n) || !(0 ≤ iter.batchsize ≤ n)
+    if isnothing(n) || iter.batchsize > n
         return nothing
     else
         if iter.shuffle
@@ -51,5 +52,6 @@ end
 function infinite_minibatches(
     ds::Union{AbstractArray, Nothing}...; batchsize::Int, shuffle::Bool = true
 )
+    batchsize > 0 || throw(ArgumentError("batchsize must be positive"))
     return InfiniteMinibatchIterator(ds, batchsize, shuffle)
 end

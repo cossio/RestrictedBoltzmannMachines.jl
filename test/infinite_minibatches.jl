@@ -1,4 +1,4 @@
-using Test: @testset, @test, @inferred
+using Test: @testset, @test, @test_throws, @inferred
 using EllipsisNotation: (..)
 using RestrictedBoltzmannMachines: nobs, getobs, shuffleobs, infinite_minibatches
 
@@ -46,4 +46,6 @@ end
     for (i, (x,)) in zip(1:24, infinite_minibatches(data; batchsize=3, shuffle=false))
         @test x == 1:3
     end
+
+    @test_throws ArgumentError infinite_minibatches(data; batchsize=0, shuffle=false)
 end
