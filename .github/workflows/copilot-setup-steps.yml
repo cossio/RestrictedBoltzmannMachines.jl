@@ -22,8 +22,8 @@ jobs:
           version: "1.12"
           arch: x64
       - uses: julia-actions/cache@e97f6fc1a6e21c82253c85e269be7340376aa425
-      - name: Instantiate package environment
-        run: julia --project=. -e 'using Pkg; Pkg.instantiate(workspace=false); Pkg.precompile(strict=true)'
+      - name: Instantiate workspace environment
+        run: julia --project=. -e 'using Pkg; Pkg.instantiate(); Pkg.precompile(strict=true)'
       - name: Instantiate test environment
         run: julia --project=test -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate(); Pkg.precompile(strict=true)'
       - name: Smoke test package load
