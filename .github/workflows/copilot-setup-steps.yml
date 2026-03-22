@@ -1,0 +1,24 @@
+name: Copilot Setup Steps
+
+on:
+  workflow_dispatch:
+
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: julia-actions/setup-julia@4c0cb0fce8556fdb04a90347310e5db8b1f98fb9
+        with:
+          version: "1.12"
+          arch: x64
+      - uses: julia-actions/cache@e97f6fc1a6e21c82253c85e269be7340376aa425
+      - name: Instantiate workspace environment
+        run: julia --project=. -e 'using Pkg; Pkg.instantiate(); Pkg.precompile(strict=true)'
+      - name: Instantiate test environment
+        run: julia --project=test -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate(); Pkg.precompile(strict=true)'
+      - name: Smoke test package load
+        run: julia --project=. -e 'import RestrictedBoltzmannMachines as RBMs'
