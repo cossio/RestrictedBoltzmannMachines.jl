@@ -216,9 +216,10 @@ end
 @testset "sample_h_from_h centered RBM" begin
     rbm = center(BinaryRBM(randn(3), randn(2), zeros(3,2)))
     h = bitrand(2, 10^5)
+    v = falses(3, 10^5)
     sample = @inferred sample_h_from_h(rbm, h)
     @test size(sample) == size(h)
-    @test batchmean(rbm.hidden, sample) ≈ batchmean(rbm.hidden, mean_h_from_v(rbm, bitrand(3, 10^5))) rtol=0.1
+    @test batchmean(rbm.hidden, sample) ≈ batchmean(rbm.hidden, mean_h_from_v(rbm, v)) rtol=0.1
 end
 
 @testset "∂regularize! centered RBM" begin
