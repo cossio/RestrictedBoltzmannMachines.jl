@@ -36,8 +36,11 @@ using RestrictedBoltzmannMachines: mean_v_from_h
 using RestrictedBoltzmannMachines: mirror
 using RestrictedBoltzmannMachines: mode_h_from_v
 using RestrictedBoltzmannMachines: mode_v_from_h
+using RestrictedBoltzmannMachines: Potts
+using RestrictedBoltzmannMachines: PottsGumbel
 using RestrictedBoltzmannMachines: RBM
 using RestrictedBoltzmannMachines: reconstruction_error
+using RestrictedBoltzmannMachines: sample_from_inputs
 using RestrictedBoltzmannMachines: sample_h_from_h
 using RestrictedBoltzmannMachines: sample_h_from_v
 using RestrictedBoltzmannMachines: sample_v_from_h
@@ -256,6 +259,21 @@ end
 
     @test free_energy(rbm, v) ≈ @inferred free_energy_v(rbm, v)
     @test free_energy(mirror(rbm), h) ≈ @inferred free_energy_h(rbm, h)
+end
+
+@testset "mirror with Potts-family layers" begin
+    rbm = RBM(
+        Potts(; θ = randn(3, 4, 2)),
+        PottsGumbel(; θ = randn(5, 3)),
+        randn(3, 4, 2, 5, 3),
+    )
+    v = sample_from_inputs(rbm.visible, zeros(size(rbm.visible)..., 11))
+    h = sample_from_inputs(rbm.hidden, zeros(size(rbm.hidden)..., 11))
+    rbm_mirror = @inferred mirror(rbm)
+    @test rbm_mirror.visible == rbm.hidden
+    @test rbm_mirror.hidden == rbm.visible
+    @test rbm_mirror.w ≈ permutedims(rbm.w, (4, 5, 1, 2, 3))
+    @test energy(rbm_mirror, h, v) ≈ energy(rbm, v, h)
 end
 
 @testset "binary free energy" begin

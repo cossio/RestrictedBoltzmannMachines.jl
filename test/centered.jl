@@ -1,9 +1,17 @@
 using Random: bitrand
 using RestrictedBoltzmannMachines: ∂free_energy
 using RestrictedBoltzmannMachines: ∂regularize!
+using RestrictedBoltzmannMachines: batchmean
 using RestrictedBoltzmannMachines: BinaryRBM
 using RestrictedBoltzmannMachines: center
 using RestrictedBoltzmannMachines: center!
+using RestrictedBoltzmannMachines: center_from_data!
+using RestrictedBoltzmannMachines: center_hidden
+using RestrictedBoltzmannMachines: center_hidden!
+using RestrictedBoltzmannMachines: center_hidden_from_data!
+using RestrictedBoltzmannMachines: center_visible
+using RestrictedBoltzmannMachines: center_visible!
+using RestrictedBoltzmannMachines: center_visible_from_data!
 using RestrictedBoltzmannMachines: CenteredBinaryRBM
 using RestrictedBoltzmannMachines: CenteredRBM
 using RestrictedBoltzmannMachines: ReLU
@@ -19,6 +27,7 @@ using RestrictedBoltzmannMachines: mean_h_from_v
 using RestrictedBoltzmannMachines: mean_v_from_h
 using RestrictedBoltzmannMachines: mirror
 using RestrictedBoltzmannMachines: pcd!
+using RestrictedBoltzmannMachines: sample_h_from_h
 using RestrictedBoltzmannMachines: sample_v_from_v
 using RestrictedBoltzmannMachines: uncenter
 using Optimisers: Adam
@@ -63,6 +72,43 @@ end
     h = bitrand(2,2)
     @test mean_h_from_v(rbm, v) ≈ mean_h_from_v(uncenter(rbm), v)
     @test mean_v_from_h(rbm, h) ≈ mean_v_from_h(uncenter(rbm), h)
+end
+
+@testset "center_visible / center_hidden helpers" begin
+    rbm = center(BinaryRBM(randn(3), randn(2), randn(3,2)))
+    offset_v = randn(3)
+    offset_h = randn(2)
+
+    rbm_visible = @inferred center_visible(rbm, offset_v)
+    rbm_hidden = @inferred center_hidden(rbm, offset_h)
+    rbm_visible_ref = center(rbm, offset_v, rbm.offset_h)
+    rbm_hidden_ref = center(rbm, rbm.offset_v, offset_h)
+    @test rbm_visible.visible.par == rbm_visible_ref.visible.par
+    @test rbm_visible.hidden.par == rbm_visible_ref.hidden.par
+    @test rbm_visible.w == rbm_visible_ref.w
+    @test rbm_visible.offset_v == rbm_visible_ref.offset_v
+    @test rbm_visible.offset_h == rbm_visible_ref.offset_h
+    @test rbm_hidden.visible.par == rbm_hidden_ref.visible.par
+    @test rbm_hidden.hidden.par == rbm_hidden_ref.hidden.par
+    @test rbm_hidden.w == rbm_hidden_ref.w
+    @test rbm_hidden.offset_v == rbm_hidden_ref.offset_v
+    @test rbm_hidden.offset_h == rbm_hidden_ref.offset_h
+
+    rbm_visible_mut = deepcopy(rbm)
+    @test center_visible!(rbm_visible_mut, offset_v) === rbm_visible_mut
+    @test rbm_visible_mut.visible.par == rbm_visible.visible.par
+    @test rbm_visible_mut.hidden.par == rbm_visible.hidden.par
+    @test rbm_visible_mut.w == rbm_visible.w
+    @test rbm_visible_mut.offset_v == rbm_visible.offset_v
+    @test rbm_visible_mut.offset_h == rbm_visible.offset_h
+
+    rbm_hidden_mut = deepcopy(rbm)
+    @test center_hidden!(rbm_hidden_mut, offset_h) === rbm_hidden_mut
+    @test rbm_hidden_mut.visible.par == rbm_hidden.visible.par
+    @test rbm_hidden_mut.hidden.par == rbm_hidden.hidden.par
+    @test rbm_hidden_mut.w == rbm_hidden.w
+    @test rbm_hidden_mut.offset_v == rbm_hidden.offset_v
+    @test rbm_hidden_mut.offset_h == rbm_hidden.offset_h
 end
 
 @testset "rbm energy invariance" begin
@@ -139,6 +185,41 @@ end
     @test 0.4 < mean(v_sample[1,:]) < 0.6
     @test 0.4 < mean(v_sample[2,:]) < 0.6
     @test 0.4 < mean(v_sample[1,:] .* v_sample[2,:]) < 0.6
+end
+
+@testset "center_from_data! helpers" begin
+    rbm = center(BinaryRBM(randn(3), randn(2), randn(3,2)))
+    data = bitrand(3, 7)
+    wts = rand(7)
+
+    rbm_visible = deepcopy(rbm)
+    @test center_visible_from_data!(rbm_visible, data; wts) === rbm_visible
+    expected_offset_v = batchmean(rbm.visible, data; wts)
+    @test rbm_visible.offset_v ≈ expected_offset_v
+
+    expected_hidden = center_visible(rbm, expected_offset_v)
+    expected_offset_h = batchmean(expected_hidden.hidden, mean_h_from_v(expected_hidden, data); wts)
+
+    rbm_hidden = deepcopy(expected_hidden)
+    @test center_hidden_from_data!(rbm_hidden, data; wts) === rbm_hidden
+    @test rbm_hidden.offset_h ≈ expected_offset_h
+
+    rbm_data = deepcopy(rbm)
+    @test center_from_data!(rbm_data, data; wts) === rbm_data
+    @test rbm_data.visible.par == rbm_hidden.visible.par
+    @test rbm_data.hidden.par == rbm_hidden.hidden.par
+    @test rbm_data.w == rbm_hidden.w
+    @test rbm_data.offset_v == rbm_hidden.offset_v
+    @test rbm_data.offset_h == rbm_hidden.offset_h
+end
+
+@testset "sample_h_from_h centered RBM" begin
+    rbm = center(BinaryRBM(randn(3), randn(2), zeros(3,2)))
+    h = bitrand(2, 10^5)
+    v = falses(3, 10^5)
+    sample = @inferred sample_h_from_h(rbm, h)
+    @test size(sample) == size(h)
+    @test batchmean(rbm.hidden, sample) ≈ batchmean(rbm.hidden, mean_h_from_v(rbm, v)) rtol=0.1
 end
 
 @testset "∂regularize! centered RBM" begin
