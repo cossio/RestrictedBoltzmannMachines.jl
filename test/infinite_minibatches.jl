@@ -31,6 +31,8 @@ end
     X, Y = shuffleobs(1:10, nothing)
     @test sort(X) == 1:10
     @test isnothing(Y)
+
+    @test @inferred(shuffleobs(nothing, nothing)) == (nothing, nothing)
 end
 
 @testset "infinite_minibatches" begin
