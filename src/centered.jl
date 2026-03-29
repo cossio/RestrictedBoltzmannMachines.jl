@@ -401,8 +401,8 @@ function pcd!(
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     isnothing(wts) || @assert size(data)[end] == length(wts)
 
-    # inital centering from data
-    center_from_data!(rbm, data)
+    # initial centering from data
+    center_from_data!(rbm, data; wts)
 
     # gauge constraints
     zerosum && zerosum!(rbm)

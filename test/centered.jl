@@ -213,6 +213,43 @@ end
     @test rbm_data.offset_h == rbm_hidden.offset_h
 end
 
+@testset "centered pcd uses weighted initial centering" begin
+    rbm = center(BinaryRBM(2, 3))
+    data = falses(2, 4)
+    data[:, 3:4] .= true
+    wts = [100.0, 100.0, 1.0, 1.0]
+
+    weighted_offset_v = batchmean(rbm.visible, data; wts)
+    weighted_hidden = center_visible(rbm, weighted_offset_v)
+    weighted_offset_h = batchmean(weighted_hidden.hidden, mean_h_from_v(weighted_hidden, data); wts)
+
+    initial_offset_v = Ref{Any}()
+    initial_offset_h = Ref{Any}()
+    seen = Ref(false)
+
+    pcd!(
+        rbm,
+        data;
+        wts,
+        batchsize = 2,
+        iters = 1,
+        steps = 0,
+        hidden_offset_damping = 0,
+        callback = (; rbm, iter, kwargs...) -> begin
+            if iter == 1 && !seen[]
+                initial_offset_v[] = copy(rbm.offset_v)
+                initial_offset_h[] = copy(rbm.offset_h)
+                seen[] = true
+            end
+            nothing
+        end,
+    )
+
+    @test seen[]
+    @test initial_offset_v[] ≈ weighted_offset_v
+    @test initial_offset_h[] ≈ weighted_offset_h
+end
+
 @testset "sample_h_from_h centered RBM" begin
     rbm = center(BinaryRBM(randn(3), randn(2), zeros(3,2)))
     h = bitrand(2, 10^5)

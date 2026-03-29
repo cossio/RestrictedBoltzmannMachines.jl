@@ -15,8 +15,13 @@ getobs(i, ds::Union{AbstractArray, Nothing}...) = map(ds) do d
 end
 
 function shuffleobs(ds::Union{AbstractArray,Nothing}...)
-    i = randperm(nobs(ds...))
-    return getobs(i, ds...)
+    n = nobs(ds...)
+    if isnothing(n)
+        return ds
+    else
+        i = randperm(n)
+        return getobs(i, ds...)
+    end
 end
 
 struct InfiniteMinibatchIterator{T}
