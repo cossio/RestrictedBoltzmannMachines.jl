@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+## 5.3.2
+
+- Fixed weighted centered PCD initialization and empty `shuffleobs` inputs [a33d7b4](https://github.com/cossio/RestrictedBoltzmannMachines.jl/commit/a33d7b441507b743c55f7af57d681bcca2756418).
+
 ## 5.3.1
 
 - Speed up `log_pseudolikelihood` by reusing hidden inputs and local free-energy updates [d01bacb](https://github.com/cossio/RestrictedBoltzmannMachines.jl/commit/d01bacbec488d32fece46d15655ea97933265b14).
