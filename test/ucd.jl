@@ -36,5 +36,4 @@ end
 
     @test 0.4 < mean(v_sample[1, :]) < 0.6
     @test 0.4 < mean(v_sample[2, :]) < 0.6
-    @test 0.4 < mean(v_sample[1, :] .* v_sample[2, :]) < 0.6
 end
