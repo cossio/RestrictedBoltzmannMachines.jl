@@ -11,15 +11,20 @@ using RestrictedBoltzmannMachines: BinaryRBM, free_energy, initialize!, sample_v
     𝒱 = [BitVector(digits(Bool, x; base = 2, pad = 3)) for x in 0:(2^3 - 1)]
     probs = softmax(-free_energy.(Ref(rbm), 𝒱))
     exact_mean = sum(p * Float64.(v) for (p, v) in zip(probs, 𝒱))
+    exact_pair = sum(p * Float64(v[1] * v[2]) for (p, v) in zip(probs, 𝒱))
 
     estimate = zeros(3)
+    pair_estimate = 0.0
     for _ in 1:2000
         sample = unbiased_sample(rbm, falses(3); min_steps = 1, max_steps = 32)
         estimate .+= unbiased_estimator(v -> Float64.(v), sample)
+        pair_estimate += unbiased_estimator(v -> Float64(v[1] * v[2]), sample)
     end
     estimate ./= 2000
+    pair_estimate /= 2000
 
     @test all(isapprox.(estimate, exact_mean; atol = 0.05))
+    @test isapprox(pair_estimate, exact_pair; atol = 0.05)
 end
 
 @testset "ucd" begin

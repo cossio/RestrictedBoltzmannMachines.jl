@@ -136,6 +136,8 @@ end
     ucd!(rbm, data)
 
 Train a binary-binary RBM on data using Unbiased Contrastive Divergence.
+The callback receives the current minibatch together with average `meeting_steps`
+and `discarded` trial counts across unbiased chains.
 """
 function ucd!(
     rbm::RBM{<:Binary,<:Binary},
@@ -177,7 +179,7 @@ function ucd!(
         discarded = 0
         nbatch = size(vd, ndims(vd))
         for chain in 1:nchains
-            v0 = copy(vd[.., mod1(chain, nbatch)])
+            v0 = copy(vd[.., rand(1:nbatch)])
             sample = unbiased_sample(rbm, v0; min_steps, max_steps, max_tries)
             ∂m += unbiased_estimator(v -> ∂free_energy(rbm, v), sample; burnin = min_steps)
             meeting_steps += length(sample.vchist)
