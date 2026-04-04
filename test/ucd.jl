@@ -5,6 +5,15 @@ using Optimisers: Adam
 using LogExpFunctions: softmax
 using RestrictedBoltzmannMachines: BinaryRBM, free_energy, initialize!, sample_v_from_v, unbiased_sample, unbiased_estimator, ucd!
 
+function ucd_retry_fixture()
+    data = falses(2, 16)
+    data[1, 1:2:end] .= true
+    data[2, 1:2:end] .= true
+    rbm = BinaryRBM(2, 3)
+    initialize!(rbm, data)
+    return rbm, data
+end
+
 @testset "unbiased sampling" begin
     seed!(1234)
     rbm = BinaryRBM(randn(3), randn(2), randn(3, 2) / √3)
@@ -54,28 +63,17 @@ end
 
 @testset "ucd training requires meeting chains" begin
     seed!(35)
-    data = falses(2, 16)
-    data[1, 1:2:end] .= true
-    data[2, 1:2:end] .= true
-
-    rbm = BinaryRBM(2, 3)
-    initialize!(rbm, data)
+    rbm, data = ucd_retry_fixture()
 
     @test_throws ArgumentError ucd!(rbm, data; iters = 1, batchsize = 4, nchains = 1, min_steps = 1, max_steps = 1, max_resamples = 0)
 end
 
 @testset "ucd training resamples non-meeting chains" begin
-    data = falses(2, 16)
-    data[1, 1:2:end] .= true
-    data[2, 1:2:end] .= true
-
     seed!(35)
-    rbm = BinaryRBM(2, 3)
-    initialize!(rbm, data)
+    rbm, data = ucd_retry_fixture()
     @test_throws ArgumentError ucd!(rbm, data; iters = 1, batchsize = 4, nchains = 1, min_steps = 1, max_steps = 1, max_resamples = 0)
 
     seed!(35)
-    rbm = BinaryRBM(2, 3)
-    initialize!(rbm, data)
+    rbm, data = ucd_retry_fixture()
     @test ucd!(rbm, data; iters = 1, batchsize = 4, nchains = 1, min_steps = 1, max_steps = 1, max_resamples = 1) isa Tuple
 end

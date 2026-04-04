@@ -39,7 +39,7 @@ function _maximal_coupling_step(
     hc0::AbstractArray,
     v1::AbstractArray,
     h1::AbstractArray;
-    max_tries::Int = 10,
+    max_tries::Int = 500,
 )
     v2_logits = _binary_visible_logits(rbm, h1)
     v2 = _binary_sample_from_logits(v2_logits)
@@ -57,29 +57,26 @@ function _maximal_coupling_step(
     v2 = nothing
     vc1 = nothing
     discarded = 0
-    attempt = 0
-    while isnothing(v2) || isnothing(vc1)
-        for _ in 1:max_tries
-            attempt += 1
-            uv = rand!(similar(v2_logits))
-            if isnothing(v2)
-                candidate = _binary_sample_from_logits(v2_logits, uv)
-                if randexp() < _binary_logprob(v2_logits, candidate) - _binary_logprob(vc1_logits, candidate)
-                    v2 = candidate
-                end
-            end
-            if isnothing(vc1)
-                candidate = _binary_sample_from_logits(vc1_logits, uv)
-                if randexp() < _binary_logprob(vc1_logits, candidate) - _binary_logprob(v2_logits, candidate)
-                    vc1 = candidate
-                end
-            end
-            if !isnothing(v2) && !isnothing(vc1)
-                discarded = attempt - 1
-                break
+    for attempt in 1:max_tries
+        uv = rand!(similar(v2_logits))
+        if isnothing(v2)
+            candidate = _binary_sample_from_logits(v2_logits, uv)
+            if randexp() < _binary_logprob(v2_logits, candidate) - _binary_logprob(vc1_logits, candidate)
+                v2 = candidate
             end
         end
+        if isnothing(vc1)
+            candidate = _binary_sample_from_logits(vc1_logits, uv)
+            if randexp() < _binary_logprob(vc1_logits, candidate) - _binary_logprob(v2_logits, candidate)
+                vc1 = candidate
+            end
+        end
+        if !isnothing(v2) && !isnothing(vc1)
+            discarded = attempt - 1
+            break
+        end
     end
+    (isnothing(v2) || isnothing(vc1)) && throw(ArgumentError("maximal coupling residual rejection did not accept within `max_tries`; increase `max_tries`"))
 
     h2_logits = _binary_hidden_logits(rbm, v2)
     hc1_logits = _binary_hidden_logits(rbm, vc1)
@@ -91,7 +88,7 @@ function _maximal_coupling_step(
 end
 
 """
-    unbiased_sample(rbm, v0; min_steps = 1, max_steps = 100, max_tries = 10)
+    unbiased_sample(rbm, v0; min_steps = 1, max_steps = 100, max_tries = 500)
 
 Run two coupled Gibbs chains for a binary-binary RBM, starting from the visible
 configuration `v0`, and return their histories. This follows the coupled-chain
@@ -105,7 +102,7 @@ function unbiased_sample(
     v0::AbstractArray;
     min_steps::Int = 1,
     max_steps::Int = 100,
-    max_tries::Int = 10,
+    max_tries::Int = 500,
 )
     @assert size(v0) == size(rbm.visible)
     @assert min_steps > 0
@@ -178,7 +175,7 @@ function ucd!(
     nchains::Int = batchsize,
     min_steps::Int = 1,
     max_steps::Int = 100,
-    max_tries::Int = 10,
+    max_tries::Int = 500,
     max_resamples::Int = 100,
     optim::AbstractRule = Adam(),
     moments = moments_from_samples(rbm.visible, data; wts),
