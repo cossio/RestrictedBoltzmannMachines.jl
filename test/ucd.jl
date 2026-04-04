@@ -65,13 +65,17 @@ end
 end
 
 @testset "ucd training resamples non-meeting chains" begin
-    seed!(35)
     data = falses(2, 16)
     data[1, 1:2:end] .= true
     data[2, 1:2:end] .= true
 
+    seed!(35)
     rbm = BinaryRBM(2, 3)
     initialize!(rbm, data)
+    @test_throws ArgumentError ucd!(rbm, data; iters = 1, batchsize = 4, nchains = 1, min_steps = 1, max_steps = 1, max_resamples = 0)
 
+    seed!(35)
+    rbm = BinaryRBM(2, 3)
+    initialize!(rbm, data)
     @test ucd!(rbm, data; iters = 1, batchsize = 4, nchains = 1, min_steps = 1, max_steps = 1, max_resamples = 1) isa Tuple
 end

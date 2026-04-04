@@ -57,9 +57,10 @@ function _maximal_coupling_step(
     v2 = nothing
     vc1 = nothing
     discarded = 0
-    for batch in Iterators.countfrom(0)
-        for local_attempt in 1:max_tries
-            attempt = batch * max_tries + local_attempt
+    attempt = 0
+    while isnothing(v2) || isnothing(vc1)
+        for _ in 1:max_tries
+            attempt += 1
             uv = rand!(similar(v2_logits))
             if isnothing(v2)
                 candidate = _binary_sample_from_logits(v2_logits, uv)
@@ -77,9 +78,6 @@ function _maximal_coupling_step(
                 discarded = attempt - 1
                 break
             end
-        end
-        if !isnothing(v2) && !isnothing(vc1)
-            break
         end
     end
 
