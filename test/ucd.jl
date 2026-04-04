@@ -1,4 +1,4 @@
-using Test: @test, @testset
+using Test: @test, @testset, @test_throws
 using Statistics: mean
 using Random: bitrand, seed!
 using Optimisers: Adam
@@ -27,6 +27,15 @@ using RestrictedBoltzmannMachines: BinaryRBM, free_energy, initialize!, sample_v
     @test isapprox(pair_estimate, exact_pair; atol = 0.05)
 end
 
+@testset "unbiased sampling requires meeting" begin
+    seed!(5)
+    rbm = BinaryRBM(randn(3), randn(2), randn(3, 2) / √3)
+    sample = unbiased_sample(rbm, falses(3); min_steps = 1, max_steps = 1)
+
+    @test !sample.met
+    @test_throws ArgumentError unbiased_estimator(v -> Float64.(v), sample)
+end
+
 @testset "ucd" begin
     seed!(1234)
     data = falses(2, 1000)
@@ -41,4 +50,16 @@ end
 
     @test 0.4 < mean(v_sample[1, :]) < 0.6
     @test 0.4 < mean(v_sample[2, :]) < 0.6
+end
+
+@testset "ucd requires meeting" begin
+    seed!(35)
+    data = falses(2, 16)
+    data[1, 1:2:end] .= true
+    data[2, 1:2:end] .= true
+
+    rbm = BinaryRBM(2, 3)
+    initialize!(rbm, data)
+
+    @test_throws ArgumentError ucd!(rbm, data; iters = 1, batchsize = 4, nchains = 1, min_steps = 1, max_steps = 1)
 end

@@ -138,10 +138,13 @@ end
 Form the unbiased MCMC estimator associated with a coupled sample history,
 using the standard telescoping correction from unbiased MCMC / UCD; see
 Qiu, Zhang, and Wang (2020, https://openreview.net/forum?id=r1eyceSYPr) and
-Heng et al. (2023, https://arxiv.org/abs/2305.19684).
+Heng et al. (2023, https://arxiv.org/abs/2305.19684). Throws an
+`ArgumentError` if the chains did not meet within the sampled history, because
+the truncated correction is then biased.
 """
 function unbiased_estimator(f, sample::UnbiasedSample; burnin::Int = 1)
     @assert 1 ≤ burnin ≤ length(sample.vhist)
+    sample.met || throw(ArgumentError("coupled chains did not meet; increase `max_steps` before calling `unbiased_estimator`"))
     estimate = f(sample.vhist[burnin])
     for t in (burnin + 1):length(sample.vhist)
         estimate += f(sample.vhist[t]) - f(sample.vchist[t - 1])
@@ -202,6 +205,7 @@ function ucd!(
         for chain in 1:nchains
             v0 = copy(vd[.., rand(1:nbatch)])
             sample = unbiased_sample(rbm, v0; min_steps, max_steps, max_tries)
+            sample.met || throw(ArgumentError("coupled chains did not meet during `ucd!`; increase `max_steps`"))
             ∂m += unbiased_estimator(v -> ∂free_energy(rbm, v), sample; burnin = min_steps)
             meeting_steps += length(sample.vchist)
             discarded += sample.discarded
