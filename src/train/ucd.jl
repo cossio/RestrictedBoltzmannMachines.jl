@@ -1,3 +1,13 @@
+# Unbiased sampling and UCD training for binary-binary RBMs.
+# References:
+# - Qiu, Zhang, Wang (2020), "Unbiased Contrastive Divergence Algorithm for
+#   Training Energy-Based Latent Variable Models", ICLR.
+#   https://openreview.net/forum?id=r1eyceSYPr
+# - Qiu (2023), `cdtau` reference implementation.
+#   https://github.com/yixuan/cdtau
+# - Heng et al. (2023), "Unbiased Sampling for Learning Energy-Based Models".
+#   https://arxiv.org/abs/2305.19684
+
 struct UnbiasedSample{V}
     vhist::Vector{V}
     vchist::Vector{V}
@@ -80,7 +90,11 @@ end
     unbiased_sample(rbm, v0; min_steps = 1, max_steps = 100, max_tries = 10)
 
 Run two coupled Gibbs chains for a binary-binary RBM, starting from the visible
-configuration `v0`, and return their histories.
+configuration `v0`, and return their histories. This follows the coupled-chain
+unbiased MCMC construction used in the UCD literature; see Qiu, Zhang, and Wang
+(2020, https://openreview.net/forum?id=r1eyceSYPr), the `cdtau` reference
+implementation (https://github.com/yixuan/cdtau), and Heng et al. (2023,
+https://arxiv.org/abs/2305.19684).
 """
 function unbiased_sample(
     rbm::RBM{<:Binary,<:Binary},
@@ -121,7 +135,10 @@ end
 """
     unbiased_estimator(f, sample; burnin = 1)
 
-Form the unbiased MCMC estimator associated with a coupled sample history.
+Form the unbiased MCMC estimator associated with a coupled sample history,
+using the standard telescoping correction from unbiased MCMC / UCD; see
+Qiu, Zhang, and Wang (2020, https://openreview.net/forum?id=r1eyceSYPr) and
+Heng et al. (2023, https://arxiv.org/abs/2305.19684).
 """
 function unbiased_estimator(f, sample::UnbiasedSample; burnin::Int = 1)
     @assert 1 ≤ burnin ≤ length(sample.vhist)
@@ -137,7 +154,11 @@ end
 
 Train a binary-binary RBM on data using Unbiased Contrastive Divergence.
 The callback receives the current minibatch together with average `meeting_steps`
-and `discarded` trial counts across unbiased chains.
+and `discarded` trial counts across unbiased chains. For the UCD algorithm and
+binary RBM reference implementation, see Qiu, Zhang, and Wang (2020,
+https://openreview.net/forum?id=r1eyceSYPr), `cdtau`
+(https://github.com/yixuan/cdtau), and Heng et al. (2023,
+https://arxiv.org/abs/2305.19684).
 """
 function ucd!(
     rbm::RBM{<:Binary,<:Binary},
