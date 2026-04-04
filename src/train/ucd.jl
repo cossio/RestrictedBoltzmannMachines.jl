@@ -57,22 +57,28 @@ function _maximal_coupling_step(
     v2 = nothing
     vc1 = nothing
     discarded = 0
-    for attempt in 1:max_tries
-        uv = rand!(similar(v2_logits))
-        if isnothing(v2)
-            candidate = _binary_sample_from_logits(v2_logits, uv)
-            if attempt == max_tries || randexp() < _binary_logprob(v2_logits, candidate) - _binary_logprob(vc1_logits, candidate)
-                v2 = candidate
+    for batch in Iterators.countfrom(0)
+        for local_attempt in 1:max_tries
+            attempt = batch * max_tries + local_attempt
+            uv = rand!(similar(v2_logits))
+            if isnothing(v2)
+                candidate = _binary_sample_from_logits(v2_logits, uv)
+                if randexp() < _binary_logprob(v2_logits, candidate) - _binary_logprob(vc1_logits, candidate)
+                    v2 = candidate
+                end
             end
-        end
-        if isnothing(vc1)
-            candidate = _binary_sample_from_logits(vc1_logits, uv)
-            if attempt == max_tries || randexp() < _binary_logprob(vc1_logits, candidate) - _binary_logprob(v2_logits, candidate)
-                vc1 = candidate
+            if isnothing(vc1)
+                candidate = _binary_sample_from_logits(vc1_logits, uv)
+                if randexp() < _binary_logprob(vc1_logits, candidate) - _binary_logprob(v2_logits, candidate)
+                    vc1 = candidate
+                end
+            end
+            if !isnothing(v2) && !isnothing(vc1)
+                discarded = attempt - 1
+                break
             end
         end
         if !isnothing(v2) && !isnothing(vc1)
-            discarded = attempt - 1
             break
         end
     end
@@ -161,7 +167,9 @@ and `discarded` trial counts across unbiased chains. For the UCD algorithm and
 binary RBM reference implementation, see Qiu, Zhang, and Wang (2020,
 https://openreview.net/forum?id=r1eyceSYPr), `cdtau`
 (https://github.com/yixuan/cdtau), and Heng et al. (2023,
-https://arxiv.org/abs/2305.19684).
+https://arxiv.org/abs/2305.19684). When a coupled chain does not meet within
+`max_steps`, `ucd!` retries up to `max_resamples` times before throwing an
+`ArgumentError`.
 """
 function ucd!(
     rbm::RBM{<:Binary,<:Binary},
@@ -173,6 +181,7 @@ function ucd!(
     min_steps::Int = 1,
     max_steps::Int = 100,
     max_tries::Int = 10,
+    max_resamples::Int = 100,
     optim::AbstractRule = Adam(),
     moments = moments_from_samples(rbm.visible, data; wts),
     l2_fields::Real = 0,
@@ -189,6 +198,7 @@ function ucd!(
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert isnothing(wts) || size(data)[end] == length(wts)
     @assert nchains > 0
+    @assert max_resamples ≥ 0
 
     zerosum && zerosum!(rbm)
     rescale && rescale_weights!(rbm)
@@ -205,10 +215,17 @@ function ucd!(
         for chain in 1:nchains
             v0 = copy(vd[.., rand(1:nbatch)])
             sample = unbiased_sample(rbm, v0; min_steps, max_steps, max_tries)
-            sample.met || throw(ArgumentError("coupled chains did not meet during `ucd!`; increase `max_steps`"))
+            discarded_chain = sample.discarded
+            resamples = 0
+            while !sample.met && resamples < max_resamples
+                sample = unbiased_sample(rbm, v0; min_steps, max_steps, max_tries)
+                discarded_chain += sample.discarded
+                resamples += 1
+            end
+            sample.met || throw(ArgumentError("coupled chains did not meet during `ucd!` after $(max_resamples + 1) attempts; increase `max_steps` or `max_resamples`"))
             ∂m += unbiased_estimator(v -> ∂free_energy(rbm, v), sample; burnin = min_steps)
             meeting_steps += length(sample.vchist)
-            discarded += sample.discarded
+            discarded += discarded_chain
         end
         ∂m /= nchains
 
