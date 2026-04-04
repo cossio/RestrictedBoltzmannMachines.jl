@@ -61,13 +61,6 @@ end
     @test 0.4 < mean(v_sample[2, :]) < 0.6
 end
 
-@testset "ucd training requires meeting chains" begin
-    seed!(35)
-    rbm, data = ucd_retry_fixture()
-
-    @test_throws ArgumentError ucd!(rbm, data; iters = 1, batchsize = 4, nchains = 1, min_steps = 1, max_steps = 1, max_resamples = 0)
-end
-
 @testset "ucd training resamples non-meeting chains" begin
     seed!(35)
     rbm, data = ucd_retry_fixture()

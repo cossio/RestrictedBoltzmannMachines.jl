@@ -76,7 +76,7 @@ function _maximal_coupling_step(
             break
         end
     end
-    (isnothing(v2) || isnothing(vc1)) && throw(ArgumentError("maximal coupling residual rejection did not accept within `max_tries`; increase `max_tries`"))
+    (isnothing(v2) || isnothing(vc1)) && throw(ArgumentError("maximal coupling residual rejection did not accept within `max_tries`; increase `max_tries` in `unbiased_sample` or `ucd!`"))
 
     h2_logits = _binary_hidden_logits(rbm, v2)
     hc1_logits = _binary_hidden_logits(rbm, vc1)
