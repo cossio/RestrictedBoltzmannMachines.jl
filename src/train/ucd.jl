@@ -76,7 +76,7 @@ function _maximal_coupling_step(
             break
         end
     end
-    (isnothing(v2) || isnothing(vc1)) && throw(ArgumentError("maximal coupling residual rejection did not accept within `max_tries`; increase `max_tries` in `unbiased_sample` or `ucd!`"))
+    (isnothing(v2) || isnothing(vc1)) && throw(ArgumentError("maximal coupling residual rejection did not accept within max_tries; increase max_tries in unbiased_sample or ucd!"))
 
     h2_logits = _binary_hidden_logits(rbm, v2)
     hc1_logits = _binary_hidden_logits(rbm, vc1)
@@ -217,7 +217,7 @@ function ucd!(
                 discarded_chain += sample.discarded
                 resamples += 1
             end
-            sample.met || throw(ArgumentError("coupled chains did not meet during `ucd!` after $(max_resamples + 1) attempts; increase `max_steps` or `max_resamples`"))
+            sample.met || throw(ArgumentError("coupled chains did not meet during ucd! after $(max_resamples + 1) attempts; increase max_steps or max_resamples"))
             ∂m += unbiased_estimator(v -> ∂free_energy(rbm, v), sample; burnin = min_steps)
             meeting_steps += length(sample.vchist)
             discarded += discarded_chain
