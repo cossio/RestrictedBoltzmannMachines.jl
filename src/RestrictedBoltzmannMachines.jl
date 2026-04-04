@@ -43,6 +43,7 @@ include("ais.jl")
 
 include("train/initialization.jl")
 include("train/pcd.jl")
+include("train/ucd.jl")
 include("train/gradient.jl")
 include("from_grad.jl")
 #include("train/minibatches.jl")
