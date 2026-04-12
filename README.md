@@ -115,7 +115,7 @@ If you use this package in a publication, please cite:
 
 > Jorge Fernandez-de-Cossio-Diaz, Simona Cocco, and Rémi Monasson. "Disentangling Representations in Restricted Boltzmann Machines without Adversaries." [Physical Review X 13, 021003 (2023)](https://journals.aps.org/prx/abstract/10.1103/PhysRevX.13.021003).
 
-BibTeX is available in [CITATION.bib](https://github.com/cossio/RestrictedBoltzmannMachines.jl/blob/master/CITATION.bib).
+Citation metadata is available in [CITATION.cff](CITATION.cff).
 
 ## References
 
