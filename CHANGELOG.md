@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+- Added `ucd!` trainer (Unbiased Contrastive Divergence) and `unbiased_sample` sampler.
+
 ## 5.3.2
 
 - Fixed weighted centered PCD initialization and empty `shuffleobs` inputs [a33d7b4](https://github.com/cossio/RestrictedBoltzmannMachines.jl/commit/a33d7b441507b743c55f7af57d681bcca2756418).
@@ -20,6 +22,10 @@ All notable changes to this project will be documented in this file. The format 
 
 - Added AIS support for `nsReLU` layer.
 
+## 5.1.1
+
+- Internal formatting and import cleanup; no functional changes.
+
 ## 5.1.0
 
 - Added `nsReLU` layer.
@@ -28,6 +34,11 @@ All notable changes to this project will be documented in this file. The format 
 
 - BREAKING: removed `hidden_statistics_from_inputs`. This was a duplicate of `total_meanvar_from_inputs`.
 - Added `rescale_weights!` for `StandardizedRBM`. This normalizes the unstandardized weights attached to each hidden unit.
+
+## 4.2.1
+
+- Fixed `regularization_penalty_fields` for `dReLU` layers, which now correctly sums `abs2(θp)` and `abs2(θn)` instead of only `abs2(θ)`.
+- Added `regularization_penalty` method for `StandardizedRBM`, computing the penalty on the equivalent unstandardized parameters.
 
 ## 4.2.0
 
@@ -46,9 +57,17 @@ All notable changes to this project will be documented in this file. The format 
 - Support Julia LTS (v1.10).
 - Add `∂free_energy_h` method for standardized RBMs.
 
+## 3.8.1
+
+- Fixed CUDA `gpu`/`cpu` dispatch for `StandardizedRBM`, which previously referenced the wrong module prefix.
+
 ## 3.8.0
 
 - Move functionality from `CenteredRBMs.jl` to this package.
+
+## 3.7.1
+
+- Added CUDA `gpu`/`cpu` support for `StandardizedRBM`.
 
 ## 3.7.0
 
@@ -67,6 +86,10 @@ All notable changes to this project will be documented in this file. The format 
 
 - Use `default_rng` in place of `GLOBAL_RNG`, which fixes an issue with CUDA [e84438a](https://github.com/cossio/RestrictedBoltzmannMachines.jl/commit/e84438a9d0ef04ad981cd552184c79a1d90dd45f).
 
+## 3.4.0
+
+- Added `SpinRBM` convenience constructor.
+
 ## 3.2.5
 
 - Compat with Optimisers v0.3.
@@ -83,6 +106,10 @@ All notable changes to this project will be documented in this file. The format 
 ## 3.0.0
 
 - BREAKING: `rescale_hidden!` returns `true` or `false` depending on whether the hidden units were rescaled or not.
+
+## 2.3.0
+
+- Compat with FillArrays v1.
 
 ## 2.2.0
 
