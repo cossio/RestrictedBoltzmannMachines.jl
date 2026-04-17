@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file. The format 
 ## Unreleased
 
 - Added `ucd!` trainer (Unbiased Contrastive Divergence) and `unbiased_sample` sampler.
+- Restored support for Julia LTS (v1.10).
 
 ## 5.3.2
 
