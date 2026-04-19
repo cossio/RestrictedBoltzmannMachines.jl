@@ -5,9 +5,8 @@ The dReLU (double Rectified Linear Unit) layer defines continuous hidden units
 with values in ``\mathbb{R}``. Unlike the standard ReLU, it can model
 asymmetric distributions by using separate parameters for the positive
 and negative parts of the distribution.
-This parameterization is used in RBMs such as those from Jerome Tubiana and
-co-authors, including the eLife paper ["Learning protein constitutive motifs
-from sequence data"](https://elifesciences.org/articles/39397).
+This parameterization was introduced by J. Tubiana et al,
+["Learning protein constitutive motifs from sequence data"](https://elifesciences.org/articles/39397).
 
 The potential function is:
 
