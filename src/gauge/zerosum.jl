@@ -5,8 +5,7 @@ zerosum!(A::AbstractArray; dims = 1) = A .= zerosum(A; dims)
     zerosum(rbm)
 
 Returns an equivalent `rbm` in zerosum gauge. Only affects Potts layers. If the `rbm`
-doesn't have `Potts` layers, does nothing. This is the explicit gauge-fixing step
-to apply after `unstandardize` when zerosum gauge is desired.
+doesn't have `Potts` layers, does nothing.
 """
 function zerosum(rbm::RBM)
     vdims = ntuple(identity, ndims(rbm.visible))
