@@ -209,6 +209,12 @@ function delta_energy(rbm::StandardizedRBM)
     return interaction_energy(rbm, v, h)
 end
 
+"""
+    unstandardize(rbm)
+
+Convert a `StandardizedRBM` back to an equivalent plain `RBM`.
+Note: this does not enforce zerosum gauge; call `zerosum(unstandardize(rbm))` if needed.
+"""
 unstandardize(rbm::StandardizedRBM) = RBM(standardize(rbm))
 unstandardize(rbm::RBM) = rbm
 
