@@ -18,6 +18,38 @@ where ``E_v`` and ``E_h`` are layer-specific energy functions that depend on the
 
 The key property of RBMs is that visible and hidden units are conditionally independent given the other layer, which allows efficient block Gibbs sampling.
 
+## Standardized RBMs
+
+`StandardizedRBM` augments a plain `RBM` with visible/hidden offsets (`offset_v`, `offset_h`) and scales (`scale_v`, `scale_h`), so interactions are computed from standardized activities.
+
+Its energy can be written as:
+
+```math
+E(\mathbf{v},\mathbf{h}) =
+-\sum_i \theta_i v_i
+-\sum_\mu \theta_\mu h_\mu
+-\sum_{i\mu} w_{i\mu}
+\frac{v_i - \lambda_i}{\sigma_i}
+\frac{h_\mu - \lambda_\mu}{\sigma_\mu}
++\sum_{i\mu}\frac{w_{i\mu}}{\sigma_i\sigma_\mu}\lambda_i\lambda_\mu
+```
+
+where ``\lambda`` are offsets and ``\sigma`` are scales.
+
+This parameterization is gauge-equivalent to a plain RBM with transformed parameters:
+
+```math
+\tilde w_{i\mu} = \frac{w_{i\mu}}{\sigma_i\sigma_\mu},\qquad
+\tilde \theta_i = \theta_i - \sum_\mu \tilde w_{i\mu}\lambda_\mu,\qquad
+\tilde \theta_\mu = \theta_\mu - \sum_i \tilde w_{i\mu}\lambda_i.
+```
+
+So both models represent exactly the same ``P(\mathbf{v},\mathbf{h})``. In practice:
+
+- use `standardize(rbm)` to introduce offsets/scales,
+- update them with `standardize_visible_from_data!` and `standardize_hidden_from_v!`,
+- use `unstandardize(rbm)` to recover an equivalent plain `RBM`.
+
 ## Features
 
 - **Flexible layer types**: Binary, Spin, Potts, Gaussian, ReLU, dReLU, pReLU, xReLU (mix and match for visible and hidden).
