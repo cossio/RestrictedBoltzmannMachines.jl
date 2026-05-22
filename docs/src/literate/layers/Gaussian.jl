@@ -34,7 +34,7 @@ nothing #hide
 
 # Sample from the layer (with zero input from the other layer).
 
-data = RBMs.sample_from_inputs(layer, zeros(size(layer)..., 10^6))
+data = RBMs.sample_from_inputs(layer, zeros(size(layer)..., 10^4))
 nothing #hide
 
 #=

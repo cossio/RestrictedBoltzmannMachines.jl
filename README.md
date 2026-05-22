@@ -94,9 +94,28 @@ $$E(\mathbf{v},\mathbf{h}) = -\sum_i a_i v_i - \sum_\mu b_\mu h_\mu - \sum_{i\mu
 
 **StandardizedRBM** further adds scaling parameters that track unit standard deviations:
 
-$$E(\mathbf{v},\mathbf{h}) = -\sum_i \theta_i v_i - \sum_\mu \theta_\mu h_\mu - \sum_{i\mu} w_{i\mu} \frac{v_i - \lambda_i}{\sigma_i} \frac{h_\mu - \lambda_\mu}{\sigma_\mu}$$
+$$
+E(\mathbf{v},\mathbf{h}) =
+-\sum_i \theta_i v_i
+-\sum_\mu \theta_\mu h_\mu
+-\sum_{i\mu} w_{i\mu}
+\frac{v_i - \lambda_i}{\sigma_i}
+\frac{h_\mu - \lambda_\mu}{\sigma_\mu}
+$$
 
-Both types support all standard RBM operations (training, sampling, evaluation).
+Here $\lambda$ tracks offsets (unit means) and $\sigma$ tracks scales (unit standard deviations), for both visible and hidden units.
+
+The standardized model is gauge-equivalent to an ordinary RBM (same $P(\mathbf{v},\mathbf{h})$), with effective parameters:
+
+$$
+\tilde w_{i\mu} = \frac{w_{i\mu}}{\sigma_i\sigma_\mu},\qquad
+\tilde \theta_i = \theta_i - \sum_\mu \tilde w_{i\mu}\lambda_\mu,\qquad
+\tilde \theta_\mu = \theta_\mu - \sum_i \tilde w_{i\mu}\lambda_i.
+$$
+
+In the code this correspondence is available via `unstandardize(rbm)`, which converts a `StandardizedRBM` to an equivalent plain `RBM`.
+
+Both `CenteredRBM` and `StandardizedRBM` support all standard RBM operations (training, sampling, and evaluation).
 
 ## Documentation
 
