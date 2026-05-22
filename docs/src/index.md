@@ -22,17 +22,13 @@ The key property of RBMs is that visible and hidden units are conditionally inde
 
 `StandardizedRBM` augments a plain `RBM` with visible/hidden offsets (`offset_v`, `offset_h`) and scales (`scale_v`, `scale_h`), so interactions are computed from standardized activities.
 
-Its energy can be written as:
+Its energy is:
 
 ```math
-E(\mathbf{v},\mathbf{h}) =
-E_v(\mathbf{v}) + E_h(\mathbf{h})
-- \sum_{i\mu} w_{i\mu}
-\frac{v_i - \lambda_i}{\sigma_i}
-\frac{h_\mu - \lambda_\mu}{\sigma_\mu},
+E(\mathbf{v},\mathbf{h}) = E_v(\mathbf{v}) + E_h(\mathbf{h}) - \hat{\mathbf{v}}^\top \mathbf{w}\, \hat{\mathbf{h}}
 ```
 
-where ``E_v`` and ``E_h`` are the visible/hidden layer energies, ``\lambda`` are offsets, and ``\sigma`` are scales (for binary layers, ``E_v(\mathbf{v})=-\sum_i\theta_i v_i`` and ``E_h(\mathbf{h})=-\sum_\mu\theta_\mu h_\mu``).
+where ``\hat{v}_i = (v_i - \lambda_i)/\sigma_i`` and ``\hat{h}_\mu = (h_\mu - \lambda_\mu)/\sigma_\mu`` are standardized activities, ``E_v`` and ``E_h`` are the visible/hidden layer energies, ``\lambda`` are offsets, and ``\sigma`` are scales.
 
 This parameterization is gauge-equivalent to a plain RBM with transformed parameters:
 
