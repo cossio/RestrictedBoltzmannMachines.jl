@@ -101,7 +101,6 @@ E(\mathbf{v},\mathbf{h}) =
 -\sum_{i\mu} w_{i\mu}
 \frac{v_i - \lambda_i}{\sigma_i}
 \frac{h_\mu - \lambda_\mu}{\sigma_\mu}
-+\sum_{i\mu}\frac{w_{i\mu}}{\sigma_i\sigma_\mu}\lambda_i\lambda_\mu
 $$
 
 Here ``\lambda`` tracks offsets (unit means) and ``\sigma`` tracks scales (unit standard deviations), for both visible and hidden units.

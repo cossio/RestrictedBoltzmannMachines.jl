@@ -11,7 +11,7 @@ This parameterization was introduced by J. Tubiana et al.,
 The potential function is:
 
 ```math
-U(h) = \frac{\gamma^+}{2} (h^+)^2 + \theta^+ h^+ + \frac{\gamma^-}{2} (h^-)^2 + \theta^- h^-
+U(h) = \frac{|\gamma^+|}{2} (h^+)^2 - \theta^+ h^+ + \frac{|\gamma^-|}{2} (h^-)^2 - \theta^- h^-
 ```
 
 where ``h^+ = \max(0, h)`` and ``h^- = \min(0, h)``.
@@ -48,7 +48,7 @@ nothing #hide
 
 # Sample from the layer (with zero input from the other layer).
 
-data = RBMs.sample_from_inputs(layer, zeros(size(layer)..., 10^6))
+data = RBMs.sample_from_inputs(layer, zeros(size(layer)..., 10^4))
 nothing #hide
 
 #=
