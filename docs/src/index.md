@@ -26,14 +26,13 @@ Its energy can be written as:
 
 ```math
 E(\mathbf{v},\mathbf{h}) =
--\sum_i \theta_i v_i
--\sum_\mu \theta_\mu h_\mu
--\sum_{i\mu} w_{i\mu}
+E_v(\mathbf{v}) + E_h(\mathbf{h})
+- \sum_{i\mu} w_{i\mu}
 \frac{v_i - \lambda_i}{\sigma_i}
-\frac{h_\mu - \lambda_\mu}{\sigma_\mu}
+\frac{h_\mu - \lambda_\mu}{\sigma_\mu},
 ```
 
-where ``\lambda`` are offsets and ``\sigma`` are scales.
+where ``E_v`` and ``E_h`` are the visible/hidden layer energies, ``\lambda`` are offsets, and ``\sigma`` are scales (for binary layers, ``E_v(\mathbf{v})=-\sum_i\theta_i v_i`` and ``E_h(\mathbf{h})=-\sum_\mu\theta_\mu h_\mu``).
 
 This parameterization is gauge-equivalent to a plain RBM with transformed parameters:
 

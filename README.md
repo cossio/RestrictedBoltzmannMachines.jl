@@ -103,9 +103,9 @@ E(\mathbf{v},\mathbf{h}) =
 \frac{h_\mu - \lambda_\mu}{\sigma_\mu}
 $$
 
-Here ``\lambda`` tracks offsets (unit means) and ``\sigma`` tracks scales (unit standard deviations), for both visible and hidden units.
+Here $\lambda$ tracks offsets (unit means) and $\sigma$ tracks scales (unit standard deviations), for both visible and hidden units.
 
-The standardized model is gauge-equivalent to an ordinary RBM (same ``P(\mathbf{v},\mathbf{h})``), with effective parameters:
+The standardized model is gauge-equivalent to an ordinary RBM (same $P(\mathbf{v},\mathbf{h})$), with effective parameters:
 
 $$
 \tilde w_{i\mu} = \frac{w_{i\mu}}{\sigma_i\sigma_\mu},\qquad
