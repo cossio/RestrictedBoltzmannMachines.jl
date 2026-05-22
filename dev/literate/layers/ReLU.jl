@@ -12,7 +12,7 @@ with ``U(x) = \infty`` for ``x < 0``, enforcing non-negativity.
 This is equivalent to a truncated Gaussian distribution.
 Conditioned on the input ``I`` from the other layer, the unit follows
 a rectified Gaussian with location ``(\theta + I) / |\gamma|``
-and scale ``1 / |\gamma|``.
+and variance ``1 / |\gamma|``.
 
 In this example we visualize the distribution of ReLU units
 for different values of ``\theta`` and ``\gamma``.
@@ -31,7 +31,7 @@ nothing #hide
 
 # Sample from the layer (with zero input from the other layer).
 
-data = RBMs.sample_from_inputs(layer, zeros(size(layer)..., 10^6))
+data = RBMs.sample_from_inputs(layer, zeros(size(layer)..., 10^4))
 nothing #hide
 
 #=
