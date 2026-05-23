@@ -87,6 +87,20 @@ PCD maintains a set of persistent Markov chains (fantasy particles)
 across training iterations, which provides a better estimate of
 the model distribution's gradient than standard CD.
 
+Important `pcd!` arguments used in practice:
+
+- `iters`: total number of parameter updates.
+- `batchsize`: number of data points in each mini-batch.
+- `steps`: number of Gibbs steps for updating persistent chains at each update.
+- `optim`: optimizer rule (defaults to `Adam()`; any `Optimisers.jl` rule works).
+- `callback`: function called after each update, useful for logging metrics.
+
+Common workflow:
+1. Call `initialize!` once before training.
+2. Start with `steps=1`, then increase only if mixing is poor.
+3. Use a callback to monitor pseudolikelihood or reconstruction error while training.
+4. Tune regularization (`l1_weights`, `l2_weights`, `l2_fields`, `l2l1_weights`) if overfitting appears.
+
 We monitor training progress using the **pseudolikelihood**, a tractable
 approximation to the log-likelihood. The pseudolikelihood evaluates how
 well the model predicts each variable given all others, and is much
