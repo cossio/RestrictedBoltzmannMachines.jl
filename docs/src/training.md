@@ -2,7 +2,7 @@
 CurrentModule = RestrictedBoltzmannMachines
 ```
 
-# Training RBMs with `pcd!`
+# [Training RBMs with `pcd!`](@id training)
 
 This page describes how model training works in this package, focusing on:
 
