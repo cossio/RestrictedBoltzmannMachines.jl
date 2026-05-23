@@ -106,7 +106,7 @@ Useful [`pcd!`](@ref) arguments:
 - `optim`: optimizer rule from Optimisers.jl.
 - `callback`: receives per-iteration state and can be used for logging.
 - `l1_weights`, `l2_weights`, `l2_fields`, `l2l1_weights`: regularization knobs.
-- `wts`: optional per-sample weights for weighted datasets.
+- `wts`: optional per-sample weights for weighted datasets; supported by the plain `RBM` / centered `pcd!` methods, not by `pcd!(::StandardizedRBM, ...)`.
 
 ## Documentation guide
 
