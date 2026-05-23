@@ -110,6 +110,7 @@ Useful [`pcd!`](@ref) arguments:
 
 ## Documentation guide
 
+- **[Training](@ref)**: Detailed guide to model training with [`pcd!`](@ref), including the specialized stdRBM training path.
 - **[Layer Types](@ref layer_types)**: Overview of all supported layer types with their energy functions and parameters.
 - **Examples**: Step-by-step tutorials showing how to train an RBM on [MNIST](@ref), estimate the partition function with [Annealed Importance Sampling](@ref annealed_importance_sampling), and sample with [Metropolis-Hastings](@ref metropolis_sampling). Also includes visualizations of individual layer distributions ([Gaussian](@ref gaussian_layer), [ReLU](@ref relu_layer), [dReLU](@ref drelu_layer)).
 - **[Reference](@ref)**: Full API reference with docstrings for all functions and types.
