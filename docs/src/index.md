@@ -91,8 +91,26 @@ RBMs.pcd!(rbm, train_x; iters=10000, batchsize=256)
 samples = RBMs.sample_v_from_v(rbm, train_x[:, :, 1:100]; steps=1000)
 ```
 
+## Training notes
+
+Typical RBM training flow:
+1. construct an RBM with appropriate visible/hidden layers,
+2. call [`initialize!`](@ref) once on representative data,
+3. train with [`pcd!`](@ref), and
+4. monitor progress with [`log_pseudolikelihood`](@ref) or [`reconstruction_error`](@ref).
+
+Useful [`pcd!`](@ref) arguments:
+- `iters`: number of parameter updates.
+- `batchsize`: mini-batch size.
+- `steps`: Gibbs steps for fantasy-particle updates each iteration.
+- `optim`: optimizer rule from Optimisers.jl.
+- `callback`: receives per-iteration state and can be used for logging.
+- `l1_weights`, `l2_weights`, `l2_fields`, `l2l1_weights`: regularization knobs.
+- `wts`: optional per-sample weights for weighted datasets; supported by the plain `RBM` / centered `pcd!` methods, not by `pcd!(::StandardizedRBM, ...)`.
+
 ## Documentation guide
 
+- **[Training](training.md)**: Detailed guide to model training with [`pcd!`](@ref), including the specialized stdRBM training path.
 - **[Layer Types](@ref layer_types)**: Overview of all supported layer types with their energy functions and parameters.
 - **Examples**: Step-by-step tutorials showing how to train an RBM on [MNIST](@ref), estimate the partition function with [Annealed Importance Sampling](@ref annealed_importance_sampling), and sample with [Metropolis-Hastings](@ref metropolis_sampling). Also includes visualizations of individual layer distributions ([Gaussian](@ref gaussian_layer), [ReLU](@ref relu_layer), [dReLU](@ref drelu_layer)).
 - **[Reference](@ref)**: Full API reference with docstrings for all functions and types.

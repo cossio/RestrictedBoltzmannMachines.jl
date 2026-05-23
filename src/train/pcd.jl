@@ -1,7 +1,38 @@
 """
-    pcd!(rbm, data)
+    pcd!(rbm, data; kwargs...)
 
-Trains the RBM on data using Persistent Contrastive divergence.
+Train an `RBM` with Persistent Contrastive Divergence (PCD).
+
+`pcd!` repeatedly draws mini-batches from `data`, performs `steps` Gibbs updates
+of persistent fantasy particles, estimates the positive/negative phase gradients,
+applies optional regularization and gauge constraints, and updates model
+parameters with an `Optimisers.jl` rule.
+
+`data` must have shape `(size(rbm.visible)..., nsamples)`.
+
+# Keyword arguments
+- `batchsize::Int=1`: number of samples per update.
+- `iters::Int=1`: number of parameter updates.
+- `wts::Union{AbstractVector,Nothing}=nothing`: optional per-sample weights.
+- `steps::Int=1`: Gibbs steps used to update persistent chains each iteration.
+- `optim::AbstractRule=Adam()`: optimizer rule from `Optimisers.jl`.
+- `moments=moments_from_samples(rbm.visible, data; wts)`: data moments used by
+  the positive phase.
+- `l2_fields::Real=0`: L2 regularization on visible fields.
+- `l1_weights::Real=0`: L1 regularization on interaction weights.
+- `l2_weights::Real=0`: L2 regularization on interaction weights.
+- `l2l1_weights::Real=0`: group-like L2/L1 weight regularization.
+- `zerosum::Bool=true`: enforce zero-sum gauge on Potts layers.
+- `rescale::Bool=true`: rescale weights (mainly useful for continuous hidden units).
+- `callback=Returns(nothing)`: called after every update as
+  `callback(; rbm, optim, state, iter, vm, vd, wd)`.
+- `vm=sample_from_inputs(...)`: initial fantasy particles.
+- `shuffle::Bool=true`: whether to reshuffle samples between epochs.
+- `ps=(; visible=rbm.visible.par, hidden=rbm.hidden.par, w=rbm.w)`: optimized
+  parameter container.
+- `state=setup(optim, ps)`: optimizer state.
+
+Returns `(state, ps)`.
 """
 function pcd!(
     rbm::RBM,
