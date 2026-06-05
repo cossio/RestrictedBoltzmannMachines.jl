@@ -1,10 +1,11 @@
 #=
-# [dReLU layer](@id drelu_layer)
+# [dReLU-family layers](@id drelu_layer)
 
-The dReLU (double Rectified Linear Unit) layer defines continuous hidden units
-with values in ``\mathbb{R}``. Unlike the standard ReLU, it can model
-asymmetric distributions by using separate parameters for the positive
-and negative parts of the distribution.
+The dReLU-family layers (`dReLU`, `pReLU`, `xReLU`, and `nsReLU`) define
+continuous hidden units with values in ``\mathbb{R}``. Unlike the standard
+ReLU, they can model asymmetric distributions by using distinct positive and
+negative branches. `dReLU` is the most explicit parameterization, `pReLU` and
+`xReLU` use shared-scale parameterizations, and `nsReLU` fixes that scale to 1.
 This parameterization was introduced by J. Tubiana et al.,
 ["Learning protein constitutive motifs from sequence data"](https://elifesciences.org/articles/39397).
 
@@ -19,9 +20,9 @@ The parameters ``\gamma^+, \gamma^-`` control the curvature (precision) of
 the positive and negative sides independently, while ``\theta^+, \theta^-``
 control the location.
 
-In this example we visualize the distribution of dReLU units
-for different parameter combinations, showing how the asymmetric
-parameterization allows for a rich variety of distribution shapes.
+In this example we visualize the distribution of `dReLU` units for different
+parameter combinations, showing the family of asymmetric shapes also covered by
+the `pReLU`, `xReLU`, and `nsReLU` variants.
 
 First load the required packages.
 =#

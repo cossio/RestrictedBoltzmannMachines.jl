@@ -54,7 +54,7 @@ Documenter.makedocs(
             "Layers" => [
                 "Gaussian" => "literate/layers/Gaussian.md",
                 "ReLU" => "literate/layers/ReLU.md",
-                "dReLU" => "literate/layers/dReLU.md",
+                "dReLU family" => "literate/layers/dReLU.md",
             ],
             "AIS" => "literate/ais.md",
             "Metropolis" => "literate/metropolis.md",

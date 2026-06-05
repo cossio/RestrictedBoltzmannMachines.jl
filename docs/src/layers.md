@@ -79,10 +79,10 @@ This is a truncated Gaussian: conditioned on the other layer, each unit follows 
 
 Constructed with [`ReLU`](@ref).
 
-### dReLU, pReLU, xReLU
+### dReLU, pReLU, xReLU, nsReLU
 
-These three layer types represent the **same family of asymmetric piecewise-quadratic distributions**, differing only in parameterization.
-They can be converted to each other without loss of information.
+These layer types represent the **same family of asymmetric piecewise-quadratic distributions**, differing only in parameterization.
+`dReLU`, `pReLU`, and `xReLU` can be converted to each other without loss of information, while `nsReLU` is the corresponding fixed-scale variant.
 
 The distribution is defined by a potential that allows different curvatures and locations
 for positive and negative values of ``x``:
@@ -94,13 +94,14 @@ U(x) = \begin{cases}
 \end{cases}
 ```
 
-The three types differ in how they parameterize this distribution:
+These parameterizations differ in how they describe this distribution:
 
 | Type | Parameters | Notes |
 |------|-----------|-------|
 | [`dReLU`](@ref) | ``\theta^+, \theta^-, \gamma^+, \gamma^-`` | Separate parameters for positive and negative parts. Direct but redundant. |
 | [`pReLU`](@ref) | ``\theta, \gamma, \Delta, \eta`` | Shared scale ``\gamma`` with asymmetry ratio ``\eta \in (-1, 1)``. |
 | [`xReLU`](@ref) | ``\theta, \gamma, \Delta, \xi`` | Like pReLU but with unbounded ``\xi \in \mathbb{R}`` (related to ``\eta`` by ``\xi = \eta / (1 - |\eta|)``). |
+| [`nsReLU`](@ref) | ``\theta, \Delta, \xi`` | Fixed-scale xReLU with ``\gamma = 1``, removing the gauge freedom between hidden-unit scale and weights. |
 
 The conversions between parameterizations are given by:
 
@@ -110,7 +111,8 @@ The conversions between parameterizations are given by:
 ```
 
 Use whichever parameterization is most convenient; `dReLU` is the most explicit,
-while `pReLU` and `xReLU` separate the overall scale from the asymmetry.
+`pReLU` and `xReLU` separate the overall scale from the asymmetry, and `nsReLU`
+fixes the scale entirely when a gauge-fixed parameterization is preferred.
 
 ## Constructing an RBM
 

@@ -46,7 +46,7 @@ So both models represent exactly the same ``P(\mathbf{v},\mathbf{h})``. In pract
 
 ## Features
 
-- **Flexible layer types**: Binary, Spin, Potts, Gaussian, ReLU, dReLU, pReLU, xReLU (mix and match for visible and hidden).
+- **Flexible layer types**: Binary, Spin, Potts, Gaussian, ReLU, dReLU, pReLU, xReLU, nsReLU (mix and match for visible and hidden).
 - **Training**: Persistent Contrastive Divergence ([`pcd!`](@ref)) with customizable optimizers (via [Optimisers.jl](https://github.com/FluxML/Optimisers.jl)), regularization, and callbacks.
 - **Sampling**: Gibbs sampling ([`sample_v_from_v`](@ref), [`sample_h_from_v`](@ref)) and Metropolis-Hastings ([`metropolis!`](@ref)) at arbitrary temperature.
 - **Evaluation**: [`free_energy`](@ref), [`log_pseudolikelihood`](@ref), [`log_likelihood`](@ref), [`reconstruction_error`](@ref).
@@ -112,7 +112,7 @@ Useful [`pcd!`](@ref) arguments:
 
 - **[Training](training.md)**: Detailed guide to model training with [`pcd!`](@ref), including the specialized stdRBM training path.
 - **[Layer Types](@ref layer_types)**: Overview of all supported layer types with their energy functions and parameters.
-- **Examples**: Step-by-step tutorials showing how to train an RBM on [MNIST](@ref), estimate the partition function with [Annealed Importance Sampling](@ref annealed_importance_sampling), and sample with [Metropolis-Hastings](@ref metropolis_sampling). Also includes visualizations of individual layer distributions ([Gaussian](@ref gaussian_layer), [ReLU](@ref relu_layer), [dReLU](@ref drelu_layer)).
+- **Examples**: Step-by-step tutorials showing how to train an RBM on [MNIST](@ref), estimate the partition function with [Annealed Importance Sampling](@ref annealed_importance_sampling), and sample with [Metropolis-Hastings](@ref metropolis_sampling). Also includes visualizations of individual layer distributions ([Gaussian](@ref gaussian_layer), [ReLU](@ref relu_layer), [dReLU-family layers](@ref drelu_layer)).
 - **[Reference](@ref)**: Full API reference with docstrings for all functions and types.
 
 ## Source code
