@@ -56,8 +56,14 @@ RBMs can be constructed from any combination of the following visible and hidden
 | `dReLU` | ℝ | θ⁺, θ⁻, γ⁺, γ⁻ | Double ReLU |
 | `pReLU` | ℝ | θ, γ, Δ, η | Parametric ReLU |
 | `xReLU` | ℝ | θ, γ, Δ, ξ | Extended ReLU |
+| `nsReLU` | ℝ | θ, Δ, ξ | Fixed-scale xReLU (γ = 1) |
 
-`dReLU`, `pReLU`, and `xReLU` represent the same family of asymmetric piecewise-quadratic distributions, differing only in parameterization. They can be converted to each other without loss of information. `dReLU` uses separate parameters for the positive and negative parts; `pReLU` and `xReLU` use a shared scale γ with asymmetry parameters (η bounded in (-1,1) for `pReLU`; ξ unbounded for `xReLU`).
+`dReLU`, `pReLU`, `xReLU`, and `nsReLU` are closely related asymmetric piecewise-quadratic layer types:
+
+- `dReLU`, `pReLU`, and `xReLU` can be converted to each other without loss of information.
+- `dReLU` uses separate parameters for the positive and negative parts.
+- `pReLU` and `xReLU` use a shared scale γ with asymmetry parameters (η bounded in (-1,1) for `pReLU`; ξ unbounded for `xReLU`).
+- `nsReLU` is the fixed-scale variant, removing the invariance between hidden-unit scale and weights.
 
 Construct an RBM with any pair of layer types using `RBM(visible, hidden, weights)`, or use convenience constructors like `BinaryRBM`, `HopfieldRBM`, etc.
 
