@@ -61,9 +61,9 @@ RBMs can be constructed from any combination of the following visible and hidden
 `dReLU`, `pReLU`, `xReLU`, and `nsReLU` are closely related asymmetric piecewise-quadratic layer types:
 
 - `dReLU`, `pReLU`, and `xReLU` can be converted to each other without loss of information.
-- `nsReLU` is the gauge-fixed counterpart with scale fixed to remove the invariance between hidden-unit scale and weights.
 - `dReLU` uses separate parameters for the positive and negative parts.
 - `pReLU` and `xReLU` use a shared scale γ with asymmetry parameters (η bounded in (-1,1) for `pReLU`; ξ unbounded for `xReLU`).
+- `nsReLU` is the gauge-fixed counterpart with scale fixed to remove the invariance between hidden-unit scale and weights.
 
 Construct an RBM with any pair of layer types using `RBM(visible, hidden, weights)`, or use convenience constructors like `BinaryRBM`, `HopfieldRBM`, etc.
 
