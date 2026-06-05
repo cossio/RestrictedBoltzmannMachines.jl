@@ -81,7 +81,7 @@ Constructed with [`ReLU`](@ref).
 
 ### dReLU, pReLU, xReLU, nsReLU
 
-These layer types represent the **same family of asymmetric piecewise-quadratic distributions**, differing only in parameterization.
+These layer types represent a **closely related family of asymmetric piecewise-quadratic distributions**.
 `dReLU`, `pReLU`, and `xReLU` can be converted to each other without loss of information, while `nsReLU` is the corresponding fixed-scale variant.
 
 The distribution is defined by a potential that allows different curvatures and locations
