@@ -101,7 +101,7 @@ These parameterizations differ in how they describe this distribution:
 | [`dReLU`](@ref) | ``\theta^+, \theta^-, \gamma^+, \gamma^-`` | Separate parameters for positive and negative parts. Direct but redundant. |
 | [`pReLU`](@ref) | ``\theta, \gamma, \Delta, \eta`` | Shared scale ``\gamma`` with asymmetry ratio ``\eta \in (-1, 1)``. |
 | [`xReLU`](@ref) | ``\theta, \gamma, \Delta, \xi`` | Like pReLU but with unbounded ``\xi \in \mathbb{R}`` (related to ``\eta`` by ``\xi = \eta / (1 - |\eta|)``). |
-| [`nsReLU`](@ref) | ``\theta, \Delta, \xi`` | Fixed-scale xReLU with ``\gamma = 1``, removing the gauge freedom between hidden-unit scale and weights. |
+| [`nsReLU`](@ref) | ``\theta, \Delta, \xi`` | Fixed-scale xReLU with ``\gamma = 1``, removing the freedom to rescale hidden activations and compensate by inversely rescaling the weights. |
 
 The conversions between parameterizations are given by:
 
