@@ -2,6 +2,7 @@ module RestrictedBoltzmannMachines
 
 import ChainRulesCore
 import LinearAlgebra
+using Adapt: Adapt, adapt
 using Base: front, tail
 using EllipsisNotation: (..)
 using FillArrays: Fill, Falses, Trues, Zeros, Ones
@@ -59,6 +60,8 @@ include("metropolis.jl")
 
 include("standardized.jl")
 include("centered.jl")
+
+include("adapt.jl")
 
 function cpu end
 function gpu end
