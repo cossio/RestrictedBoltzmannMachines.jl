@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## 5.4.0
 
 - Added `ucd!` trainer (Unbiased Contrastive Divergence) and `unbiased_sample` sampler.
 - Restored support for Julia LTS (v1.10).
