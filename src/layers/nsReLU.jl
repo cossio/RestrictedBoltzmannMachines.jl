@@ -78,6 +78,3 @@ function ∂regularize_fields(layer::nsReLU; l2_fields::Real = 0)
 end
 
 shift_fields(l::nsReLU, a::AbstractArray) = nsReLU(; θ = l.θ .+ a, l.Δ, l.ξ)
-
-gpu(layer::nsReLU) = nsReLU(gpu(layer.par))
-cpu(layer::nsReLU) = nsReLU(cpu(layer.par))

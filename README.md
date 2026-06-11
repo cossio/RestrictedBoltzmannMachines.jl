@@ -90,6 +90,8 @@ rbm_gpu = gpu(rbm)       # transfer to GPU
 rbm_cpu = cpu(rbm_gpu)   # transfer back to CPU
 ```
 
+Layers and RBMs also implement the [Adapt.jl](https://github.com/JuliaGPU/Adapt.jl) interface, so generic transfers like `adapt(CuArray, rbm)` work with any GPU array backend.
+
 See this [Google Colab notebook](https://colab.research.google.com/drive/1lfY5t6m-j8n19EXHLnV-lRBBfJ_jLk8y?usp=sharing) for a full GPU training example.
 
 ## Centered and Standardized RBMs

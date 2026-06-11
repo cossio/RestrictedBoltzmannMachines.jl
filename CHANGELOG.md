@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file. The format 
 
 - Added `ucd!` trainer (Unbiased Contrastive Divergence) and `unbiased_sample` sampler.
 - Restored support for Julia LTS (v1.10).
+- `log_pseudolikelihood` is now GPU friendly (no scalar indexing) [#101](https://github.com/cossio/RestrictedBoltzmannMachines.jl/pull/101).
+- Layers, RBMs (including `CenteredRBM`, `StandardizedRBM`) and `∂RBM` now implement the [Adapt.jl](https://github.com/JuliaGPU/Adapt.jl) interface, so generic device transfers like `adapt(CuArray, rbm)` work with any GPU array backend. `gpu`/`cpu` are now generic methods built on Adapt, and `CenteredRBM` gains GPU transfer. Added GPU-semantics tests that run on CI without GPU hardware, using JLArrays with `allowscalar(false)` [#102](https://github.com/cossio/RestrictedBoltzmannMachines.jl/pull/102).
 
 ## 5.3.2
 
