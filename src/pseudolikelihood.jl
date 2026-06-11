@@ -72,7 +72,8 @@ end
 
 # Copy an array of indices (or values) to the same kind of array as `template`
 # (e.g. a GPU array), so that gather / scatter operations don't mix host and
-# device arrays. No-op copy on CPU.
+# device arrays. On CPU this is a plain copy; the arrays passed here are small
+# (O(batch) index lists), so the overhead is negligible.
 _on_device(template::AbstractArray, x::AbstractArray) =
     copyto!(similar(template, eltype(x), size(x)), x)
 
