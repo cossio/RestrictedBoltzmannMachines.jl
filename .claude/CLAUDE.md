@@ -69,7 +69,19 @@ GPU compatibility is tested without GPU hardware in `test/jlarrays.jl`, using JL
 During development the version in Project.toml carries a `-DEV` suffix (e.g. `5.4.0-DEV`), and changes accumulate under an `## Unreleased` section in CHANGELOG.md. To release:
 
 1. On `master`, make a single commit titled `vX.Y.Z` that drops the `-DEV` suffix from `version` in Project.toml and renames the `## Unreleased` CHANGELOG section to `## X.Y.Z`. Push it.
-2. Comment `@JuliaRegistrator register` on that commit on GitHub (e.g. `gh api repos/cossio/RestrictedBoltzmannMachines.jl/commits/<sha>/comments -f body="@JuliaRegistrator register"`). Registrator opens a PR in the General registry; once it merges, TagBot creates the `vX.Y.Z` tag and GitHub release automatically.
+2. Comment `@JuliaRegistrator register` on that commit on GitHub (e.g. `gh api repos/cossio/RestrictedBoltzmannMachines.jl/commits/<sha>/comments -f body="..."`), including release notes (markdown, typically the CHANGELOG entries for this version) in the same comment:
+
+   ```
+   @JuliaRegistrator register
+
+   Release notes:
+
+   ## Breaking changes
+
+   - blah
+   ```
+
+   The notes are added to the registry PR and to the GitHub release that TagBot creates. Registrator opens a PR in the General registry; once it merges, TagBot creates the `vX.Y.Z` tag and GitHub release automatically. (If the register comment was already posted without notes, re-invoke Registrator with them to update the registration — see [Registrator's reply](https://github.com/cossio/RestrictedBoltzmannMachines.jl/commit/a4dcb8cee859c752881c6c1bb6051edaffcecf84#commitcomment-188488609).)
 3. When starting work on the next version, bump Project.toml to the next `-DEV` version and add a fresh `## Unreleased` section to CHANGELOG.md.
 
 Example release commit: [6804321](https://github.com/cossio/RestrictedBoltzmannMachines.jl/commit/6804321329542c48594b273e0d87d5cf42046b2e) (v5.3.2).
