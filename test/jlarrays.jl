@@ -1,6 +1,8 @@
 # Tests GPU compatibility without a physical GPU, using JLArrays (the reference
 # GPUArrays.jl backend). With allowscalar(false), any code path falling back to
-# scalar indexing errors out, just like CuArray on CI.
+# scalar indexing errors out, just like CuArray on CI. The setting is session-global,
+# which is intentional: all JLArrays tests live in this file, and any future test
+# using JLArrays should run under allowscalar(false) too.
 import Random
 using Test: @test, @testset, @test_broken
 using Statistics: mean
