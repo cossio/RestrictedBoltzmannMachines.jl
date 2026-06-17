@@ -1,14 +1,18 @@
 import HDF5
 using RestrictedBoltzmannMachines: Binary
+using RestrictedBoltzmannMachines: CenteredRBM
 using RestrictedBoltzmannMachines: Gaussian
 using RestrictedBoltzmannMachines: load_rbm
 using RestrictedBoltzmannMachines: Potts
 using RestrictedBoltzmannMachines: PottsGumbel
 using RestrictedBoltzmannMachines: RBM
+using RestrictedBoltzmannMachines: ReLU
 using RestrictedBoltzmannMachines: save_rbm
 using RestrictedBoltzmannMachines: Spin
 using RestrictedBoltzmannMachines: standardize
 using RestrictedBoltzmannMachines: StandardizedRBM
+using RestrictedBoltzmannMachines: dReLU
+using RestrictedBoltzmannMachines: pReLU
 using RestrictedBoltzmannMachines: xReLU
 using RestrictedBoltzmannMachines: nsReLU
 using Test: @test
@@ -74,6 +78,75 @@ end
     @test loaded_rbm.w == rbm.w
     @test loaded_rbm.visible.θ == rbm.visible.θ
     @test loaded_rbm.hidden.θ == rbm.hidden.θ
+end
+
+@testset "ReLU" begin
+    rbm = RBM(Binary(; θ=randn(2,3)), ReLU(; θ=randn(4), γ=randn(4)), randn(2,3,4))
+    path = save_rbm(tempname(), rbm)
+    loaded_rbm = load_rbm(path)
+    @test loaded_rbm.visible isa Binary
+    @test loaded_rbm.hidden isa ReLU
+    @test loaded_rbm.w == rbm.w
+    @test loaded_rbm.visible.θ == rbm.visible.θ
+    @test loaded_rbm.hidden.θ == rbm.hidden.θ
+    @test loaded_rbm.hidden.γ == rbm.hidden.γ
+end
+
+@testset "dReLU" begin
+    rbm = RBM(
+        Binary(; θ=randn(2,3)),
+        dReLU(; θp=randn(4), θn=randn(4), γp=randn(4), γn=randn(4)),
+        randn(2,3,4),
+    )
+    path = save_rbm(tempname(), rbm)
+    loaded_rbm = load_rbm(path)
+    @test loaded_rbm.visible isa Binary
+    @test loaded_rbm.hidden isa dReLU
+    @test loaded_rbm.w == rbm.w
+    @test loaded_rbm.visible.θ == rbm.visible.θ
+    @test loaded_rbm.hidden.θp == rbm.hidden.θp
+    @test loaded_rbm.hidden.θn == rbm.hidden.θn
+    @test loaded_rbm.hidden.γp == rbm.hidden.γp
+    @test loaded_rbm.hidden.γn == rbm.hidden.γn
+end
+
+@testset "pReLU" begin
+    rbm = RBM(
+        Binary(; θ=randn(2,3)),
+        pReLU(; θ=randn(4), γ=randn(4), Δ=randn(4), η=randn(4)),
+        randn(2,3,4),
+    )
+    path = save_rbm(tempname(), rbm)
+    loaded_rbm = load_rbm(path)
+    @test loaded_rbm.visible isa Binary
+    @test loaded_rbm.hidden isa pReLU
+    @test loaded_rbm.w == rbm.w
+    @test loaded_rbm.visible.θ == rbm.visible.θ
+    @test loaded_rbm.hidden.θ == rbm.hidden.θ
+    @test loaded_rbm.hidden.γ == rbm.hidden.γ
+    @test loaded_rbm.hidden.Δ == rbm.hidden.Δ
+    @test loaded_rbm.hidden.η == rbm.hidden.η
+end
+
+@testset "centered" begin
+    rbm = CenteredRBM(
+        Binary(; θ=randn(2,3)),
+        ReLU(; θ=randn(4), γ=randn(4)),
+        randn(2,3,4),
+        randn(2,3),
+        randn(4),
+    )
+    path = save_rbm(tempname(), rbm)
+    loaded_rbm = load_rbm(path)
+
+    @test loaded_rbm.visible isa Binary
+    @test loaded_rbm.hidden isa ReLU
+    @test loaded_rbm.w == rbm.w
+    @test loaded_rbm.visible.θ == rbm.visible.θ
+    @test loaded_rbm.hidden.θ == rbm.hidden.θ
+    @test loaded_rbm.hidden.γ == rbm.hidden.γ
+    @test loaded_rbm.offset_v == rbm.offset_v
+    @test loaded_rbm.offset_h == rbm.offset_h
 end
 
 @testset "std" begin

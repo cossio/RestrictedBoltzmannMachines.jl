@@ -4,12 +4,16 @@ import HDF5
 import RestrictedBoltzmannMachines
 using HDF5: h5open
 using RestrictedBoltzmannMachines: Binary
+using RestrictedBoltzmannMachines: CenteredRBM
 using RestrictedBoltzmannMachines: Gaussian
 using RestrictedBoltzmannMachines: Potts
 using RestrictedBoltzmannMachines: PottsGumbel
 using RestrictedBoltzmannMachines: RBM
+using RestrictedBoltzmannMachines: ReLU
 using RestrictedBoltzmannMachines: Spin
 using RestrictedBoltzmannMachines: StandardizedRBM
+using RestrictedBoltzmannMachines: dReLU
+using RestrictedBoltzmannMachines: pReLU
 using RestrictedBoltzmannMachines: xReLU
 using RestrictedBoltzmannMachines: nsReLU
 
@@ -76,10 +80,31 @@ function RestrictedBoltzmannMachines.save_rbm(path::AbstractString, rbm::Standar
     return path
 end
 
+function RestrictedBoltzmannMachines.save_rbm(path::AbstractString, rbm::CenteredRBM; overwrite::Bool=false)
+    if !overwrite && isfile(path)
+        error("File already exists: $path")
+    end
+    h5open(path, "w") do file
+        write(file, FILE_FORMAT_HEADER, string(FILE_FORMAT_VERSION))
+        write(file, "rbm_type", "CenteredRBM")
+        write(file, "weights", rbm.w)
+        write(file, "visible_par", rbm.visible.par)
+        write(file, "hidden_par", rbm.hidden.par)
+        write(file, "visible_type", layer_type(rbm.visible))
+        write(file, "hidden_type", layer_type(rbm.hidden))
+        write(file, "offset_v", rbm.offset_v)
+        write(file, "offset_h", rbm.offset_h)
+    end
+    return path
+end
+
 layer_type(::Binary) = "Binary"
 layer_type(::Spin) = "Spin"
 layer_type(::Potts) = "Potts"
 layer_type(::Gaussian) = "Gaussian"
+layer_type(::ReLU) = "ReLU"
+layer_type(::dReLU) = "dReLU"
+layer_type(::pReLU) = "pReLU"
 layer_type(::xReLU) = "xReLU"
 layer_type(::nsReLU) = "nsReLU"
 layer_type(::PottsGumbel) = "PottsGumbel"
@@ -90,6 +115,9 @@ construct_layer(::Val{:Binary}, par::AbstractArray) = Binary(par)
 construct_layer(::Val{:Spin}, par::AbstractArray) = Spin(par)
 construct_layer(::Val{:Potts}, par::AbstractArray) = Potts(par)
 construct_layer(::Val{:Gaussian}, par::AbstractArray) = Gaussian(par)
+construct_layer(::Val{:ReLU}, par::AbstractArray) = ReLU(par)
+construct_layer(::Val{:dReLU}, par::AbstractArray) = dReLU(par)
+construct_layer(::Val{:pReLU}, par::AbstractArray) = pReLU(par)
 construct_layer(::Val{:xReLU}, par::AbstractArray) = xReLU(par)
 construct_layer(::Val{:nsReLU}, par::AbstractArray) = nsReLU(par)
 construct_layer(::Val{:PottsGumbel}, par::AbstractArray) = PottsGumbel(par)
@@ -110,6 +138,15 @@ function _load_rbm(file::HDF5.File, ::Val{:StandardizedRBM})
     visible = construct_layer(read(file, "visible_type"), read(file, "visible_par"))
     hidden = construct_layer(read(file, "hidden_type"), read(file, "hidden_par"))
     return StandardizedRBM(visible, hidden, w, offset_v, offset_h, scale_v, scale_h)
+end
+
+function _load_rbm(file::HDF5.File, ::Val{:CenteredRBM})
+    offset_v = read(file, "offset_v")
+    offset_h = read(file, "offset_h")
+    w = read(file, "weights")
+    visible = construct_layer(read(file, "visible_type"), read(file, "visible_par"))
+    hidden = construct_layer(read(file, "hidden_type"), read(file, "hidden_par"))
+    return CenteredRBM(visible, hidden, w, offset_v, offset_h)
 end
 
 end
