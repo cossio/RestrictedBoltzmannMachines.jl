@@ -51,11 +51,8 @@ end
 
 # Samples are onehot BitArrays, not floats (also for PottsGumbel, which shares this
 # encoding). Returning floats here, to avoid the BitArray -> float conversion later in
-# inputs_h_from_v / inputs_v_from_h, is not worth it: on GPU that conversion is
-# negligible next to the w'v matmul (within noise), while float onehots take 32x the
-# memory; on CPU the conversion is ~30-60% of the input projection, but part of that
-# cost would just move here as writes of the 32x larger float sample.
-# (Benchmarked July 2026 on an RTX PRO 6000.)
+# inputs_h_from_v / inputs_v_from_h, is not worth it; see the benchmarks in the
+# "Design and performance notes" page of the developer docs.
 function sample_from_inputs(layer::Potts, inputs = 0)
     c = categorical_sample_from_logits(layer.θ .+ inputs)
     return onehot_encode(c, 1:size(layer, 1))
