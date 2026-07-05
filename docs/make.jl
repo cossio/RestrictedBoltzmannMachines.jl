@@ -59,6 +59,11 @@ Documenter.makedocs(
             "AIS" => "literate/ais.md",
             "Metropolis" => "literate/metropolis.md",
         ],
+        "Developer notes" => [
+            "Architecture" => "developer/architecture.md",
+            "Design & performance notes" => "developer/design_notes.md",
+            "Testing & releasing" => "developer/testing.md",
+        ],
         "Reference" => "reference.md"
     ]
 )
