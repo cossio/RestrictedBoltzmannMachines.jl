@@ -111,59 +111,17 @@ function anneal(rbm0::RBM, rbm1::RBM; β::Real)
     return RBM(vis, hid, w)
 end
 
-function anneal(init::Binary, final::Binary; β::Real)
-    θ = (1 - β) * init.θ + β * final.θ
-    return Binary(; θ)
-end
-
-function anneal(init::Spin, final::Spin; β::Real)
-    θ = (1 - β) * init.θ + β * final.θ
-    return Spin(; θ)
-end
-
-function anneal(init::Potts, final::Potts; β::Real)
-    θ = (1 - β) * init.θ + β * final.θ
-    return Potts(; θ)
-end
-
-function anneal(init::Gaussian, final::Gaussian; β::Real)
-    θ = (1 - β) * init.θ + β * final.θ
-    γ = (1 - β) * init.γ + β * final.γ
-    return Gaussian(; θ, γ)
-end
-
-function anneal(init::ReLU, final::ReLU; β::Real)
-    θ = (1 - β) * init.θ + β * final.θ
-    γ = (1 - β) * init.γ + β * final.γ
-    return ReLU(; θ, γ)
-end
-
-function anneal(init::dReLU, final::dReLU; β::Real)
-    θp = (1 - β) * init.θp + β * final.θp
-    θn = (1 - β) * init.θn + β * final.θn
-    γp = (1 - β) * init.γp + β * final.γp
-    γn = (1 - β) * init.γn + β * final.γn
-    return dReLU(; θp, θn, γp, γn)
-end
-
-function anneal(init::pReLU, final::pReLU; β::Real)
-    θ = (1 - β) * init.θ + β * final.θ
-    γ = (1 - β) * init.γ + β * final.γ
-    Δ = (1 - β) * init.Δ + β * final.Δ
-    η = (1 - β) * init.η + β * final.η
-    return pReLU(; θ, γ, Δ, η)
-end
-
+# every layer parameter is a row of `par`, so annealing all of them is just linear
+# interpolation of `par`
+anneal(init::Binary, final::Binary; β::Real) = Binary((1 - β) * init.par + β * final.par)
+anneal(init::Spin, final::Spin; β::Real) = Spin((1 - β) * init.par + β * final.par)
+anneal(init::Potts, final::Potts; β::Real) = Potts((1 - β) * init.par + β * final.par)
+anneal(init::Gaussian, final::Gaussian; β::Real) = Gaussian((1 - β) * init.par + β * final.par)
+anneal(init::ReLU, final::ReLU; β::Real) = ReLU((1 - β) * init.par + β * final.par)
+anneal(init::dReLU, final::dReLU; β::Real) = dReLU((1 - β) * init.par + β * final.par)
+anneal(init::pReLU, final::pReLU; β::Real) = pReLU((1 - β) * init.par + β * final.par)
 function anneal(init::xReLU{<:Any,<:Any,FixGamma}, final::xReLU{<:Any,<:Any,FixGamma}; β::Real) where {FixGamma}
-    θ = (1 - β) * init.θ + β * final.θ
-    Δ = (1 - β) * init.Δ + β * final.Δ
-    ξ = (1 - β) * init.ξ + β * final.ξ
-    if FixGamma
-        return xReLU(; θ, Δ, ξ)
-    else
-        γ = (1 - β) * init.γ + β * final.γ
-        return xReLU(; θ, γ, Δ, ξ)
-    end
+    return xReLU((1 - β) * init.par + β * final.par; fix_γ = FixGamma)
 end
 
 anneal_zero(init::AbstractLayer, rbm::RBM) = RBM(init, anneal_zero(rbm.hidden), Zeros(rbm.w))

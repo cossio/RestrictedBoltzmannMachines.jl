@@ -56,42 +56,18 @@ function ∂regularize(
     return ∂RBM(visible, zero(rbm.hidden.par), w)
 end
 
-function ∂regularize_fields(layer::Union{Binary,Spin,Potts}; l2_fields::Real = 0)
-    ∂θ = l2_fields * layer.θ
-    return vstack((∂θ,))
-end
-
-function ∂regularize_fields(layer::Union{Gaussian,ReLU}; l2_fields::Real = 0)
-    ∂θ = l2_fields * layer.θ
-    ∂γ = zero(layer.γ)
-    return vstack((∂θ, ∂γ))
+# only the fields θ (leading row(s) of `par`) are regularized; other rows get zero gradient
+function ∂regularize_fields(layer::Union{Binary,Spin,Potts,Gaussian,ReLU,pReLU,xReLU}; l2_fields::Real = 0)
+    ∂ = zero(layer.par)
+    ∂[1, ..] .= l2_fields .* layer.θ
+    return ∂
 end
 
 function ∂regularize_fields(layer::dReLU; l2_fields::Real = 0)
-    ∂θp = l2_fields * layer.θp
-    ∂θn = l2_fields * layer.θn
-    ∂γn = zero(layer.γn)
-    ∂γp = zero(layer.γp)
-    return vstack((∂θp, ∂θn, ∂γp, ∂γn))
-end
-
-function ∂regularize_fields(layer::pReLU; l2_fields::Real = 0)
-    ∂θ = l2_fields * layer.θ
-    ∂γ = zero(layer.γ)
-    ∂Δ = zero(layer.Δ)
-    ∂η = zero(layer.η)
-    return vstack((∂θ, ∂γ, ∂Δ, ∂η))
-end
-
-function ∂regularize_fields(layer::xReLU{N,A,FixGamma}; l2_fields::Real = 0) where {N,A,FixGamma}
-    ∂θ = l2_fields * layer.θ
-    ∂Δ = zero(layer.Δ)
-    ∂ξ = zero(layer.ξ)
-    if FixGamma
-        return vstack((∂θ, ∂Δ, ∂ξ))
-    else
-        return vstack((∂θ, zero(layer.γ), ∂Δ, ∂ξ))
-    end
+    ∂ = zero(layer.par)
+    ∂[1, ..] .= l2_fields .* layer.θp
+    ∂[2, ..] .= l2_fields .* layer.θn
+    return ∂
 end
 
 function ∂regularize_weights(
