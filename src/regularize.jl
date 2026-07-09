@@ -30,7 +30,7 @@ function ∂regularize!(
 end
 
 function ∂regularize_fields!(
-    ∂::AbstractArray, layer::Union{Binary,Spin,Potts,PottsGumbel,Gaussian,ReLU,xReLU,pReLU,nsReLU}; l2_fields::Real = 0
+    ∂::AbstractArray, layer::Union{Binary,Spin,Potts,PottsGumbel,Gaussian,ReLU,xReLU,pReLU}; l2_fields::Real = 0
 )
     if !iszero(l2_fields)
         ∂[1, ..] .+= l2_fields * layer.θ
@@ -83,12 +83,15 @@ function ∂regularize_fields(layer::pReLU; l2_fields::Real = 0)
     return vstack((∂θ, ∂γ, ∂Δ, ∂η))
 end
 
-function ∂regularize_fields(layer::xReLU; l2_fields::Real = 0)
+function ∂regularize_fields(layer::xReLU{N,A,FixGamma}; l2_fields::Real = 0) where {N,A,FixGamma}
     ∂θ = l2_fields * layer.θ
-    ∂γ = zero(layer.γ)
     ∂Δ = zero(layer.Δ)
     ∂ξ = zero(layer.ξ)
-    return vstack((∂θ, ∂γ, ∂Δ, ∂ξ))
+    if FixGamma
+        return vstack((∂θ, ∂Δ, ∂ξ))
+    else
+        return vstack((∂θ, zero(layer.γ), ∂Δ, ∂ξ))
+    end
 end
 
 function ∂regularize_weights(
@@ -117,4 +120,4 @@ function regularization_penalty(rbm::RBM; l1_weights::Real = 0, l2_weights::Real
 end
 
 regularization_penalty_fields(layer::dReLU) = sum(abs2, layer.θp) + sum(abs2, layer.θn)
-regularization_penalty_fields(layer::Union{Binary,Spin,Potts,PottsGumbel,Gaussian,ReLU,pReLU,xReLU,nsReLU}) = sum(abs2, layer.θ)
+regularization_penalty_fields(layer::Union{Binary,Spin,Potts,PottsGumbel,Gaussian,ReLU,pReLU,xReLU}) = sum(abs2, layer.θ)

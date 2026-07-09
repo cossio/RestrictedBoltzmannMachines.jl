@@ -23,6 +23,21 @@ using Test: @inferred
 using Test: @test
 using Test: @testset
 
+@testset "nsReLU is xReLU with fixed γ" begin
+    layer = nsReLU(; θ = randn(3, 5), Δ = randn(3, 5), ξ = randn(3, 5))
+    @test layer isa xReLU
+    @test nsReLU <: xReLU
+    @test size(layer.par) == (3, 3, 5) # θ, Δ, ξ (no γ)
+    @test all(isone, layer.γ)
+
+    # the fix_γ toggle of the xReLU constructors selects the nsReLU variant
+    @test xReLU(layer.par; fix_γ = true) isa nsReLU
+    @test xReLU(Float32, (3, 5); fix_γ = true) isa nsReLU
+    @test xReLU((3, 5); fix_γ = true) isa nsReLU
+    @test xReLU(; θ = zeros(3), Δ = zeros(3), ξ = zeros(3)) isa nsReLU # γ omitted
+    @test !(xReLU((3, 5)) isa nsReLU)
+end
+
 @testset "nsReLU convert" begin
     N = (10, 7)
     B = 13

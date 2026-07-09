@@ -154,19 +154,16 @@ function anneal(init::pReLU, final::pReLU; β::Real)
     return pReLU(; θ, γ, Δ, η)
 end
 
-function anneal(init::xReLU, final::xReLU; β::Real)
-    θ = (1 - β) * init.θ + β * final.θ
-    γ = (1 - β) * init.γ + β * final.γ
-    Δ = (1 - β) * init.Δ + β * final.Δ
-    ξ = (1 - β) * init.ξ + β * final.ξ
-    return xReLU(; θ, γ, Δ, ξ)
-end
-
-function anneal(init::nsReLU, final::nsReLU; β::Real)
+function anneal(init::xReLU{<:Any,<:Any,FixGamma}, final::xReLU{<:Any,<:Any,FixGamma}; β::Real) where {FixGamma}
     θ = (1 - β) * init.θ + β * final.θ
     Δ = (1 - β) * init.Δ + β * final.Δ
     ξ = (1 - β) * init.ξ + β * final.ξ
-    return nsReLU(; θ, Δ, ξ)
+    if FixGamma
+        return xReLU(; θ, Δ, ξ)
+    else
+        γ = (1 - β) * init.γ + β * final.γ
+        return xReLU(; θ, γ, Δ, ξ)
+    end
 end
 
 anneal_zero(init::AbstractLayer, rbm::RBM) = RBM(init, anneal_zero(rbm.hidden), Zeros(rbm.w))
@@ -178,7 +175,7 @@ anneal_zero(l::Gaussian) = Gaussian(; θ = zero(l.θ), l.γ)
 anneal_zero(l::ReLU) = ReLU(; θ = zero(l.θ), l.γ)
 anneal_zero(l::dReLU) = dReLU(; θp = zero(l.θp), θn = zero(l.θn), l.γp, l.γn)
 anneal_zero(l::pReLU) = pReLU(; θ = zero(l.θ), l.γ, Δ = zero(l.Δ), l.η)
-anneal_zero(l::xReLU) = xReLU(; θ = zero(l.θ), l.γ, Δ = zero(l.Δ), l.ξ)
+anneal_zero(l::xReLU{N,A,false}) where {N,A} = xReLU(; θ = zero(l.θ), l.γ, Δ = zero(l.Δ), l.ξ)
 anneal_zero(l::nsReLU) = nsReLU(; θ = zero(l.θ), Δ = zero(l.Δ), l.ξ)
 
 """

@@ -66,13 +66,17 @@ function initialize!(layer::Gaussian, data::AbstractArray; ϵ::Real=1e-6, wts=no
     return layer
 end
 
-function initialize!(layer::xReLU, data::AbstractArray; ϵ::Real=1e-6, wts=nothing)
+function initialize!(layer::xReLU{N,A,FixGamma}, data::AbstractArray; ϵ::Real=1e-6, wts=nothing) where {N,A,FixGamma}
     @assert size(layer) == size(data)[1:ndims(layer)]
     @assert 0 < ϵ < 1/2
     μ = batchmean(layer, data; wts)
-    ν = batchmean(layer, (data .- μ).^2; wts)
-    layer.γ .= inv.(ν .+ ϵ)
-    layer.θ .= μ .* layer.γ
+    if FixGamma # γ is fixed at 1
+        layer.θ .= μ
+    else
+        ν = batchmean(layer, (data .- μ).^2; wts)
+        layer.γ .= inv.(ν .+ ϵ)
+        layer.θ .= μ .* layer.γ
+    end
     layer.Δ .= layer.ξ .= 0
     return layer
 end
@@ -122,9 +126,11 @@ function initialize!(layer::pReLU)
     return layer
 end
 
-function initialize!(layer::xReLU)
+function initialize!(layer::xReLU{N,A,FixGamma}) where {N,A,FixGamma}
     layer.θ .= layer.Δ .= layer.ξ .= 0
-    layer.γ .= 1
+    if !FixGamma
+        layer.γ .= 1
+    end
     return layer
 end
 

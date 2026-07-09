@@ -1,6 +1,6 @@
 # get moments from layer cgf gradients, e.g. <v> = derivative of cgf w.r.t. θ
 
-grad2ave(::Union{Binary,Spin,Potts,PottsGumbel,Gaussian,ReLU,pReLU,xReLU,nsReLU}, ∂::AbstractArray) = ∂[1, ..]
+grad2ave(::Union{Binary,Spin,Potts,PottsGumbel,Gaussian,ReLU,pReLU,xReLU}, ∂::AbstractArray) = ∂[1, ..]
 grad2ave(::dReLU, ∂::AbstractArray) = ∂[1, ..] + ∂[2, ..]
 
 grad2var(::Union{Binary,Potts}, ∂::AbstractArray) = ∂[1, ..] .* (1 .- ∂[1, ..])
@@ -32,7 +32,9 @@ function grad2var(l::pReLU, ∂::AbstractArray)
     return @. 2l.η/abs_γ * ((2l.Δ * ∂Δ + l.η * ∂η) * l.η - ∂η - l.Δ * ∂θ) + 2∂absγ * (1 + l.η^2) - ∂θ^2
 end
 
-function grad2var(l::xReLU, ∂::AbstractArray)
+# the variance cannot be recovered from the ∂cgfs of a fixed-γ (nsReLU) layer,
+# since the ∂γ moment is missing; hence this is restricted to trainable-γ xReLU
+function grad2var(l::xReLU{N,A,false}, ∂::AbstractArray) where {N,A}
     ∂θ = -∂[1, ..]
     ∂γ = -∂[2, ..]
     ∂Δ = -∂[3, ..]

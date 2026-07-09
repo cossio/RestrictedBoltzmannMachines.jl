@@ -1,5 +1,5 @@
-Base.size(layer::Union{Binary,Spin,Potts,PottsGumbel,Gaussian,ReLU,pReLU,xReLU,nsReLU}) = size(layer.θ)
-Base.length(layer::Union{Binary,Spin,Potts,PottsGumbel,Gaussian,ReLU,pReLU,xReLU,nsReLU}) = length(layer.θ)
+Base.size(layer::Union{Binary,Spin,Potts,PottsGumbel,Gaussian,ReLU,pReLU,xReLU}) = size(layer.θ)
+Base.length(layer::Union{Binary,Spin,Potts,PottsGumbel,Gaussian,ReLU,pReLU,xReLU}) = length(layer.θ)
 
 const _FieldLayers = Union{Binary,Spin,Potts,PottsGumbel}
 
@@ -144,7 +144,7 @@ xReLU(layer::Gaussian) = xReLU(dReLU(layer))
 #     return xReLU(θ, γ, Δ, ξ)
 # end
 
-function moments_from_samples(layer::Union{pReLU,xReLU,nsReLU}, data::AbstractArray; wts = nothing)
+function moments_from_samples(layer::Union{pReLU,xReLU}, data::AbstractArray; wts = nothing)
     xp = max.(data, 0)
     xn = min.(data, 0)
     xp1 = batchmean(layer, xp; wts)

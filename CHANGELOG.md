@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- `nsReLU` is now implemented as a special case of `xReLU`. `xReLU` gained a third `Bool` type parameter (`xReLU{N,A,FixGamma}`) that, when `true`, fixes the scale γ = 1 and omits it from `par` (which then stores only θ, Δ, ξ). `nsReLU{N,A}` is now an alias for `xReLU{N,A,true}`, so `layer isa xReLU` is `true` for `nsReLU` layers, and `layer.γ` on an `nsReLU` returns a lazy array of ones. Public constructors, the `par` layout, gradient shapes, and the HDF5 format are unchanged. Constructing the trainable-γ variant directly as `xReLU{N,A}(par)` no longer works (use `xReLU(par)` or `xReLU{N,A,false}(par)`).
+
 ## 5.4.0
 
 - Added `ucd!` trainer (Unbiased Contrastive Divergence) and `unbiased_sample` sampler.
