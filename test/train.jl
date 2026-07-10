@@ -15,7 +15,7 @@ using Optimisers: Adam, Descent
 using RestrictedBoltzmannMachines: RBM, BinaryRBM, Binary, Spin, Potts, Gaussian,
     pcd!, ucd!, initialize!, free_energy, log_likelihood, log_partition,
     collect_states, mean_h_from_v, generate_sequences, onehot_encode,
-    center, standardize, weight_norms
+    center, standardize, unstandardize, weight_norms
 
 all_visible_states(layer::Union{Binary,Spin}) = collect_states(layer)
 
@@ -203,6 +203,21 @@ end
     @test gaps.v < 0.05
     @test gaps.h < 0.05
     @test gaps.vh < 0.05
+end
+
+@testset "standardized pcd potts moment matching" begin
+    seed!(63)
+    data = potts_dataset()
+    rbm = standardize(initialize!(RBM(Potts((3, 2)), Binary((3,)), zeros(3, 2, 3)), data))
+    pcd!(rbm, data; batchsize = 32, iters = 5000, steps = 5, optim = Adam(1e-3))
+    gaps = moment_gaps(rbm, data)
+    @test gaps.v < 0.05
+    @test gaps.h < 0.05
+    @test gaps.vh < 0.05
+    # zerosum gauge of the equivalent unstandardized RBM is maintained
+    urbm = unstandardize(rbm)
+    @test norm(mean(urbm.visible.θ; dims = 1)) < 1e-10
+    @test norm(mean(urbm.w; dims = 1)) < 1e-10
 end
 
 @testset "ucd moment matching" begin

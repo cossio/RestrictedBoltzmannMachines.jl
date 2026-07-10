@@ -66,12 +66,14 @@ end
 Projects the gradient so that it doesn't modify the zerosum gauge.
 """
 function zerosum!(∂::∂RBM, rbm::RBM)
+    # ∂.visible and ∂.hidden have the layer `par` layout, where dim 1 indexes the
+    # parameter type (θ, singleton for Potts) and dim 2 the Potts colors.
     if rbm.visible isa Potts
-        zerosum!(∂.visible; dims = 1)
+        zerosum!(∂.visible; dims = 2)
         zerosum!(∂.w; dims = 1)
     end
     if rbm.hidden isa Potts
-        zerosum!(∂.hidden; dims = 1)
+        zerosum!(∂.hidden; dims = 2)
         zerosum!(∂.w; dims = ndims(rbm.visible) + 1)
     end
     return ∂

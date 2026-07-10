@@ -209,6 +209,16 @@ end
     @test adapt(Array, jl_std_rbm2.w) ≈ std_rbm2.w
     @test adapt(Array, jl_std_rbm2.visible.par) ≈ std_rbm2.visible.par
     @test adapt(Array, jl_std_rbm2.hidden.par) ≈ std_rbm2.hidden.par
+
+    # gradient projection zerosum!(∂, rbm) on both-Potts StandardizedRBM
+    v = sample_from_inputs(std_rbm2.visible, zeros(Q, N..., 16))
+    ∂ = ∂free_energy(std_rbm2, v)
+    jl_∂ = adapt(JLArray, ∂)
+    zerosum!(jl_∂, jl_std_rbm2)
+    zerosum!(∂, std_rbm2)
+    @test adapt(Array, jl_∂.visible) ≈ ∂.visible
+    @test adapt(Array, jl_∂.hidden) ≈ ∂.hidden
+    @test adapt(Array, jl_∂.w) ≈ ∂.w
 end
 
 @testset "initialize! and pcd!" begin

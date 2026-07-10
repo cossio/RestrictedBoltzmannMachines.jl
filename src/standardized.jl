@@ -131,7 +131,8 @@ function ∂regularize!(
     l1_weights::Real = 0,
     l2_weights::Real = 0,
     l2l1_weights::Real = 0,
-    regularize_unstandardized::Bool = true
+    regularize_unstandardized::Bool = true,
+    zerosum::Bool = false # whether to zerosum gradients
 )
     if regularize_unstandardized
         # regularization applies the unstandardized parameters
@@ -161,6 +162,8 @@ function ∂regularize!(
         # regularization applies directly to standardized parameters
         ∂regularize!(∂, RBM(std_rbm); l2_fields, l1_weights, l2_weights, l2l1_weights)
     end
+    zerosum && zerosum!(∂, std_rbm)
+    return ∂
 end
 
 function ∂regularize_add_visible_offset!(∂::∂RBM, visible_regularization::AbstractArray, offset_h::AbstractArray, scale_w::AbstractArray, ::dReLU)
@@ -240,6 +243,32 @@ function zerosum!(rbm::StandardizedRBM)
         shift_fields!(rbm.visible, Δθv)
     end
     return rbm
+end
+
+"""
+    zerosum!(∂, rbm::StandardizedRBM)
+
+Projects the gradient so that it doesn't modify the zerosum gauge of the equivalent
+unstandardized `RBM` (see [`unstandardize`](@ref)), with offsets and scales held fixed.
+
+As in `zerosum!(rbm::StandardizedRBM)`, the gauge condition applies to the
+unstandardized parameters: for the weights it reads `sum(w ./ scale_v; dims = 1) == 0`
+over Potts colors (and similarly for hidden Potts with `scale_h`), so the gradient
+component removed here is the corresponding gauge direction `ξ .* scale_v`.
+"""
+function zerosum!(∂::∂RBM, rbm::StandardizedRBM)
+    if rbm.visible isa Union{Potts, PottsGumbel}
+        zerosum!(∂.visible; dims = 2) # dim 1 of `par` is the (singleton) parameter type
+        ξ = mean(∂.w ./ rbm.scale_v; dims = 1)
+        ∂.w .-= ξ .* rbm.scale_v
+    end
+    if rbm.hidden isa Union{Potts, PottsGumbel}
+        zerosum!(∂.hidden; dims = 2)
+        scale_h = reshape(rbm.scale_h, map(one, size(rbm.visible))..., size(rbm.hidden)...)
+        ζ = mean(∂.w ./ scale_h; dims = ndims(rbm.visible) + 1)
+        ∂.w .-= ζ .* scale_h
+    end
+    return ∂
 end
 
 """
@@ -456,7 +485,7 @@ function pcd!(
         ∂ = ∂d - ∂m
 
         # weight decay
-        ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, regularize_unstandardized)
+        ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, regularize_unstandardized, zerosum)
 
         # feed gradient to Optimiser rule
         gs = (; visible = ∂.visible, hidden = ∂.hidden, w = ∂.w)
