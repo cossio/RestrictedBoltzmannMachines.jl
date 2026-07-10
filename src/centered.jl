@@ -301,11 +301,23 @@ end
 In-place version of `zerosum(rbm)`. Offsets are not modified.
 """
 function zerosum!(rbm::CenteredRBM)
-    if has_potts_layers(rbm)
-        gauged = zerosum(rbm)
-        rbm.visible.par .= gauged.visible.par
-        rbm.hidden.par .= gauged.hidden.par
-        rbm.w .= gauged.w
+    if rbm.visible isa Union{Potts, PottsGumbel}
+        ωv = mean(rbm.w; dims = 1)
+        rbm.w .-= ωv
+        zerosum!(rbm.visible.θ; dims = 1)
+        # Compensate hidden fields. Unlike a plain RBM, the interaction involves
+        # v - offset_v, so the color-sum of the visible offsets enters the shift.
+        vdims = ntuple(identity, ndims(rbm.visible))
+        Ov = sum(rbm.offset_v; dims = 1)
+        shift_fields!(rbm.hidden, reshape(sum(ωv .* (1 .- Ov); dims = vdims), size(rbm.hidden)))
+    end
+    if rbm.hidden isa Union{Potts, PottsGumbel}
+        ωh = mean(rbm.w; dims = ndims(rbm.visible) + 1)
+        rbm.w .-= ωh
+        zerosum!(rbm.hidden.θ; dims = 1)
+        hdims = ntuple(d -> d + ndims(rbm.visible), ndims(rbm.hidden))
+        Oh = reshape(sum(rbm.offset_h; dims = 1), map(one, size(rbm.visible))..., 1, size(rbm.hidden)[2:end]...)
+        shift_fields!(rbm.visible, reshape(sum(ωh .* (1 .- Oh); dims = hdims), size(rbm.visible)))
     end
     return rbm
 end

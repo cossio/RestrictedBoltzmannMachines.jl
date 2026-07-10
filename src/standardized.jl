@@ -216,11 +216,28 @@ end
 In-place version of `zerosum(rbm)`. Offsets and scales are not modified.
 """
 function zerosum!(rbm::StandardizedRBM)
-    if has_potts_layers(rbm)
-        gauged = zerosum(rbm)
-        rbm.visible.par .= gauged.visible.par
-        rbm.hidden.par .= gauged.hidden.par
-        rbm.w .= gauged.w
+    if rbm.visible isa Union{Potts, PottsGumbel}
+        # Gauge move on the unstandardized weights w̃ = w / (scale_v ⊗ scale_h):
+        # subtract their mean over visible colors (scale_h cancels out of the w update).
+        ξ = mean(rbm.w ./ rbm.scale_v; dims = 1)
+        rbm.w .-= ξ .* rbm.scale_v
+        zerosum!(rbm.visible.θ; dims = 1)
+        # Compensate hidden fields. Unlike a plain RBM, the interaction involves
+        # v - offset_v, so the color-sum of the visible offsets enters the shift.
+        vdims = ntuple(identity, ndims(rbm.visible))
+        Ov = sum(rbm.offset_v; dims = 1)
+        Δθh = reshape(sum(ξ .* (1 .- Ov); dims = vdims), size(rbm.hidden)) ./ rbm.scale_h
+        shift_fields!(rbm.hidden, Δθh)
+    end
+    if rbm.hidden isa Union{Potts, PottsGumbel}
+        scale_h = reshape(rbm.scale_h, map(one, size(rbm.visible))..., size(rbm.hidden)...)
+        ζ = mean(rbm.w ./ scale_h; dims = ndims(rbm.visible) + 1)
+        rbm.w .-= ζ .* scale_h
+        zerosum!(rbm.hidden.θ; dims = 1)
+        hdims = ntuple(d -> d + ndims(rbm.visible), ndims(rbm.hidden))
+        Oh = reshape(sum(rbm.offset_h; dims = 1), map(one, size(rbm.visible))..., 1, size(rbm.hidden)[2:end]...)
+        Δθv = reshape(sum(ζ .* (1 .- Oh); dims = hdims), size(rbm.visible)) ./ rbm.scale_v
+        shift_fields!(rbm.visible, Δθv)
     end
     return rbm
 end

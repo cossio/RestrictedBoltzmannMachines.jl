@@ -375,3 +375,56 @@ end
     crbm.offset_v .= randn(2) / 3
     @test zerosum(crbm) === crbm
 end
+
+@testset "zerosum StandardizedRBM with nontrivial offsets/scales (both Potts)" begin
+    N = (3, 2)
+    M = (3, 2)
+    rbm = RBM(Potts(; θ = randn(N...)), Potts(; θ = randn(M...)), randn(N..., M...))
+    srbm = standardize(rbm)
+    srbm.offset_v .= randn(N...) / 3
+    srbm.scale_v .= 1 .+ rand(N...)
+    srbm.offset_h .= randn(M...) / 3
+    srbm.scale_h .= 1 .+ rand(M...)
+
+    v = sample_from_inputs(srbm.visible, zeros(N..., 1000))
+    F0 = free_energy(srbm, v)
+    srbm1 = zerosum(srbm)
+    F1 = free_energy(srbm1, v)
+    @test all(F0 - F1 .≈ mean(F0 - F1))
+    urbm = unstandardize(srbm1)
+    @test norm(mean(urbm.w; dims=1)) < 1e-10
+    @test norm(mean(urbm.w; dims=ndims(srbm.visible) + 1)) < 1e-10
+    @test norm(mean(urbm.visible.θ; dims=1)) < 1e-10
+    @test norm(mean(urbm.hidden.θ; dims=1)) < 1e-10
+
+    # in-place (sequential passes) agrees with out-of-place (joint round trip)
+    srbm! = deepcopy(srbm)
+    zerosum!(srbm!)
+    @test srbm!.w ≈ srbm1.w
+    @test srbm!.visible.par ≈ srbm1.visible.par
+    @test srbm!.hidden.par ≈ srbm1.hidden.par
+end
+
+@testset "zerosum! StandardizedRBM with PottsGumbel visible" begin
+    N = (3, 2)
+    M = (2,)
+    rbm_g = RBM(PottsGumbel(; θ = randn(N...)), Binary(; θ = randn(M...)), randn(N..., M...))
+    srbm_g = standardize(rbm_g)
+    srbm_g.offset_v .= randn(N...) / 3
+    srbm_g.scale_v .= 1 .+ rand(N...)
+    srbm_g.offset_h .= randn(M...) / 3
+    srbm_g.scale_h .= 1 .+ rand(M...)
+
+    v = sample_from_inputs(srbm_g.visible, zeros(N..., 1000))
+    F0 = free_energy(srbm_g, v)
+    srbm_g! = deepcopy(srbm_g)
+    zerosum!(srbm_g!)
+    @test srbm_g!.visible isa PottsGumbel
+    F1 = free_energy(srbm_g!, v)
+    @test all(F0 - F1 .≈ mean(F0 - F1))
+    # agrees with out-of-place
+    srbm_g1 = zerosum(srbm_g)
+    @test srbm_g!.w ≈ srbm_g1.w
+    @test srbm_g!.visible.par ≈ srbm_g1.visible.par
+    @test srbm_g!.hidden.par ≈ srbm_g1.hidden.par
+end
