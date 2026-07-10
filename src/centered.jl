@@ -278,8 +278,35 @@ function center_from_data!(rbm::CenteredRBM, data::AbstractArray; wts=nothing)
     return rbm
 end
 
+"""
+    zerosum(rbm::CenteredRBM)
+
+Returns an equivalent `CenteredRBM`, with the same offsets, whose equivalent uncentered
+`RBM` (see [`uncenter`](@ref)) is in the zerosum gauge. Only affects Potts layers.
+If the `rbm` doesn't have `Potts` layers, does nothing.
+
+Note that the gauge condition applies to the uncentered parameters: since the interaction
+energy involves the centered `v - offset_v`, sums over Potts colors of the centered
+weights are compensated differently than in a plain `RBM`.
+"""
+function zerosum(rbm::CenteredRBM)
+    has_potts_layers(rbm) || return rbm
+    plain = zerosum(uncenter(rbm))
+    return center(plain, rbm.offset_v, rbm.offset_h)
+end
+
+"""
+    zerosum!(rbm::CenteredRBM)
+
+In-place version of `zerosum(rbm)`. Offsets are not modified.
+"""
 function zerosum!(rbm::CenteredRBM)
-    zerosum!(RBM(rbm))
+    if has_potts_layers(rbm)
+        gauged = zerosum(rbm)
+        rbm.visible.par .= gauged.visible.par
+        rbm.hidden.par .= gauged.hidden.par
+        rbm.w .= gauged.w
+    end
     return rbm
 end
 

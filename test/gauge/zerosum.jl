@@ -3,7 +3,8 @@ using LinearAlgebra: norm
 using Statistics: mean
 using RestrictedBoltzmannMachines: zerosum, zerosum!, zerosum_weights, free_energy,
     RBM, Potts, Binary, Spin, Gaussian, ReLU, dReLU, pReLU, xReLU, sample_from_inputs,
-    PottsGumbel, potts_to_gumbel, gumbel_to_potts, ∂RBM, ∂free_energy
+    PottsGumbel, potts_to_gumbel, gumbel_to_potts, ∂RBM, ∂free_energy,
+    standardize, unstandardize, CenteredRBM, center, uncenter
 
 @testset "zerosum (visible Potts)" begin
     N = (3, 2, 3)
@@ -263,4 +264,114 @@ end
     result3 = zerosum_weights(w3, rbm_g3)
     result3_p = zerosum_weights(w3, gumbel_to_potts(rbm_g3))
     @test result3 ≈ result3_p
+end
+
+@testset "zerosum StandardizedRBM with nontrivial offsets/scales (visible Potts)" begin
+    N = (3, 2)
+    M = (2,)
+    rbm = RBM(Potts(; θ = randn(N...)), Binary(; θ = randn(M...)), randn(N..., M...))
+    srbm = standardize(rbm)
+    srbm.offset_v .= randn(N...) / 3
+    srbm.scale_v .= 1 .+ rand(N...)
+    srbm.offset_h .= randn(M...) / 3
+    srbm.scale_h .= 1 .+ rand(M...)
+
+    v = sample_from_inputs(srbm.visible, zeros(N..., 1000))
+    F0 = free_energy(srbm, v)
+
+    srbm1 = zerosum(srbm)
+    # gauge transformation: free energies shift by an additive constant only
+    F1 = free_energy(srbm1, v)
+    @test all(F0 - F1 .≈ mean(F0 - F1))
+    # offsets and scales are preserved
+    @test srbm1.offset_v == srbm.offset_v
+    @test srbm1.offset_h == srbm.offset_h
+    @test srbm1.scale_v == srbm.scale_v
+    @test srbm1.scale_h == srbm.scale_h
+    # the equivalent unstandardized RBM is in zerosum gauge
+    urbm = unstandardize(srbm1)
+    @test norm(mean(urbm.w; dims=1)) < 1e-10
+    @test norm(mean(urbm.visible.θ; dims=1)) < 1e-10
+    # idempotent
+    srbm2 = zerosum(srbm1)
+    @test srbm2.w ≈ srbm1.w
+    @test srbm2.visible.par ≈ srbm1.visible.par
+    @test srbm2.hidden.par ≈ srbm1.hidden.par
+
+    # in-place version agrees with out-of-place version
+    srbm! = deepcopy(srbm)
+    zerosum!(srbm!)
+    @test srbm!.w ≈ srbm1.w
+    @test srbm!.visible.par ≈ srbm1.visible.par
+    @test srbm!.hidden.par ≈ srbm1.hidden.par
+    @test srbm!.offset_v == srbm.offset_v
+    @test srbm!.scale_v == srbm.scale_v
+end
+
+@testset "zerosum StandardizedRBM with nontrivial offsets/scales (hidden Potts)" begin
+    N = (2,)
+    M = (3, 2)
+    rbm = RBM(Binary(; θ = randn(N...)), Potts(; θ = randn(M...)), randn(N..., M...))
+    srbm = standardize(rbm)
+    srbm.offset_v .= randn(N...) / 3
+    srbm.scale_v .= 1 .+ rand(N...)
+    srbm.offset_h .= randn(M...) / 3
+    srbm.scale_h .= 1 .+ rand(M...)
+
+    v = sample_from_inputs(srbm.visible, zeros(N..., 1000))
+    F0 = free_energy(srbm, v)
+    srbm1 = zerosum(srbm)
+    F1 = free_energy(srbm1, v)
+    @test all(F0 - F1 .≈ mean(F0 - F1))
+    urbm = unstandardize(srbm1)
+    @test norm(mean(urbm.w; dims=ndims(srbm.visible) + 1)) < 1e-10
+    @test norm(mean(urbm.hidden.θ; dims=1)) < 1e-10
+
+    srbm! = deepcopy(srbm)
+    zerosum!(srbm!)
+    @test free_energy(srbm!, v) ≈ F1
+end
+
+@testset "zerosum StandardizedRBM no-op for non-Potts" begin
+    srbm = standardize(RBM(Binary(; θ = randn(2)), Binary(; θ = randn(3)), randn(2, 3)))
+    srbm.offset_v .= randn(2) / 3
+    @test zerosum(srbm) === srbm
+    w = copy(srbm.w)
+    zerosum!(srbm)
+    @test srbm.w == w
+end
+
+@testset "zerosum CenteredRBM with nontrivial offsets" begin
+    N = (3, 2)
+    M = (2,)
+    rbm = RBM(Potts(; θ = randn(N...)), Binary(; θ = randn(M...)), randn(N..., M...))
+    crbm = CenteredRBM(deepcopy(rbm))
+    crbm.offset_v .= randn(N...) / 3
+    crbm.offset_h .= randn(M...) / 3
+
+    v = sample_from_inputs(crbm.visible, zeros(N..., 1000))
+    F0 = free_energy(crbm, v)
+
+    crbm1 = zerosum(crbm)
+    F1 = free_energy(crbm1, v)
+    @test all(F0 - F1 .≈ mean(F0 - F1))
+    @test crbm1.offset_v == crbm.offset_v
+    @test crbm1.offset_h == crbm.offset_h
+    # the equivalent uncentered RBM is in zerosum gauge
+    urbm = uncenter(crbm1)
+    @test norm(mean(urbm.w; dims=1)) < 1e-10
+    @test norm(mean(urbm.visible.θ; dims=1)) < 1e-10
+
+    crbm! = deepcopy(crbm)
+    zerosum!(crbm!)
+    @test crbm!.w ≈ crbm1.w
+    @test crbm!.visible.par ≈ crbm1.visible.par
+    @test crbm!.hidden.par ≈ crbm1.hidden.par
+    @test free_energy(crbm!, v) ≈ F1
+end
+
+@testset "zerosum CenteredRBM no-op for non-Potts" begin
+    crbm = CenteredRBM(RBM(Binary(; θ = randn(2)), Binary(; θ = randn(3)), randn(2, 3)))
+    crbm.offset_v .= randn(2) / 3
+    @test zerosum(crbm) === crbm
 end

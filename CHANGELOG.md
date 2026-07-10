@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- Fixed `zerosum!` for `StandardizedRBM` and `CenteredRBM` with nontrivial offsets/scales. Previously it applied the plain-`RBM` zerosum to the standardized (centered) parameters directly, which changed the modeled distribution (not a gauge transformation) — corrupting `pcd!` training of such models with Potts layers. The zerosum gauge is now imposed on the equivalent unstandardized (uncentered) model, preserving free energies up to an additive constant. Also added out-of-place `zerosum(::StandardizedRBM)` and `zerosum(::CenteredRBM)`.
+
 ## 5.4.0
 
 - Added `ucd!` trainer (Unbiased Contrastive Divergence) and `unbiased_sample` sampler.

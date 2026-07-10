@@ -192,8 +192,36 @@ function rescale_hidden_activations!(rbm::StandardizedRBM)
     return false
 end
 
+"""
+    zerosum(rbm::StandardizedRBM)
+
+Returns an equivalent `StandardizedRBM`, with the same offsets and scales, whose
+equivalent unstandardized `RBM` (see [`unstandardize`](@ref)) is in the zerosum gauge.
+Only affects Potts layers. If the `rbm` doesn't have `Potts` layers, does nothing.
+
+Note that the gauge condition applies to the unstandardized parameters: the standardized
+weights and fields need not sum to zero over Potts colors, because the interaction energy
+involves the standardized `(v - offset_v) / scale_v`, for which sums over colors are not
+constant when the offsets and scales vary across colors.
+"""
+function zerosum(rbm::StandardizedRBM)
+    has_potts_layers(rbm) || return rbm
+    plain = zerosum(unstandardize(rbm))
+    return standardize(plain, rbm.offset_v, rbm.offset_h, rbm.scale_v, rbm.scale_h)
+end
+
+"""
+    zerosum!(rbm::StandardizedRBM)
+
+In-place version of `zerosum(rbm)`. Offsets and scales are not modified.
+"""
 function zerosum!(rbm::StandardizedRBM)
-    zerosum!(RBM(rbm))
+    if has_potts_layers(rbm)
+        gauged = zerosum(rbm)
+        rbm.visible.par .= gauged.visible.par
+        rbm.hidden.par .= gauged.hidden.par
+        rbm.w .= gauged.w
+    end
     return rbm
 end
 

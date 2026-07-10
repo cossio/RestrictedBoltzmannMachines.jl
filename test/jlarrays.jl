@@ -178,6 +178,21 @@ end
     rescale_weights!(rbm)
     @test adapt(Array, jl_rbm.w) ≈ rbm.w
     @test adapt(Array, jl_rbm.hidden.par) ≈ rbm.hidden.par
+
+    # zerosum! on StandardizedRBM with nontrivial offsets/scales
+    std_rbm = StandardizedRBM(
+        Potts(; θ = randn(Q, N...)),
+        ReLU(; θ = randn(3), γ = 1 .+ rand(3)),
+        randn(Q, N..., 3) / √(Q * prod(N)),
+        randn(Q, N...) / 3, randn(3) / 3,
+        1 .+ rand(Q, N...), 1 .+ rand(3),
+    )
+    jl_std_rbm = adapt(JLArray, std_rbm)
+    zerosum!(jl_std_rbm)
+    zerosum!(std_rbm)
+    @test adapt(Array, jl_std_rbm.w) ≈ std_rbm.w
+    @test adapt(Array, jl_std_rbm.visible.par) ≈ std_rbm.visible.par
+    @test adapt(Array, jl_std_rbm.hidden.par) ≈ std_rbm.hidden.par
 end
 
 @testset "initialize! and pcd!" begin
