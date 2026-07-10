@@ -178,6 +178,37 @@ end
     rescale_weights!(rbm)
     @test adapt(Array, jl_rbm.w) ≈ rbm.w
     @test adapt(Array, jl_rbm.hidden.par) ≈ rbm.hidden.par
+
+    # zerosum! on StandardizedRBM with nontrivial offsets/scales
+    std_rbm = StandardizedRBM(
+        Potts(; θ = randn(Q, N...)),
+        ReLU(; θ = randn(3), γ = 1 .+ rand(3)),
+        randn(Q, N..., 3) / √(Q * prod(N)),
+        randn(Q, N...) / 3, randn(3) / 3,
+        1 .+ rand(Q, N...), 1 .+ rand(3),
+    )
+    jl_std_rbm = adapt(JLArray, std_rbm)
+    zerosum!(jl_std_rbm)
+    zerosum!(std_rbm)
+    @test adapt(Array, jl_std_rbm.w) ≈ std_rbm.w
+    @test adapt(Array, jl_std_rbm.visible.par) ≈ std_rbm.visible.par
+    @test adapt(Array, jl_std_rbm.hidden.par) ≈ std_rbm.hidden.par
+
+    # both-Potts StandardizedRBM: exercises the hidden-Potts in-place branch (with its
+    # scale_h / offset_h color-sum reshapes) under allowscalar(false).
+    std_rbm2 = StandardizedRBM(
+        Potts(; θ = randn(Q, N...)),
+        Potts(; θ = randn(Q, 3)),
+        randn(Q, N..., Q, 3) / √(Q * prod(N)),
+        randn(Q, N...) / 3, randn(Q, 3) / 3,
+        1 .+ rand(Q, N...), 1 .+ rand(Q, 3),
+    )
+    jl_std_rbm2 = adapt(JLArray, std_rbm2)
+    zerosum!(jl_std_rbm2)
+    zerosum!(std_rbm2)
+    @test adapt(Array, jl_std_rbm2.w) ≈ std_rbm2.w
+    @test adapt(Array, jl_std_rbm2.visible.par) ≈ std_rbm2.visible.par
+    @test adapt(Array, jl_std_rbm2.hidden.par) ≈ std_rbm2.hidden.par
 end
 
 @testset "initialize! and pcd!" begin

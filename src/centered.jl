@@ -278,8 +278,47 @@ function center_from_data!(rbm::CenteredRBM, data::AbstractArray; wts=nothing)
     return rbm
 end
 
+"""
+    zerosum(rbm::CenteredRBM)
+
+Returns an equivalent `CenteredRBM`, with the same offsets, whose equivalent uncentered
+`RBM` (see [`uncenter`](@ref)) is in the zerosum gauge. Only affects Potts layers.
+If the `rbm` doesn't have `Potts` layers, does nothing.
+
+Note that the gauge condition applies to the uncentered parameters: since the interaction
+energy involves the centered `v - offset_v`, sums over Potts colors of the centered
+weights are compensated differently than in a plain `RBM`.
+"""
+function zerosum(rbm::CenteredRBM)
+    has_potts_layers(rbm) || return rbm
+    plain = zerosum(uncenter(rbm))
+    return center(plain, rbm.offset_v, rbm.offset_h)
+end
+
+"""
+    zerosum!(rbm::CenteredRBM)
+
+In-place version of `zerosum(rbm)`. Offsets are not modified.
+"""
 function zerosum!(rbm::CenteredRBM)
-    zerosum!(RBM(rbm))
+    if rbm.visible isa Union{Potts, PottsGumbel}
+        ωv = mean(rbm.w; dims = 1)
+        rbm.w .-= ωv
+        zerosum!(rbm.visible.θ; dims = 1)
+        # Compensate hidden fields. Unlike a plain RBM, the interaction involves
+        # v - offset_v, so the color-sum of the visible offsets enters the shift.
+        vdims = ntuple(identity, ndims(rbm.visible))
+        Ov = sum(rbm.offset_v; dims = 1)
+        shift_fields!(rbm.hidden, reshape(sum(ωv .* (1 .- Ov); dims = vdims), size(rbm.hidden)))
+    end
+    if rbm.hidden isa Union{Potts, PottsGumbel}
+        ωh = mean(rbm.w; dims = ndims(rbm.visible) + 1)
+        rbm.w .-= ωh
+        zerosum!(rbm.hidden.θ; dims = 1)
+        hdims = ntuple(d -> d + ndims(rbm.visible), ndims(rbm.hidden))
+        Oh = reshape(sum(rbm.offset_h; dims = 1), map(one, size(rbm.visible))..., 1, size(rbm.hidden)[2:end]...)
+        shift_fields!(rbm.visible, reshape(sum(ωh .* (1 .- Oh); dims = hdims), size(rbm.visible)))
+    end
     return rbm
 end
 
