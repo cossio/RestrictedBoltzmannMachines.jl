@@ -68,11 +68,11 @@ Projects the gradient so that it doesn't modify the zerosum gauge.
 function zerosum!(∂::∂RBM, rbm::RBM)
     # ∂.visible and ∂.hidden have the layer `par` layout, where dim 1 indexes the
     # parameter type (θ, singleton for Potts) and dim 2 the Potts colors.
-    if rbm.visible isa Potts
+    if rbm.visible isa Union{Potts, PottsGumbel}
         zerosum!(∂.visible; dims = 2)
         zerosum!(∂.w; dims = 1)
     end
-    if rbm.hidden isa Potts
+    if rbm.hidden isa Union{Potts, PottsGumbel}
         zerosum!(∂.hidden; dims = 2)
         zerosum!(∂.w; dims = ndims(rbm.visible) + 1)
     end
@@ -125,10 +125,6 @@ function zerosum!(rbm::RBM{<:AbstractLayer, <:PottsGumbel})
     _rbm = zerosum!(gumbel_to_potts(rbm))
     return RBM(_rbm.visible, PottsGumbel(_rbm.hidden), _rbm.w)
 end
-
-zerosum!(∂::∂RBM, rbm::RBM{<:PottsGumbel, <:PottsGumbel}) = zerosum!(∂, gumbel_to_potts(rbm))
-zerosum!(∂::∂RBM, rbm::RBM{<:AbstractLayer, <:PottsGumbel}) = zerosum!(∂, gumbel_to_potts(rbm))
-zerosum!(∂::∂RBM, rbm::RBM{<:PottsGumbel, <:AbstractLayer}) = zerosum!(∂, gumbel_to_potts(rbm))
 
 zerosum_weights(weights::AbstractArray, rbm::RBM{<:PottsGumbel, <:PottsGumbel}) = zerosum_weights(weights, gumbel_to_potts(rbm))
 zerosum_weights(weights::AbstractArray, rbm::RBM{<:AbstractLayer, <:PottsGumbel}) = zerosum_weights(weights, gumbel_to_potts(rbm))

@@ -129,6 +129,29 @@ end
     @test norm(mean(rbm.w; dims=ndims(rbm.visible) + 1)) < 1e-13
 end
 
+@testset "zerosum! ∂RBM leaves gauge-compatible field gradients unchanged" begin
+    #= Regression test: zerosum!(∂, rbm) used to zerosum the par-shaped field
+    gradients (1, Q, ...) over dim 1 — the singleton parameter-type dimension
+    instead of the color dimension — which zeroed them entirely.
+    For Potts layers the PCD field gradient ∂d - ∂m is automatically zero-sum
+    over colors (one-hot units sum to 1 in both the data and model phases), so
+    the projection must act as the identity on it. =#
+    N = (3, 2)
+    M = (3, 2)
+    rbm = RBM(Potts(; θ = randn(N...)), Potts(; θ = randn(M...)), randn(N..., M...))
+    zerosum!(rbm)
+    vd = sample_from_inputs(rbm.visible, zeros(N..., 50))
+    vm = sample_from_inputs(rbm.visible, zeros(N..., 50))
+    ∂ = ∂free_energy(rbm, vd) - ∂free_energy(rbm, vm)
+    ∂0 = deepcopy(∂)
+    zerosum!(∂, rbm)
+    @test ∂.visible ≈ ∂0.visible
+    @test ∂.hidden ≈ ∂0.hidden
+    # ... and the identity is meaningful only because the gradients are nonzero
+    @test norm(∂0.visible) > 1e-3
+    @test norm(∂0.hidden) > 1e-3
+end
+
 @testset "zerosum PottsGumbel (visible PottsGumbel, hidden Binary)" begin
     N = (3, 2, 3)
     M = (2, 3)
