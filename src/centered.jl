@@ -322,6 +322,16 @@ function zerosum!(rbm::CenteredRBM)
     return rbm
 end
 
+"""
+    zerosum!(∂, rbm::CenteredRBM)
+
+Projects the gradient so that it doesn't modify the zerosum gauge of the equivalent
+uncentered `RBM` (see [`uncenter`](@ref)), with offsets held fixed. Since uncentering
+leaves the weights unchanged, the gauge conditions on the centered parameters coincide
+with the plain `RBM` ones.
+"""
+zerosum!(∂::∂RBM, rbm::CenteredRBM) = zerosum!(∂, RBM(rbm))
+
 function rescale_weights!(rbm::CenteredRBM)
     rescale_weights!(RBM(rbm))
     return rbm
@@ -339,6 +349,7 @@ function ∂regularize!(
     l1_weights::Real = 0,
     l2_weights::Real = 0,
     l2l1_weights::Real = 0,
+    zerosum::Bool = false # whether to zerosum gradients
 )
     urbm = uncenter(rbm)
     offset_h = reshape(rbm.offset_h, map(one, size(rbm.offset_v))..., size(rbm.offset_h)...)
@@ -358,6 +369,8 @@ function ∂regularize!(
         dims = ntuple(identity, ndims(rbm.visible))
         ∂.w .+= l2l1_weights * sign.(urbm.w) .* mean(abs, urbm.w; dims)
     end
+    zerosum && zerosum!(∂, rbm)
+    return ∂
 end
 
 function ∂regularize_add_visible_offset!(∂::∂RBM, visible_regularization::AbstractArray, offset_h::AbstractArray, ::dReLU)
@@ -466,7 +479,7 @@ function pcd!(
         ∂ *= batch_weight
 
         # weight decay
-        ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights)
+        ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum)
 
         # feed gradient to Optimiser rule
         gs = (; visible = ∂.visible, hidden = ∂.hidden, w = ∂.w)

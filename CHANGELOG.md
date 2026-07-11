@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- Added gradient projections `zerosum!(∂, ::StandardizedRBM)` and `zerosum!(∂, ::CenteredRBM)`, which project the gradient so that a gradient step doesn't modify the zerosum gauge of the equivalent unstandardized (uncentered) model, consistent with the gauge introduced in [#108](https://github.com/cossio/RestrictedBoltzmannMachines.jl/pull/108). `∂regularize!` for these models gains the same `zerosum` keyword as the plain-`RBM` method, and their `pcd!` trainers now pass `zerosum` through to it, projecting the gradient every iteration like the plain path does ([#110](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/110)).
+- Fixed `zerosum!(∂, ::RBM)`, which was discarding the Potts field gradients entirely instead of projecting them: it applied the zerosum over dim 1 of the `par`-shaped gradient arrays `(1, Q, ...)`, which is the singleton parameter-type dimension rather than the color dimension, zeroing `∂.visible`/`∂.hidden`. This silently froze Potts fields during `pcd!` training whenever `zerosum=true` (the default). The projection now acts on the color dimension.
+
 ## 5.5.0
 
 - Added HDF5 support for the ReLU-family layers (`ReLU`, `dReLU`, `pReLU`) and for `CenteredRBM` serialization [#103](https://github.com/cossio/RestrictedBoltzmannMachines.jl/pull/103).

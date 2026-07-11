@@ -15,7 +15,7 @@ using Optimisers: Adam, Descent
 using RestrictedBoltzmannMachines: RBM, BinaryRBM, Binary, Spin, Potts, Gaussian,
     pcd!, ucd!, initialize!, free_energy, log_likelihood, log_partition,
     collect_states, mean_h_from_v, generate_sequences, onehot_encode,
-    center, standardize, weight_norms
+    center, standardize, unstandardize, weight_norms
 
 all_visible_states(layer::Union{Binary,Spin}) = collect_states(layer)
 
@@ -168,6 +168,23 @@ end
     @test norm(mean(rbm.w; dims = 1)) < 1e-10
 end
 
+@testset "pcd potts learns visible fields" begin
+    #= Regression test: zerosum!(∂, rbm) used to discard Potts field gradients
+    entirely (it zerosummed the par-shaped gradient over the singleton
+    parameter-type dim instead of the color dim), so pcd! with zerosum=true
+    (the default) silently froze the visible fields at their initial values.
+    The moment-matching tests above miss this because initialize! already sets
+    the fields near their maximum-likelihood values. Starting from zero fields
+    on data with non-uniform color frequencies, training must move the fields. =#
+    seed!(69)
+    data = potts_dataset()
+    rbm = RBM(Potts((3, 2)), Binary((3,)), zeros(3, 2, 3))
+    pcd!(rbm, data; batchsize = 32, iters = 100, steps = 5, optim = Descent(1e-2))
+    @test norm(rbm.visible.θ) > 1e-3
+    # while staying in the zerosum gauge
+    @test norm(mean(rbm.visible.θ; dims = 1)) < 1e-10
+end
+
 @testset "pcd gaussian hidden moment matching" begin
     seed!(53)
     data = binary_dataset()
@@ -203,6 +220,21 @@ end
     @test gaps.v < 0.05
     @test gaps.h < 0.05
     @test gaps.vh < 0.05
+end
+
+@testset "standardized pcd potts moment matching" begin
+    seed!(63)
+    data = potts_dataset()
+    rbm = standardize(initialize!(RBM(Potts((3, 2)), Binary((3,)), zeros(3, 2, 3)), data))
+    pcd!(rbm, data; batchsize = 32, iters = 5000, steps = 5, optim = Adam(1e-3))
+    gaps = moment_gaps(rbm, data)
+    @test gaps.v < 0.05
+    @test gaps.h < 0.05
+    @test gaps.vh < 0.05
+    # zerosum gauge of the equivalent unstandardized RBM is maintained
+    urbm = unstandardize(rbm)
+    @test norm(mean(urbm.visible.θ; dims = 1)) < 1e-10
+    @test norm(mean(urbm.w; dims = 1)) < 1e-10
 end
 
 @testset "ucd moment matching" begin
