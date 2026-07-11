@@ -442,3 +442,126 @@ end
     v = bitrand(size(rbm.visible)..., 100)
     @test free_energy(rbm, v) ≈ free_energy(rbm_copy, v)
 end
+
+using Random: rand!
+using RestrictedBoltzmannMachines: SpinRBM, Spin, PottsGumbel, potts_to_gumbel, gumbel_to_potts,
+    log_pseudolikelihood
+
+@testset "BinaryStandardizedRBM / SpinStandardizedRBM constructors" begin
+    a, b, w = randn(3), randn(2), randn(3, 2)
+    offset_v, offset_h = randn(3), randn(2)
+    scale_v, scale_h = 1 .+ rand(3), 1 .+ rand(2)
+    for (cons, base) in ((BinaryStandardizedRBM, BinaryRBM), (SpinStandardizedRBM, SpinRBM))
+        srbm = @inferred cons(a, b, w, offset_v, offset_h, scale_v, scale_h)
+        @test srbm.visible.θ == a
+        @test srbm.hidden.θ == b
+        @test srbm.w == w
+        @test srbm.offset_v == offset_v
+        @test srbm.offset_h == offset_h
+        @test srbm.scale_v == scale_v
+        @test srbm.scale_h == scale_h
+
+        # 3-argument variant has trivial offsets and scales, equivalent to the plain RBM
+        srbm0 = @inferred cons(a, b, w)
+        @test iszero(srbm0.offset_v)
+        @test iszero(srbm0.offset_h)
+        @test all(isone, srbm0.scale_v)
+        @test all(isone, srbm0.scale_h)
+        v = base === BinaryRBM ? bitrand(3, 5) : rand((-1, 1), 3, 5)
+        h = base === BinaryRBM ? bitrand(2, 5) : rand((-1, 1), 2, 5)
+        @test energy(srbm0, v, h) ≈ energy(base(a, b, w), v, h)
+    end
+end
+
+@testset "standardize_visible / standardize_hidden" begin
+    rbm = BinaryRBM(randn(3), randn(2), randn(3, 2))
+    offset_v, scale_v = randn(3), 1 .+ rand(3)
+    offset_h, scale_h = randn(2), 1 .+ rand(2)
+    v = bitrand(3, 7)
+    F0 = free_energy(rbm, v)
+
+    # from a plain RBM, with target offsets/scales
+    srbm_v = @inferred standardize_visible(rbm, offset_v, scale_v)
+    srbm_h = @inferred standardize_hidden(rbm, offset_h, scale_h)
+    @test srbm_v.offset_v == offset_v
+    @test srbm_v.scale_v == scale_v
+    @test iszero(srbm_v.offset_h)
+    @test srbm_h.offset_h == offset_h
+    @test srbm_h.scale_h == scale_h
+    @test iszero(srbm_h.offset_v)
+    # standardization is a gauge transformation: free energies shift by a constant
+    for srbm in (srbm_v, srbm_h)
+        F = free_energy(srbm, v)
+        @test F ≈ F0 .+ mean(F - F0)
+    end
+
+    # no-argument variants reset the offsets/scales of one side
+    srbm = standardize(rbm)
+    srbm.offset_v .= randn(3)
+    srbm.scale_v .= 1 .+ rand(3)
+    srbm.offset_h .= randn(2)
+    srbm.scale_h .= 1 .+ rand(2)
+    F1 = free_energy(srbm, v)
+    rv = @inferred standardize_visible(srbm)
+    @test iszero(rv.offset_v)
+    @test all(isone, rv.scale_v)
+    @test rv.offset_h == srbm.offset_h
+    @test rv.scale_h == srbm.scale_h
+    rh = @inferred standardize_hidden(srbm)
+    @test iszero(rh.offset_h)
+    @test all(isone, rh.scale_h)
+    @test rh.offset_v == srbm.offset_v
+    @test rh.scale_v == srbm.scale_v
+    for srbm_reset in (rv, rh)
+        F = free_energy(srbm_reset, v)
+        @test F ≈ F1 .+ mean(F - F1)
+    end
+
+    # plain-RBM no-offset variants are equivalent to standardize
+    for srbm_plain in (standardize_visible(rbm), standardize_hidden(rbm))
+        @test srbm_plain isa StandardizedRBM
+        @test free_energy(srbm_plain, v) ≈ F0
+    end
+end
+
+@testset "potts_to_gumbel / gumbel_to_potts StandardizedRBM" begin
+    q = 3
+    rbm = RBM(Potts(; θ = randn(q, 2)), Binary(; θ = randn(2)), randn(q, 2, 2))
+    srbm = standardize(rbm)
+    rand!(srbm.offset_v)
+    rand!(srbm.offset_h)
+    srbm.scale_v .= 1 .+ rand(q, 2)
+    srbm.scale_h .= 1 .+ rand(2)
+
+    grbm = potts_to_gumbel(srbm)
+    @test grbm isa StandardizedRBM
+    @test grbm.visible isa PottsGumbel
+    @test grbm.visible.par == srbm.visible.par
+    @test grbm.hidden.par == srbm.hidden.par
+    @test grbm.w == srbm.w
+    @test grbm.offset_v == srbm.offset_v
+    @test grbm.offset_h == srbm.offset_h
+    @test grbm.scale_v == srbm.scale_v
+    @test grbm.scale_h == srbm.scale_h
+
+    back = gumbel_to_potts(grbm)
+    @test back.visible isa Potts
+    @test back.visible.par == srbm.visible.par
+    @test back.w == srbm.w
+end
+
+@testset "log_pseudolikelihood of StandardizedRBM" begin
+    # With a single visible site the stochastic estimator is deterministic,
+    # and standardization must not change the pseudolikelihood.
+    srbm = BinaryStandardizedRBM(randn(1), randn(2), randn(1, 2), randn(1), randn(2), 1 .+ rand(1), 1 .+ rand(2))
+    v = bitrand(1, 7)
+    @test log_pseudolikelihood(srbm, v) ≈ log_pseudolikelihood(unstandardize(srbm), v)
+end
+
+@testset "regularization_penalty StandardizedRBM" begin
+    srbm = BinaryStandardizedRBM(randn(3), randn(2), randn(3, 2), randn(3), randn(2), 1 .+ rand(3), 1 .+ rand(2))
+    kw = (; l1_weights = 0.1, l2_weights = 0.2, l2l1_weights = 0.3, l2_fields = 0.4)
+    @test regularization_penalty(srbm; kw...) ≈ regularization_penalty(unstandardize(srbm); kw...)
+    @test regularization_penalty(srbm; regularize_unstandardized = false, kw...) ≈
+        regularization_penalty(RBM(srbm.visible, srbm.hidden, srbm.w); kw...)
+end

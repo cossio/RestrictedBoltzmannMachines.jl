@@ -1,16 +1,15 @@
-# coverage:
-#   status:
-#     project:
-#       default:
-#         threshold: 50%
-#         target: 50%
-
 coverage:
   status:
+    # Overall repository coverage: must not drop by more than 1% in a PR.
     project:
       default:
-        informational: true
+        target: auto
+        threshold: 1%
+    # Coverage of the lines changed/added by a PR: forces new code to come with tests.
     patch:
       default:
-        informational: true
-#comment: false
+        target: 85%
+
+# CUDAExt only loads with a physical GPU; GitHub CI has none, so it can never be covered.
+ignore:
+  - "ext/CUDAExt.jl"

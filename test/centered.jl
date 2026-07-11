@@ -369,3 +369,62 @@ end
     @test only(gs).hidden.par ≈ ∂.hidden
     @test only(gs).w ≈ ∂.w
 end
+
+using RestrictedBoltzmannMachines: log_pseudolikelihood
+
+@testset "CenteredBinaryRBM with zero offsets" begin
+    a, b, w = randn(3), randn(2), randn(3, 2)
+    rbm = @inferred CenteredBinaryRBM(a, b, w)
+    @test iszero(rbm.offset_v)
+    @test iszero(rbm.offset_h)
+    v = bitrand(3, 5)
+    h = bitrand(2, 5)
+    @test energy(rbm, v, h) ≈ energy(BinaryRBM(a, b, w), v, h)
+end
+
+@testset "conditional means of CenteredRBM" begin
+    centered_rbm = CenteredBinaryRBM(randn(3), randn(2), randn(3, 2), randn(3), randn(2))
+    rbm = uncenter(centered_rbm)
+    v = bitrand(3, 5)
+    h = bitrand(2, 5)
+    @test @inferred(mean_h_from_v(centered_rbm, v)) ≈ mean_h_from_v(rbm, v)
+    @test @inferred(mean_v_from_h(centered_rbm, h)) ≈ mean_v_from_h(rbm, h)
+end
+
+@testset "center_visible / center_hidden from a plain RBM" begin
+    rbm = BinaryRBM(randn(3), randn(2), randn(3, 2))
+    offset_v = randn(3)
+    offset_h = randn(2)
+    crbm_v = @inferred center_visible(rbm, offset_v)
+    crbm_h = @inferred center_hidden(rbm, offset_h)
+    @test crbm_v.offset_v == offset_v
+    @test iszero(crbm_v.offset_h)
+    @test crbm_h.offset_h == offset_h
+    @test iszero(crbm_h.offset_v)
+    # centering is a gauge transformation: free energies shift by a constant
+    v = bitrand(3, 7)
+    F0 = free_energy(rbm, v)
+    for crbm in (crbm_v, crbm_h)
+        F = free_energy(crbm, v)
+        @test F ≈ F0 .+ mean(F - F0)
+    end
+end
+
+@testset "center! without arguments resets offsets" begin
+    rbm = CenteredBinaryRBM(randn(3), randn(2), randn(3, 2), randn(3), randn(2))
+    v = bitrand(3, 7)
+    F0 = free_energy(rbm, v)
+    @test center!(rbm) === rbm
+    @test iszero(rbm.offset_v)
+    @test iszero(rbm.offset_h)
+    F1 = free_energy(rbm, v)
+    @test F1 ≈ F0 .+ mean(F1 - F0)
+end
+
+@testset "log_pseudolikelihood of CenteredRBM" begin
+    # With a single visible site the stochastic estimator is deterministic,
+    # and centering must not change the pseudolikelihood.
+    rbm = CenteredBinaryRBM(randn(1), randn(2), randn(1, 2), randn(1), randn(2))
+    v = bitrand(1, 7)
+    @test log_pseudolikelihood(rbm, v) ≈ log_pseudolikelihood(uncenter(rbm), v)
+end

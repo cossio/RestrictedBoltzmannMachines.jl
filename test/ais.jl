@@ -138,6 +138,11 @@ end
     @test iszero(anneal_zero(layer).Δ)
     @test anneal_zero(layer).γ == layer.γ
     @test anneal_zero(layer).ξ == layer.ξ
+
+    layer = nsReLU(; θ = randn(N), Δ = randn(N), ξ = randn(N))
+    @test iszero(anneal_zero(layer).θ)
+    @test iszero(anneal_zero(layer).Δ)
+    @test anneal_zero(layer).ξ == layer.ξ
 end
 
 @testset "anneal" begin

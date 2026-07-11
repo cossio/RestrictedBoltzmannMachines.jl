@@ -669,3 +669,32 @@ end
     @test norm(mean(urbm.w; dims=1)) < 1e-10
     @test norm(mean(urbm.visible.θ; dims=1)) < 1e-10
 end
+
+@testset "zerosum CenteredRBM with nontrivial offsets (hidden Potts)" begin
+    N = (2,)
+    M = (3, 2)
+    rbm = RBM(Binary(; θ = randn(N...)), Potts(; θ = randn(M...)), randn(N..., M...))
+    crbm = CenteredRBM(deepcopy(rbm))
+    crbm.offset_v .= randn(N...) / 3
+    crbm.offset_h .= randn(M...) / 3
+
+    v = sample_from_inputs(crbm.visible, zeros(N..., 1000))
+    F0 = free_energy(crbm, v)
+
+    crbm1 = zerosum(crbm)
+    F1 = free_energy(crbm1, v)
+    @test all(F0 - F1 .≈ mean(F0 - F1))
+    @test crbm1.offset_v == crbm.offset_v
+    @test crbm1.offset_h == crbm.offset_h
+    # the equivalent uncentered RBM is in zerosum gauge
+    urbm = uncenter(crbm1)
+    @test norm(mean(urbm.w; dims=ndims(crbm.visible) + 1)) < 1e-10
+    @test norm(mean(urbm.hidden.θ; dims=1)) < 1e-10
+
+    crbm! = deepcopy(crbm)
+    zerosum!(crbm!)
+    @test crbm!.w ≈ crbm1.w
+    @test crbm!.visible.par ≈ crbm1.visible.par
+    @test crbm!.hidden.par ≈ crbm1.hidden.par
+    @test free_energy(crbm!, v) ≈ F1
+end

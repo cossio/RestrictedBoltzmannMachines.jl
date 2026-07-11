@@ -350,8 +350,8 @@ end
 standardize_visible(rbm::RBM, offset_v::AbstractArray, scale_v::AbstractArray) = standardize_visible(standardize(rbm), offset_v, scale_v)
 standardize_hidden(rbm::RBM, offset_h::AbstractArray, scale_h::AbstractArray) = standardize_hidden(standardize(rbm), offset_h, scale_h)
 
-standardize_visible(rbm::StandardizedRBM) = standardize_visible(rbm, zero(rbm.offset_v), ones.(rbm.scale_v))
-standardize_hidden(rbm::StandardizedRBM) = standardize_hidden(rbm, zero(rbm.offset_h), ones.(rbm.scale_h))
+standardize_visible(rbm::StandardizedRBM) = standardize_visible(rbm, zero(rbm.offset_v), one.(rbm.scale_v))
+standardize_hidden(rbm::StandardizedRBM) = standardize_hidden(rbm, zero(rbm.offset_h), one.(rbm.scale_h))
 standardize_visible(rbm::RBM) = standardize(rbm)
 standardize_hidden(rbm::RBM) = standardize(rbm)
 

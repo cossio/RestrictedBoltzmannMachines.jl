@@ -4,7 +4,6 @@ module onehot_tests include("onehot.jl") end
 module rbm_tests include("rbm.jl") end
 module layers_tests include("layers.jl") end
 module pseudolikelihood_tests include("pseudolikelihood.jl") end
-# module minibatches_tests include("minibatches.jl") end # minibatches.jl not included in module
 module infinite_minibatches_tests include("infinite_minibatches.jl") end
 module initialization_tests include("initialization.jl") end
 module regularize_tests include("regularize.jl") end

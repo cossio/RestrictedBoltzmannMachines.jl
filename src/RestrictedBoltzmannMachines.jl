@@ -9,7 +9,7 @@ using FillArrays: Fill, Falses, Trues, Zeros, Ones
 using LinearAlgebra: Diagonal, dot, I, logdet, norm
 using LogExpFunctions: log1pexp, logaddexp, logistic, logsubexp, logsumexp, softmax
 using Optimisers: AbstractRule, Adam, setup, update!
-using Random: AbstractRNG, default_rng, rand!, randexp, randn!, randperm, shuffle!
+using Random: AbstractRNG, default_rng, rand!, randexp, randn!, randperm
 using SpecialFunctions: erf, erfcx, logerfcx
 using Statistics: mean, std
 
@@ -47,7 +47,6 @@ include("train/pcd.jl")
 include("train/ucd.jl")
 include("train/gradient.jl")
 include("from_grad.jl")
-#include("train/minibatches.jl")
 include("train/infinite_minibatches.jl")
 
 include("gauge/zerosum.jl")
