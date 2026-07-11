@@ -17,6 +17,7 @@ using RestrictedBoltzmannMachines: xReLU
 using RestrictedBoltzmannMachines: nsReLU
 using Test: @test
 using Test: @testset
+using Test: @test_throws
 
 @testset "rbm" begin
     rbm = RBM(Potts(; θ=randn(2,3)), Binary(; θ=randn(4)), randn(2,3,4))
@@ -175,4 +176,32 @@ end
     @test loaded_rbm.offset_h == rbm.offset_h
     @test loaded_rbm.scale_v == rbm.scale_v
     @test loaded_rbm.scale_h == rbm.scale_h
+end
+
+@testset "save_rbm refuses to overwrite" begin
+    rbm = RBM(Binary(; θ = randn(3)), Binary(; θ = randn(2)), randn(3, 2))
+    path = save_rbm(tempname(), rbm)
+    @test_throws ErrorException save_rbm(path, rbm)
+    @test save_rbm(path, rbm; overwrite = true) == path
+
+    srbm = standardize(rbm)
+    path = save_rbm(tempname(), srbm)
+    @test_throws ErrorException save_rbm(path, srbm)
+    @test save_rbm(path, srbm; overwrite = true) == path
+
+    crbm = CenteredRBM(rbm)
+    path = save_rbm(tempname(), crbm)
+    @test_throws ErrorException save_rbm(path, crbm)
+    @test save_rbm(path, crbm; overwrite = true) == path
+end
+
+@testset "load_rbm rejects unsupported format versions" begin
+    rbm = RBM(Binary(; θ = randn(3)), Binary(; θ = randn(2)), randn(3, 2))
+    path = save_rbm(tempname(), rbm)
+    header = "rbm_hdf5_file_format_version"
+    HDF5.h5open(path, "r+") do file
+        HDF5.delete_object(file, header)
+        HDF5.write(file, header, "0.0.0")
+    end
+    @test_throws ErrorException load_rbm(path)
 end

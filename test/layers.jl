@@ -422,3 +422,45 @@ end
     ∂ = ∂free_energy(rbm, v)
     @test (@inferred grad2ave(rbm.visible, -∂.visible)) ≈ dropdims(mean(v; dims=2); dims=2)
 end
+
+using RestrictedBoltzmannMachines: batchstd, drelu_rand, drelu_mode, PottsGumbel, nsReLU
+
+@testset "propertynames" begin
+    @test propertynames(Binary((3,))) == (:θ,)
+    @test propertynames(Spin((3,))) == (:θ,)
+    @test propertynames(Potts((3, 2))) == (:θ,)
+    @test propertynames(PottsGumbel((3, 2))) == (:θ,)
+    @test propertynames(Gaussian((3,))) == (:θ, :γ)
+    @test propertynames(ReLU((3,))) == (:θ, :γ)
+    @test propertynames(dReLU((3,))) == (:θp, :θn, :γp, :γn)
+    @test propertynames(pReLU((3,))) == (:θ, :γ, :Δ, :η)
+    @test propertynames(xReLU((3,))) == (:θ, :γ, :Δ, :ξ)
+    @test propertynames(nsReLU((3,))) == (:θ, :Δ, :ξ)
+end
+
+@testset "batchstd and weighted batchcov" begin
+    layer = Binary((3,))
+    x = rand(3, 10)
+    wts = rand(10)
+
+    @test @inferred(batchstd(layer, x)) ≈ sqrt.(batchvar(layer, x))
+    @test @inferred(batchstd(layer, x; wts)) ≈ sqrt.(batchvar(layer, x; wts))
+
+    m = batchmean(layer, x; wts)
+    ξ = x .- m
+    C = [sum(wts .* ξ[i, :] .* ξ[j, :]) / sum(wts) for i in 1:3, j in 1:3]
+    @test @inferred(batchcov(layer, x; wts)) ≈ C
+    # the diagonal of the covariance is the variance
+    @test [batchcov(layer, x; wts)[i, i] for i in 1:3] ≈ batchvar(layer, x; wts)
+end
+
+@testset "dReLU scalar helpers" begin
+    # mixed argument types promote
+    @test drelu_energy(1, -1.0, 2.0f0, 1.0, 0.5) ≈ drelu_energy(1.0, -1.0, 2.0, 1.0, 0.5)
+    @test drelu_energy(2, -3, 1.0f0, 2.0f0, -0.5) ≈ drelu_energy(2.0, -3.0, 1.0, 2.0, -0.5)
+    @test drelu_rand(1, -1.0, 2.0f0, 1.0) isa Real
+    @test drelu_rand(0, 0, 1.0, 1.0) isa Real
+
+    # NaN parameters propagate to a NaN mode
+    @test isnan(drelu_mode(NaN, 0.0, 1.0, 1.0))
+end

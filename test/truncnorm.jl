@@ -55,3 +55,18 @@ end
 dμ, dσ = Zygote.gradient(μ,σ) do μ,σ
     mean(m1.(μ,σ))
 end
+
+@testset "randnt argument conversion" begin
+    rng = Random.default_rng()
+    @test @inferred(randnt(rng, 1)) ≥ 1       # Int argument
+    @test @inferred(randnt(rng, big"1.5")) ≥ 1.5  # BigFloat argument
+    @test randnt(rng, big"1.5") isa Float64
+end
+
+@testset "tnmeanvar" begin
+    for a in -2:0.5:2
+        μ, ν = @inferred RBMs.tnmeanvar(a)
+        @test μ ≈ tnmean(a)
+        @test ν ≈ tnvar(a)
+    end
+end

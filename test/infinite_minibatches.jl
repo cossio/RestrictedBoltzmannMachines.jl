@@ -51,3 +51,9 @@ end
 
     @test_throws ArgumentError infinite_minibatches(data; batchsize=0, shuffle=false)
 end
+
+@testset "batchsize larger than the data" begin
+    data = randn(2, 5)
+    @test iterate(infinite_minibatches(data; batchsize = 6, shuffle = false)) === nothing
+    @test iterate(infinite_minibatches(nothing; batchsize = 1, shuffle = false)) === nothing
+end

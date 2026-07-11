@@ -34,4 +34,6 @@ jobs:
         with:
           files: lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
+          # Blocking on trusted runs (pushes and same-repo PRs, which have the token).
+          # Fork PRs can't access secrets, so their uploads stay best-effort.
+          fail_ci_if_error: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
