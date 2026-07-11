@@ -27,3 +27,9 @@ jobs:
       - uses: julia-actions/cache@a45e8fa8be21c18a06b7177052533149e61e9b38
       - uses: julia-actions/julia-buildpkg@e3eb439fad4f9aba7da2667e7510e4a46ebc46e1
       - uses: julia-actions/julia-runtest@6e050c8013b833b1195105ff2fce9cd802f53271
+      - uses: julia-actions/julia-processcoverage@51f6c28a089e613035452e069b8a002671dd24a5
+      - uses: codecov/codecov-action@e53489f4d376d79066609109e7a95a29eb3740b1
+        with:
+          files: lcov.info
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
