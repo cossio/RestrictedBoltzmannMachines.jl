@@ -7,7 +7,7 @@ using Random: bitrand, rand!, randn!
 using LogExpFunctions: logistic
 using EllipsisNotation: (..)
 using QuadGK: quadgk
-using RestrictedBoltzmannMachines: RBM, Binary, Spin, Potts, Gaussian, ReLU, dReLU, xReLU, pReLU,
+using RestrictedBoltzmannMachines: RBM, Binary, Spin, Potts, Gaussian, ReLU, dReLU, xReLU, pReLU, nsReLU,
     flatten, batch_size, batchmean, batchvar, batchcov, drelu_energy,
     mean_from_inputs, var_from_inputs, meanvar_from_inputs, batchdims, gauss_energy, relu_energy,
     std_from_inputs, mean_abs_from_inputs, sample_from_inputs, mode_from_inputs,
@@ -26,7 +26,8 @@ _layers = (
     ReLU,
     dReLU,
     pReLU,
-    xReLU
+    xReLU,
+    nsReLU
 )
 
 @testset "testing $Layer" for Layer in _layers
@@ -463,4 +464,109 @@ end
 
     # NaN parameters propagate to a NaN mode
     @test isnan(drelu_mode(NaN, 0.0, 1.0, 1.0))
+end
+
+using RestrictedBoltzmannMachines: colors, sitedims, sitesize,
+    binary_var, binary_std, spin_cfg, spin_rand, relu_cfg, relu_rand, gauss_cfg, drelu_cgf
+
+@testset "mode_from_inputs exact values for discrete layers" begin
+    N = (3, 4)
+    B = 7
+    inputs = randn(N..., B)
+
+    layer = Binary(; θ = randn(N...))
+    @test mode_from_inputs(layer, inputs) == (layer.θ .+ inputs .> 0)
+
+    layer = Spin(; θ = randn(N...))
+    @test mode_from_inputs(layer, inputs) == ifelse.(layer.θ .+ inputs .> 0, 1, -1)
+
+    q = 3
+    layer = Potts(; θ = randn(q, N...))
+    inputs = randn(q, N..., B)
+    modes = mode_from_inputs(layer, inputs)
+    θ = layer.θ .+ inputs
+    @test all(sum(modes; dims=1) .== 1) # one-hot
+    for i in CartesianIndices((N..., B))
+        @test modes[argmax(θ[:, i]), i]
+    end
+end
+
+@testset "colors, sitedims, sitesize" begin
+    @test colors(Binary((3, 2))) == colors(Spin((3, 2))) == 2
+    @test colors(Potts((4, 3, 2))) == 4
+    @test sitedims(Binary((3, 2))) == 2
+    @test sitedims(Potts((4, 3, 2))) == 2
+    @test sitesize(Binary((3, 2))) == (3, 2)
+    @test sitesize(Potts((4, 3, 2))) == (3, 2)
+    @test sitedims(Gaussian((3,))) == 1
+    @test sitesize(Gaussian((3,))) == (3,)
+end
+
+# law of total variance across all layer types (only dReLU was covered before)
+@testset "total_meanvar_from_inputs $Layer" for Layer in _layers
+    layer = Layer((3, 2))
+    randn!(layer.par)
+    if layer isa pReLU
+        layer.η .= layer.η ./ (1 .+ abs.(layer.η))
+    end
+    inputs = randn(3, 2, 50)
+    for wts in (nothing, rand(50))
+        μ, ν = @inferred total_meanvar_from_inputs(layer, inputs; wts)
+        h_ave = mean_from_inputs(layer, inputs)
+        h_var = var_from_inputs(layer, inputs)
+        m = batchmean(layer, h_ave; wts)
+        ν_int = batchmean(layer, h_var; wts)
+        ν_ext = batchvar(layer, h_ave; wts, mean = m)
+        @test μ ≈ m ≈ total_mean_from_inputs(layer, inputs; wts)
+        @test ν ≈ ν_int + ν_ext
+        @test ν ≈ total_var_from_inputs(layer, inputs; wts)
+    end
+end
+
+@testset "scalar layer kernels" begin
+    for θ in -2:0.5:2
+        @test spin_cfg(θ) ≈ log(2cosh(θ))
+        @test binary_var(θ) ≈ logistic(θ) * logistic(-θ)
+        @test binary_std(θ) ≈ sqrt(binary_var(θ))
+        # sign of γ is ignored by the Gaussian-family kernels
+        @test gauss_cfg(θ, 2.0) == gauss_cfg(θ, -2.0)
+        # log of the Gaussian partition function: θ²/(2γ) + log(2π/γ)/2
+        @test gauss_cfg(θ, 2.0) ≈ θ^2 / 4 + log(π) / 2
+        @test relu_cfg(θ, 2.0) == relu_cfg(θ, -2.0)
+    end
+
+    # spin_rand samples ±1 with the right probability (uniform grid over u)
+    u = (0.5:9999.5) ./ 10^4
+    for θ in (-0.7, 0.3)
+        @test spin_rand.(θ, u) ⊆ (-1, 1)
+        @test mean(spin_rand.(θ, u)) ≈ tanh(θ) atol=1e-3
+    end
+
+    # relu_rand samples a truncated normal on [0, ∞)
+    samples = [relu_rand(0.5, 2.0) for _ in 1:10^6]
+    @test all(samples .≥ 0)
+    @test mean(samples) ≈ only(mean_from_inputs(ReLU(; θ = [0.5], γ = [2.0]))) rtol=0.01
+
+    # drelu_cgf agrees with numerical integration
+    function quad_drelu_cgf(θp, θn, γp, γn)
+        Z, ϵ = quadgk(h -> exp(-drelu_energy(θp, θn, γp, γn, h)), -Inf, Inf)
+        return log(Z)
+    end
+    for (θp, θn, γp, γn) in ((0.3, -0.2, 1.5, 2.0), (-1.0, 0.5, 2.0, 0.7))
+        @test drelu_cgf(θp, θn, γp, γn) ≈ quad_drelu_cgf(θp, θn, γp, γn)
+    end
+end
+
+@testset "ReLU as a limit of dReLU with large γn" begin
+    #= The mean/var/mean_abs formulas return NaN at γn = Inf exactly, so the ReLU
+    limit is checked at large finite γn instead: a dReLU whose negative branch is
+    suppressed must reproduce the ReLU statistics. =#
+    θp = randn(3)
+    γp = rand(3) .+ 1
+    drelu = dReLU(; θp, θn = zeros(3), γp, γn = fill(1e10, 3))
+    relu = ReLU(; θ = θp, γ = γp)
+    @test mean_from_inputs(drelu) ≈ mean_from_inputs(relu) rtol=1e-4
+    @test var_from_inputs(drelu) ≈ var_from_inputs(relu) rtol=1e-4
+    @test mean_abs_from_inputs(drelu) ≈ mean_abs_from_inputs(relu) rtol=1e-4
+    @test cgfs(drelu) ≈ cgfs(relu) .+ log1p.(exp.(relu_cfg.(0, 1e10) .- cgfs(relu))) rtol=1e-6
 end

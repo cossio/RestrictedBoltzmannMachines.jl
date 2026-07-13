@@ -130,12 +130,11 @@ end
 end
 
 @testset "zerosum! ∂RBM leaves gauge-compatible field gradients unchanged" begin
-    #= Regression test: zerosum!(∂, rbm) used to zerosum the par-shaped field
-    gradients (1, Q, ...) over dim 1 — the singleton parameter-type dimension
-    instead of the color dimension — which zeroed them entirely.
-    For Potts layers the PCD field gradient ∂d - ∂m is automatically zero-sum
+    #= For Potts layers the PCD field gradient ∂d - ∂m is automatically zero-sum
     over colors (one-hot units sum to 1 in both the data and model phases), so
-    the projection must act as the identity on it. =#
+    zerosum!(∂, rbm) must act as the identity on it. This requires projecting
+    the par-shaped (1, Q, ...) gradient arrays along the color dimension, not
+    the singleton parameter-type dimension (which would zero them entirely). =#
     N = (3, 2)
     M = (3, 2)
     rbm = RBM(Potts(; θ = randn(N...)), Potts(; θ = randn(M...)), randn(N..., M...))
@@ -215,21 +214,32 @@ end
     F_before = free_energy(rbm_g, v)
     rbm_g_zs = zerosum!(rbm_g)
     @test rbm_g_zs.visible isa PottsGumbel
+    # gauge invariance: free energies shift by a constant
+    F_after = free_energy(rbm_g_zs, v)
+    @test all(F_before - F_after .≈ mean(F_before - F_after))
 
     # hidden PottsGumbel, visible Binary
     N2 = (2, 3)
     M2 = (3, 2, 3)
     rbm_g2 = RBM(Binary(; θ = randn(N2...)), PottsGumbel(; θ = randn(M2...)), randn(N2..., M2...))
+    v2 = sample_from_inputs(rbm_g2.visible, zeros(N2..., 100))
+    F2_before = free_energy(rbm_g2, v2)
     rbm_g2_zs = zerosum!(rbm_g2)
     @test rbm_g2_zs.hidden isa PottsGumbel
+    F2_after = free_energy(rbm_g2_zs, v2)
+    @test all(F2_before - F2_after .≈ mean(F2_before - F2_after))
 
     # both PottsGumbel
     N3 = (3, 2, 3)
     M3 = (3, 2, 3)
     rbm_g3 = RBM(PottsGumbel(; θ = randn(N3...)), PottsGumbel(; θ = randn(M3...)), randn(N3..., M3...))
+    v3 = sample_from_inputs(rbm_g3.visible, zeros(N3..., 100))
+    F3_before = free_energy(rbm_g3, v3)
     rbm_g3_zs = zerosum!(rbm_g3)
     @test rbm_g3_zs.visible isa PottsGumbel
     @test rbm_g3_zs.hidden isa PottsGumbel
+    F3_after = free_energy(rbm_g3_zs, v3)
+    @test all(F3_before - F3_after .≈ mean(F3_before - F3_after))
 end
 
 @testset "zerosum! ∂RBM PottsGumbel variants" begin

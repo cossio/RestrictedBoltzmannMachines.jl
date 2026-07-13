@@ -205,3 +205,20 @@ end
     end
     @test_throws ErrorException load_rbm(path)
 end
+
+@testset "Float32 round-trip preserves eltype" begin
+    rbm = RBM(
+        Binary(; θ = randn(Float32, 2, 3)),
+        Gaussian(; θ = randn(Float32, 4), γ = 1 .+ rand(Float32, 4)),
+        randn(Float32, 2, 3, 4),
+    )
+    path = save_rbm(tempname(), rbm)
+    loaded_rbm = load_rbm(path)
+    @test eltype(loaded_rbm.w) == Float32
+    @test eltype(loaded_rbm.visible.par) == Float32
+    @test eltype(loaded_rbm.hidden.par) == Float32
+    @test loaded_rbm.w == rbm.w
+    @test loaded_rbm.visible.θ == rbm.visible.θ
+    @test loaded_rbm.hidden.θ == rbm.hidden.θ
+    @test loaded_rbm.hidden.γ == rbm.hidden.γ
+end
