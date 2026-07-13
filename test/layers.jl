@@ -467,8 +467,7 @@ end
 end
 
 using RestrictedBoltzmannMachines: colors, sitedims, sitesize,
-    binary_var, binary_std, spin_cfg, spin_rand, relu_cfg, relu_rand, gauss_cfg, drelu_cgf,
-    relu_energy, mean_abs_from_inputs
+    binary_var, binary_std, spin_cfg, spin_rand, relu_cfg, relu_rand, gauss_cfg, drelu_cgf
 
 @testset "mode_from_inputs exact values for discrete layers" begin
     N = (3, 4)

@@ -335,10 +335,10 @@ zerosum!(∂::∂RBM, rbm::CenteredRBM) = zerosum!(∂, RBM(rbm))
 """
     rescale_hidden!(rbm::CenteredRBM, λ::AbstractArray)
 
-Rescale hidden unit activities by `λ`, preserving the modeled distribution.
-This assumes the hidden units have a scale parameter, otherwise it does nothing
-and returns `false`. Since the interaction involves `h - offset_h`, the hidden
-offsets must be rescaled together with the activations.
+Scales parameters such that hidden unit activations are divided by `λ`, preserving
+the modeled distribution. This assumes the hidden units have a scale parameter,
+otherwise it does nothing and returns `false`. Since the interaction involves
+`h - offset_h`, the hidden offsets are divided by `λ` together with the activations.
 """
 function rescale_hidden!(rbm::CenteredRBM, λ::AbstractArray)
     @assert size(rbm.hidden) == size(λ)
