@@ -215,21 +215,32 @@ end
     F_before = free_energy(rbm_g, v)
     rbm_g_zs = zerosum!(rbm_g)
     @test rbm_g_zs.visible isa PottsGumbel
+    # gauge invariance: free energies shift by a constant
+    F_after = free_energy(rbm_g_zs, v)
+    @test all(F_before - F_after .≈ mean(F_before - F_after))
 
     # hidden PottsGumbel, visible Binary
     N2 = (2, 3)
     M2 = (3, 2, 3)
     rbm_g2 = RBM(Binary(; θ = randn(N2...)), PottsGumbel(; θ = randn(M2...)), randn(N2..., M2...))
+    v2 = sample_from_inputs(rbm_g2.visible, zeros(N2..., 100))
+    F2_before = free_energy(rbm_g2, v2)
     rbm_g2_zs = zerosum!(rbm_g2)
     @test rbm_g2_zs.hidden isa PottsGumbel
+    F2_after = free_energy(rbm_g2_zs, v2)
+    @test all(F2_before - F2_after .≈ mean(F2_before - F2_after))
 
     # both PottsGumbel
     N3 = (3, 2, 3)
     M3 = (3, 2, 3)
     rbm_g3 = RBM(PottsGumbel(; θ = randn(N3...)), PottsGumbel(; θ = randn(M3...)), randn(N3..., M3...))
+    v3 = sample_from_inputs(rbm_g3.visible, zeros(N3..., 100))
+    F3_before = free_energy(rbm_g3, v3)
     rbm_g3_zs = zerosum!(rbm_g3)
     @test rbm_g3_zs.visible isa PottsGumbel
     @test rbm_g3_zs.hidden isa PottsGumbel
+    F3_after = free_energy(rbm_g3_zs, v3)
+    @test all(F3_before - F3_after .≈ mean(F3_before - F3_after))
 end
 
 @testset "zerosum! ∂RBM PottsGumbel variants" begin

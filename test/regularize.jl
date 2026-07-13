@@ -98,3 +98,25 @@ end
     @test only(gs).par ≈ ∂
     @test iszero(∂[2:4, ..]) # ∂γ, ∂Δ, ∂ξ
 end
+
+using RestrictedBoltzmannMachines: RBM, Potts, sample_from_inputs, zerosum!
+
+@testset "∂regularize! zerosum keyword" begin
+    # zerosum=true must be equivalent to regularizing and then projecting with zerosum!
+    rbm = RBM(Potts(; θ = randn(3, 4)), Binary(; θ = randn(2)), randn(3, 4, 2))
+    zerosum!(rbm)
+    v = sample_from_inputs(rbm.visible, zeros(3, 4, 50))
+    ∂ = ∂free_energy(rbm, v)
+    ∂ref = deepcopy(∂)
+
+    l2_fields, l1_weights, l2_weights, l2l1_weights = rand(4)
+    ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum = true)
+    ∂regularize!(∂ref, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights)
+    zerosum!(∂ref, rbm)
+
+    @test ∂.visible ≈ ∂ref.visible
+    @test ∂.hidden ≈ ∂ref.hidden
+    @test ∂.w ≈ ∂ref.w
+    # the projected weight gradient is in the zerosum gauge along the color dimension
+    @test all(abs.(sum(∂.w; dims = 1)) .< 1e-10)
+end

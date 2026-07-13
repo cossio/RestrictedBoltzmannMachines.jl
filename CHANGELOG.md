@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+- Fixed `rescale_weights!(::CenteredRBM)`, which changed the modeled distribution (not a gauge transformation) when the hidden units are continuous and the hidden offsets are nonzero: it delegated to the plain-`RBM` method, rescaling the hidden layer and the weights but not `offset_h`, even though the interaction involves `h - offset_h`. This corrupted `pcd!` training of centered RBMs with continuous hidden units (`rescale=true` is the default). Added `rescale_hidden!(::CenteredRBM, λ)` and `weight_norms(::CenteredRBM)`, mirroring the `StandardizedRBM` methods.
+- Added tests for more previously uncovered paths: free-energy invariance of in-place `zerosum!` on PottsGumbel RBMs, `nsReLU` through the generic layer-interface property tests, exact `mode_from_inputs` values for discrete layers, `colors`/`sitedims`/`sitesize`, the law of total variance for `total_meanvar_from_inputs` across all layer types, scalar layer kernels (`binary_var`, `spin_cfg`, `relu_rand`, `drelu_cgf`, ...), the ReLU-as-dReLU-limit identities, `shift_fields` for `PottsGumbel`/`nsReLU`, the no-op branches of `rescale_activations!`/`rescale_hidden!` for layers without scale parameters, the `zerosum` keyword of `∂regularize!`, a deterministic value check for `reconstruction_error`, and `Float32` HDF5 round-trips.
+
 ## 5.6.0
 
 - CI now collects test coverage and uploads it to [Codecov](https://codecov.io/gh/cossio/RestrictedBoltzmannMachines.jl).

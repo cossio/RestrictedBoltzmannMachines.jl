@@ -1,5 +1,5 @@
 using Test: @testset, @test, @inferred
-using RestrictedBoltzmannMachines: Binary, Spin, Potts, Gaussian, ReLU, dReLU, pReLU, xReLU,
+using RestrictedBoltzmannMachines: Binary, Spin, Potts, PottsGumbel, Gaussian, ReLU, dReLU, pReLU, xReLU, nsReLU,
     energy, sample_from_inputs, shift_fields!, shift_fields
 
 function energy_shift(offset::AbstractArray, x::AbstractArray)
@@ -23,11 +23,14 @@ end
         dReLU(; θp = randn(N...), θn = randn(N...), γp = rand(N...), γn = rand(N...)),
         pReLU(; θ = randn(N...), γ = rand(N...), Δ = randn(N...), η = rand(N...) .- 0.5),
         xReLU(; θ = randn(N...), γ = rand(N...), Δ = randn(N...), ξ = randn(N...)),
+        nsReLU(; θ = randn(N...), Δ = randn(N...), ξ = randn(N...)),
+        PottsGumbel(; θ = randn(N...)),
     )
     for layer in layers
         offset = randn(size(layer)...)
         x = sample_from_inputs(layer, randn(size(layer)..., 2, 3))
         layer_shifted = @inferred shift_fields(layer, offset)
+        @test typeof(layer_shifted) === typeof(layer)
         @test energy(layer_shifted, x) ≈ energy(layer, x) + energy_shift(offset, x)
     end
 end
@@ -43,6 +46,8 @@ end
         dReLU(; θp = randn(N...), θn = randn(N...), γp = rand(N...), γn = rand(N...)),
         pReLU(; θ = randn(N...), γ = rand(N...), Δ = randn(N...), η = rand(N...) .- 0.5),
         xReLU(; θ = randn(N...), γ = rand(N...), Δ = randn(N...), ξ = randn(N...)),
+        nsReLU(; θ = randn(N...), Δ = randn(N...), ξ = randn(N...)),
+        PottsGumbel(; θ = randn(N...)),
     )
     for layer in layers
         offset = randn(size(layer)...)

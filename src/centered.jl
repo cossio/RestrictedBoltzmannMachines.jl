@@ -332,10 +332,30 @@ with the plain `RBM` ones.
 """
 zerosum!(∂::∂RBM, rbm::CenteredRBM) = zerosum!(∂, RBM(rbm))
 
-function rescale_weights!(rbm::CenteredRBM)
-    rescale_weights!(RBM(rbm))
-    return rbm
+"""
+    rescale_hidden!(rbm::CenteredRBM, λ::AbstractArray)
+
+Rescale hidden unit activities by `λ`, preserving the modeled distribution.
+This assumes the hidden units have a scale parameter, otherwise it does nothing
+and returns `false`. Since the interaction involves `h - offset_h`, the hidden
+offsets must be rescaled together with the activations.
+"""
+function rescale_hidden!(rbm::CenteredRBM, λ::AbstractArray)
+    @assert size(rbm.hidden) == size(λ)
+    if rescale_activations!(rbm.hidden, λ)
+        rbm.w .*= reshape(λ, map(one, size(rbm.visible))..., size(rbm.hidden)...)
+        rbm.offset_h ./= λ
+        return true
+    end
+    return false
 end
+
+function rescale_weights!(rbm::CenteredRBM)
+    λ = inv.(weight_norms(RBM(rbm)))
+    return rescale_hidden!(rbm, λ)
+end
+
+weight_norms(rbm::CenteredRBM) = weight_norms(RBM(rbm))
 
 function initialize!(rbm::CenteredRBM, data::AbstractArray; ϵ::Real = 1e-6)
     initialize!(RBM(rbm), data; ϵ)

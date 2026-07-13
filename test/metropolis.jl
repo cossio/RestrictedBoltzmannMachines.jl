@@ -1,6 +1,6 @@
 using Test: @test, @testset, @inferred
 using Statistics: mean, std, var, cor
-using Random: randn!, bitrand
+using Random: randn!, bitrand, seed!
 using LogExpFunctions: softmax
 using RestrictedBoltzmannMachines: BinaryRBM, energy, free_energy, metropolis, metropolis!, cold_metropolis
 import RestrictedBoltzmannMachines as RBMs
@@ -42,6 +42,10 @@ end
 end
 
 @testset "cold_metropolis converges to fixed point" begin
+    #= The zero-temperature dynamics v -> mode_v(mean_h(v)) is deterministic but can in
+    principle land on a 2-cycle instead of a fixed point for an unlucky random RBM, so
+    seed the RNG to keep this test deterministic. =#
+    seed!(87)
     N = 5
     M = 3
     rbm = BinaryRBM(randn(N), randn(M), randn(N, M) / √N)

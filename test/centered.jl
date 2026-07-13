@@ -428,3 +428,43 @@ end
     v = bitrand(1, 7)
     @test log_pseudolikelihood(rbm, v) ≈ log_pseudolikelihood(uncenter(rbm), v)
 end
+
+using RestrictedBoltzmannMachines: RBM, rescale_hidden!, rescale_weights!, weight_norms
+
+@testset "rescale_hidden! and rescale_weights! of CenteredRBM" begin
+    #= Regression test: rescale_weights!(::CenteredRBM) used to delegate to the plain
+    RBM method, which rescales the hidden layer and the weights but not offset_h.
+    Since the interaction involves h - offset_h, that changed the modeled distribution
+    (not a gauge transformation), corrupting pcd! training of centered RBMs with
+    continuous hidden units (rescale=true is the default). =#
+    rbm = CenteredRBM(
+        Binary(; θ = randn(3)), ReLU(; θ = randn(2), γ = 0.5 .+ rand(2)), randn(3, 2),
+        randn(3), randn(2),
+    )
+    rbm_copy = deepcopy(rbm)
+    v = bitrand(size(rbm.visible)..., 100)
+    λ = 0.5 .+ rand(size(rbm.hidden)...)
+
+    @test @inferred rescale_hidden!(rbm, λ)
+    @test rbm.offset_h ≈ rbm_copy.offset_h ./ λ
+    # free energies shift by the constant log-Jacobian, sum(log, λ)
+    @test free_energy(rbm, v) ≈ free_energy(rbm_copy, v) .+ sum(log, λ)
+
+    rbm = deepcopy(rbm_copy)
+    ω = @inferred weight_norms(rbm)
+    @test ω ≈ weight_norms(RBM(rbm))
+    @test @inferred rescale_weights!(rbm)
+    @test weight_norms(rbm) ≈ ones(size(rbm.hidden))
+    @test free_energy(rbm, v) ≈ free_energy(rbm_copy, v) .- sum(log, ω)
+
+    # discrete hidden units have no scale parameter: no-op, returns false
+    rbm = CenteredBinaryRBM(randn(3), randn(2), randn(3, 2), randn(3), randn(2))
+    rbm_copy = deepcopy(rbm)
+    @test !rescale_hidden!(rbm, 0.5 .+ rand(size(rbm.hidden)...))
+    @test !rescale_weights!(rbm)
+    @test rbm.visible.par == rbm_copy.visible.par
+    @test rbm.hidden.par == rbm_copy.hidden.par
+    @test rbm.w == rbm_copy.w
+    @test rbm.offset_v == rbm_copy.offset_v
+    @test rbm.offset_h == rbm_copy.offset_h
+end

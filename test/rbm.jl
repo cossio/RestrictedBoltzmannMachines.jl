@@ -485,3 +485,15 @@ end
     @test size(rbm.w) == (5, 3)
     @test eltype(rbm.w) == Float64
 end
+
+@testset "reconstruction_error exact value for a deterministic RBM" begin
+    # zero weights and huge positive fields: v -> h -> v' reconstruction is all ones,
+    # so the error is the fraction of zeros in each sample
+    rbm = BinaryRBM(fill(1e3, 3), fill(1e3, 2), zeros(3, 2))
+    v = bitrand(3, 100)
+    @test reconstruction_error(rbm, v) ≈ vec(mean(1 .- v; dims=1))
+    @test iszero(reconstruction_error(rbm, trues(3)))
+    for steps in (1, 3)
+        @test reconstruction_error(rbm, v; steps) ≈ vec(mean(1 .- v; dims=1))
+    end
+end

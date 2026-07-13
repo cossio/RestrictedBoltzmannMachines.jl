@@ -72,3 +72,47 @@ end
     @inferred rescale_weights!(rbm)
     @test free_energy(rbm, v) ≈ F .- sum(log, ω)
 end
+
+using RestrictedBoltzmannMachines: Spin, Potts, PottsGumbel, nsReLU
+
+@testset "rescale_activations! is a no-op for layers without scale parameters" begin
+    N = (3, 2)
+    layers = (
+        Binary(; θ = randn(N...)),
+        Spin(; θ = randn(N...)),
+        Potts(; θ = randn(N...)),
+        PottsGumbel(; θ = randn(N...)),
+        nsReLU(; θ = randn(N...), Δ = randn(N...), ξ = randn(N...)),
+    )
+    λ = 0.5 .+ rand(N...)
+    for layer in layers
+        par = copy(layer.par)
+        @test !rescale_activations!(layer, λ)
+        @test layer.par == par
+    end
+end
+
+@testset "rescale_hidden! and rescale_weights! no-op for discrete hidden units" begin
+    rbm = RBM(Binary(; θ = randn(3)), Binary(; θ = randn(2)), randn(3, 2))
+    rbm_copy = deepcopy(rbm)
+    @test !rescale_hidden!(rbm, 0.5 .+ rand(2))
+    @test !rescale_weights!(rbm)
+    @test rbm.visible.par == rbm_copy.visible.par
+    @test rbm.hidden.par == rbm_copy.hidden.par
+    @test rbm.w == rbm_copy.w
+end
+
+@testset "rescale_hidden! free energy invariance ($name hidden)" for (name, hidden) in [
+    ("Gaussian", Gaussian(; θ = randn(2), γ = 0.5 .+ rand(2))),
+    ("dReLU", dReLU(; θp = randn(2), θn = randn(2), γp = 0.5 .+ rand(2), γn = 0.5 .+ rand(2))),
+    ("pReLU", pReLU(; θ = randn(2), γ = 0.5 .+ rand(2), Δ = randn(2), η = rand(2) .- 0.5)),
+    ("xReLU", xReLU(; θ = randn(2), γ = 0.5 .+ rand(2), Δ = randn(2), ξ = randn(2))),
+]
+    rbm = RBM(Binary(; θ = randn(3)), hidden, randn(3, 2))
+    v = bitrand(3, 100)
+    F = free_energy(rbm, v)
+    λ = 0.5 .+ rand(2)
+    @test rescale_hidden!(rbm, λ)
+    # free energies shift by the constant log-Jacobian of h -> h / λ
+    @test free_energy(rbm, v) ≈ F .+ sum(log, λ)
+end
