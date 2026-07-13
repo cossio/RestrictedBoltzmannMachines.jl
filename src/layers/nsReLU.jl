@@ -54,7 +54,7 @@ function ∂energy_from_moments(layer::nsReLU, moments::AbstractArray)
     return ∂[[1,3,4], ..] # skip γ
 end
 
-xReLU(layer::nsReLU) = xReLU(; layer.θ, γ=ones(size(layer.θ)), layer.Δ, layer.ξ)
+xReLU(layer::nsReLU) = xReLU(; layer.θ, γ=one.(layer.θ), layer.Δ, layer.ξ)
 dReLU(layer::nsReLU) = dReLU(xReLU(layer))
 
 function initialize!(layer::nsReLU, data::AbstractArray; wts=nothing)
