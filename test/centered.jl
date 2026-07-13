@@ -28,6 +28,7 @@ using RestrictedBoltzmannMachines: mean_v_from_h
 using RestrictedBoltzmannMachines: mirror
 using RestrictedBoltzmannMachines: pcd!
 using RestrictedBoltzmannMachines: sample_h_from_h
+using RestrictedBoltzmannMachines: sample_h_from_v
 using RestrictedBoltzmannMachines: sample_v_from_v
 using RestrictedBoltzmannMachines: uncenter
 using Optimisers: Adam
@@ -487,9 +488,11 @@ must be rescaled together with the activations for p(v) to be preserved. =#
     λ = 0.5 .+ rand(2)
     @test rescale_hidden!(rbm1, λ)
 
-    # the joint energy is preserved under the reparameterization h -> h / λ
+    # the joint energy is preserved under the reparameterization h -> h / λ;
+    # draw h from the model so it lies in the hidden layer's support (e.g. h ≥ 0
+    # for ReLU) and every sample exercises the finite-energy identity
     v = bitrand(3, 10)
-    h = randn(2, 10)
+    h = sample_h_from_v(rbm0, v)
     @test energy(rbm1, v, h ./ λ) ≈ energy(rbm0, v, h)
 
     # exact enumeration of all visible states: free energies shift by the constant
