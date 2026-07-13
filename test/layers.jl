@@ -559,9 +559,9 @@ end
 end
 
 @testset "ReLU as a limit of dReLU with large γn" begin
-    #= With γn = Inf the mean/var formulas produce NaN (which is why the exact-Inf
-    comparisons are commented out in the convert testset above), but the limit must
-    be approached continuously for large finite γn. =#
+    #= The mean/var/mean_abs formulas return NaN at γn = Inf exactly, so the ReLU
+    limit is checked at large finite γn instead: a dReLU whose negative branch is
+    suppressed must reproduce the ReLU statistics. =#
     θp = randn(3)
     γp = rand(3) .+ 1
     drelu = dReLU(; θp, θn = zeros(3), γp, γn = fill(1e10, 3))

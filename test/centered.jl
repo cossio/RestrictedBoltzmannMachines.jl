@@ -432,11 +432,10 @@ end
 using RestrictedBoltzmannMachines: RBM, rescale_hidden!, rescale_weights!, weight_norms
 
 @testset "rescale_hidden! and rescale_weights! of CenteredRBM" begin
-    #= Regression test: rescale_weights!(::CenteredRBM) used to delegate to the plain
-    RBM method, which rescales the hidden layer and the weights but not offset_h.
-    Since the interaction involves h - offset_h, that changed the modeled distribution
-    (not a gauge transformation), corrupting pcd! training of centered RBMs with
-    continuous hidden units (rescale=true is the default). =#
+    #= rescale_hidden! reparameterizes the hidden units so that activations are divided
+    by λ. Since the interaction involves h - offset_h, the hidden offsets must be divided
+    by λ as well; free energies then shift by the constant log-Jacobian sum(log, λ) and
+    the modeled distribution is unchanged. =#
     rbm = CenteredRBM(
         Binary(; θ = randn(3)), ReLU(; θ = randn(2), γ = 0.5 .+ rand(2)), randn(3, 2),
         randn(3), randn(2),
@@ -467,4 +466,53 @@ using RestrictedBoltzmannMachines: RBM, rescale_hidden!, rescale_weights!, weigh
     @test rbm.w == rbm_copy.w
     @test rbm.offset_v == rbm_copy.offset_v
     @test rbm.offset_h == rbm_copy.offset_h
+end
+
+using LogExpFunctions: softmax
+using RestrictedBoltzmannMachines: Gaussian, pReLU, xReLU, collect_states, var_from_inputs
+
+#= rescale_hidden!(::CenteredRBM, λ) must be a gauge transformation: it reparameterizes
+the hidden units as h -> h / λ without changing the modeled distribution p(v). The
+offsets are drawn nonzero because offset_h enters the interaction as h - offset_h and
+must be rescaled together with the activations for p(v) to be preserved. =#
+@testset "rescale_hidden! of CenteredRBM is a gauge transformation ($name hidden)" for (name, hidden) in [
+    ("Gaussian", Gaussian(; θ = randn(2), γ = 0.5 .+ rand(2))),
+    ("ReLU", ReLU(; θ = randn(2), γ = 0.5 .+ rand(2))),
+    ("dReLU", dReLU(; θp = randn(2), θn = randn(2), γp = 0.5 .+ rand(2), γn = 0.5 .+ rand(2))),
+    ("pReLU", pReLU(; θ = randn(2), γ = 0.5 .+ rand(2), Δ = randn(2), η = rand(2) .- 0.5)),
+    ("xReLU", xReLU(; θ = randn(2), γ = 0.5 .+ rand(2), Δ = randn(2), ξ = randn(2))),
+]
+    rbm0 = CenteredRBM(Binary(; θ = randn(3)), hidden, randn(3, 2), randn(3), randn(2))
+    rbm1 = deepcopy(rbm0)
+    λ = 0.5 .+ rand(2)
+    @test rescale_hidden!(rbm1, λ)
+
+    # the joint energy is preserved under the reparameterization h -> h / λ
+    v = bitrand(3, 10)
+    h = randn(2, 10)
+    @test energy(rbm1, v, h ./ λ) ≈ energy(rbm0, v, h)
+
+    # exact enumeration of all visible states: free energies shift by the constant
+    # log-Jacobian of h -> h / λ, so the visible distribution p(v) is exactly unchanged
+    states = collect_states(rbm0.visible)
+    F0 = free_energy(rbm0, states)
+    F1 = free_energy(rbm1, states)
+    @test F1 ≈ F0 .+ sum(log, λ)
+    @test softmax(-F1) ≈ softmax(-F0)
+
+    # conditional hidden statistics rescale as h -> h / λ ...
+    @test mean_h_from_v(rbm1, v) ≈ mean_h_from_v(rbm0, v) ./ λ
+    @test var_from_inputs(rbm1.hidden, inputs_h_from_v(rbm1, v)) ≈
+        var_from_inputs(rbm0.hidden, inputs_h_from_v(rbm0, v)) ./ λ .^ 2
+    # ... and the conditional visible distribution is preserved
+    @test mean_v_from_h(rbm1, h ./ λ) ≈ mean_v_from_h(rbm0, h)
+
+    # rescale_weights! is the λ = 1 ./ weight_norms special case, and must
+    # likewise leave p(v) exactly unchanged while normalizing the weights
+    rbm2 = deepcopy(rbm0)
+    @test rescale_weights!(rbm2)
+    @test weight_norms(rbm2) ≈ ones(size(rbm2.hidden))
+    F2 = free_energy(rbm2, states)
+    @test F2 ≈ F0 .+ mean(F2 - F0) # constant shift
+    @test softmax(-F2) ≈ softmax(-F0)
 end

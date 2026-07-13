@@ -169,13 +169,12 @@ end
 end
 
 @testset "pcd potts learns visible fields" begin
-    #= Regression test: zerosum!(∂, rbm) used to discard Potts field gradients
-    entirely (it zerosummed the par-shaped gradient over the singleton
-    parameter-type dim instead of the color dim), so pcd! with zerosum=true
-    (the default) silently froze the visible fields at their initial values.
-    The moment-matching tests above miss this because initialize! already sets
-    the fields near their maximum-likelihood values. Starting from zero fields
-    on data with non-uniform color frequencies, training must move the fields. =#
+    #= pcd! with zerosum=true (the default) must still learn the Potts visible
+    fields: the zerosum projection of the gradient must not discard them. The
+    moment-matching tests above are insensitive to this because initialize!
+    already sets the fields near their maximum-likelihood values. Here training
+    starts from zero fields on data with non-uniform color frequencies, so it
+    must move the fields, while staying in the zerosum gauge. =#
     seed!(69)
     data = potts_dataset()
     rbm = RBM(Potts((3, 2)), Binary((3,)), zeros(3, 2, 3))

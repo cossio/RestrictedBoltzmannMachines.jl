@@ -130,12 +130,11 @@ end
 end
 
 @testset "zerosum! ∂RBM leaves gauge-compatible field gradients unchanged" begin
-    #= Regression test: zerosum!(∂, rbm) used to zerosum the par-shaped field
-    gradients (1, Q, ...) over dim 1 — the singleton parameter-type dimension
-    instead of the color dimension — which zeroed them entirely.
-    For Potts layers the PCD field gradient ∂d - ∂m is automatically zero-sum
+    #= For Potts layers the PCD field gradient ∂d - ∂m is automatically zero-sum
     over colors (one-hot units sum to 1 in both the data and model phases), so
-    the projection must act as the identity on it. =#
+    zerosum!(∂, rbm) must act as the identity on it. This requires projecting
+    the par-shaped (1, Q, ...) gradient arrays along the color dimension, not
+    the singleton parameter-type dimension (which would zero them entirely). =#
     N = (3, 2)
     M = (3, 2)
     rbm = RBM(Potts(; θ = randn(N...)), Potts(; θ = randn(M...)), randn(N..., M...))
