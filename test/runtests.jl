@@ -11,6 +11,7 @@ module truncnorm_tests include("truncnorm.jl") end
 module optim_tests include("optim.jl") end
 module partition_tests include("partition.jl") end
 module metropolis_tests include("metropolis.jl") end
+module sampling_stationarity_tests include("sampling_stationarity.jl") end
 module zerosum_tests include("gauge/zerosum.jl") end
 module rescale_hidden_tests include("gauge/rescale_hidden.jl") end
 module pcd_tests include("pcd.jl") end
