@@ -38,6 +38,12 @@ using Test: @testset
     @test mean_from_inputs(drelu) ≈ mean_from_inputs(xrelu)  ≈ mean_from_inputs(nrelu)
     @test mean_abs_from_inputs(drelu) ≈ mean_abs_from_inputs(xrelu) ≈ mean_abs_from_inputs(nrelu)
     @test var_from_inputs(drelu) ≈ var_from_inputs(xrelu) ≈ var_from_inputs(nrelu)
+
+    # eltype is preserved (https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/119)
+    nrelu32 = nsReLU(Float32, N)
+    @test eltype(xReLU(nrelu32).par) == Float32
+    @test eltype(dReLU(nrelu32).par) == Float32
+    @test eltype(cgfs(nrelu32, zeros(Float32, N..., B))) == Float32
 end
 
 @testset "nsReLU" begin

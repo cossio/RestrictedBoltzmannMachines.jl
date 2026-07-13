@@ -78,6 +78,21 @@ random_layers() = (
     @test adapt(Array, jl_∂.w) == ∂.w
 end
 
+@testset "nsReLU -> xReLU conversion stays on device" begin
+    # regression test: xReLU(::nsReLU) used ones(size(θ)), which allocated a host
+    # Array{Float64} and promoted the whole layer computation
+    # (https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/119)
+    layer = nsReLU(; θ = randn(Float32, N...), Δ = randn(Float32, N...), ξ = randn(Float32, N...))
+    jl_layer = adapt(JLArray, layer)
+    jl_xrelu = xReLU(jl_layer)
+    @test jl_xrelu.par isa JLArray
+    @test eltype(jl_xrelu.par) == Float32
+    @test adapt(Array, jl_xrelu.par) ≈ xReLU(layer).par
+    jl_drelu = dReLU(jl_layer)
+    @test jl_drelu.par isa JLArray
+    @test eltype(jl_drelu.par) == Float32
+end
+
 @testset "layer functions: $(typeof(layer).name.wrapper)" for layer in random_layers()
     jl_layer = adapt(JLArray, layer)
     inputs = randn(size(layer)..., B)
