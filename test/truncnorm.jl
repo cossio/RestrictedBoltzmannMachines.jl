@@ -1,11 +1,10 @@
 import Random
 import Zygote
-import RestrictedBoltzmannMachines as RBMs
 using Test: @test, @testset, @test_broken, @inferred
 using Statistics: mean, var
 using SpecialFunctions: erfcx
 using Distributions: truncated, Normal
-using RestrictedBoltzmannMachines: tnmean, tnvar, sqrt1half, randnt, randnt_half
+using RestrictedBoltzmannMachines: tnmean, tnvar, tnmeanvar, sqrt1half, randnt, randnt_half
 
 for a = -10:10
     d = truncated(Normal(); lower=a)
@@ -65,7 +64,7 @@ end
 
 @testset "tnmeanvar" begin
     for a in -2:0.5:2
-        μ, ν = @inferred RBMs.tnmeanvar(a)
+        μ, ν = @inferred tnmeanvar(a)
         @test μ ≈ tnmean(a)
         @test ν ≈ tnvar(a)
     end
