@@ -20,6 +20,7 @@ using RestrictedBoltzmannMachines: energy
 using RestrictedBoltzmannMachines: free_energy
 using RestrictedBoltzmannMachines: gauss_energy
 using RestrictedBoltzmannMachines: grad2ave
+using RestrictedBoltzmannMachines: grad2var
 using RestrictedBoltzmannMachines: mean_abs_from_inputs
 using RestrictedBoltzmannMachines: mean_from_inputs
 using RestrictedBoltzmannMachines: meanvar_from_inputs
@@ -158,6 +159,9 @@ end
     ∂ = ∂cgf(layer)
     @test ∂ ≈ only(gs).par ≈ vstack((mean_from_inputs(layer),))
     @test grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
+    # one-hot units are Bernoulli per color, so the variance follows from the mean
+    @test grad2var(layer, ∂) ≈ var_from_inputs(layer)
+    @test grad2var(layer, ∂) ≈ grad2var(Potts(layer), ∂cgf(Potts(layer)))
 end
 
 @testset "grad2ave $Layer" for Layer in _layers
