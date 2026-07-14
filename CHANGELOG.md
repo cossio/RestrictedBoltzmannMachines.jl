@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## 5.7.0
 
 - Fixed `xReLU(layer::nsReLU)`, which built the fixed `γ = 1` array with `ones(size(layer.θ))`, always returning a host `Array{Float64}`. Since this conversion backs `energies`, `cgfs`, `∂cgfs`, `sample_from_inputs` and the other moment functions of `nsReLU`, it promoted the entire hidden-layer computation to `Float64` and, on GPU, forced a host allocation plus a host→device transfer on every call. It now uses `one.(layer.θ)`, preserving both eltype and device ([#119](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/119)).
 - Fixed `rescale_weights!(::CenteredRBM)`, which changed the modeled distribution (not a gauge transformation) when the hidden units are continuous and the hidden offsets are nonzero: it delegated to the plain-`RBM` method, rescaling the hidden layer and the weights but not `offset_h`, even though the interaction involves `h - offset_h`. This corrupted `pcd!` training of centered RBMs with continuous hidden units (`rescale=true` is the default). Added `rescale_hidden!(::CenteredRBM, λ)` and `weight_norms(::CenteredRBM)`, mirroring the `StandardizedRBM` methods. `rescale_weights!(::CenteredRBM)` now returns a `Bool` (whether the rescaling was applied) instead of the RBM, consistent with the `RBM` and `StandardizedRBM` methods.
