@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
-- The Claude PR review workflow now instructs the reviewer to only emit a GitHub ```suggestion block when the replacement text fits the exact anchored lines of the commented file, describing cross-file fixes in prose instead, and to prefer anchoring cross-file findings on the file that needs the edit. Previously the reviewer could post a one-click-applyable suggestion containing another file's text ([#128](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/128)).
+- The Claude PR review workflow now instructs the reviewer to only emit a GitHub ```` ```suggestion ```` block when the replacement text fits the exact anchored lines of the commented file, describing cross-file fixes in prose instead, and to prefer anchoring cross-file findings on the file that needs the edit. Previously the reviewer could post a one-click-applyable suggestion containing another file's text ([#128](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/128)).
 
 ## 5.7.0
 
