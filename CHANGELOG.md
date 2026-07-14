@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- The Claude PR review workflow now instructs the reviewer to only emit a GitHub ```suggestion block when the replacement text fits the exact anchored lines of the commented file, describing cross-file fixes in prose instead, and to prefer anchoring cross-file findings on the file that needs the edit. Previously the reviewer could post a one-click-applyable suggestion containing another file's text ([#128](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/128)).
+
 ## 5.7.0
 
 - Fixed `xReLU(layer::nsReLU)`, which built the fixed `γ = 1` array with `ones(size(layer.θ))`, always returning a host `Array{Float64}`. Since this conversion backs `energies`, `cgfs`, `∂cgfs`, `sample_from_inputs` and the other moment functions of `nsReLU`, it promoted the entire hidden-layer computation to `Float64` and, on GPU, forced a host allocation plus a host→device transfer on every call. It now uses `one.(layer.θ)`, preserving both eltype and device ([#119](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/119)).
