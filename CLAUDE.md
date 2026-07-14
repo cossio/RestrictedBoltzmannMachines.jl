@@ -68,6 +68,8 @@ GPU compatibility is tested without GPU hardware in `test/jlarrays.jl`, using JL
 
 Every PR receives an automated Claude review (`.github/workflows/claude-pr-review.yml`) that posts inline comments and ends with a review verdict: approve, request changes, or comment. When authoring a PR, treat the reviewer's approval as the default bar before merge: address its findings by pushing fixes, or reply in the review threads with reasoning if a finding is mistaken — the reviewer re-runs on every push, and a fresh verdict supersedes the previous one.
 
+Reply in every review thread on your PR before considering the work done: either point at the commit that addresses the finding, or explain why it is mistaken. Do not resolve review threads yourself — the reviewer resolves a thread once convinced (by the fix or by your reply), and replies back when not.
+
 Never merge a PR or enable auto-merge. Merging happens only when the repo owner clicks merge on GitHub or explicitly instructs it.
 
 ## Releasing a new version

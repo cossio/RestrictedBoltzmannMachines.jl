@@ -58,12 +58,17 @@ jobs:
             PR NUMBER: ${{ github.event.pull_request.number }}
 
             First, reconcile earlier runs of this review: list the PR's
-            review threads (`gh api graphql` with the pullRequest
-            reviewThreads query), and for unresolved threads posted by a
-            previous run of this workflow (bot-authored), check whether the
-            current code addresses them. Resolve the addressed ones with the
-            resolveReviewThread GraphQL mutation, and do not post duplicates
-            of comments that are still valid and unresolved.
+            review threads including their replies (`gh api graphql` with
+            the pullRequest reviewThreads query). For each unresolved thread
+            posted by a previous run of this workflow (bot-authored):
+            - If the current code addresses it, or the author's reply
+              convincingly rebuts it, resolve the thread with the
+              resolveReviewThread GraphQL mutation.
+            - If the author replied but you remain unconvinced, reply back
+              in the thread (addPullRequestReviewThreadReply mutation)
+              explaining briefly why the finding stands.
+            Do not post duplicates of comments that are still valid and
+            unresolved.
 
             Then review this pull request. Read the full diff (`gh pr diff`)
             and enough of the surrounding code to judge each change in
