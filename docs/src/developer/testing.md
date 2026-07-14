@@ -57,5 +57,5 @@ During development the version in `Project.toml` carries a `-DEV` suffix
 5. When starting work on the next version, bump `Project.toml` to the next
    `-DEV` version and add a fresh `## Unreleased` section to `CHANGELOG.md`.
 
-The canonical, more detailed version of this procedure lives in `CLAUDE.md`
-("Releasing a new version"); keep the two in sync.
+The canonical, more detailed version of this procedure lives in the `release`
+skill at `.claude/skills/release/SKILL.md`; keep the two in sync.
