@@ -1,14 +1,15 @@
 # Advisory Claude review of every pull request.
 #
 # Reviews the full PR diff and posts inline review comments for real
-# findings (bugs, correctness, security). It is advisory only: the job
-# never fails because of review findings, so it cannot block a merge.
-# Authenticates with the CLAUDE_CODE_OAUTH_TOKEN repo secret (a Claude
-# subscription token from `claude setup-token`) and skips cleanly when
-# the secret is unavailable (e.g. fork PRs).
+# findings (bugs, correctness, security). When the PR touches the
+# agent-instruction files (CLAUDE.md, AGENTS.md, skills), it additionally
+# reviews those for contradictions with the code, redundancy, and context
+# bloat — complementing the deterministic linter in agent-docs.yml.
 #
-# The agent-docs workflow has its own, blocking Claude review for
-# CLAUDE.md/AGENTS.md/skills; this one covers everything else.
+# It is advisory only: the job never fails because of review findings, so
+# it cannot block a merge. Authenticates with the CLAUDE_CODE_OAUTH_TOKEN
+# repo secret (a Claude subscription token from `claude setup-token`) and
+# skips cleanly when the secret is unavailable (e.g. fork PRs).
 name: Claude PR review
 on:
   pull_request:
@@ -46,7 +47,7 @@ jobs:
           claude_args: |
             --model claude-sonnet-5
             --max-turns 60
-            --allowedTools "Read,Grep,Glob,LS,Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh api graphql:*),Bash(git log:*),Bash(git diff:*),Bash(git show:*),mcp__github_inline_comment__create_inline_comment"
+            --allowedTools "Read,Grep,Glob,LS,WebFetch,Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh api graphql:*),Bash(git log:*),Bash(git diff:*),Bash(git show:*),mcp__github_inline_comment__create_inline_comment"
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
@@ -59,19 +60,34 @@ jobs:
             resolveReviewThread GraphQL mutation, and do not post duplicates
             of comments that are still valid and unresolved.
 
-            Then review this pull request. Read the full diff (`gh pr diff`) and
-            enough of the surrounding code to judge each change in context.
-            This is a Julia package for Restricted Boltzmann Machines; pay
-            attention to array shape conventions (layer dims first, batch
-            dim last), type-genericity (code must stay generic over array
-            backends, e.g. CUDA), and numerical correctness of any
-            math-sensitive change.
+            Then review this pull request. Read the full diff (`gh pr diff`)
+            and enough of the surrounding code to judge each change in
+            context. This is a Julia package for Restricted Boltzmann
+            Machines; pay attention to array shape conventions (layer dims
+            first, batch dim last), type-genericity (code must stay generic
+            over array backends, e.g. CUDA), and numerical correctness of
+            any math-sensitive change.
 
             Look for real problems only:
             - bugs and logic errors, wrong edge-case behavior
             - correctness of math/statistics changes
             - API breakage or behavior changes not reflected in tests/docs
             - security issues (e.g. in CI workflow changes)
+
+            If the diff touches agent-instruction files (CLAUDE.md,
+            AGENTS.md, or anything under .agents/ or .claude/), also review
+            those for: contradictions with each other or with the actual
+            repository (spot-check commands, paths, and factual claims
+            against the code); substantial redundancy that can drift apart;
+            context bloat (content that does not earn its place); and skill
+            frontmatter descriptions that fail to say what the skill does
+            and when to use it. Consult the best-practice guides with
+            WebFetch if helpful:
+            https://code.claude.com/docs/en/best-practices and
+            https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices
+            A deterministic linter (.github/scripts/lint_agent_docs.py)
+            already enforces sizes, frontmatter constraints, and path
+            existence — focus on semantics.
 
             Post each finding as an inline comment on the relevant line
             using mcp__github_inline_comment__create_inline_comment, with a

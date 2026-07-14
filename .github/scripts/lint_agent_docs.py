@@ -11,7 +11,7 @@ Deterministic checks that keep these files honest and slim:
 - long lines duplicated verbatim across files are reported (redundancy signal)
 
 Semantic checks (contradictions, redundancy in meaning, guideline adherence)
-are handled by the Claude review job in .github/workflows/agent-docs.yml.
+are handled by the Claude PR review (.github/workflows/claude-pr-review.yml).
 
 Errors fail CI (exit 1); warnings are annotated but do not fail.
 Runs with the Python 3 standard library only (PyYAML is used when available).
