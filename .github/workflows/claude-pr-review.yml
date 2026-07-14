@@ -122,4 +122,11 @@ jobs:
               `gh pr review --comment --body "..."` with a short summary.
             On re-runs after new commits, submit a fresh verdict; an
             approval supersedes your earlier request-changes once the
-            problems are fixed. Never merge the PR.
+            problems are fixed. Note that GitHub does NOT clear an earlier
+            approval when your new review is only a comment: if a previous
+            run of this workflow approved the PR and your new verdict is
+            not an approval, first dismiss the stale approval with the
+            dismissPullRequestReview GraphQL mutation (message: "superseded
+            by review of <head sha>"), then submit the new verdict, so an
+            outdated Approved state never lingers on newer commits. Never
+            merge the PR.
