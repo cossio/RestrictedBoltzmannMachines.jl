@@ -1,0 +1,114 @@
+# CI for the agent-instruction files: CLAUDE.md, AGENTS.md, and the skills
+# under .agents/ (and .claude/ if it appears).
+#
+# Two layers:
+#   1. `lint` — deterministic checks (.github/scripts/lint_agent_docs.py):
+#      size budgets, SKILL.md frontmatter rules, referenced repo paths exist,
+#      --project flags point at real Julia projects. Runs on every push/PR so
+#      renaming a source file that the docs mention breaks CI immediately.
+#   2. `claude-review` — semantic review with Claude on PRs that touch the
+#      agent docs: contradictions (between files and against the code),
+#      redundancy, context bloat, and adherence to the CLAUDE.md and Agent
+#      Skills best-practice guides. Skips cleanly when ANTHROPIC_API_KEY is
+#      not available (e.g. fork PRs).
+name: Agent docs
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  lint:
+    name: Lint agent docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      - name: Lint CLAUDE.md, AGENTS.md and skills
+        run: python3 .github/scripts/lint_agent_docs.py
+  claude-review:
+    name: Claude review of agent docs
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      HAS_KEY: ${{ secrets.ANTHROPIC_API_KEY != '' }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          fetch-depth: 0
+      - name: Check whether agent docs changed
+        id: changed
+        run: |
+          if git diff --name-only "origin/${{ github.base_ref }}...HEAD" \
+              | grep -qE '^(CLAUDE\.md|AGENTS\.md|\.claude/|\.agents/)'; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No agent docs changed; skipping Claude review."
+          fi
+      - name: Note when the API key is unavailable
+        if: steps.changed.outputs.changed == 'true' && env.HAS_KEY != 'true'
+        run: echo "::notice::ANTHROPIC_API_KEY is not available (fork PR or missing secret); skipping Claude review."
+      - name: Review agent docs with Claude
+        if: steps.changed.outputs.changed == 'true' && env.HAS_KEY == 'true'
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_args: |
+            --model claude-sonnet-5
+            --max-turns 40
+            --allowedTools "Read,Grep,Glob,LS,WebFetch,Write"
+          prompt: |
+            Review this repository's agent-instruction files ("agent docs"):
+            CLAUDE.md, AGENTS.md, and every SKILL.md plus its references/
+            under .agents/skills/ (and .claude/ if present).
+
+            First fetch these best-practice guides with WebFetch (if fetching
+            fails, proceed from your own knowledge of them):
+            - https://code.claude.com/docs/en/best-practices#write-an-effective-claude-md
+            - https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices
+
+            Then review the agent docs for:
+            1. Contradictions: statements that disagree with each other across
+               files, or with the actual repository. Spot-check commands, file
+               paths, and factual claims against the real repo tree and code.
+            2. Redundancy: substantial content maintained in two places. Small
+               overlaps (a shared test command) are fine; duplicated
+               explanations that can drift apart are not.
+            3. Context bloat: content that does not earn its place — generic
+               advice any model already knows, over-long prose, or detail that
+               belongs in a skill reference rather than CLAUDE.md.
+            4. Skill quality: each frontmatter description says what the skill
+               does AND when to use it; SKILL.md stays an overview with detail
+               pushed to references/; no deep reference chains.
+            5. Effectiveness per the fetched guides: concrete commands over
+               vague prose, currency, structure.
+
+            A deterministic linter (.github/scripts/lint_agent_docs.py) already
+            enforces size budgets, frontmatter constraints, and that referenced
+            paths exist — do not repeat those checks; focus on semantics.
+
+            Write your findings to agent-docs-review.md at the repository root:
+            - a one-paragraph summary
+            - a "Blocking" section: contradictions with the code or between
+              files, and heavy redundancy
+            - a "Suggestions" section: everything else
+            - final line exactly `VERDICT: FAIL` if there are blocking
+              findings, otherwise exactly `VERDICT: PASS`
+
+            Only mark FAIL for real, user-impacting problems; style preferences
+            belong under Suggestions.
+      - name: Enforce review verdict
+        if: steps.changed.outputs.changed == 'true' && env.HAS_KEY == 'true'
+        run: |
+          if [ ! -f agent-docs-review.md ]; then
+            echo "::warning::Claude did not produce agent-docs-review.md; treating the review as inconclusive."
+            exit 0
+          fi
+          cat agent-docs-review.md >> "$GITHUB_STEP_SUMMARY"
+          cat agent-docs-review.md
+          if grep -q '^VERDICT: FAIL' agent-docs-review.md; then
+            echo "::error::Claude review found blocking problems in the agent docs (see job summary)."
+            exit 1
+          fi

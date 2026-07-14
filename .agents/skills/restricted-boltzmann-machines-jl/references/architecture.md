@@ -21,9 +21,8 @@ Read this file when you need the package map or repo-specific edit guidance.
 - `src/rbm.jl` and `src/rbms/`
   Core RBM types plus convenience constructors and variants.
 - `src/train/`
-  Initialization, PCD, gradients, and minibatch-related training helpers.
-  Note that `src/train/minibatches.jl` exists but is not currently included by
-  the root module.
+  Initialization, PCD, gradients, and minibatch iteration helpers
+  (`src/train/infinite_minibatches.jl`).
 - `src/gauge/`
   Gauge transforms such as zero-sum, hidden rescaling, and field shifting.
 - `src/pseudolikelihood.jl`, `src/partition.jl`, `src/ais.jl`,
