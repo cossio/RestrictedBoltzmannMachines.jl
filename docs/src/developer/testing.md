@@ -54,8 +54,11 @@ During development the version in `Project.toml` carries a `-DEV` suffix
    master commit, and comment on issue #124 again to re-trigger the
    registration pointing at the new branch. Once the registry PR has merged
    and TagBot has tagged, the `release-X.Y.Z` branch may be deleted.
-5. When starting work on the next version, bump `Project.toml` to the next
-   `-DEV` version and add a fresh `## Unreleased` section to `CHANGELOG.md`.
+5. Right after the release (registry PR merged, tag created), follow up with
+   a new PR that bumps `Project.toml` to the next `-DEV` version (e.g.
+   `5.7.1-DEV` after releasing `5.7.0`, or `5.8.0-DEV` if new features are
+   anticipated) and adds a fresh `## Unreleased` section to `CHANGELOG.md`,
+   so development commits never accumulate under a released version number.
 
 The canonical, more detailed version of this procedure lives in the
 `register-new-version` skill at
