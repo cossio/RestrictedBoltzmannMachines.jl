@@ -46,14 +46,14 @@ During development the version in `Project.toml` carries a `-DEV` suffix
    the registry PR and to the GitHub release that TagBot creates. Registrator
    opens a PR in the General registry; once it merges, TagBot creates the
    `vX.Y.Z` tag at the registered commit and the GitHub release automatically.
-   Afterwards the `release-X.Y.Z` branch may be deleted.
 4. Monitor the registration PR in General (linked in Registrator's reply to
    the triggering comment) until it merges — AutoMerge usually takes
    ~15–30 minutes. If AutoMerge fails or a registry maintainer requests
    changes, restart the flow: commit the fixes to `master` (keeping
    `Project.toml` at `X.Y.Z`), delete and recreate `release-X.Y.Z` at the new
    master commit, and comment on issue #124 again to re-trigger the
-   registration pointing at the new branch.
+   registration pointing at the new branch. Once the registry PR has merged
+   and TagBot has tagged, the `release-X.Y.Z` branch may be deleted.
 5. When starting work on the next version, bump `Project.toml` to the next
    `-DEV` version and add a fresh `## Unreleased` section to `CHANGELOG.md`.
 
