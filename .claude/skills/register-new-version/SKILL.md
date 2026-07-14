@@ -43,7 +43,7 @@ Before anything else, determine the right version number and confirm it with the
 
 5. **Tag and GitHub release.** Once the registry PR merges, TagBot creates the `vX.Y.Z` tag at the registered commit and the GitHub release (with the notes) automatically — no action needed. Afterwards the `release-X.Y.Z` branch is redundant (the tag protects the commit) and may be deleted.
 
-6. **Start the next cycle.** When starting work on the next version, bump Project.toml to the next `-DEV` version and add a fresh `## Unreleased` section to CHANGELOG.md.
+6. **Start the next cycle.** Once the version is successfully registered in General (registry PR merged, tag created), always suggest to the user following up with a new PR that bumps Project.toml to the next `-DEV` version (usually `X.Y+1.0-DEV`) and adds a fresh `## Unreleased` section to CHANGELOG.md, so development commits never accumulate under a released version number.
 
 A condensed human-facing copy of this procedure lives in `docs/src/developer/testing.md`; keep it in sync with this skill.
 
