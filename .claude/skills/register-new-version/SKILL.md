@@ -1,5 +1,5 @@
 ---
-name: release
+name: register-new-version
 description: Release a new version of RestrictedBoltzmannMachines.jl and register it in the Julia General registry. Use when asked to release, register, tag, or publish a new package version.
 ---
 
