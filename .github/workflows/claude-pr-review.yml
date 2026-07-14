@@ -44,6 +44,13 @@ jobs:
         if: env.HAS_KEY == 'true'
         with:
           fetch-depth: 0
+      - name: Note when this PR modifies the review workflow itself
+        if: env.HAS_KEY == 'true'
+        run: |
+          if git diff --name-only "origin/${GITHUB_BASE_REF}...HEAD" \
+              | grep -q '^\.github/workflows/claude-pr-review\.yml$'; then
+            echo "::notice::Claude review self-skips on this PR: it modifies the review workflow itself, and claude-code-action only runs the workflow version already on the default branch (anti-tampering). The green check below means skipped, not reviewed. The review runs normally on PRs that leave this file unchanged."
+          fi
       - name: Review pull request with Claude
         if: env.HAS_KEY == 'true'
         uses: anthropics/claude-code-action@f1bd27ca5b54584506e40e17884d90bdaaa1a9b3 # v1.0.173
