@@ -17,6 +17,8 @@ Errors fail CI (exit 1); warnings are annotated but do not fail.
 Runs with the Python 3 standard library only (PyYAML is used when available).
 """
 
+from __future__ import annotations
+
 import re
 import sys
 from pathlib import Path
@@ -85,12 +87,16 @@ def parse_frontmatter(text: str):
     block = m.group(1)
     try:
         import yaml  # available on GitHub runners; optional locally
-        data = yaml.safe_load(block)
+    except ImportError:
+        yaml = None
+    if yaml is not None:
+        try:
+            data = yaml.safe_load(block)
+        except yaml.YAMLError as exc:
+            return None, f"frontmatter is not valid YAML: {' '.join(str(exc).split())}"
         if not isinstance(data, dict):
             return None, "frontmatter is not a YAML mapping"
         return data, None
-    except ImportError:
-        pass
     # Minimal fallback: top-level `key: value` and `key: >`/`key: |` folded blocks.
     data: dict[str, str] = {}
     key = None
@@ -155,6 +161,7 @@ def path_exists(tok: str, doc: Path) -> bool:
 def check_paths(doc: Path) -> None:
     seen: set[str] = set()
     for lineno, tok in code_tokens(doc):
+        tok = re.sub(r":\d+(-\d+)?$", "", tok)  # `src/rbm.jl:42` cites a line, not a path
         if tok in seen or is_placeholder(tok):
             continue
         if not (tok in TOP_LEVEL_FILES or tok.startswith(DIR_PREFIXES)):
