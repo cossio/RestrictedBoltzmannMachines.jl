@@ -64,6 +64,12 @@ Tests in `test/runtests.jl` are organized as independent modules (each wrapped i
 
 GPU compatibility is tested without GPU hardware in `test/jlarrays.jl`, using JLArrays with `allowscalar(false)`. Do not commit tests that require a physical GPU (GitHub CI has none); run those locally only.
 
+## Pull Requests
+
+Every PR receives an automated Claude review (`.github/workflows/claude-pr-review.yml`) that posts inline comments and ends with a review verdict: approve, request changes, or comment. When authoring a PR, treat the reviewer's approval as the default bar before merge: address its findings by pushing fixes, or reply in the review threads with reasoning if a finding is mistaken — the reviewer re-runs on every push, and a fresh verdict supersedes the previous one.
+
+Never merge a PR or enable auto-merge. Merging happens only when the repo owner clicks merge on GitHub or explicitly instructs it.
+
 ## Releasing a new version
 
 During development the version in Project.toml carries a `-DEV` suffix (e.g. `5.4.0-DEV`), and changes accumulate under an `## Unreleased` section in CHANGELOG.md. To release:
