@@ -29,14 +29,26 @@ During development the version in `Project.toml` carries a `-DEV` suffix
 (e.g. `5.4.0-DEV`), and changes accumulate under an `## Unreleased` section in
 `CHANGELOG.md`. To release:
 
-1. On `master`, make a single commit titled `vX.Y.Z` that drops the `-DEV`
-   suffix from `version` in `Project.toml` and renames the `## Unreleased`
-   CHANGELOG section to `## X.Y.Z`. Push it.
-2. Comment `@JuliaRegistrator register` on that commit on GitHub, including
-   release notes (markdown, typically the CHANGELOG entries for this version)
-   in the same comment. The notes are added to the registry PR and to the
-   GitHub release that TagBot creates. Registrator opens a PR in the General
-   registry; once it merges, TagBot creates the `vX.Y.Z` tag and GitHub
-   release automatically.
-3. When starting work on the next version, bump `Project.toml` to the next
+1. Make a single commit titled `vX.Y.Z` that drops the `-DEV` suffix from
+   `version` in `Project.toml` and renames the `## Unreleased` CHANGELOG
+   section to `## X.Y.Z`. Land it on `master` (directly, or via a PR).
+2. Push a frozen branch `release-X.Y.Z` pointing at the master commit that
+   contains the release (the merge commit if it landed via PR):
+   `git push origin <sha>:refs/heads/release-X.Y.Z`. Never commit to this
+   branch — it pins the commit that gets registered even if `master` keeps
+   moving.
+3. Comment on the permanent (closed) registration issue
+   [#124](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/124):
+   `@JuliaRegistrator register branch=release-X.Y.Z`, including release notes
+   (markdown, typically the CHANGELOG entries for this version) in the same
+   comment. Registrator ignores PR comments, and issue comments accept only a
+   `branch=` target (no SHA), hence the pinned branch. The notes are added to
+   the registry PR and to the GitHub release that TagBot creates. Registrator
+   opens a PR in the General registry; once it merges, TagBot creates the
+   `vX.Y.Z` tag at the registered commit and the GitHub release automatically.
+   Afterwards the `release-X.Y.Z` branch may be deleted.
+4. When starting work on the next version, bump `Project.toml` to the next
    `-DEV` version and add a fresh `## Unreleased` section to `CHANGELOG.md`.
+
+The canonical, more detailed version of this procedure lives in `CLAUDE.md`
+("Releasing a new version"); keep the two in sync.
