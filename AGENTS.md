@@ -6,7 +6,7 @@ This is a Julia package (RestrictedBoltzmannMachines.jl). Julia is installed via
 
 ### Quick reference
 
-Commands for common tasks are documented in `.claude/CLAUDE.md` under "Common Commands". Key commands:
+Commands for common tasks are documented in `CLAUDE.md` under "Common Commands". Key commands:
 
 - **Run all tests:** `julia --project=. -e 'using Pkg; Pkg.test()'`
 - **Run a single test file:** `julia --project=test test/<file>.jl`

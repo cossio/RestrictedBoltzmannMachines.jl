@@ -1,0 +1,59 @@
+# Interactive Claude: responds when @claude is mentioned in an issue, a PR
+# comment, a review, or a reply to a review thread. This is what lets a
+# reply like "@claude this is fixed, resolve it" or "@claude review" get a
+# response, and lets Claude push fix commits to a PR branch when asked.
+#
+# Only mentions from the repo owner, members, and collaborators trigger it,
+# so arbitrary commenters on a public repo cannot spend the quota or drive
+# the agent. Authenticates with the CLAUDE_CODE_OAUTH_TOKEN repo secret.
+name: Claude
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+# Serialize (queue, don't cancel) concurrent @claude runs on the same
+# issue/PR, so parallel mentions can't push to the same branch at once.
+concurrency:
+  group: claude-${{ github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  claude:
+    name: Claude
+    if: |
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') && contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') && contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)) ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude') && contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.review.author_association)) ||
+      (github.event_name == 'issues' && contains(github.event.issue.body, '@claude') && contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.issue.author_association))
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    env:
+      HAS_KEY: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+    steps:
+      - name: Note when the token is unavailable
+        if: env.HAS_KEY != 'true'
+        run: echo "::notice::CLAUDE_CODE_OAUTH_TOKEN is not available; skipping."
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        if: env.HAS_KEY == 'true'
+        with:
+          fetch-depth: 0
+      - name: Run Claude
+        if: env.HAS_KEY == 'true'
+        uses: anthropics/claude-code-action@f1bd27ca5b54584506e40e17884d90bdaaa1a9b3 # v1.0.173
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: |
+            --model claude-sonnet-5
+            --append-system-prompt "Repo policy: never merge pull requests or enable auto-merge — merging is reserved for the repo owner. When working on a PR, strive to earn the automated Claude reviewer's approval: address its review findings with fixes, or reply in the review threads with reasoning when a finding is mistaken. Reply in every review thread on your PR (the fixing commit or your reasoning) before considering the work done, and do not resolve review threads yourself — the reviewer resolves them once convinced."

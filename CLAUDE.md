@@ -64,6 +64,14 @@ Tests in `test/runtests.jl` are organized as independent modules (each wrapped i
 
 GPU compatibility is tested without GPU hardware in `test/jlarrays.jl`, using JLArrays with `allowscalar(false)`. Do not commit tests that require a physical GPU (GitHub CI has none); run those locally only.
 
+## Pull Requests
+
+Every PR receives an automated Claude review (`.github/workflows/claude-pr-review.yml`) that posts inline comments and ends with a review verdict: approve, request changes, or comment. When authoring a PR, treat the reviewer's approval as the default bar before merge: address its findings by pushing fixes, or reply in the review threads with reasoning if a finding is mistaken — the reviewer re-runs on every push, and a fresh verdict supersedes the previous one.
+
+Reply in every review thread on your PR before considering the work done: either point at the commit that addresses the finding, or explain why it is mistaken. Do not resolve review threads yourself — the reviewer resolves a thread once convinced (by the fix or by your reply), and replies back when not.
+
+Never merge a PR or enable auto-merge. Merging happens only when the repo owner clicks merge on GitHub or explicitly instructs it.
+
 ## Releasing a new version
 
 During development the version in Project.toml carries a `-DEV` suffix (e.g. `5.4.0-DEV`), and changes accumulate under an `## Unreleased` section in CHANGELOG.md. To release and register a new version, use the `register-new-version` skill (`.claude/skills/register-new-version/SKILL.md`), which documents the full workflow: release commit, frozen `release-X.Y.Z` registration branch, triggering Registrator from issue [#124](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/124), and monitoring the General registry PR.

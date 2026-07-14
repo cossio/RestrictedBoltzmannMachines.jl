@@ -1,0 +1,125 @@
+# Claude review of every pull request.
+#
+# Reviews the full PR diff and posts inline review comments for real
+# findings (bugs, correctness, security), then submits a review verdict:
+# approve when convinced the PR is sound, request changes on serious
+# confirmed problems, comment-only otherwise. When the PR touches the
+# agent-instruction files (CLAUDE.md, AGENTS.md, skills), it additionally
+# reviews those for contradictions with the code, redundancy, and context
+# bloat — complementing the deterministic linter in agent-docs.yml.
+#
+# The job itself never fails because of review findings; the verdict is
+# expressed through the PR review state. Approving requires the repo
+# setting "Allow GitHub Actions to create and approve pull requests"
+# (Settings -> Actions -> General); without it, approval falls back to a
+# comment. Authenticates with the CLAUDE_CODE_OAUTH_TOKEN repo secret (a
+# Claude subscription token from `claude setup-token`) and skips cleanly
+# when the secret is unavailable (e.g. fork PRs).
+name: Claude PR review
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+permissions:
+  contents: read
+concurrency:
+  group: claude-pr-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  review:
+    name: Claude review
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write
+    env:
+      HAS_KEY: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+    steps:
+      - name: Note when the token is unavailable
+        if: env.HAS_KEY != 'true'
+        run: echo "::notice::CLAUDE_CODE_OAUTH_TOKEN is not available (fork PR or missing secret); skipping Claude review."
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        if: env.HAS_KEY == 'true'
+        with:
+          fetch-depth: 0
+      - name: Review pull request with Claude
+        if: env.HAS_KEY == 'true'
+        uses: anthropics/claude-code-action@f1bd27ca5b54584506e40e17884d90bdaaa1a9b3 # v1.0.173
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: |
+            --model claude-sonnet-5
+            --max-turns 60
+            --allowedTools "Read,Grep,Glob,LS,WebFetch,Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr review:*),Bash(gh api graphql:*),Bash(git log:*),Bash(git diff:*),Bash(git show:*),mcp__github_inline_comment__create_inline_comment"
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            First, reconcile earlier runs of this review: list the PR's
+            review threads including their replies (`gh api graphql` with
+            the pullRequest reviewThreads query). For each unresolved thread
+            posted by a previous run of this workflow (bot-authored):
+            - If the current code addresses it, or the author's reply
+              convincingly rebuts it, resolve the thread with the
+              resolveReviewThread GraphQL mutation.
+            - If the author replied but you remain unconvinced, reply back
+              in the thread (addPullRequestReviewThreadReply mutation)
+              explaining briefly why the finding stands.
+            Do not post duplicates of comments that are still valid and
+            unresolved.
+
+            Then review this pull request. Read the full diff (`gh pr diff`)
+            and enough of the surrounding code to judge each change in
+            context. This is a Julia package for Restricted Boltzmann
+            Machines; pay attention to array shape conventions (layer dims
+            first, batch dim last), type-genericity (code must stay generic
+            over array backends, e.g. CUDA), and numerical correctness of
+            any math-sensitive change.
+
+            Look for real problems only:
+            - bugs and logic errors, wrong edge-case behavior
+            - correctness of math/statistics changes
+            - API breakage or behavior changes not reflected in tests/docs
+            - security issues (e.g. in CI workflow changes)
+
+            If the diff touches agent-instruction files (CLAUDE.md,
+            AGENTS.md, or anything under .agents/ or .claude/), also review
+            those for: contradictions with each other or with the actual
+            repository (spot-check commands, paths, and factual claims
+            against the code); substantial redundancy that can drift apart;
+            context bloat (content that does not earn its place); and skill
+            frontmatter descriptions that fail to say what the skill does
+            and when to use it. Consult the best-practice guides with
+            WebFetch if helpful:
+            https://code.claude.com/docs/en/best-practices and
+            https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices
+            A deterministic linter (.github/scripts/lint_agent_docs.py)
+            already enforces sizes, frontmatter constraints, and path
+            existence — focus on semantics.
+
+            Post each finding as an inline comment on the relevant line
+            using mcp__github_inline_comment__create_inline_comment, with a
+            short explanation and, where possible, a concrete suggestion.
+
+            Be conservative about findings: do not comment on style,
+            formatting, or preferences; do not restate what the diff does;
+            if you find nothing significant, post no inline comments.
+
+            Finally, submit a review verdict with `gh pr review`:
+            - If you are convinced the PR is correct, complete, and safe,
+              approve it: `gh pr review --approve --body "..."` with a
+              one-paragraph justification of what you checked. If approval
+              is rejected for permission reasons, fall back to
+              `gh pr review --comment --body "..."` with the same text.
+            - If you confirmed a serious problem (a real bug, data
+              corruption, security issue, or broken API), request changes:
+              `gh pr review --request-changes --body "..."` summarizing the
+              blocking findings. Reserve this for confirmed, consequential
+              problems — never for uncertainty or taste.
+            - Otherwise (minor or uncertain findings only), submit
+              `gh pr review --comment --body "..."` with a short summary.
+            On re-runs after new commits, submit a fresh verdict; an
+            approval supersedes your earlier request-changes once the
+            problems are fixed. Never merge the PR.
