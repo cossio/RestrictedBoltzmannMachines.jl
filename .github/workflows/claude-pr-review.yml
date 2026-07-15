@@ -8,6 +8,14 @@
 # reviews those for contradictions with the code, redundancy, and context
 # bloat — complementing the deterministic linter in agent-docs.yml.
 #
+# claude-code-action self-skips when this file differs from the version
+# on the default branch (anti-tampering), so PRs that modify this
+# workflow get no automated review. On such PRs the job instead posts a
+# PR comment explaining that, including the escape hatch: commenting
+# "@claude review this PR" still triggers a review, because claude.yml
+# runs from the default branch on comment events and always passes the
+# validation.
+#
 # The job itself never fails because of review findings; the verdict is
 # expressed through the PR review state. Approving requires the repo
 # setting "Allow GitHub Actions to create and approve pull requests"
@@ -44,12 +52,26 @@ jobs:
         if: env.HAS_KEY == 'true'
         with:
           fetch-depth: 0
-      - name: Note when this PR modifies the review workflow itself
+      - name: Explain when this PR modifies the review workflow itself
         if: env.HAS_KEY == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           if git diff --name-only "origin/${GITHUB_BASE_REF}...HEAD" \
               | grep -q '^\.github/workflows/claude-pr-review\.yml$'; then
-            echo "::notice::Claude review self-skips on this PR: it modifies the review workflow itself, and claude-code-action only runs the workflow version already on the default branch (anti-tampering). The green check below means skipped, not reviewed. The review runs normally on PRs that leave this file unchanged."
+            echo "::notice::Claude review self-skips on this PR: it modifies the review workflow itself, and claude-code-action only runs the workflow version already on the default branch (anti-tampering). The green check below means skipped, not reviewed. Comment '@claude review this PR' to request a review manually."
+            marker='<!-- claude-review-workflow-skip -->'
+            if ! gh pr view "$PR_NUMBER" --json comments --jq '.comments[].body' | grep -qF "$marker"; then
+              gh pr comment "$PR_NUMBER" --body "$(cat <<EOF
+          **The automated Claude review cannot run on this PR.** The PR modifies \`.github/workflows/claude-pr-review.yml\`, and \`claude-code-action\` refuses to run from a workflow file that differs from the version on the repository's default branch (anti-tampering). The green "Claude review" check therefore means skipped, not reviewed.
+
+          You can still request a review manually by commenting \`@claude review this PR\` — the \`@claude\` workflow runs from the default branch on comment events, so it always passes the validation.
+
+          $marker
+          EOF
+          )"
+            fi
           fi
       - name: Review pull request with Claude
         if: env.HAS_KEY == 'true'
