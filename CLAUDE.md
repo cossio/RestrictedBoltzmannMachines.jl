@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-RestrictedBoltzmannMachines.jl is a Julia package for training and inference with Restricted Boltzmann Machines (RBMs). It supports multiple layer types (Binary, Spin, Potts, Gaussian, ReLU variants), GPU acceleration via CUDA.jl, and HDF5 persistence. Requires Julia 1.12+.
+RestrictedBoltzmannMachines.jl is a Julia package for training and inference with Restricted Boltzmann Machines (RBMs). It supports multiple layer types (Binary, Spin, Potts, Gaussian, ReLU variants), GPU acceleration via CUDA.jl, and HDF5 persistence. Requires Julia 1.10+.
 
 ## Common Commands
 
@@ -17,7 +17,7 @@ julia --project=test test/pcd.jl
 
 # Start a REPL with the package loaded
 julia --project=.
-julia> using RestrictedBoltzmannMachines
+julia> import RestrictedBoltzmannMachines as RBMs
 ```
 
 ## Architecture
@@ -32,7 +32,7 @@ Data arrays have layer dimensions first and batch dimension last. For a layer of
 
 All layers store parameters in a single `.par` array. The first dimension is the number of parameters of the layer type (e.g. 1 for Binary/Spin/Potts which have only `θ`, 2 for Gaussian which has `θ` and `γ`, 4 for dReLU). The remaining dimensions are the layer's spatial dimensions (the grid of units). So `ndims(par) == N + 1` where `N` is the layer ndims. Named parameter accessors (e.g. `layer.θ`, `layer.γ`) are views into `.par`.
 
-Potts is special: it has `AbstractLayer{2}` because its first layer dimension is the one-hot (categorical) dimension with `Q` classes, and the second is the number of units. So `size(potts_layer) == (Q, N)` and `par` has shape `(1, Q, N)`.
+Potts is special: its first layer dimension is the one-hot (categorical) dimension with `Q` classes, and the remaining dimensions describe the grid of units. So `size(potts_layer) == (Q, N...)` and `par` has shape `(1, Q, N...)`.
 
 Layer types: `Binary`, `Spin`, `Potts`, `Gaussian`, `ReLU`, `dReLU`, `pReLU`, `xReLU`, `nsReLU`, `PottsGumbel`.
 
@@ -74,4 +74,4 @@ Never merge a PR or enable auto-merge. Merging happens only when the repo owner 
 
 ## Releasing a new version
 
-During development the version in Project.toml carries a `-DEV` suffix (e.g. `5.4.0-DEV`), and changes accumulate under an `## Unreleased` section in CHANGELOG.md. CHANGELOG.md records only changes to the package code that affect users (source, API, behavior, dependencies). Do not add entries for CI/workflow changes, repo tooling, or other development-infrastructure changes. To release and register a new version, use the `register-new-version` skill (`.claude/skills/register-new-version/SKILL.md`), which documents the full workflow: release commit, frozen `release-X.Y.Z` registration branch, triggering Registrator from issue [#124](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/124), and monitoring the General registry PR.
+During development the version in Project.toml carries a `-DEV` suffix (e.g. `5.4.0-DEV`), and changes accumulate under an `## Unreleased` section in CHANGELOG.md. CHANGELOG.md records only changes to the package code that affect users (source, API, behavior, dependencies). Do not add entries for CI/workflow changes, repo tooling, or other development-infrastructure changes. To release and register a new version, use the shared `register-new-version` skill (`.claude/skills/register-new-version/SKILL.md`, exposed to Codex through `.agents/skills/register-new-version/SKILL.md`), which documents the full workflow: release commit, frozen `release-X.Y.Z` registration branch, triggering Registrator from issue [#124](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/124), and monitoring the General registry PR.

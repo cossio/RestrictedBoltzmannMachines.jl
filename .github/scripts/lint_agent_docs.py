@@ -209,7 +209,7 @@ def check_skill(skill_md: Path, seen_names: dict[str, Path]) -> None:
             error(skill_md, 1, f"skill name `{name}` must be lowercase letters, digits, and hyphens")
         if name != skill_md.parent.name:
             error(skill_md, 1, f"skill name `{name}` does not match its directory `{skill_md.parent.name}`")
-        if name in seen_names:
+        if name in seen_names and seen_names[name].resolve() != skill_md.resolve():
             error(skill_md, 1, f"skill name `{name}` is also used by {rel(seen_names[name])}")
         else:
             seen_names[name] = skill_md
@@ -251,11 +251,23 @@ def check_duplicates(docs: list[Path]) -> None:
             warn(doc, lineno, f"line duplicated verbatim in {others}: `{norm[:80]}`")
 
 
+def unique_targets(paths: list[Path]) -> list[Path]:
+    """Keep one spelling of each file, including files reached through symlinks."""
+    unique: dict[Path, Path] = {}
+    for path in sorted(paths):
+        unique.setdefault(path.resolve(), path)
+    return list(unique.values())
+
+
 def main() -> int:
     memory_docs = [ROOT / f for f in MEMORY_FILES if (ROOT / f).is_file()]
-    skill_docs = sorted(p for g in SKILL_GLOBS for p in ROOT.glob(g))
-    reference_docs = sorted(
-        ref for s in skill_docs for ref in s.parent.rglob("*.md") if ref != s
+    advertised_skills = sorted(p for g in SKILL_GLOBS for p in ROOT.glob(g))
+    # Codex supports symlinked repository skill folders. Validate every
+    # advertised path (including its directory/name match), then deduplicate
+    # resolved targets for path and duplicate-content checks.
+    skill_docs = unique_targets(advertised_skills)
+    reference_docs = unique_targets(
+        [ref for s in skill_docs for ref in s.parent.rglob("*.md") if ref != s]
     )
 
     if not memory_docs:
@@ -264,7 +276,7 @@ def main() -> int:
     for doc in memory_docs:
         check_size(doc, LIMITS["memory_lines"], LIMITS["memory_bytes"])
     seen_names: dict[str, Path] = {}
-    for skill in skill_docs:
+    for skill in advertised_skills:
         check_skill(skill, seen_names)
 
     all_docs = memory_docs + skill_docs + reference_docs
