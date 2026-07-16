@@ -49,7 +49,7 @@ let fig = Makie.Figure()
 end
 
 grad_history = []
-function callback(; rbm, optim, iter, vm, vd, ∂)
+function callback(; rbm, optim, iter, vm, vd, ∂, _...)
     if iszero(iter % 10)
         push!(grad_history, cpu(∂))
     end

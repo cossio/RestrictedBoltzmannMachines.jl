@@ -77,11 +77,16 @@ In addition to the standard PCD updates, it:
   - `rescale_hidden`: absorb scale into hidden activation when relevant.
 
 Other common arguments remain the same (`iters`, `batchsize`, `steps`, `optim`,
-`l1_weights`, `l2_weights`, `l2_fields`, `l2l1_weights`, `zerosum`, `callback`, `vm`).
+`wts`, `l1_weights`, `l2_weights`, `l2_fields`, `l2l1_weights`, `zerosum`,
+`callback`, `vm`).
 
 The stdRBM callback is called as:
 
-`callback(; rbm, optim, state, ps, iter, vm, vd, ∂)`.
+`callback(; rbm, optim, state, ps, iter, vm, vd, wd, ∂)`
+
+where `wd` are the weights of the current mini-batch (`nothing` if `wts` was not
+given). Define callbacks with a trailing `_...` slurp (e.g.
+`callback(; rbm, iter, _...) = ...`) to stay robust if more keywords are added.
 
 ## Practical tuning guidelines
 

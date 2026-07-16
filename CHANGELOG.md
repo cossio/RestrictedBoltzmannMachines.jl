@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
-- Added support for weighted data (`wts` keyword) in `pcd!` for `StandardizedRBM`, matching the plain-`RBM` trainer: weighted visible moments, weighted minibatch gradients with the weighted-minibatch bias correction, and weighted updates of the visible/hidden standardization statistics.
+- Added support for weighted data (`wts` keyword) in `pcd!` for `StandardizedRBM`, matching the plain-`RBM` trainer: weighted visible moments, weighted minibatch gradients with the weighted-minibatch bias correction, and weighted updates of the visible/hidden standardization statistics. The `callback` now also receives the minibatch weights `wd` (equal to `nothing` when `wts` is not given), consistent with the plain-`RBM` trainer; callbacks that spell out the full keyword list must accept the new keyword (or, more robustly, take a trailing `_...` slurp).
 
 ## 5.7.0
 
