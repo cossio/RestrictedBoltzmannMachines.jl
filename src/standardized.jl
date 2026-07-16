@@ -435,11 +435,12 @@ function pcd!(
     shuffle::Bool = true,
 
     iters::Int = 1, # number of gradient updates
+    wts::Union{AbstractVector, Nothing} = nothing, # data weights
 
     steps::Int = 1,
     vm::AbstractArray = sample_from_inputs(rbm.visible, Falses(size(rbm.visible)..., batchsize)),
 
-    moments = moments_from_samples(rbm.visible, data), # sufficient statistics for visible layer
+    moments = moments_from_samples(rbm.visible, data; wts), # sufficient statistics for visible layer
 
     # regularization
     l2_fields::Real = 0, # visible fields L2 regularization
@@ -469,20 +470,28 @@ function pcd!(
     callback = Returns(nothing)
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
+    @assert isnothing(wts) || size(data)[end] == length(wts)
     @assert 0 ≤ damping ≤ 1
 
-    standardize_visible_from_data!(rbm, data; ϵ = ϵv)
+    standardize_visible_from_data!(rbm, data; wts, ϵ = ϵv)
     zerosum && zerosum!(rbm)
 
-    minibatches = infinite_minibatches(data; batchsize, shuffle)
-    for (iter, (vd,)) in zip(1:iters, minibatches,)
+    # store average weight of each data point
+    wts_mean = isnothing(wts) ? 1 : mean(wts)
+
+    minibatches = infinite_minibatches(data, wts; batchsize, shuffle)
+    for (iter, (vd, wd)) in zip(1:iters, minibatches)
         # update fantasy chains
         vm .= sample_v_from_v(rbm, vm; steps)
 
         # compute gradient
-        ∂d = ∂free_energy(rbm, vd; moments)
+        ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
         ∂m = ∂free_energy(rbm, vm)
         ∂ = ∂d - ∂m
+
+        # correct weighted minibatch bias
+        batch_weight = isnothing(wts) ? 1 : mean(wd) / wts_mean
+        ∂ *= batch_weight
 
         # weight decay
         ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, regularize_unstandardized, zerosum)
@@ -492,12 +501,12 @@ function pcd!(
         state, ps = update!(state, ps, gs)
 
         # update standardization
-        standardize_hidden_from_v!(rbm, vd; damping, ϵ=ϵh)
+        standardize_hidden_from_v!(rbm, vd; wts = wd, damping, ϵ=ϵh)
 
         rescale_hidden && rescale_hidden_activations!(rbm)
         zerosum && zerosum!(rbm)
 
-        callback(; rbm, optim, state, ps, iter, vm, vd, ∂)
+        callback(; rbm, optim, state, ps, iter, vm, vd, wd, ∂)
     end
 
     return state, ps

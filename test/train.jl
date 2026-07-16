@@ -221,6 +221,18 @@ end
     @test gaps.vh < 0.05
 end
 
+@testset "standardized pcd with weighted data" begin
+    seed!(62)
+    data = binary_dataset()
+    wts = [v[1] ? 3.0 : 1.0 for v in eachcol(data)]
+    rbm = standardize(initialize!(BinaryRBM(3, 5), data; wts))
+    pcd!(rbm, data; wts, batchsize = 32, iters = 5000, steps = 5, optim = Adam(1e-3))
+    gaps = moment_gaps(rbm, data; wts)
+    @test gaps.v < 0.05
+    @test gaps.h < 0.05
+    @test gaps.vh < 0.05
+end
+
 @testset "standardized pcd potts moment matching" begin
     seed!(63)
     data = potts_dataset()
