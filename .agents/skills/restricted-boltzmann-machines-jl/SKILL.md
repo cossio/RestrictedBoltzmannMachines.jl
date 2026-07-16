@@ -84,6 +84,8 @@ guidance layered on top of general Julia knowledge.
 
 - Run the narrowest relevant test file first, then the broader suite if the
   change crosses subsystems.
+- Run `julia --project=test test/jlarrays.jl` when changing generic array or
+  backend behavior; it checks GPU semantics without physical GPU hardware.
 - Build docs when touching examples, docstrings, or `docs/src/literate`.
 - If `Project.toml` changes, confirm the workspace still resolves and the root
   manifest remains coherent.

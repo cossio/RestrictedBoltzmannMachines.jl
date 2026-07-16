@@ -60,6 +60,8 @@ During development the version in `Project.toml` carries a `-DEV` suffix
    anticipated) and adds a fresh `## Unreleased` section to `CHANGELOG.md`,
    so development commits never accumulate under a released version number.
 
-The canonical, more detailed version of this procedure lives in the
-`register-new-version` skill at
-`.claude/skills/register-new-version/SKILL.md`; keep the two in sync.
+The canonical, more detailed version of this procedure lives in the shared
+`register-new-version` skill. It is available to Claude at
+`.claude/skills/register-new-version/SKILL.md` and to Codex at
+`.agents/skills/register-new-version/SKILL.md`; keep this page in sync with the
+skill.
