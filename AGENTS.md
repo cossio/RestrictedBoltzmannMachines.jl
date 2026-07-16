@@ -28,6 +28,13 @@ commands, and subsystem-specific edit guidance.
 - Test GPU semantics in `test/jlarrays.jl` with JLArrays and
   `allowscalar(false)`. Do not commit tests that require physical GPU hardware.
 
+## GitHub operations
+
+- A network-restricted sandbox can make `gh auth status` look like an invalid
+  token. If it fails in the sandbox, retry it with host/network access before
+  asking the user to reauthenticate; treat credentials as invalid only if that
+  host-level check also fails.
+
 ## Changes and pull requests
 
 - Add `CHANGELOG.md` entries only for user-facing package changes to source,
