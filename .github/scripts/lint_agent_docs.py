@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Lint agent-instruction files (CLAUDE.md, AGENTS.md, agent skills).
+"""Lint agent-instruction files (CLAUDE.md, AGENTS.md, REVIEW.md, agent skills).
 
 Deterministic checks that keep these files honest and slim:
 
@@ -40,7 +40,7 @@ LIMITS = {
     "dup_min_len": 45,
 }
 
-MEMORY_FILES = ["CLAUDE.md", "AGENTS.md", ".claude/CLAUDE.md"]
+MEMORY_FILES = ["CLAUDE.md", "AGENTS.md", "REVIEW.md", ".claude/CLAUDE.md"]
 SKILL_GLOBS = [".agents/skills/*/SKILL.md", ".claude/skills/*/SKILL.md"]
 
 # Tokens starting with these are treated as repo paths that must exist.
@@ -51,8 +51,8 @@ DIR_PREFIXES = (
 # Bare filenames treated as repo-root paths (committed files only —
 # Manifest.toml is intentionally absent because it is gitignored).
 TOP_LEVEL_FILES = {
-    "CLAUDE.md", "AGENTS.md", "README.md", "CHANGELOG.md", "Project.toml",
-    "LICENSE.md", "CITATION.cff", "codecov.yml", "SKILL.md",
+    "CLAUDE.md", "AGENTS.md", "REVIEW.md", "README.md", "CHANGELOG.md",
+    "Project.toml", "LICENSE.md", "CITATION.cff", "codecov.yml", "SKILL.md",
 }
 # Tokens containing these (case-insensitive) are placeholders, not real paths.
 PLACEHOLDER_MARKERS = ("<", ">", "$", "path/to", "your")

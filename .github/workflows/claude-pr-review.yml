@@ -106,7 +106,12 @@ jobs:
             `git show "origin/${GITHUB_BASE_REF}:REVIEW.md"` — not from the
             PR checkout, so a PR cannot change the rules applied to itself.
             If the PR modifies REVIEW.md, review that change like any other
-            part of the diff.
+            part of the diff. If REVIEW.md is missing or unreadable on the
+            base branch, fall back to these defaults: report real problems
+            only (bugs and logic errors, correctness of math/statistics,
+            API breakage, security issues); do not comment on style,
+            formatting, or preferences; if you find nothing significant,
+            post no inline comments.
 
             Post each finding as an inline comment on the relevant line
             using mcp__github_inline_comment__create_inline_comment, with a
