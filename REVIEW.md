@@ -5,11 +5,17 @@ Machines. Prioritize numerical and statistical correctness above everything
 else: a subtly wrong formula is worse than a crash, because tests may not
 catch it and users get silently wrong results.
 
+Report real problems only. Do not comment on style, formatting, or
+preferences; do not restate what the diff does. If you find nothing
+significant, post no findings.
+
 ## What Important means here
 
-Reserve Important for findings that would make the package compute wrong
-results or break users:
+Reserve Important (blocking-severity) for findings that would make the
+package compute wrong results or break users:
 
+- Bugs and logic errors: wrong edge-case behavior, or crashes on valid
+  input.
 - Incorrect math or statistics: wrong sign, missing normalization or
   Jacobian factor, mishandled log/exp (e.g. overflow where a
   logsumexp/`log1p` formulation is needed), biased sampling.
@@ -67,6 +73,21 @@ found is a Nit, lead the summary with "No blocking issues."
   new behavior.
 - The version in Project.toml keeps its `-DEV` suffix outside of release
   PRs.
+
+## Agent-instruction files
+
+When the diff touches CLAUDE.md, AGENTS.md, REVIEW.md, or anything under
+`.agents/` or `.claude/`, also review those files for: contradictions with
+each other or with the actual repository (spot-check commands, paths, and
+factual claims against the code); substantial redundancy that can drift
+apart; context bloat (content that does not earn its place); and skill
+frontmatter descriptions that fail to say what the skill does and when to
+use it. Consult the best-practice guides with WebFetch if helpful:
+https://code.claude.com/docs/en/best-practices and
+https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices
+The deterministic linter (`.github/scripts/lint_agent_docs.py`) already
+enforces sizes, frontmatter constraints, and path existence — focus on
+semantics.
 
 ## Re-reviews
 
