@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- Added support for weighted data (`wts` keyword) in `pcd!` for `StandardizedRBM`, matching the plain-`RBM` trainer: weighted visible moments, weighted minibatch gradients with the weighted-minibatch bias correction, and weighted updates of the visible/hidden standardization statistics.
+
 ## 5.7.0
 
 - Fixed `xReLU(layer::nsReLU)`, which built the fixed `γ = 1` array with `ones(size(layer.θ))`, always returning a host `Array{Float64}`. Since this conversion backs `energies`, `cgfs`, `∂cgfs`, `sample_from_inputs` and the other moment functions of `nsReLU`, it promoted the entire hidden-layer computation to `Float64` and, on GPU, forced a host allocation plus a host→device transfer on every call. It now uses `one.(layer.θ)`, preserving both eltype and device ([#119](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/119)).
