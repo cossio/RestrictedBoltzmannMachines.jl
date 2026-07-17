@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file. The format 
 ## Unreleased
 
 - Fixed `pReLU` models silently evaluating or continuing PCD training after mutable `η` parameters became nonfinite or left the documented open interval `(-1, 1)`. Invalid values now fail at construction and evaluation, and plain, centered, and standardized `pcd!` validate immediately before training and after every optimizer update. The documentation recommends `xReLU` or `nsReLU` for unconstrained learned asymmetry ([#141](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/141)).
+- Fixed `rescale_weights!` for plain, centered, and standardized RBMs so hidden units with zero-norm incoming weights remain finite and unchanged while every nonzero incoming-weight column is normalized (the equivalent unstandardized column for `StandardizedRBM`). This prevents default `pcd!` from corrupting zero-initialized continuous-hidden models such as `HopfieldRBM` ([#140](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/140)).
 
 ## 5.8.0
 

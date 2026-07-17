@@ -14,14 +14,17 @@ function rescale_hidden!(rbm::RBM, λ::AbstractArray)
     return false
 end
 
+_inv_or_one(x) = iszero(x) ? one(x) : inv(x)
+
 """
-    rescale_weights!(rbm, λ::AbstractArray)
+    rescale_weights!(rbm)
 
 For continuous hidden units with a scale parameter, scales parameters such that the weights
-attached to each hidden unit have norm 1.
+attached to each hidden unit have norm 1. Hidden units whose incoming weights have zero
+norm are left unchanged.
 """
 function rescale_weights!(rbm::RBM)
-    λ = inv.(weight_norms(rbm))
+    λ = _inv_or_one.(weight_norms(rbm))
     return rescale_hidden!(rbm, λ)
 end
 
