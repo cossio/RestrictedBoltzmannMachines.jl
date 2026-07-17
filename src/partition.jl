@@ -5,6 +5,11 @@ Log-partition of `rbm`, computed by extensive enumeration of visible states
 (except for particular cases such as Gaussian-Gaussian RBM).
 This is exponentially slow for large machines.
 
+For Gaussian-Gaussian RBMs, the exact Gaussian integral is used when the joint
+precision matrix (with Gaussian precisions `abs.(γ)`) is positive definite.
+Non-normalizable models with a singular or indefinite joint precision return
+`Inf`.
+
 If your RBM has a smaller hidden layer, mirroring the layers of the `rbm` first
 (see [`mirror`](@ref)).
 """
