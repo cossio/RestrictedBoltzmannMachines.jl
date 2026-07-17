@@ -239,16 +239,21 @@ end
     end
 end
 
-@testset "finite extreme weights are scale-stable ($name PCD)" for (name, kind, seed) in [
-    ("plain", Val(:plain), 109),
-    ("centered", Val(:centered), 110),
-    ("standardized", Val(:standardized), 111),
-]
+@testset "finite extreme $weight_type weights are scale-stable ($name PCD)" for
+    (name, kind, seed) in [
+        ("plain", Val(:plain), 109),
+        ("centered", Val(:centered), 110),
+        ("standardized", Val(:standardized), 111),
+    ],
+    (weight_type, extreme_weight) in [
+        ("Float64", floatmax(Float64)),
+        ("UInt128", typemax(UInt128)),
+    ]
     data = [
         NaN 0.0 1.0
         NaN 1.0 0.0
     ]
-    extreme_wts = [0.0, floatmax(Float64), floatmax(Float64)]
+    extreme_wts = [zero(extreme_weight), extreme_weight, extreme_weight]
     unit_wts = [0.0, 1.0, 1.0]
     extreme_rbm = wrap_rbm(kind, base_rbm())
     unit_rbm = wrap_rbm(kind, base_rbm())
@@ -272,17 +277,21 @@ end
 
     @test model_state(extreme_rbm) == model_state(unit_rbm)
     @test extreme_vm == unit_vm
-    @test extreme_log.weights == [[floatmax(Float64)], [floatmax(Float64)]]
+    @test extreme_log.weights == [[extreme_weight], [extreme_weight]]
     @test unit_log.weights == [[1.0], [1.0]]
     @test all_finite(extreme_rbm)
 end
 
-@testset "finite extreme weights are scale-stable (UCD)" begin
+@testset "finite extreme $weight_type weights are scale-stable (UCD)" for
+    (weight_type, extreme_weight) in [
+        ("Float64", floatmax(Float64)),
+        ("UInt128", typemax(UInt128)),
+    ]
     data = [
         NaN 0.0 1.0
         NaN 1.0 0.0
     ]
-    extreme_wts = [0.0, floatmax(Float64), floatmax(Float64)]
+    extreme_wts = [zero(extreme_weight), extreme_weight, extreme_weight]
     unit_wts = [0.0, 1.0, 1.0]
     extreme_rbm = base_rbm()
     unit_rbm = base_rbm()
@@ -316,7 +325,7 @@ end
     )
 
     @test model_state(extreme_rbm) == model_state(unit_rbm)
-    @test extreme_log.weights == [[floatmax(Float64)], [floatmax(Float64)]]
+    @test extreme_log.weights == [[extreme_weight], [extreme_weight]]
     @test unit_log.weights == [[1.0], [1.0]]
     @test all_finite(extreme_rbm)
 end

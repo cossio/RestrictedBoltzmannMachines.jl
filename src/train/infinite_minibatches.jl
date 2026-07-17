@@ -102,7 +102,7 @@ function _prepare_training_data(
     # moments and gradients so finite weights cannot overflow their sum/mean.
     # Keep the raw weights separately so callbacks continue to receive them.
     scale = maximum(wts)
-    T = promote_type(typeof(scale), Float32)
+    T = promote_type(float(typeof(scale)), Float32)
     training_wts = T.(wts) ./ T(scale)
     normalization = (; scale, mean = mean(training_wts))
 
@@ -121,7 +121,7 @@ function _prepare_training_batch(
     normalization::NamedTuple,
 )
     scale = maximum(wts)
-    T = promote_type(typeof(scale), Float32)
+    T = promote_type(float(typeof(scale)), Float32)
     training_wts = T.(wts) ./ T(scale)
     batch_weight = (scale / normalization.scale) *
         (mean(training_wts) / normalization.mean)
