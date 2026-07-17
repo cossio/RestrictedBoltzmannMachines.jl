@@ -552,12 +552,13 @@ end
 
 Rescale weights so that the unstandardized weights have norm 1, by re-scaling hidden units.
 This assumes the hidden units have a scale parameter, otherwise it does nothing.
+Hidden units whose incoming unstandardized weights have zero norm are left unchanged.
 Note that the standardized weights are invariant under such rescaling of hidden unit activities,
 and therefore cannot be constrained to have unit norm. So the only sensible choice is to
 rescale the unstandardized weights to have unit norm, as we do here.
 """
 function rescale_weights!(rbm::StandardizedRBM)
-    λ = inv.(weight_norms(rbm))
+    λ = _inv_or_one.(weight_norms(rbm))
     return rescale_hidden!(rbm, λ)
 end
 
