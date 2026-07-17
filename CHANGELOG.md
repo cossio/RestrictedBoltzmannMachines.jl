@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+- Fixed `pcd!(::StandardizedRBM)` producing non-finite parameters and energies when visible data has zero-variance coordinates, such as constant Binary features or absent Potts categories. Such centered coordinates now use a neutral unit scale; nonconstant coordinates and explicit positive `ϵv` behavior are unchanged ([#139](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/139)).
+
 ## 5.8.0
 
 - Added support for weighted data (`wts` keyword) in `pcd!` for `StandardizedRBM`, matching the plain-`RBM` trainer: weighted visible moments, weighted minibatch gradients with the weighted-minibatch bias correction, and weighted updates of the visible/hidden standardization statistics. The `callback` now also receives the minibatch weights `wd` (equal to `nothing` when `wts` is not given), consistent with the plain-`RBM` trainer; callbacks that spell out the full keyword list must accept the new keyword (or, more robustly, take a trailing `_...` slurp).

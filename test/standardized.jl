@@ -257,6 +257,91 @@ end
     @test iszero(rbm.hidden.θ)
 end
 
+@testset "standardized pcd with zero-variance visible features" begin
+    binary_data = Bool[
+        0 0 0 0
+        0 1 0 1
+    ]
+    potts_data = reshape(Bool[
+        1 0 1 0
+        0 1 0 1
+        0 0 0 0
+    ], 3, 1, 4)
+    weighted_binary_data = Bool[
+        0 0 1 1
+        0 1 0 1
+    ]
+    weighted_potts_data = reshape(Bool[
+        1 0 0 0
+        0 1 0 0
+        0 0 1 1
+    ], 3, 1, 4)
+
+    for (
+        data_binary, data_potts, wts,
+        binary_offset, binary_scale, potts_offset, potts_scale,
+    ) in (
+        (
+            binary_data,
+            potts_data,
+            nothing,
+            [0.0, 0.5],
+            [1.0, 0.5],
+            reshape([0.5, 0.5, 0.0], 3, 1),
+            reshape([0.5, 0.5, 1.0], 3, 1),
+        ),
+        (
+            weighted_binary_data,
+            weighted_potts_data,
+            [1.0, 1.0, 0.0, 0.0],
+            [0.0, 0.5],
+            [1.0, 0.5],
+            reshape([0.5, 0.5, 0.0], 3, 1),
+            reshape([0.5, 0.5, 1.0], 3, 1),
+        ),
+    )
+        binary_rbm = standardize(BinaryRBM(zeros(2), zeros(1), fill(0.1, 2, 1)))
+        pcd!(
+            binary_rbm, data_binary;
+            wts, iters = 1, batchsize = 4, steps = 1, shuffle = false,
+        )
+        @test binary_rbm.offset_v ≈ binary_offset
+        @test binary_rbm.scale_v ≈ binary_scale
+
+        potts_rbm = standardize(
+            RBM(Potts((3, 1)), Binary((1,)), fill(0.1, 3, 1, 1))
+        )
+        pcd!(
+            potts_rbm, data_potts;
+            wts, iters = 1, batchsize = 4, steps = 1, shuffle = false,
+        )
+        @test potts_rbm.offset_v ≈ potts_offset
+        @test potts_rbm.scale_v ≈ potts_scale
+
+        for (rbm, data) in ((binary_rbm, data_binary), (potts_rbm, data_potts))
+            @test all(rbm.scale_v .> 0)
+            for par in (
+                rbm.visible.par, rbm.hidden.par, rbm.w,
+                rbm.offset_v, rbm.offset_h, rbm.scale_v, rbm.scale_h,
+            )
+                @test all(isfinite, par)
+            end
+            @test all(isfinite, free_energy(rbm, data))
+        end
+    end
+
+    rbm = standardize(BinaryRBM(zeros(2), zeros(1), fill(0.1, 2, 1)))
+    pcd!(
+        rbm, binary_data;
+        ϵv = 0.04, iters = 1, batchsize = 4, steps = 1, shuffle = false,
+    )
+    @test rbm.scale_v ≈ [0.2, √0.29]
+    @test all(isfinite, rbm.visible.par)
+    @test all(isfinite, rbm.hidden.par)
+    @test all(isfinite, rbm.w)
+    @test all(isfinite, free_energy(rbm, binary_data))
+end
+
 @testset "exact enumeration of configurations" begin
     rbm = BinaryStandardizedRBM(
         randn(2), randn(2), randn(2,2),
