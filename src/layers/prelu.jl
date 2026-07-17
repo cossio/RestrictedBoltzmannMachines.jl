@@ -1,14 +1,18 @@
 """
     pReLU(; θ, γ, Δ, η)
 
-Parametric ReLU layer, with shared scale and asymmetry ratio.
+Parametric ReLU layer, with shared scale and asymmetry ratio. Every value of
+`η` must be finite and lie strictly inside `(-1, 1)`. For unconstrained learned
+asymmetry, use `xReLU` or the fixed-scale `nsReLU` instead.
 """
 struct pReLU{N,A} <: AbstractLayer{N}
     par::A
     function pReLU{N,A}(par::A) where {N,A<:AbstractArray}
         @assert size(par, 1) == 4 # θ, γ, Δ, η
         @assert ndims(par) == N + 1
-        return new(par)
+        layer = new(par)
+        _check_prelu_eta(layer, :construction)
+        return layer
     end
 end
 
@@ -42,6 +46,46 @@ function Base.getproperty(layer::pReLU, name::Symbol)
     else
         return getfield(layer, name)
     end
+end
+
+_valid_prelu_eta(η) = η isa Real && isfinite(η) && -1 < η < 1
+
+@noinline function _throw_invalid_prelu_eta(context::Symbol, position::Union{Symbol,Nothing})
+    location = if context === :construction
+        " during construction"
+    elseif context === :pcd_start
+        " in the $position layer before pcd! training"
+    elseif context === :pcd_update
+        " in the $position layer after a pcd! optimizer update"
+    else
+        " during evaluation or conversion"
+    end
+    throw(ArgumentError(
+        "invalid pReLU.η$location: all values must be finite and lie in the open " *
+        "interval (-1, 1). Use xReLU or nsReLU for unconstrained learned asymmetry."
+    ))
+end
+
+function _check_prelu_eta(
+    layer::pReLU, context::Symbol = :evaluation,
+    position::Union{Symbol,Nothing} = nothing,
+)
+    ChainRulesCore.ignore_derivatives() do
+        all(_valid_prelu_eta, layer.η) || _throw_invalid_prelu_eta(context, position)
+    end
+    return layer
+end
+
+_check_prelu_eta(
+    layer::AbstractLayer, ::Symbol, ::Union{Symbol,Nothing},
+) = layer
+
+function _check_prelu_eta(
+    visible::AbstractLayer, hidden::AbstractLayer, context::Symbol,
+)
+    _check_prelu_eta(visible, context, :visible)
+    _check_prelu_eta(hidden, context, :hidden)
+    return nothing
 end
 
 energies(layer::pReLU, x::AbstractArray) = energies(dReLU(layer), x)
@@ -83,6 +127,7 @@ function ∂cgfs(layer::pReLU, inputs = 0)
 end
 
 function ∂energy_from_moments(layer::pReLU, moments::AbstractArray)
+    _check_prelu_eta(layer)
     @assert size(layer.par) == size(moments)
 
     xp1 = @view moments[1, ..]

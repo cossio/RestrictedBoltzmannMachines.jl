@@ -87,6 +87,7 @@ function pReLU(layer::dReLU)
 end
 
 function dReLU(layer::pReLU)
+    _check_prelu_eta(layer)
     γp = @. layer.γ / (1 + layer.η)
     γn = @. layer.γ / (1 - layer.η)
     θp = @. layer.θ + layer.Δ / (1 + layer.η)
@@ -113,6 +114,7 @@ function dReLU(layer::xReLU)
 end
 
 function xReLU(layer::pReLU)
+    _check_prelu_eta(layer)
     ξ = @. layer.η / (1 - abs(layer.η))
     return xReLU(; layer.θ, layer.γ, layer.Δ, ξ)
 end

@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+- Fixed `pReLU` models silently evaluating or continuing PCD training after mutable `η` parameters became nonfinite or left the documented open interval `(-1, 1)`. Invalid values now fail at construction and evaluation, and plain, centered, and standardized `pcd!` validate immediately before training and after every optimizer update. The documentation recommends `xReLU` or `nsReLU` for unconstrained learned asymmetry ([#141](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/141)).
+
 ## 5.8.0
 
 - Added support for weighted data (`wts` keyword) in `pcd!` for `StandardizedRBM`, matching the plain-`RBM` trainer: weighted visible moments, weighted minibatch gradients with the weighted-minibatch bias correction, and weighted updates of the visible/hidden standardization statistics. The `callback` now also receives the minibatch weights `wd` (equal to `nothing` when `wts` is not given), consistent with the plain-`RBM` trainer; callbacks that spell out the full keyword list must accept the new keyword (or, more robustly, take a trailing `_...` slurp).

@@ -472,6 +472,7 @@ function pcd!(
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     isnothing(wts) || @assert size(data)[end] == length(wts)
+    _check_prelu_eta(rbm.visible, rbm.hidden, :pcd_start)
 
     # initial centering from data
     center_from_data!(rbm, data; wts)
@@ -504,6 +505,7 @@ function pcd!(
         # feed gradient to Optimiser rule
         gs = (; visible = ∂.visible, hidden = ∂.hidden, w = ∂.w)
         state, ps = update!(state, ps, gs)
+        _check_prelu_eta(rbm.visible, rbm.hidden, :pcd_update)
 
         # centering
         offset_h_new = grad2ave(rbm.hidden, -∂d.hidden) # <h>_d from minibatch

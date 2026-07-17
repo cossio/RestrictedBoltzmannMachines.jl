@@ -3,6 +3,7 @@ module linalg_tests include("linalg.jl") end
 module onehot_tests include("onehot.jl") end
 module rbm_tests include("rbm.jl") end
 module layers_tests include("layers.jl") end
+module prelu_validation_tests include("prelu_validation.jl") end
 module pseudolikelihood_tests include("pseudolikelihood.jl") end
 module infinite_minibatches_tests include("infinite_minibatches.jl") end
 module initialization_tests include("initialization.jl") end

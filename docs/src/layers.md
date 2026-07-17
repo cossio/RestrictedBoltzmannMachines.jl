@@ -114,6 +114,13 @@ Use whichever parameterization is most convenient; `dReLU` is the most explicit,
 `pReLU` and `xReLU` separate the overall scale from the asymmetry, and `nsReLU`
 fixes the scale entirely when a gauge-fixed parameterization is preferred.
 
+Every `pReLU` value of ``\eta`` must be finite and strictly inside the open
+interval ``(-1, 1)``. Construction and evaluation reject invalid values, and
+[`pcd!`](@ref) stops immediately if an optimizer update crosses the boundary.
+When asymmetry is learned with an unconstrained optimizer, prefer `xReLU`, whose
+``\xi`` is unbounded, or `nsReLU` when a fixed scale ``\gamma = 1`` is also
+desired.
+
 ## Constructing an RBM
 
 You can construct an RBM from any pair of layer types:

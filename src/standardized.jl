@@ -472,6 +472,7 @@ function pcd!(
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert isnothing(wts) || size(data)[end] == length(wts)
     @assert 0 ≤ damping ≤ 1
+    _check_prelu_eta(rbm.visible, rbm.hidden, :pcd_start)
 
     standardize_visible_from_data!(rbm, data; wts, ϵ = ϵv)
     zerosum && zerosum!(rbm)
@@ -499,6 +500,7 @@ function pcd!(
         # feed gradient to Optimiser rule
         gs = (; visible = ∂.visible, hidden = ∂.hidden, w = ∂.w)
         state, ps = update!(state, ps, gs)
+        _check_prelu_eta(rbm.visible, rbm.hidden, :pcd_update)
 
         # update standardization
         standardize_hidden_from_v!(rbm, vd; wts = wd, damping, ϵ=ϵh)

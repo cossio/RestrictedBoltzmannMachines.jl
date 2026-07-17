@@ -67,6 +67,7 @@ function pcd!(
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert isnothing(wts) || size(data)[end] == length(wts)
+    _check_prelu_eta(rbm.visible, rbm.hidden, :pcd_start)
 
     # gauge constraints
     zerosum && zerosum!(rbm)
@@ -94,6 +95,7 @@ function pcd!(
         # feed gradient to Optimiser rule
         gs = (; visible = ∂.visible, hidden = ∂.hidden, w = ∂.w)
         state, ps = update!(state, ps, gs)
+        _check_prelu_eta(rbm.visible, rbm.hidden, :pcd_update)
 
         # reset gauge
         rescale && rescale_weights!(rbm)

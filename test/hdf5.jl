@@ -114,7 +114,7 @@ end
 @testset "pReLU" begin
     rbm = RBM(
         Binary(; θ=randn(2,3)),
-        pReLU(; θ=randn(4), γ=randn(4), Δ=randn(4), η=randn(4)),
+        pReLU(; θ=randn(4), γ=randn(4), Δ=randn(4), η=rand(4) .- 0.5),
         randn(2,3,4),
     )
     path = save_rbm(tempname(), rbm)
