@@ -25,15 +25,16 @@ function log_partition(rbm::RBM{<:Gaussian, <:Gaussian})
     γh = vec(abs.(rbm.hidden.γ))
     w = flat_w(rbm)
 
-    lA = block_matrix_logdet(
-        Diagonal(γv), -w,
-        -w', Diagonal(γh)
-    )
+    A = LinearAlgebra.Symmetric([
+        Diagonal(γv) -w
+        -w' Diagonal(γh)
+    ])
+    F = LinearAlgebra.cholesky(A; check = false)
+    logZ0 = length(θ) / 2 * log(2π)
 
-    iA = block_matrix_invert(
-        Diagonal(γv), -w,
-        -w', Diagonal(γh)
-    )
+    if !LinearAlgebra.issuccess(F)
+        return oftype(logZ0 + zero(eltype(F)) + zero(eltype(θ)), Inf)
+    end
 
-    return length(θ)/2 * log(2π) + dot(θ, iA, θ)/2 - lA/2
+    return logZ0 + dot(θ, F \ θ) / 2 - logdet(F) / 2
 end

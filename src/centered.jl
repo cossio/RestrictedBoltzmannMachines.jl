@@ -351,7 +351,7 @@ function rescale_hidden!(rbm::CenteredRBM, λ::AbstractArray)
 end
 
 function rescale_weights!(rbm::CenteredRBM)
-    λ = inv.(weight_norms(RBM(rbm)))
+    λ = _inv_or_one.(weight_norms(rbm))
     return rescale_hidden!(rbm, λ)
 end
 

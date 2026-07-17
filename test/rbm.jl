@@ -363,6 +363,71 @@ end
     @test ∂w ≈ C[1:N, (N + 1):end] # <vi*hμ>
 end
 
+@testset "Gaussian-Gaussian RBM normalizability" begin
+    for T in (Float32, Float64)
+        I2 = diagm(ones(T, 2))
+        θv = T[0.25, -0.5]
+        θh = T[-0.75, 0.125]
+        w = T(0.5) * I2
+
+        rbm = GaussianRBM(θv, T[-1, 1], θh, T[1, -1], w)
+        rbm_positive_γ = GaussianRBM(θv, ones(T, 2), θh, ones(T, 2), w)
+        θ = [θv; θh]
+        A = [I2 -w; -w' I2]
+        expected = length(θ) / 2 * log(2π) + dot(θ, A \ θ) / 2 - logdet(A) / 2
+        logZ = log_partition(rbm)
+
+        @test logZ ≈ expected
+        @test logZ ≈ log_partition(rbm_positive_γ)
+
+        if T === Float64
+            gs = only(gradient(log_partition, rbm))
+            gs_positive_γ = only(gradient(log_partition, rbm_positive_γ))
+            @test gs.visible.par[1, ..] ≈ gs_positive_γ.visible.par[1, ..]
+            @test gs.hidden.par[1, ..] ≈ gs_positive_γ.hidden.par[1, ..]
+            @test gs.visible.par[2, ..] ≈
+                sign.(rbm.visible.γ) .* gs_positive_γ.visible.par[2, ..]
+            @test gs.hidden.par[2, ..] ≈
+                sign.(rbm.hidden.γ) .* gs_positive_γ.hidden.par[2, ..]
+            @test gs.w ≈ gs_positive_γ.w
+        end
+
+        α = one(T) - sqrt(eps(T))
+        δ = one(T) - α
+        θ_boundary = fill(sqrt(δ), 1)
+        rbm_boundary = GaussianRBM(
+            θ_boundary, ones(T, 1),
+            θ_boundary, ones(T, 1),
+            reshape(T[α], 1, 1)
+        )
+        logZ_boundary = log_partition(rbm_boundary)
+        expected_boundary = (
+            log(T(2) * T(π)) + one(T) - (log(δ) + log1p(α)) / T(2)
+        )
+        @test isfinite(logZ_boundary)
+        @test logZ_boundary ≈ expected_boundary rtol = sqrt(eps(T))
+
+        w_indefinite = 2I2
+        A_indefinite = [I2 -w_indefinite; -w_indefinite' I2]
+        @test !isposdef(A_indefinite)
+        @test logdet(A_indefinite) ≈ log(T(9))
+
+        rbm_indefinite = GaussianRBM(
+            zeros(T, 2), ones(T, 2), zeros(T, 2), ones(T, 2), w_indefinite
+        )
+        logZ_indefinite = log_partition(rbm_indefinite)
+        @test isinf(logZ_indefinite) && logZ_indefinite > 0
+        @test typeof(logZ_indefinite) === typeof(logZ)
+
+        rbm_singular = GaussianRBM(
+            zeros(T, 2), ones(T, 2), zeros(T, 2), ones(T, 2), I2
+        )
+        logZ_singular = log_partition(rbm_singular)
+        @test isinf(logZ_singular) && logZ_singular > 0
+        @test typeof(logZ_singular) === typeof(logZ)
+    end
+end
+
 @testset "zero hidden units" begin
     rbm = BinaryRBM(randn(5), randn(0), randn(5,0))
     v = bitrand(5)

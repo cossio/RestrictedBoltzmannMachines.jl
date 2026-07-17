@@ -17,7 +17,7 @@ using RestrictedBoltzmannMachines: RBM, CenteredRBM, StandardizedRBM, ∂RBM, Bi
     inputs_h_from_v, inputs_v_from_h, mean_h_from_v, mean_v_from_h,
     sample_h_from_v, sample_v_from_h, sample_v_from_v, reconstruction_error,
     log_pseudolikelihood, log_pseudolikelihood_stoch,
-    initialize!, pcd!, ∂free_energy, zerosum!, rescale_weights!, aise, raise
+    initialize!, pcd!, ∂free_energy, zerosum!, rescale_weights!, weight_norms, aise, raise
 
 JLArrays.allowscalar(false)
 
@@ -193,6 +193,62 @@ end
     rescale_weights!(rbm)
     @test adapt(Array, jl_rbm.w) ≈ rbm.w
     @test adapt(Array, jl_rbm.hidden.par) ≈ rbm.hidden.par
+
+    # Mixed zero/nonzero columns across all model forms. Running these broadcasts with
+    # allowscalar(false) ensures that preserving zero-norm units does not index devices.
+    w = [0.0 3.0; 0.0 4.0]
+    models = (
+        RBM(
+            Binary(; θ = randn(2)),
+            ReLU(; θ = randn(2), γ = 1 .+ rand(2)),
+            copy(w),
+        ),
+        CenteredRBM(
+            Binary(; θ = randn(2)),
+            ReLU(; θ = randn(2), γ = 1 .+ rand(2)),
+            copy(w),
+            randn(2),
+            randn(2),
+        ),
+        StandardizedRBM(
+            Binary(; θ = randn(2)),
+            ReLU(; θ = randn(2), γ = 1 .+ rand(2)),
+            copy(w),
+            randn(2),
+            randn(2),
+            0.5 .+ rand(2),
+            0.5 .+ rand(2),
+        ),
+    )
+    for model0 in models
+        model = deepcopy(model0)
+        jl_model = adapt(JLArray, model0)
+
+        @test rescale_weights!(model)
+        @test rescale_weights!(jl_model)
+
+        actual = adapt(Array, jl_model)
+        @test actual.w ≈ model.w
+        @test actual.hidden.par ≈ model.hidden.par
+        @test weight_norms(actual) ≈ [0, 1]
+        @test actual.w[:, 1] == model0.w[:, 1]
+        @test actual.hidden.par[:, 1] == model0.hidden.par[:, 1]
+        @test all(isfinite, actual.w)
+        @test all(isfinite, actual.hidden.par)
+
+        if actual isa CenteredRBM
+            @test actual.offset_h ≈ model.offset_h
+            @test actual.offset_h[1] == model0.offset_h[1]
+            @test all(isfinite, actual.offset_h)
+        elseif actual isa StandardizedRBM
+            @test actual.offset_h ≈ model.offset_h
+            @test actual.scale_h ≈ model.scale_h
+            @test actual.offset_h[1] == model0.offset_h[1]
+            @test actual.scale_h[1] == model0.scale_h[1]
+            @test all(isfinite, actual.offset_h)
+            @test all(isfinite, actual.scale_h)
+        end
+    end
 
     # zerosum! on StandardizedRBM with nontrivial offsets/scales
     std_rbm = StandardizedRBM(
