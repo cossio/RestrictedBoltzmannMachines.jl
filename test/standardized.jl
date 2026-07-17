@@ -515,6 +515,36 @@ end
     @test free_energy(rbm, v) ≈ free_energy(rbm_copy, v) .- sum(log, weight_norms(rbm_copy))
 end
 
+@testset "rescale_weights! std preserves zero-norm hidden units" begin
+    rbm = StandardizedRBM(
+        Binary(; θ = randn(2)),
+        ReLU(; θ = [0.25, -0.5], γ = [1.5, 2.0]),
+        [0.0 6.0; 0.0 8.0],
+        randn(2),
+        [0.75, -0.25],
+        [2.0, 4.0],
+        [1.5, 2.0],
+    )
+    rbm0 = deepcopy(rbm)
+    v = Bool[0 0 1 1; 0 1 0 1]
+    F0 = free_energy(rbm, v)
+    ω = weight_norms(rbm)
+    @test ω[1] == 0
+    @test ω[2] > 0
+
+    @test @inferred rescale_weights!(rbm)
+    @test weight_norms(rbm) ≈ [0, 1]
+    @test rbm.w == rbm0.w
+    @test rbm.hidden.par[:, 1] == rbm0.hidden.par[:, 1]
+    @test rbm.offset_h[1] == rbm0.offset_h[1]
+    @test rbm.scale_h[1] == rbm0.scale_h[1]
+    @test all(isfinite, rbm.w)
+    @test all(isfinite, rbm.hidden.par)
+    @test all(isfinite, rbm.offset_h)
+    @test all(isfinite, rbm.scale_h)
+    @test free_energy(rbm, v) ≈ F0 .- log(ω[2])
+end
+
 @testset "rescale_weights! std Binary" begin
     rbm = BinaryStandardizedRBM(
         randn(3), randn(2), randn(3,2),

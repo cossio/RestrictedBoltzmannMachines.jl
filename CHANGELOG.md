@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file. The format 
 ## Unreleased
 
 - Fixed `pcd!(::StandardizedRBM)` producing non-finite parameters and energies when visible data has zero-variance coordinates, such as constant Binary features or absent Potts categories. Such centered coordinates now use a neutral unit scale; nonconstant coordinates and explicit positive `ϵv` behavior are unchanged ([#139](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/139)).
+- Fixed `rescale_weights!` for plain, centered, and standardized RBMs so hidden units with zero-norm incoming weights remain finite and unchanged while every nonzero incoming-weight column is normalized (the equivalent unstandardized column for `StandardizedRBM`). This prevents default `pcd!` from corrupting zero-initialized continuous-hidden models such as `HopfieldRBM` ([#140](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/140)).
 
 ## 5.8.0
 
