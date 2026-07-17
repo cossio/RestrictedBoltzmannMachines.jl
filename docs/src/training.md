@@ -34,6 +34,10 @@ the optimizer or callback, or contribute to centered/standardized wrapper
 statistics. This is equivalent to removing those observations and their
 weights before training.
 
+Training calculations rescale positive weights internally without changing
+their relative values, avoiding overflow for finite extreme weights. Callbacks
+still receive the original positive mini-batch weights in `wd`.
+
 The `iters` argument always counts completed parameter updates. Ignored
 zero-weight observations do not consume iterations, and callbacks receive
 consecutive `iter` values from `1` through `iters`.

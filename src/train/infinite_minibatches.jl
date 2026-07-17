@@ -79,7 +79,7 @@ function _prepare_training_data(
     batchsize::Int,
 )
     batchsize > 0 || throw(ArgumentError("batchsize must be positive"))
-    isnothing(wts) && return data, wts, batchsize
+    isnothing(wts) && return data, wts, wts, nothing, batchsize
 
     length(wts) == size(data, ndims(data)) ||
         throw(DimensionMismatch("length(wts) must equal the number of data samples"))
@@ -98,9 +98,32 @@ function _prepare_training_data(
         data, wts = getobs(positive_indices, data, wts)
     end
 
-    wts_mean = mean(wts)
-    isfinite(wts_mean) && wts_mean > 0 ||
-        throw(ArgumentError("the mean of the positive sample weights must be finite"))
+    # Weighted training is invariant to a common scale factor. Normalize before
+    # moments and gradients so finite weights cannot overflow their sum/mean.
+    # Keep the raw weights separately so callbacks continue to receive them.
+    scale = maximum(wts)
+    T = promote_type(typeof(scale), Float32)
+    training_wts = T.(wts) ./ T(scale)
+    normalization = (; scale, mean = mean(training_wts))
 
-    return data, wts, min(batchsize, npositive)
+    return data, wts, training_wts, normalization, min(batchsize, npositive)
+end
+
+function _prepare_training_batch(
+    wts::Nothing,
+    normalization::Nothing,
+)
+    return wts, 1
+end
+
+function _prepare_training_batch(
+    wts::AbstractVector,
+    normalization::NamedTuple,
+)
+    scale = maximum(wts)
+    T = promote_type(typeof(scale), Float32)
+    training_wts = T.(wts) ./ T(scale)
+    batch_weight = (scale / normalization.scale) *
+        (mean(training_wts) / normalization.mean)
+    return training_wts, batch_weight
 end

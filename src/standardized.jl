@@ -473,33 +473,32 @@ function pcd!(
     @assert isnothing(wts) || size(data)[end] == length(wts)
     @assert 0 ≤ damping ≤ 1
 
-    data, wts, batchsize = _prepare_training_data(data, wts; batchsize)
+    data, wts, training_wts, normalization, batchsize =
+        _prepare_training_data(data, wts; batchsize)
     moments === _DEFAULT_MOMENTS &&
-        (moments = moments_from_samples(rbm.visible, data; wts))
+        (moments = moments_from_samples(rbm.visible, data; wts = training_wts))
     vm === _DEFAULT_FANTASY &&
         (vm = sample_from_inputs(
             rbm.visible, Falses(size(rbm.visible)..., batchsize)
         ))
     state === _DEFAULT_OPTIMIZER_STATE && (state = setup(optim, ps))
 
-    standardize_visible_from_data!(rbm, data; wts, ϵ = ϵv)
+    standardize_visible_from_data!(rbm, data; wts = training_wts, ϵ = ϵv)
     zerosum && zerosum!(rbm)
-
-    # store average weight of each data point
-    wts_mean = isnothing(wts) ? 1 : mean(wts)
 
     minibatches = infinite_minibatches(data, wts; batchsize, shuffle)
     for (iter, (vd, wd)) in zip(1:iters, minibatches)
+        training_wd, batch_weight = _prepare_training_batch(wd, normalization)
+
         # update fantasy chains
         vm .= sample_v_from_v(rbm, vm; steps)
 
         # compute gradient
-        ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
+        ∂d = ∂free_energy(rbm, vd; wts = training_wd, moments)
         ∂m = ∂free_energy(rbm, vm)
         ∂ = ∂d - ∂m
 
         # correct weighted minibatch bias
-        batch_weight = isnothing(wts) ? 1 : mean(wd) / wts_mean
         ∂ *= batch_weight
 
         # weight decay
@@ -510,7 +509,7 @@ function pcd!(
         state, ps = update!(state, ps, gs)
 
         # update standardization
-        standardize_hidden_from_v!(rbm, vd; wts = wd, damping, ϵ=ϵh)
+        standardize_hidden_from_v!(rbm, vd; wts = training_wd, damping, ϵ=ϵh)
 
         rescale_hidden && rescale_hidden_activations!(rbm)
         zerosum && zerosum!(rbm)

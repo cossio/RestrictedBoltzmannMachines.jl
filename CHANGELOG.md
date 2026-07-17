@@ -10,7 +10,8 @@ All notable changes to this project will be documented in this file. The format 
   updates, and callbacks. Skipped observations no longer consume the requested
   `iters`, which continues to count parameter updates. Training weights must be
   finite, real, and nonnegative, with at least one positive weight; invalid or
-  globally all-zero weights now fail before the model is mutated
+  globally all-zero weights now fail before the model is mutated, while valid
+  extreme weights are scale-normalized internally to avoid aggregate overflow
   ([#143](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/143)).
 - Fixed `log_partition` for Gaussian-Gaussian RBMs, which could return a plausible finite value for a non-normalizable model when the indefinite joint precision had a positive determinant. It now validates the `abs(γ)` joint precision with a checked Cholesky factorization and returns `+Inf` for singular or indefinite models ([#142](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/142)).
 - Fixed `rescale_weights!` for plain, centered, and standardized RBMs so hidden units with zero-norm incoming weights remain finite and unchanged while every nonzero incoming-weight column is normalized (the equivalent unstandardized column for `StandardizedRBM`). This prevents default `pcd!` from corrupting zero-initialized continuous-hidden models such as `HopfieldRBM` ([#140](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/140)).

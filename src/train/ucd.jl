@@ -197,20 +197,20 @@ function ucd!(
     @assert isnothing(wts) || size(data)[end] == length(wts)
     @assert max_resamples ≥ 0
 
-    data, wts, batchsize = _prepare_training_data(data, wts; batchsize)
+    data, wts, training_wts, normalization, batchsize =
+        _prepare_training_data(data, wts; batchsize)
     nchains === _DEFAULT_CHAIN_COUNT && (nchains = batchsize)
     @assert nchains > 0
     moments === _DEFAULT_MOMENTS &&
-        (moments = moments_from_samples(rbm.visible, data; wts))
+        (moments = moments_from_samples(rbm.visible, data; wts = training_wts))
     state === _DEFAULT_OPTIMIZER_STATE && (state = setup(optim, ps))
 
     zerosum && zerosum!(rbm)
     rescale && rescale_weights!(rbm)
 
-    wts_mean = isnothing(wts) ? 1 : mean(wts)
-
     for (iter, (vd, wd)) in zip(1:iters, infinite_minibatches(data, wts; batchsize, shuffle))
-        ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
+        training_wd, batch_weight = _prepare_training_batch(wd, normalization)
+        ∂d = ∂free_energy(rbm, vd; wts = training_wd, moments)
 
         ∂m = _zero_gradient(rbm)
         meeting_steps = 0
@@ -235,7 +235,6 @@ function ucd!(
 
         ∂ = ∂d - ∂m
 
-        batch_weight = isnothing(wts) ? 1 : mean(wd) / wts_mean
         ∂ *= batch_weight
 
         ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum)

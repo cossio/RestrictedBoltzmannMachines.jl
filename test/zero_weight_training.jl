@@ -239,6 +239,104 @@ end
     end
 end
 
+@testset "finite extreme weights are scale-stable ($name PCD)" for (name, kind, seed) in [
+    ("plain", Val(:plain), 109),
+    ("centered", Val(:centered), 110),
+    ("standardized", Val(:standardized), 111),
+]
+    data = [
+        NaN 0.0 1.0
+        NaN 1.0 0.0
+    ]
+    extreme_wts = [0.0, floatmax(Float64), floatmax(Float64)]
+    unit_wts = [0.0, 1.0, 1.0]
+    extreme_rbm = wrap_rbm(kind, base_rbm())
+    unit_rbm = wrap_rbm(kind, base_rbm())
+    extreme_vm = falses(2, 1)
+    unit_vm = copy(extreme_vm)
+    extreme_log = callback_log()
+    unit_log = callback_log()
+
+    seed!(seed)
+    train_pcd!(
+        kind, extreme_rbm, data, extreme_wts, extreme_vm,
+        CountingDescent(0.01, Ref(0)), extreme_log.callback;
+        iters = 2, batchsize = 1,
+    )
+    seed!(seed)
+    train_pcd!(
+        kind, unit_rbm, data, unit_wts, unit_vm,
+        CountingDescent(0.01, Ref(0)), unit_log.callback;
+        iters = 2, batchsize = 1,
+    )
+
+    @test model_state(extreme_rbm) == model_state(unit_rbm)
+    @test extreme_vm == unit_vm
+    @test extreme_log.weights == [[floatmax(Float64)], [floatmax(Float64)]]
+    @test unit_log.weights == [[1.0], [1.0]]
+    @test all_finite(extreme_rbm)
+end
+
+@testset "finite extreme weights are scale-stable (UCD)" begin
+    data = [
+        NaN 0.0 1.0
+        NaN 1.0 0.0
+    ]
+    extreme_wts = [0.0, floatmax(Float64), floatmax(Float64)]
+    unit_wts = [0.0, 1.0, 1.0]
+    extreme_rbm = base_rbm()
+    unit_rbm = base_rbm()
+    extreme_log = callback_log()
+    unit_log = callback_log()
+    common = (;
+        batchsize = 1,
+        iters = 2,
+        nchains = 1,
+        min_steps = 1,
+        max_steps = 64,
+        max_resamples = 100,
+        shuffle = false,
+        zerosum = false,
+        rescale = false,
+    )
+
+    seed!(112)
+    ucd!(
+        extreme_rbm, data;
+        common..., wts = extreme_wts,
+        optim = CountingDescent(0.01, Ref(0)),
+        callback = extreme_log.callback,
+    )
+    seed!(112)
+    ucd!(
+        unit_rbm, data;
+        common..., wts = unit_wts,
+        optim = CountingDescent(0.01, Ref(0)),
+        callback = unit_log.callback,
+    )
+
+    @test model_state(extreme_rbm) == model_state(unit_rbm)
+    @test extreme_log.weights == [[floatmax(Float64)], [floatmax(Float64)]]
+    @test unit_log.weights == [[1.0], [1.0]]
+    @test all_finite(extreme_rbm)
+end
+
+@testset "Float16 weight normalization uses a safe accumulator" begin
+    data = zeros(Float16, 1, 70_000)
+    wts = ones(Float16, 70_000)
+    _, raw_wts, training_wts, normalization, _ =
+        RBMs._prepare_training_data(data, wts; batchsize = length(wts))
+
+    @test raw_wts === wts
+    @test eltype(training_wts) === Float32
+    @test normalization.mean == 1.0f0
+
+    training_batch_wts, batch_weight =
+        RBMs._prepare_training_batch(raw_wts, normalization)
+    @test eltype(training_batch_wts) === Float32
+    @test batch_weight == 1
+end
+
 function mutation_sensitive_rbm(::Val{:plain})
     return RBM(
         Binary(; θ = [0.1, -0.2]),

@@ -473,16 +473,17 @@ function pcd!(
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     isnothing(wts) || @assert size(data)[end] == length(wts)
 
-    data, wts, batchsize = _prepare_training_data(data, wts; batchsize)
+    data, wts, training_wts, normalization, batchsize =
+        _prepare_training_data(data, wts; batchsize)
     moments === _DEFAULT_MOMENTS &&
-        (moments = moments_from_samples(rbm.visible, data; wts))
+        (moments = moments_from_samples(rbm.visible, data; wts = training_wts))
     vm === _DEFAULT_FANTASY &&
         (vm = sample_from_inputs(
             rbm.visible, Falses(size(rbm.visible)..., batchsize)
         ))
 
     # initial centering from data
-    center_from_data!(rbm, data; wts)
+    center_from_data!(rbm, data; wts = training_wts)
 
     # gauge constraints
     zerosum && zerosum!(rbm)
@@ -492,18 +493,17 @@ function pcd!(
     ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w)
     state = setup(optim, ps)
 
-    wts_mean = isnothing(wts) ? 1 : mean(wts)
-
     for (iter, (vd, wd)) in zip(1:iters, infinite_minibatches(data, wts; batchsize))
+        training_wd, batch_weight = _prepare_training_batch(wd, normalization)
+
         # update fantasy chains
         vm .= sample_v_from_v(rbm, vm; steps)
 
         # compute gradient
-        ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
+        ∂d = ∂free_energy(rbm, vd; wts = training_wd, moments)
         ∂m = ∂free_energy(rbm, vm)
         ∂ = ∂d - ∂m
 
-        batch_weight = isnothing(wts) ? 1 : mean(wd) / wts_mean
         ∂ *= batch_weight
 
         # weight decay
