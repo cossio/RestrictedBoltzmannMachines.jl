@@ -1,8 +1,11 @@
+import Random
 using Test: @test, @testset
 using Statistics: mean
 using Random: bitrand
 using Optimisers: Adam
-using RestrictedBoltzmannMachines: RBM, BinaryRBM, sample_v_from_v, initialize!, pcd!
+using RestrictedBoltzmannMachines: RBM, BinaryRBM, HopfieldRBM, sample_v_from_v, initialize!, pcd!
+
+Random.seed!(23)
 
 @testset "pcd" begin
     data = falses(2, 1000)
@@ -18,4 +21,15 @@ using RestrictedBoltzmannMachines: RBM, BinaryRBM, sample_v_from_v, initialize!,
     @test 0.4 < mean(v_sample[1,:]) < 0.6
     @test 0.4 < mean(v_sample[2,:]) < 0.6
     @test 0.4 < mean(v_sample[1,:] .* v_sample[2,:]) < 0.6
+end
+
+@testset "default pcd! with zero-initialized continuous hidden units" begin
+    data = Float64[-1 1 -1 1; -1 -1 1 1]
+    rbm = HopfieldRBM(2, 1)
+
+    pcd!(rbm, data)
+
+    @test all(isfinite, rbm.visible.par)
+    @test all(isfinite, rbm.hidden.par)
+    @test all(isfinite, rbm.w)
 end

@@ -4,7 +4,7 @@ using Statistics: mean, var
 using Random: bitrand, rand!, randn!
 using LinearAlgebra: norm
 using RestrictedBoltzmannMachines: RBM, Binary, free_energy, Gaussian, ReLU, dReLU, pReLU, xReLU,
-    sample_v_from_v, sample_h_from_h, mean_from_inputs, var_from_inputs,
+    HopfieldRBM, sample_v_from_v, sample_h_from_h, mean_from_inputs, var_from_inputs,
     rescale_hidden!, rescale_activations!, rescale_weights!,  weight_norms
 
 Random.seed!(23)
@@ -71,6 +71,39 @@ end
     @test ω ≈ [norm(rbm.w)]
     @inferred rescale_weights!(rbm)
     @test free_energy(rbm, v) ≈ F .- sum(log, ω)
+end
+
+@testset "rescale_weights! preserves zero-norm hidden units" begin
+    rbm = RBM(
+        Binary(; θ = randn(2)),
+        Gaussian(; θ = [0.25, -0.5], γ = [1.5, 2.0]),
+        [0.0 3.0; 0.0 4.0],
+    )
+    rbm0 = deepcopy(rbm)
+    v = Bool[0 0 1 1; 0 1 0 1]
+    F0 = free_energy(rbm, v)
+    ω = weight_norms(rbm)
+    @test ω ≈ [0, 5]
+
+    @test @inferred rescale_weights!(rbm)
+    @test weight_norms(rbm) ≈ [0, 1]
+    @test rbm.w[:, 1] == rbm0.w[:, 1]
+    @test rbm.hidden.par[:, 1] == rbm0.hidden.par[:, 1]
+    @test all(isfinite, rbm.w)
+    @test all(isfinite, rbm.hidden.par)
+    @test free_energy(rbm, v) ≈ F0 .- log(ω[2])
+end
+
+@testset "rescale_weights! preserves an all-zero HopfieldRBM" begin
+    rbm = HopfieldRBM(2, 2)
+    rbm0 = deepcopy(rbm)
+
+    @test @inferred rescale_weights!(rbm)
+    @test rbm.w == rbm0.w
+    @test rbm.hidden.par == rbm0.hidden.par
+    @test weight_norms(rbm) == zeros(2)
+    @test all(isfinite, rbm.w)
+    @test all(isfinite, rbm.hidden.par)
 end
 
 using RestrictedBoltzmannMachines: Spin, Potts, PottsGumbel, nsReLU

@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+- Fixed `rescale_weights!` for plain, centered, and standardized RBMs so hidden units with zero-norm incoming weights remain finite and unchanged while every nonzero incoming-weight column is normalized (the equivalent unstandardized column for `StandardizedRBM`). This prevents default `pcd!` from corrupting zero-initialized continuous-hidden models such as `HopfieldRBM` ([#140](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/140)).
+
 ## 5.8.0
 
 - Added support for weighted data (`wts` keyword) in `pcd!` for `StandardizedRBM`, matching the plain-`RBM` trainer: weighted visible moments, weighted minibatch gradients with the weighted-minibatch bias correction, and weighted updates of the visible/hidden standardization statistics. The `callback` now also receives the minibatch weights `wd` (equal to `nothing` when `wts` is not given), consistent with the plain-`RBM` trainer; callbacks that spell out the full keyword list must accept the new keyword (or, more robustly, take a trailing `_...` slurp).
