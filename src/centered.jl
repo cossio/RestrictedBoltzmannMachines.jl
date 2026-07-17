@@ -451,9 +451,9 @@ function pcd!(
     wts::Union{AbstractVector, Nothing} = nothing,
 
     # init fantasy chains
-    vm = sample_from_inputs(rbm.visible, Falses(size(rbm.visible)..., batchsize)),
+    vm = _DEFAULT_FANTASY,
 
-    moments = moments_from_samples(rbm.visible, data; wts),
+    moments = _DEFAULT_MOMENTS,
 
     # damping to update hidden statistics
     hidden_offset_damping::Real = 1//100,
@@ -472,6 +472,14 @@ function pcd!(
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     isnothing(wts) || @assert size(data)[end] == length(wts)
+
+    data, wts, batchsize = _prepare_training_data(data, wts; batchsize)
+    moments === _DEFAULT_MOMENTS &&
+        (moments = moments_from_samples(rbm.visible, data; wts))
+    vm === _DEFAULT_FANTASY &&
+        (vm = sample_from_inputs(
+            rbm.visible, Falses(size(rbm.visible)..., batchsize)
+        ))
 
     # initial centering from data
     center_from_data!(rbm, data; wts)

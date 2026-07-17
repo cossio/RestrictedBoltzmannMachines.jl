@@ -72,7 +72,7 @@ function ∂interaction_energy(rbm::RBM, v::AbstractArray, h::AbstractArray; wts
             ∂wflat = -vflat * hflat' / size(vflat, 2)
         else
             @assert size(wts) == bsz
-            ∂wflat = -vflat * Diagonal(vec(wts)) * hflat' / sum(wts)
+            ∂wflat = -(vflat .* reshape(wts, 1, :)) * hflat' / sum(wts)
         end
     end
     ∂w = reshape(∂wflat, size(rbm.w))

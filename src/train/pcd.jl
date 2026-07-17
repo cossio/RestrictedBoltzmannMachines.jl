@@ -13,11 +13,13 @@ parameters with an `Optimisers.jl` rule.
 # Keyword arguments
 - `batchsize::Int=1`: number of samples per update.
 - `iters::Int=1`: number of parameter updates.
-- `wts::Union{AbstractVector,Nothing}=nothing`: optional per-sample weights.
+- `wts::Union{AbstractVector,Nothing}=nothing`: optional finite, nonnegative
+  per-sample weights. Zero-weight samples are ignored, and at least one weight
+  must be positive.
 - `steps::Int=1`: Gibbs steps used to update persistent chains each iteration.
 - `optim::AbstractRule=Adam()`: optimizer rule from `Optimisers.jl`.
 - `moments=moments_from_samples(rbm.visible, data; wts)`: data moments used by
-  the positive phase.
+  the positive phase, computed after zero-weight samples are removed.
 - `l2_fields::Real=0`: L2 regularization on visible fields.
 - `l1_weights::Real=0`: L1 regularization on interaction weights.
 - `l2_weights::Real=0`: L2 regularization on interaction weights.
@@ -42,7 +44,7 @@ function pcd!(
     wts::Union{AbstractVector, Nothing} = nothing, # data weights
     steps::Int = 1, # MC steps to update fantasy chains
     optim::AbstractRule = Adam(), # optimizer rule
-    moments = moments_from_samples(rbm.visible, data; wts), # sufficient statistics for visible layer
+    moments = _DEFAULT_MOMENTS, # sufficient statistics for visible layer
 
     # regularization
     l2_fields::Real = 0, # visible fields L2 regularization
@@ -57,16 +59,25 @@ function pcd!(
     callback = Returns(nothing), # called for every batch
 
     # init fantasy chains
-    vm = sample_from_inputs(rbm.visible, Falses(size(rbm.visible)..., batchsize)),
+    vm = _DEFAULT_FANTASY,
 
     shuffle::Bool = true,
 
     # parameters to optimize
     ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w),
-    state = setup(optim, ps) # initialize optimiser state
+    state = _DEFAULT_OPTIMIZER_STATE,
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert isnothing(wts) || size(data)[end] == length(wts)
+
+    data, wts, batchsize = _prepare_training_data(data, wts; batchsize)
+    moments === _DEFAULT_MOMENTS &&
+        (moments = moments_from_samples(rbm.visible, data; wts))
+    vm === _DEFAULT_FANTASY &&
+        (vm = sample_from_inputs(
+            rbm.visible, Falses(size(rbm.visible)..., batchsize)
+        ))
+    state === _DEFAULT_OPTIMIZER_STATE && (state = setup(optim, ps))
 
     # gauge constraints
     zerosum && zerosum!(rbm)

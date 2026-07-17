@@ -1,3 +1,15 @@
+struct _DefaultMoments end
+const _DEFAULT_MOMENTS = _DefaultMoments()
+
+struct _DefaultFantasy end
+const _DEFAULT_FANTASY = _DefaultFantasy()
+
+struct _DefaultOptimizerState end
+const _DEFAULT_OPTIMIZER_STATE = _DefaultOptimizerState()
+
+struct _DefaultChainCount end
+const _DEFAULT_CHAIN_COUNT = _DefaultChainCount()
+
 function nobs(d::AbstractArray, ds::Union{AbstractArray, Nothing}...)
     n = nobs(d)
     ns = nobs(ds...)
@@ -59,4 +71,36 @@ function infinite_minibatches(
 )
     batchsize > 0 || throw(ArgumentError("batchsize must be positive"))
     return InfiniteMinibatchIterator(ds, batchsize, shuffle)
+end
+
+function _prepare_training_data(
+    data::AbstractArray,
+    wts::Union{AbstractVector, Nothing};
+    batchsize::Int,
+)
+    batchsize > 0 || throw(ArgumentError("batchsize must be positive"))
+    isnothing(wts) && return data, wts, batchsize
+
+    length(wts) == size(data, ndims(data)) ||
+        throw(DimensionMismatch("length(wts) must equal the number of data samples"))
+    all(w -> w isa Real && isfinite(w) && w ≥ 0, wts) ||
+        throw(ArgumentError("wts must contain only finite, nonnegative real values"))
+
+    positive = map(w -> !iszero(w), wts)
+    npositive = count(positive)
+    npositive > 0 ||
+        throw(ArgumentError("wts must contain at least one positive weight"))
+
+    if npositive < length(wts)
+        # GPUArrays do not generally support logical indexing. Transfer only
+        # the mask used to build indices; indexing preserves the data backend.
+        positive_indices = findall(adapt(Array, positive))
+        data, wts = getobs(positive_indices, data, wts)
+    end
+
+    wts_mean = mean(wts)
+    isfinite(wts_mean) && wts_mean > 0 ||
+        throw(ArgumentError("the mean of the positive sample weights must be finite"))
+
+    return data, wts, min(batchsize, npositive)
 end

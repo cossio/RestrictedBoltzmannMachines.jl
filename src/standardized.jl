@@ -438,9 +438,9 @@ function pcd!(
     wts::Union{AbstractVector, Nothing} = nothing, # data weights
 
     steps::Int = 1,
-    vm::AbstractArray = sample_from_inputs(rbm.visible, Falses(size(rbm.visible)..., batchsize)),
+    vm::Union{AbstractArray, _DefaultFantasy} = _DEFAULT_FANTASY,
 
-    moments = moments_from_samples(rbm.visible, data; wts), # sufficient statistics for visible layer
+    moments = _DEFAULT_MOMENTS, # sufficient statistics for visible layer
 
     # regularization
     l2_fields::Real = 0, # visible fields L2 regularization
@@ -458,7 +458,7 @@ function pcd!(
     # optimiser
     optim::AbstractRule = Adam(),
     ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w),
-    state = setup(optim, ps),
+    state = _DEFAULT_OPTIMIZER_STATE,
 
     # Absorb the scale_h into the hidden unit activation (for hidden units with scale parameter).
     # Results in hidden units with var(h) ~ 1.
@@ -472,6 +472,15 @@ function pcd!(
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert isnothing(wts) || size(data)[end] == length(wts)
     @assert 0 ≤ damping ≤ 1
+
+    data, wts, batchsize = _prepare_training_data(data, wts; batchsize)
+    moments === _DEFAULT_MOMENTS &&
+        (moments = moments_from_samples(rbm.visible, data; wts))
+    vm === _DEFAULT_FANTASY &&
+        (vm = sample_from_inputs(
+            rbm.visible, Falses(size(rbm.visible)..., batchsize)
+        ))
+    state === _DEFAULT_OPTIMIZER_STATE && (state = setup(optim, ps))
 
     standardize_visible_from_data!(rbm, data; wts, ϵ = ϵv)
     zerosum && zerosum!(rbm)

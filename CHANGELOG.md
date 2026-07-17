@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+- Fixed weighted training in plain, centered, and standardized `pcd!`, and in
+  `ucd!`, so that zero-weight observations are ignored before data moments,
+  mini-batches, fantasy/coupled-chain work, wrapper statistics, optimizer
+  updates, and callbacks. Skipped observations no longer consume the requested
+  `iters`, which continues to count parameter updates. Training weights must be
+  finite, real, and nonnegative, with at least one positive weight; invalid or
+  globally all-zero weights now fail before the model is mutated
+  ([#143](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/143)).
+
 ## 5.8.0
 
 - Added support for weighted data (`wts` keyword) in `pcd!` for `StandardizedRBM`, matching the plain-`RBM` trainer: weighted visible moments, weighted minibatch gradients with the weighted-minibatch bias correction, and weighted updates of the visible/hidden standardization statistics. The `callback` now also receives the minibatch weights `wd` (equal to `nothing` when `wts` is not given), consistent with the plain-`RBM` trainer; callbacks that spell out the full keyword list must accept the new keyword (or, more robustly, take a trailing `_...` slurp).
