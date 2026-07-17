@@ -73,6 +73,13 @@ function infinite_minibatches(
     return InfiniteMinibatchIterator(ds, batchsize, shuffle)
 end
 
+function _training_weight_accumulator_type(::Type{T}) where {T}
+    F = float(T)
+    # One wider IEEE type can represent the ratio between any two finite,
+    # positive Float16 or Float32 values without underflow.
+    return F === Float16 ? Float32 : F === Float32 ? Float64 : F
+end
+
 function _prepare_training_data(
     data::AbstractArray,
     wts::Union{AbstractVector, Nothing};
@@ -102,7 +109,7 @@ function _prepare_training_data(
     # moments and gradients so finite weights cannot overflow their sum/mean.
     # Keep the raw weights separately so callbacks continue to receive them.
     scale = maximum(wts)
-    T = promote_type(float(typeof(scale)), Float32)
+    T = _training_weight_accumulator_type(typeof(scale))
     training_wts = T.(wts) ./ T(scale)
     normalization = (; scale, mean = mean(training_wts))
 
@@ -121,9 +128,12 @@ function _prepare_training_batch(
     normalization::NamedTuple,
 )
     scale = maximum(wts)
-    T = promote_type(float(typeof(scale)), Float32)
+    T = promote_type(
+        _training_weight_accumulator_type(typeof(scale)),
+        typeof(normalization.mean),
+    )
     training_wts = T.(wts) ./ T(scale)
-    batch_weight = (scale / normalization.scale) *
+    batch_weight = (T(scale) / T(normalization.scale)) *
         (mean(training_wts) / normalization.mean)
     return training_wts, batch_weight
 end

@@ -346,6 +346,30 @@ end
     @test batch_weight == 1
 end
 
+@testset "narrow mixed-range weights remain positive ($W)" for W in (Float16, Float32)
+    small = nextfloat(zero(W))
+    large = floatmax(W)
+    wts = W[small, large]
+    data = zeros(W, 1, length(wts))
+    A = W === Float16 ? Float32 : Float64
+
+    _, raw_wts, training_wts, normalization, _ =
+        RBMs._prepare_training_data(data, wts; batchsize = 1)
+    @test raw_wts === wts
+    @test eltype(training_wts) === A
+    @test training_wts[1] > 0
+    @test training_wts[2] == 1
+
+    training_batch_wts, batch_weight =
+        RBMs._prepare_training_batch(raw_wts[1:1], normalization)
+    ratio = A(small) / A(large)
+    expected_batch_weight = 2ratio / (1 + ratio)
+    @test eltype(training_batch_wts) === A
+    @test training_batch_wts == [one(A)]
+    @test batch_weight > 0
+    @test batch_weight ≈ expected_batch_weight
+end
+
 function mutation_sensitive_rbm(::Val{:plain})
     return RBM(
         Binary(; θ = [0.1, -0.2]),
