@@ -138,16 +138,17 @@ jobs:
 
             First, reconcile earlier runs of this review: list the PR's
             review threads including their replies (`gh api graphql` with
-            the pullRequest reviewThreads query). Threads whose first
-            comment contains the `<!-- codex-review -->` marker belong to
-            the separate Codex review workflow — never resolve them, reply
-            in them, or repost their findings as your own; if one already
-            reports a finding you also found, mention agreement in your
-            review summary instead of duplicating the thread. For each
-            unresolved thread posted by a previous run of this workflow
-            (authored by the github-actions bot, without that marker —
-            threads from any other bot account, e.g. a hosted Codex
-            connector, are likewise not yours):
+            the pullRequest reviewThreads query). Your threads are those
+            authored by the Claude GitHub App (login `claude`): this
+            workflow posts through the app's token, not the github-actions
+            bot. Threads from any other account — the Codex review
+            workflow (github-actions bot, marked `<!-- codex-review -->`),
+            the hosted Codex connector, or human reviewers — are never
+            yours: do not resolve them, reply in them, or repost their
+            findings as your own; if one already reports a finding you
+            also found, mention agreement in your review summary instead
+            of duplicating the thread. For each unresolved thread of
+            yours:
             - If the current code addresses it, or the author's reply
               convincingly rebuts it, resolve the thread with the
               resolveReviewThread GraphQL mutation.

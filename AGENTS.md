@@ -40,14 +40,15 @@ commands, and subsystem-specific edit guidance.
 - Add `CHANGELOG.md` entries only for user-facing package changes to source,
   APIs, behavior, or dependencies. Do not add entries for CI, workflows,
   agent plumbing, or other repository tooling.
-- PRs get two automated workflow reviews (Claude and Codex), both submitting
-  formal verdicts as the github-actions bot; Codex verdict bodies begin with
-  "Codex automated review" and its inline comments end with a
-  `<!-- codex-review -->` marker. The hosted `chatgpt-codex-connector`
-  reviewer may add advisory comments too. Treat approval from the latest run
-  of each workflow reviewer as the default handoff bar. Address each finding
-  or explain the disagreement in its thread, reply to every thread, and
-  leave thread resolution to the reviewer that opened it.
+- PRs get two automated workflow reviews with formal verdicts: Claude
+  (posting as the `claude` app) and Codex (as the github-actions bot, with
+  "Codex automated review" verdict bodies and a `<!-- codex-review -->`
+  marker on inline comments). The hosted `chatgpt-codex-connector` reviewer
+  may add advisory comments too. Treat approval from the latest run of each
+  workflow reviewer as the default handoff bar. Address each finding or
+  explain the disagreement in its thread and reply to every thread. Claude
+  resolves its own threads on re-runs; Codex reviewers never do, so resolve
+  an addressed Codex thread yourself after replying.
 - A PR that changes `.github/workflows/claude-pr-review.yml` is reviewed by a
   fallback run dispatched from the default branch; use
   `@claude review this PR` only if that dispatch fails. The Codex workflow
