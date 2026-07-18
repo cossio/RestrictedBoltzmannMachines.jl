@@ -72,10 +72,13 @@ function ∂interaction_energy(rbm::RBM, v::AbstractArray, h::AbstractArray; wts
             ∂wflat = -vflat * hflat' / size(vflat, 2)
         else
             @assert size(wts) == bsz
-            # normalize like `wmean`, so extreme finite weights cannot overflow
-            T = _weight_accumulator_type(eltype(wts))
-            wn = T.(vec(wts)) ./ T(maximum(wts))
-            ∂wflat = -(vflat .* reshape(wn, 1, :)) * hflat' / sum(wn)
+            # Normalize like `wmean`, so extreme finite weights cannot
+            # overflow, and zero weights annihilate their samples exactly:
+            # both factors must be zeroed, else `NaN * 0` poisons the product.
+            wn = reshape(Float64.(vec(wts)) ./ Float64(maximum(wts)), 1, :)
+            vw = _weighted_term.(vflat, wn)
+            hz = ifelse.(iszero.(wn), zero.(hflat), hflat)
+            ∂wflat = -vw * hz' / sum(wn)
         end
     end
     ∂w = reshape(∂wflat, size(rbm.w))

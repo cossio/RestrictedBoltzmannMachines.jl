@@ -66,7 +66,6 @@ function _prepare_training_data(
     wts::Union{AbstractVector, Nothing};
     batchsize::Int,
 )
-    batchsize > 0 || throw(ArgumentError("batchsize must be positive"))
     isnothing(wts) && return data, wts, nothing, batchsize
 
     length(wts) == size(data, ndims(data)) ||
@@ -88,17 +87,16 @@ function _prepare_training_data(
 
     # Cache the overall weight scale and mean, so minibatch gradients can be
     # bias-corrected without overflowing on extreme finite weights.
-    scale = maximum(wts)
-    T = _weight_accumulator_type(eltype(wts))
-    normalization = (; scale, mean = mean(T.(wts) ./ T(scale)))
+    scale = Float64(maximum(wts))
+    normalization = (; scale, mean = mean(Float64.(wts) ./ scale))
 
     return data, wts, normalization, min(batchsize, npositive)
 end
 
 _batch_weight(::Nothing, ::Nothing) = 1
 
+# mean(wd) / mean(wts), overflow-safe: batch weights are a subset of the
+# training weights, so the global scale bounds them.
 function _batch_weight(wd::AbstractVector, normalization::NamedTuple)
-    scale = maximum(wd)
-    T = promote_type(_weight_accumulator_type(eltype(wd)), typeof(normalization.mean))
-    return (T(scale) / T(normalization.scale)) * (mean(T.(wd) ./ T(scale)) / normalization.mean)
+    return mean(Float64.(wd) ./ normalization.scale) / normalization.mean
 end

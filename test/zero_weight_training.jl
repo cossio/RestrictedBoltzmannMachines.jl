@@ -330,17 +330,30 @@ end
     @test RBMs.wmean(A; wts = ones(Float16, n), dims = 2) ≈ [2]
 end
 
+@testset "∂free_energy ignores zero-weight samples exactly" begin
+    rbm = base_rbm()
+    v = [
+        NaN 0.0 1.0
+        NaN 1.0 0.0
+    ]
+    wts = [0.0, 1.0, 2.0]
+    ∂ = RBMs.∂free_energy(rbm, v; wts)
+    ∂ref = RBMs.∂free_energy(rbm, v[:, 2:3]; wts = wts[2:3])
+    @test ∂.visible ≈ ∂ref.visible
+    @test ∂.hidden ≈ ∂ref.hidden
+    @test ∂.w ≈ ∂ref.w
+end
+
 @testset "narrow mixed-range weights keep a positive batch weight ($W)" for W in (Float16, Float32)
     small = nextfloat(zero(W))
     large = floatmax(W)
     wts = W[small, large]
     data = zeros(W, 1, length(wts))
-    A = W === Float16 ? Float32 : Float64
 
     _, raw_wts, normalization, _ = RBMs._prepare_training_data(data, wts; batchsize = 1)
     @test raw_wts === wts
 
-    ratio = A(small) / A(large)
+    ratio = Float64(small) / Float64(large)
     batch_weight = RBMs._batch_weight(raw_wts[1:1], normalization)
     @test batch_weight > 0
     @test batch_weight ≈ 2ratio / (1 + ratio)

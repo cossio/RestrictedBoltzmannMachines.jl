@@ -9,12 +9,14 @@ All notable changes to this project will be documented in this file. The format 
   mini-batches are formed and therefore do not consume the requested `iters`,
   which continues to count parameter updates. Training weights must be finite,
   real, and nonnegative, with at least one positive weight; invalid or globally
-  all-zero weights throw without mutating the model. In addition, `wmean` (and
+  all-zero weights throw an `ArgumentError` before any parameter update. In
+  addition, `wmean` (and
   everything built on it: `batchmean`, `moments_from_samples`, `∂free_energy`,
   the standardization statistics, ...) now ignores zero-weight samples exactly
-  — even samples with non-finite entries — and normalizes weights internally in
-  a wide-enough accumulator type, so extreme finite weights cannot overflow the
-  weighted sums. The default number of fantasy particles in `pcd!` and of
+  — even samples with non-finite entries — and accumulates weights internally
+  in `Float64`, normalized by the largest weight, so extreme finite weights
+  cannot overflow the weighted sums. The default number of fantasy particles in
+  `pcd!` and of
   coupled chains in `ucd!` equals the requested `batchsize`
   ([#143](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/143)).
 - Fixed `log_partition` for Gaussian-Gaussian RBMs, which could return a plausible finite value for a non-normalizable model when the indefinite joint precision had a positive determinant. It now validates the `abs(γ)` joint precision with a checked Cholesky factorization and returns `+Inf` for singular or indefinite models ([#142](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/142)).
