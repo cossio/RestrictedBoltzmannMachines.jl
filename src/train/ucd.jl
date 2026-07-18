@@ -175,13 +175,13 @@ function ucd!(
     batchsize::Int = 1,
     iters::Int = 1,
     wts::Union{AbstractVector, Nothing} = nothing,
-    nchains::Union{Int, _DefaultChainCount} = _DEFAULT_CHAIN_COUNT,
+    nchains::Int = batchsize,
     min_steps::Int = 1,
     max_steps::Int = 100,
     max_tries::Int = 500,
     max_resamples::Int = 100,
     optim::AbstractRule = Adam(),
-    moments = _DEFAULT_MOMENTS,
+    moments = moments_from_samples(rbm.visible, data; wts),
     l2_fields::Real = 0,
     l1_weights::Real = 0,
     l2_weights::Real = 0,
@@ -191,26 +191,21 @@ function ucd!(
     callback = Returns(nothing),
     shuffle::Bool = true,
     ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w),
-    state = _DEFAULT_OPTIMIZER_STATE,
+    state = setup(optim, ps),
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert isnothing(wts) || size(data)[end] == length(wts)
     @assert max_resamples ≥ 0
-
-    data, wts, training_wts, normalization, batchsize =
-        _prepare_training_data(data, wts; batchsize)
-    nchains === _DEFAULT_CHAIN_COUNT && (nchains = batchsize)
     @assert nchains > 0
-    moments === _DEFAULT_MOMENTS &&
-        (moments = moments_from_samples(rbm.visible, data; wts = training_wts))
-    state === _DEFAULT_OPTIMIZER_STATE && (state = setup(optim, ps))
+
+    data, wts, normalization, batchsize = _prepare_training_data(data, wts; batchsize)
 
     zerosum && zerosum!(rbm)
     rescale && rescale_weights!(rbm)
 
     for (iter, (vd, wd)) in zip(1:iters, infinite_minibatches(data, wts; batchsize, shuffle))
-        training_wd, batch_weight = _prepare_training_batch(wd, normalization)
-        ∂d = ∂free_energy(rbm, vd; wts = training_wd, moments)
+        batch_weight = _batch_weight(wd, normalization)
+        ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
 
         ∂m = _zero_gradient(rbm)
         meeting_steps = 0

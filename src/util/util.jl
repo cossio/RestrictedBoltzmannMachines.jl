@@ -29,8 +29,21 @@ function wmean(A::AbstractArray; wts::Union{AbstractArray,Nothing} = nothing, di
         w = reshape(wts, wsz)
     end
 
-    return mean(A .* w; dims) ./ mean(wts)
+    # Normalize by the largest weight, in a wide-enough accumulator type, so
+    # that extreme finite weights cannot overflow the weighted sums. Zero
+    # weights annihilate their entries exactly, even non-finite ones.
+    T = _weight_accumulator_type(eltype(wts))
+    wn = T.(w) ./ T(maximum(wts))
+    return mean(_weighted_term.(A, wn); dims) ./ mean(wn)
 end
+
+_weighted_term(a, w) = iszero(w) ? zero(a) * w : a * w
+
+# One wider IEEE type can represent the ratio between any two finite,
+# positive Float16 or Float32 values without underflow.
+_weight_accumulator_type(::Type{Float16}) = Float32
+_weight_accumulator_type(::Type{Float32}) = Float64
+_weight_accumulator_type(::Type{T}) where {T} = float(T)
 
 @doc raw"""
     wsum(A; wts = nothing, dims = :)

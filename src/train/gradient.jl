@@ -72,7 +72,10 @@ function ∂interaction_energy(rbm::RBM, v::AbstractArray, h::AbstractArray; wts
             ∂wflat = -vflat * hflat' / size(vflat, 2)
         else
             @assert size(wts) == bsz
-            ∂wflat = -(vflat .* reshape(wts, 1, :)) * hflat' / sum(wts)
+            # normalize like `wmean`, so extreme finite weights cannot overflow
+            T = _weight_accumulator_type(eltype(wts))
+            wn = T.(vec(wts)) ./ T(maximum(wts))
+            ∂wflat = -(vflat .* reshape(wn, 1, :)) * hflat' / sum(wn)
         end
     end
     ∂w = reshape(∂wflat, size(rbm.w))
