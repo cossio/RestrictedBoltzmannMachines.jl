@@ -75,8 +75,7 @@ function ∂interaction_energy(rbm::RBM, v::AbstractArray, h::AbstractArray; wts
             # Normalize like `wmean`, so extreme finite weights cannot
             # overflow, and zero weights annihilate their samples exactly:
             # both factors must be zeroed, else `NaN * 0` poisons the product.
-            F = promote_type(Float64, float(eltype(wts)))
-            wn = reshape(vec(wts) ./ F(maximum(wts)), 1, :)
+            wn = reshape(vec(wts) ./ (1.0 * float(maximum(wts))), 1, :)
             vw = _weighted_term.(vflat, wn)
             hz = ifelse.(iszero.(wn), zero.(hflat), hflat)
             ∂wflat = -vw * hz' / sum(wn)

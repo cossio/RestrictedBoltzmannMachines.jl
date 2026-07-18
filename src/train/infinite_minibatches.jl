@@ -88,7 +88,7 @@ function _prepare_training_data(
 
     # Cache the overall weight scale and mean, so minibatch gradients can be
     # bias-corrected without overflowing on extreme finite weights.
-    scale = promote_type(Float64, float(eltype(wts)))(maximum(wts))
+    scale = 1.0 * float(maximum(wts))
     normalization = (; scale, mean = mean(wts ./ scale))
 
     return data, wts, normalization, min(batchsize, npositive)
