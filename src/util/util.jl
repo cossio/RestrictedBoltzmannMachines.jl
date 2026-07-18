@@ -29,8 +29,16 @@ function wmean(A::AbstractArray; wts::Union{AbstractArray,Nothing} = nothing, di
         w = reshape(wts, wsz)
     end
 
-    return mean(A .* w; dims) ./ mean(wts)
+    # Accumulate weights normalized by the largest weight, in at least Float64
+    # precision (wider if the weights are wider, e.g. BigFloat), so that
+    # extreme finite weights cannot overflow the weighted sums (narrow float
+    # types like Float16 overflow even on moderately many samples). Zero
+    # weights annihilate their entries exactly, even non-finite ones.
+    wn = w ./ (1.0 * float(maximum(wts)))
+    return mean(_weighted_term.(A, wn); dims) ./ mean(wn)
 end
+
+_weighted_term(a, w) = iszero(w) ? zero(a) * w : a * w
 
 @doc raw"""
     wsum(A; wts = nothing, dims = :)
@@ -45,7 +53,11 @@ function wsum(A::AbstractArray; wts::Union{AbstractArray,Nothing} = nothing, dim
     if isnothing(wts)
         return sum(A; dims)
     else
-        return wmean(A; wts, dims) * sum(wts)
+        # multiply the normalized weight sum in before the scale, so the raw
+        # sum of weights is never materialized (it can overflow even when the
+        # weighted sum itself is finite)
+        scale = 1.0 * float(maximum(wts))
+        return wmean(A; wts, dims) .* (mean(wts ./ scale) * length(wts)) .* scale
     end
 end
 

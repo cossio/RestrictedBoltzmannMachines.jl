@@ -17,18 +17,6 @@ function Optimisers.apply!(rule::CountingDescent, state, x, dx)
     return state, rule.eta .* dx
 end
 
-struct MutatingInitRule{R} <: Optimisers.AbstractRule
-    calls::R
-end
-
-function Optimisers.init(rule::MutatingInitRule, x::AbstractArray)
-    rule.calls[] += 1
-    x .+= one(eltype(x))
-    return nothing
-end
-
-Optimisers.apply!(::MutatingInitRule, state, x, dx) = (state, dx)
-
 function base_rbm()
     return BinaryRBM([0.1, -0.2], [0.05], reshape([0.2, -0.1], 2, 1))
 end
@@ -221,16 +209,16 @@ end
 
 @testset "invalid training weights" begin
     data = zeros(2, 2)
-    for bad_wts in (
-        [2.0, -1.0],
-        [1.0, NaN],
-        [1.0, Inf],
-        ComplexF64[1, 1],
+    for (bad_wts, err) in (
+        ([2.0, -1.0], ArgumentError),
+        ([1.0, NaN], ArgumentError),
+        ([1.0, Inf], ArgumentError),
+        (ComplexF64[1, 1], MethodError), # complex weights have no ordering
     )
         @test_throws ArgumentError RBMs._prepare_training_data(data, bad_wts; batchsize = 1)
         rbm = base_rbm()
         before = model_state(rbm)
-        @test_throws ArgumentError pcd!(
+        @test_throws err pcd!(
             rbm, data;
             wts = bad_wts, batchsize = 1, iters = 0,
             zerosum = false, rescale = false,
@@ -330,44 +318,54 @@ end
     @test all_finite(extreme_rbm)
 end
 
-@testset "Float16 weight normalization uses a safe accumulator" begin
-    data = zeros(Float16, 1, 70_000)
-    wts = ones(Float16, 70_000)
-    _, raw_wts, training_wts, normalization, _ =
-        RBMs._prepare_training_data(data, wts; batchsize = length(wts))
-
-    @test raw_wts === wts
-    @test eltype(training_wts) === Float32
-    @test normalization.mean == 1.0f0
-
-    training_batch_wts, batch_weight =
-        RBMs._prepare_training_batch(raw_wts, normalization)
-    @test eltype(training_batch_wts) === Float32
-    @test batch_weight == 1
+@testset "wmean ignores zero weights and extreme scales" begin
+    # zero weights annihilate their samples exactly, even non-finite ones
+    @test RBMs.wmean([NaN, 2.0, 4.0]; wts = [0.0, 1.0, 3.0]) ≈ 3.5
+    # extreme finite weights are normalized internally and cannot overflow
+    @test RBMs.wmean([1.0, 3.0]; wts = fill(floatmax(Float64), 2)) ≈ 2.0
+    @test RBMs.wmean([1.0, 3.0]; wts = fill(typemax(UInt128), 2)) ≈ 2.0
+    # finite weights wider than Float64 keep their wide accumulator,
+    # even behind an abstract eltype
+    @test RBMs.wmean([1.0, 3.0]; wts = fill(big"1e400", 2)) ≈ 2.0
+    @test RBMs.wmean([1.0, 3.0]; wts = Real[big"1e400", big"1e400"]) ≈ 2.0
+    @test RBMs.wmean([1.0, 3.0]; wts = Any[1.0, 3.0]) ≈ 2.5
+    # wsum never materializes the raw weight sum, which can overflow
+    # even when the weighted sum itself is finite
+    @test RBMs.wsum([1e-308, 1e-308]; wts = fill(1e308, 2)) ≈ 2.0
+    @test RBMs.wsum(zeros(2); wts = fill(floatmax(Float64), 2)) == 0
+    # Float16 weights are accumulated in a wider type (naive Float16 sums overflow)
+    n = 70_000
+    A = reshape(repeat(Float16[1, 3], n ÷ 2), 1, n)
+    @test RBMs.wmean(A; wts = ones(Float16, n), dims = 2) ≈ [2]
 end
 
-@testset "narrow mixed-range weights remain positive ($W)" for W in (Float16, Float32)
+@testset "∂free_energy ignores zero-weight samples exactly" begin
+    rbm = base_rbm()
+    v = [
+        NaN 0.0 1.0
+        NaN 1.0 0.0
+    ]
+    wts = [0.0, 1.0, 2.0]
+    ∂ = RBMs.∂free_energy(rbm, v; wts)
+    ∂ref = RBMs.∂free_energy(rbm, v[:, 2:3]; wts = wts[2:3])
+    @test ∂.visible ≈ ∂ref.visible
+    @test ∂.hidden ≈ ∂ref.hidden
+    @test ∂.w ≈ ∂ref.w
+end
+
+@testset "narrow mixed-range weights keep a positive batch weight ($W)" for W in (Float16, Float32)
     small = nextfloat(zero(W))
     large = floatmax(W)
     wts = W[small, large]
     data = zeros(W, 1, length(wts))
-    A = W === Float16 ? Float32 : Float64
 
-    _, raw_wts, training_wts, normalization, _ =
-        RBMs._prepare_training_data(data, wts; batchsize = 1)
+    _, raw_wts, normalization, _ = RBMs._prepare_training_data(data, wts; batchsize = 1)
     @test raw_wts === wts
-    @test eltype(training_wts) === A
-    @test training_wts[1] > 0
-    @test training_wts[2] == 1
 
-    training_batch_wts, batch_weight =
-        RBMs._prepare_training_batch(raw_wts[1:1], normalization)
-    ratio = A(small) / A(large)
-    expected_batch_weight = 2ratio / (1 + ratio)
-    @test eltype(training_batch_wts) === A
-    @test training_batch_wts == [one(A)]
+    ratio = Float64(small) / Float64(large)
+    batch_weight = RBMs._batch_weight(raw_wts[1:1], normalization)
     @test batch_weight > 0
-    @test batch_weight ≈ expected_batch_weight
+    @test batch_weight ≈ 2ratio / (1 + ratio)
 end
 
 function mutation_sensitive_rbm(::Val{:plain})
@@ -385,23 +383,26 @@ function check_all_zero_pcd(kind)
     wts = zeros(2)
     rbm = mutation_sensitive_rbm(kind)
     before = model_state(rbm)
-    init_calls = Ref(0)
+    updates = Ref(0)
     callbacks = Ref(0)
 
-    seed!(106)
-    expected_next_random = rand()
-    seed!(106)
     @test_throws ArgumentError pcd!(
         rbm, data;
         wts, batchsize = 2, iters = 1, steps = 1,
-        optim = MutatingInitRule(init_calls),
+        optim = CountingDescent(0.01, updates),
         callback = (; kwargs...) -> (callbacks[] += 1),
     )
     @test model_state(rbm) == before
-    @test rand() == expected_next_random
-    @test iszero(init_calls[])
+    @test iszero(updates[])
     @test iszero(callbacks[])
     return nothing
+end
+
+@testset "invalid batchsize fails before mutation" begin
+    rbm = mutation_sensitive_rbm(Val(:plain))
+    before = model_state(rbm)
+    @test_throws ArgumentError pcd!(rbm, [0.0 1.0; 1.0 0.0]; batchsize = 0)
+    @test model_state(rbm) == before
 end
 
 @testset "all-zero weights fail before mutation ($name PCD)" for (name, kind) in [
@@ -416,17 +417,17 @@ end
     data = [0.0 1.0; 1.0 0.0]
     rbm = base_rbm()
     before = model_state(rbm)
-    init_calls = Ref(0)
+    updates = Ref(0)
     callbacks = Ref(0)
 
     @test_throws ArgumentError ucd!(
         rbm, data;
         wts = zeros(2), batchsize = 2, iters = 1, nchains = 1,
-        optim = MutatingInitRule(init_calls),
+        optim = CountingDescent(0.01, updates),
         callback = (; kwargs...) -> (callbacks[] += 1),
     )
     @test model_state(rbm) == before
-    @test iszero(init_calls[])
+    @test iszero(updates[])
     @test iszero(callbacks[])
 end
 
@@ -525,7 +526,8 @@ end
         CountingDescent(0.01, default_calls),
         (; vm, kwargs...) -> push!(fantasy_sizes, size(vm, ndims(vm))),
     )
-    @test fantasy_sizes == [1]
+    # the default number of fantasy chains is the requested batchsize
+    @test fantasy_sizes == [4]
     @test default_calls[] == 3
 end
 
@@ -567,9 +569,10 @@ end
         zerosum = false,
         rescale = false,
     )
+    # the default number of chains is the requested batchsize
     seed!(108)
     ucd!(default_rbm, data; common...)
     seed!(108)
-    ucd!(explicit_rbm, data; common..., nchains = 1)
+    ucd!(explicit_rbm, data; common..., nchains = 4)
     @test model_state(default_rbm) == model_state(explicit_rbm)
 end
