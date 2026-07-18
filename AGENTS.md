@@ -43,9 +43,10 @@ commands, and subsystem-specific edit guidance.
 - Treat approval from the latest automated review as the default handoff bar.
   Address each finding or explain the disagreement in its thread, reply to
   every thread, and leave thread resolution to the reviewer.
-- A PR that changes `.github/workflows/claude-pr-review.yml` is reviewed by a
-  fallback run dispatched from the default branch. Use
-  `@claude review this PR` only if that fallback dispatch fails.
+- A PR that changes `.github/workflows/claude-pr-review.yml` gets no automatic
+  review (the action self-skips and a CI comment explains this). Request the
+  review by commenting `@claude review this PR`, and re-request it after each
+  push to that PR.
 - Never merge a PR or enable auto-merge unless the repository owner explicitly
   instructs it.
 

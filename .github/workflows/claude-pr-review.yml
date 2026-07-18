@@ -85,6 +85,12 @@ jobs:
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
 
+            Always pass PR NUMBER explicitly to `gh pr` commands
+            (`gh pr diff <PR NUMBER>`, `gh pr view <PR NUMBER>`,
+            `gh pr review <PR NUMBER> ...`): the checkout is a detached
+            merge ref, not the PR's branch, so bare invocations will not
+            resolve to the right PR.
+
             First, reconcile earlier runs of this review: list the PR's
             review threads including their replies (`gh api graphql` with
             the pullRequest reviewThreads query). For each unresolved thread
