@@ -309,10 +309,13 @@ jobs:
                       | ($changed[0] | index($path)) != null
                     )
                   | {
+                      # The marker lets the Claude reviewer recognize these
+                      # threads as Codex-owned and leave them alone.
                       body: (
                         "**[P" + (.priority | tostring) + "] " + .title +
                         "**\n\n" + .body + "\n\nConfidence: " +
-                        (.confidence_score | tostring)
+                        (.confidence_score | tostring) +
+                        "\n\n<!-- codex-review -->"
                       ),
                       path: .code_location.relative_file_path,
                       line: .code_location.line_range.end,
