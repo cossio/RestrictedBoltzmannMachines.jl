@@ -451,7 +451,7 @@ function pcd!(
     wts::Union{AbstractVector, Nothing} = nothing,
 
     # init fantasy chains
-    vm = sample_from_inputs(rbm.visible, Falses(size(rbm.visible)..., batchsize)),
+    vm = nothing,
 
     moments = moments_from_samples(rbm.visible, data; wts),
 
@@ -472,6 +472,11 @@ function pcd!(
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     isnothing(wts) || @assert size(data)[end] == length(wts)
+    _validate_layer_parameters(rbm)
+    isnothing(vm) &&
+        (vm = sample_from_inputs(
+            rbm.visible, Falses(size(rbm.visible)..., batchsize)
+        ))
 
     data, wts, normalization, batchsize = _prepare_training_data(data, wts; batchsize)
 
@@ -505,6 +510,7 @@ function pcd!(
         # feed gradient to Optimiser rule
         gs = (; visible = ∂.visible, hidden = ∂.hidden, w = ∂.w)
         state, ps = update!(state, ps, gs)
+        _validate_layer_parameters(rbm)
 
         # centering
         offset_h_new = grad2ave(rbm.hidden, -∂d.hidden) # <h>_d from minibatch

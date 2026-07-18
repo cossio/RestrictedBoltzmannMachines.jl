@@ -1,14 +1,18 @@
 """
     pReLU(; θ, γ, Δ, η)
 
-Parametric ReLU layer, with shared scale and asymmetry ratio.
+Parametric ReLU layer, with shared scale and asymmetry ratio. Every value of
+`η` must be finite and lie strictly inside `(-1, 1)`. For unconstrained learned
+asymmetry, use `xReLU` or the fixed-scale `nsReLU` instead.
 """
 struct pReLU{N,A} <: AbstractLayer{N}
     par::A
     function pReLU{N,A}(par::A) where {N,A<:AbstractArray}
         @assert size(par, 1) == 4 # θ, γ, Δ, η
         @assert ndims(par) == N + 1
-        return new(par)
+        layer = new(par)
+        _validate_layer_parameters(layer)
+        return layer
     end
 end
 
@@ -42,6 +46,18 @@ function Base.getproperty(layer::pReLU, name::Symbol)
     else
         return getfield(layer, name)
     end
+end
+
+_valid_prelu_eta(η) = η isa Real && isfinite(η) && -1 < η < 1
+
+function _validate_layer_parameters(layer::pReLU)
+    ChainRulesCore.ignore_derivatives() do
+        all(_valid_prelu_eta, layer.η) || throw(ArgumentError(
+            "invalid pReLU.η: all values must be finite and lie in the open " *
+            "interval (-1, 1). Use xReLU or nsReLU for unconstrained learned asymmetry."
+        ))
+    end
+    return nothing
 end
 
 energies(layer::pReLU, x::AbstractArray) = energies(dReLU(layer), x)
@@ -83,6 +99,7 @@ function ∂cgfs(layer::pReLU, inputs = 0)
 end
 
 function ∂energy_from_moments(layer::pReLU, moments::AbstractArray)
+    _validate_layer_parameters(layer)
     @assert size(layer.par) == size(moments)
 
     xp1 = @view moments[1, ..]

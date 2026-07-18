@@ -28,11 +28,13 @@ parameters with an `Optimisers.jl` rule.
 - `rescale::Bool=true`: rescale weights (mainly useful for continuous hidden units).
 - `callback=Returns(nothing)`: called after every update as
   `callback(; rbm, optim, state, iter, vm, vd, wd)`.
-- `vm=sample_from_inputs(...)`: initial fantasy particles.
+- `vm=nothing`: initial fantasy particles. By default, these are sampled after
+  validating the model's pReLU parameters.
 - `shuffle::Bool=true`: whether to reshuffle samples between epochs.
-- `ps=(; visible=rbm.visible.par, hidden=rbm.hidden.par, w=rbm.w)`: optimized
-  parameter container.
-- `state=setup(optim, ps)`: optimizer state.
+- `ps=nothing`: optimized parameter container. By default, this contains the
+  visible, hidden, and interaction parameters.
+- `state=nothing`: optimizer state. By default, this is initialized after
+  validating the model's pReLU parameters.
 
 Returns `(state, ps)`.
 """
@@ -59,16 +61,24 @@ function pcd!(
     callback = Returns(nothing), # called for every batch
 
     # init fantasy chains
-    vm = sample_from_inputs(rbm.visible, Falses(size(rbm.visible)..., batchsize)),
+    vm = nothing,
 
     shuffle::Bool = true,
 
     # parameters to optimize
-    ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w),
-    state = setup(optim, ps),
+    ps = nothing,
+    state = nothing,
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert isnothing(wts) || size(data)[end] == length(wts)
+    _validate_layer_parameters(rbm)
+    isnothing(vm) &&
+        (vm = sample_from_inputs(
+            rbm.visible, Falses(size(rbm.visible)..., batchsize)
+        ))
+    isnothing(ps) &&
+        (ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w))
+    isnothing(state) && (state = setup(optim, ps))
 
     data, wts, normalization, batchsize = _prepare_training_data(data, wts; batchsize)
 
@@ -96,6 +106,7 @@ function pcd!(
         # feed gradient to Optimiser rule
         gs = (; visible = ∂.visible, hidden = ∂.hidden, w = ∂.w)
         state, ps = update!(state, ps, gs)
+        _validate_layer_parameters(rbm)
 
         # reset gauge
         rescale && rescale_weights!(rbm)

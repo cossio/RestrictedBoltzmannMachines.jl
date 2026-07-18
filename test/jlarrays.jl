@@ -4,7 +4,7 @@
 # which is intentional: all JLArrays tests live in this file, and any future test
 # using JLArrays should run under allowscalar(false) too.
 import Random
-using Test: @test, @testset, @test_broken
+using Test: @test, @testset, @test_broken, @test_throws
 using Statistics: mean
 using Random: bitrand
 using Adapt: adapt
@@ -76,6 +76,16 @@ random_layers() = (
     jl_∂ = adapt(JLArray, ∂)
     @test jl_∂.w isa JLArray
     @test adapt(Array, jl_∂.w) == ∂.w
+end
+
+@testset "pReLU η validation is device generic" begin
+    layer = pReLU(;
+        θ = zeros(Float32, N...), γ = ones(Float32, N...),
+        Δ = zeros(Float32, N...), η = zeros(Float32, N...),
+    )
+    jl_layer = adapt(JLArray, layer)
+    jl_layer.η .= 1
+    @test_throws ArgumentError cgfs(jl_layer)
 end
 
 @testset "nsReLU -> xReLU conversion stays on device" begin

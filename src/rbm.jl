@@ -18,6 +18,12 @@ struct RBM{V,H,W}
     end
 end
 
+function _validate_layer_parameters(rbm)
+    _validate_layer_parameters(rbm.visible)
+    _validate_layer_parameters(rbm.hidden)
+    return nothing
+end
+
 flat_w(rbm) = reshape(rbm.w, length(rbm.visible), length(rbm.hidden))
 flat_v(rbm, v) = flatten(rbm.visible, v)
 flat_h(rbm, h) = flatten(rbm.hidden, h)

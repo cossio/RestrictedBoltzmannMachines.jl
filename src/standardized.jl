@@ -442,7 +442,7 @@ function pcd!(
     wts::Union{AbstractVector, Nothing} = nothing, # data weights
 
     steps::Int = 1,
-    vm::AbstractArray = sample_from_inputs(rbm.visible, Falses(size(rbm.visible)..., batchsize)),
+    vm::Union{AbstractArray, Nothing} = nothing,
 
     moments = moments_from_samples(rbm.visible, data; wts), # sufficient statistics for visible layer
 
@@ -461,8 +461,8 @@ function pcd!(
 
     # optimiser
     optim::AbstractRule = Adam(),
-    ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w),
-    state = setup(optim, ps),
+    ps = nothing,
+    state = nothing,
 
     # Absorb the scale_h into the hidden unit activation (for hidden units with scale parameter).
     # Results in hidden units with var(h) ~ 1.
@@ -476,6 +476,14 @@ function pcd!(
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert isnothing(wts) || size(data)[end] == length(wts)
     @assert 0 ≤ damping ≤ 1
+    _validate_layer_parameters(rbm)
+    isnothing(vm) &&
+        (vm = sample_from_inputs(
+            rbm.visible, Falses(size(rbm.visible)..., batchsize)
+        ))
+    isnothing(ps) &&
+        (ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w))
+    isnothing(state) && (state = setup(optim, ps))
 
     data, wts, normalization, batchsize = _prepare_training_data(data, wts; batchsize)
 
@@ -503,6 +511,7 @@ function pcd!(
         # feed gradient to Optimiser rule
         gs = (; visible = ∂.visible, hidden = ∂.hidden, w = ∂.w)
         state, ps = update!(state, ps, gs)
+        _validate_layer_parameters(rbm)
 
         # update standardization
         standardize_hidden_from_v!(rbm, vd; wts = wd, damping, ϵ=ϵh)

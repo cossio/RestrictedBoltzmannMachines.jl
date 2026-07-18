@@ -1,5 +1,7 @@
 abstract type AbstractLayer{N} end
 
+_validate_layer_parameters(::AbstractLayer) = nothing
+
 Base.ndims(::AbstractLayer{N}) where {N} = N
 Base.size(layer::AbstractLayer, d::Int) = size(layer)[d]
 
