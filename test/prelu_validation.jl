@@ -1,3 +1,4 @@
+import Optimisers
 using Optimisers: Descent
 using RestrictedBoltzmannMachines: Binary, RBM, center, cgfs, grad2var, pReLU,
     pcd!, standardize, xReLU, ∂energy_from_moments
@@ -30,38 +31,53 @@ function boundary_rbm()
     return RBM(Binary((1,)), unit_prelu(0.99), ones(1, 1))
 end
 
+struct PreluMutatingInitRule{R} <: Optimisers.AbstractRule
+    calls::R
+end
+
+function Optimisers.init(rule::PreluMutatingInitRule, x::AbstractArray)
+    rule.calls[] += 1
+    x .+= one(eltype(x))
+    return nothing
+end
+
+Optimisers.apply!(::PreluMutatingInitRule, state, x, dx) = (state, dx)
+
 pcd_model(::Val{:plain}) = boundary_rbm()
 pcd_model(::Val{:centered}) = center(boundary_rbm())
 pcd_model(::Val{:standardized}) = standardize(boundary_rbm())
 
 function run_pcd!(
-    ::Val{:plain}, rbm, data, vm; iters::Int, callback,
+    ::Val{:plain}, rbm, data, vm;
+    iters::Int, callback, wts = nothing, optim = Descent(1e-3),
 )
     return pcd!(
         rbm, data;
-        batchsize = 1, iters, steps = 0, vm, callback,
-        optim = Descent(1e-3), rescale = false, zerosum = false, shuffle = false,
+        batchsize = 1, iters, steps = 0, vm, callback, wts, optim,
+        rescale = false, zerosum = false, shuffle = false,
     )
 end
 
 function run_pcd!(
-    ::Val{:centered}, rbm, data, vm; iters::Int, callback,
+    ::Val{:centered}, rbm, data, vm;
+    iters::Int, callback, wts = nothing, optim = Descent(1e-3),
 )
     return pcd!(
         rbm, data;
-        batchsize = 1, iters, steps = 0, vm, callback,
-        optim = Descent(1e-3), rescale = false, zerosum = false,
+        batchsize = 1, iters, steps = 0, vm, callback, wts, optim,
+        rescale = false, zerosum = false,
         hidden_offset_damping = 0,
     )
 end
 
 function run_pcd!(
-    ::Val{:standardized}, rbm, data, vm; iters::Int, callback,
+    ::Val{:standardized}, rbm, data, vm;
+    iters::Int, callback, wts = nothing, optim = Descent(1e-3),
 )
     return pcd!(
         rbm, data;
-        batchsize = 1, iters, steps = 0, vm, callback,
-        optim = Descent(1e-3), rescale_hidden = false, zerosum = false,
+        batchsize = 1, iters, steps = 0, vm, callback, wts, optim,
+        rescale_hidden = false, zerosum = false,
         shuffle = false, damping = 0, ϵv = 1,
     )
 end
@@ -121,6 +137,41 @@ end
         context = "after a pcd! optimizer update",
     )
     @test only(crossing.hidden.η) > 1
+    @test !callback_called[]
+end
+
+@testset "pReLU η validation with zero-weight filtering: $name" for
+    name in (:plain, :centered, :standardized)
+
+    case = Val(name)
+    data = reshape([NaN, 0.0], 1, 2)
+    vm = trues(1, 1)
+    callback_called = Ref(false)
+    callback = (; _...) -> (callback_called[] = true)
+
+    crossing = pcd_model(case)
+    check_prelu_error(
+        () -> run_pcd!(
+            case, crossing, data, copy(vm);
+            iters = 1, callback, wts = [0.0, 1.0],
+        );
+        context = "after a pcd! optimizer update",
+    )
+    @test only(crossing.hidden.η) > 1
+    @test !callback_called[]
+
+    initially_invalid = pcd_model(case)
+    initially_invalid.hidden.η .= NaN
+    init_calls = Ref(0)
+    check_prelu_error(
+        () -> run_pcd!(
+            case, initially_invalid, data, copy(vm);
+            iters = 1, callback, wts = zeros(2),
+            optim = PreluMutatingInitRule(init_calls),
+        );
+        context = "before pcd! training",
+    )
+    @test iszero(init_calls[])
     @test !callback_called[]
 end
 

@@ -17,6 +17,7 @@ module zerosum_tests include("gauge/zerosum.jl") end
 module rescale_hidden_tests include("gauge/rescale_hidden.jl") end
 module pcd_tests include("pcd.jl") end
 module ucd_tests include("ucd.jl") end
+module zero_weight_training_tests include("zero_weight_training.jl") end
 module train_tests include("train.jl") end
 module shift_fields_tests include("shift_fields.jl") end
 module pottsgumbel_tests include("pottsgumbel.jl") end
