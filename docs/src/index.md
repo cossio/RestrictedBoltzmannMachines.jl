@@ -99,14 +99,18 @@ Typical RBM training flow:
 3. train with [`pcd!`](@ref), and
 4. monitor progress with [`log_pseudolikelihood`](@ref) or [`reconstruction_error`](@ref).
 
-Useful [`pcd!`](@ref) arguments:
-- `iters`: number of parameter updates.
+Useful training arguments (shared by [`pcd!`](@ref) and [`ucd!`](@ref) where
+applicable):
+- `iters`: number of completed parameter updates.
 - `batchsize`: mini-batch size.
 - `steps`: Gibbs steps for fantasy-particle updates each iteration.
 - `optim`: optimizer rule from Optimisers.jl.
 - `callback`: receives per-iteration state and can be used for logging.
 - `l1_weights`, `l2_weights`, `l2_fields`, `l2l1_weights`: regularization knobs.
-- `wts`: optional per-sample weights for weighted datasets; supported by the plain `RBM` / centered `pcd!` methods, not by `pcd!(::StandardizedRBM, ...)`.
+- `wts`: optional finite, real, nonnegative per-sample weights, supported by
+  plain, centered, and standardized `pcd!` as well as `ucd!`; zero-weight
+  observations are excluded before training work, and at least one weight must
+  be positive.
 
 ## Documentation guide
 

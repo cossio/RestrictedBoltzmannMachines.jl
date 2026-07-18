@@ -157,6 +157,9 @@ end
     ucd!(rbm, data)
 
 Train a binary-binary RBM on data using Unbiased Contrastive Divergence.
+When provided, `wts` must contain finite, nonnegative per-sample weights with
+positive total weight. Zero-weight samples are ignored before minibatches are
+formed, and therefore do not consume any of the `iters` parameter updates.
 The callback receives the current minibatch together with average `meeting_steps`
 and `discarded` trial counts across unbiased chains. For the UCD algorithm and
 binary RBM reference implementation, see Qiu, Zhang, and Wang (2020,
@@ -172,13 +175,13 @@ function ucd!(
     batchsize::Int = 1,
     iters::Int = 1,
     wts::Union{AbstractVector, Nothing} = nothing,
-    nchains::Int = batchsize,
+    nchains::Union{Int, _DefaultChainCount} = _DEFAULT_CHAIN_COUNT,
     min_steps::Int = 1,
     max_steps::Int = 100,
     max_tries::Int = 500,
     max_resamples::Int = 100,
     optim::AbstractRule = Adam(),
-    moments = moments_from_samples(rbm.visible, data; wts),
+    moments = _DEFAULT_MOMENTS,
     l2_fields::Real = 0,
     l1_weights::Real = 0,
     l2_weights::Real = 0,
@@ -188,20 +191,26 @@ function ucd!(
     callback = Returns(nothing),
     shuffle::Bool = true,
     ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w),
-    state = setup(optim, ps),
+    state = _DEFAULT_OPTIMIZER_STATE,
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert isnothing(wts) || size(data)[end] == length(wts)
-    @assert nchains > 0
     @assert max_resamples ≥ 0
+
+    data, wts, training_wts, normalization, batchsize =
+        _prepare_training_data(data, wts; batchsize)
+    nchains === _DEFAULT_CHAIN_COUNT && (nchains = batchsize)
+    @assert nchains > 0
+    moments === _DEFAULT_MOMENTS &&
+        (moments = moments_from_samples(rbm.visible, data; wts = training_wts))
+    state === _DEFAULT_OPTIMIZER_STATE && (state = setup(optim, ps))
 
     zerosum && zerosum!(rbm)
     rescale && rescale_weights!(rbm)
 
-    wts_mean = isnothing(wts) ? 1 : mean(wts)
-
     for (iter, (vd, wd)) in zip(1:iters, infinite_minibatches(data, wts; batchsize, shuffle))
-        ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
+        training_wd, batch_weight = _prepare_training_batch(wd, normalization)
+        ∂d = ∂free_energy(rbm, vd; wts = training_wd, moments)
 
         ∂m = _zero_gradient(rbm)
         meeting_steps = 0
@@ -226,7 +235,6 @@ function ucd!(
 
         ∂ = ∂d - ∂m
 
-        batch_weight = isnothing(wts) ? 1 : mean(wd) / wts_mean
         ∂ *= batch_weight
 
         ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum)
