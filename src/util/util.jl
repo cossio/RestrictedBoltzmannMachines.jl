@@ -29,11 +29,13 @@ function wmean(A::AbstractArray; wts::Union{AbstractArray,Nothing} = nothing, di
         w = reshape(wts, wsz)
     end
 
-    # Accumulate weights in Float64, normalized by the largest weight, so that
-    # extreme finite weights cannot overflow the weighted sums (narrow float
-    # types like Float16 overflow even on moderately many samples). Zero
-    # weights annihilate their entries exactly, even non-finite ones.
-    wn = Float64.(w) ./ Float64(maximum(wts))
+    # Accumulate weights normalized by the largest weight, in Float64 (or wider
+    # if the weights are wider), so that extreme finite weights cannot overflow
+    # the weighted sums (narrow float types like Float16 overflow even on
+    # moderately many samples). Zero weights annihilate their entries exactly,
+    # even non-finite ones.
+    F = promote_type(Float64, float(eltype(wts)))
+    wn = w ./ F(maximum(wts))
     return mean(_weighted_term.(A, wn); dims) ./ mean(wn)
 end
 

@@ -324,6 +324,8 @@ end
     # extreme finite weights are normalized internally and cannot overflow
     @test RBMs.wmean([1.0, 3.0]; wts = fill(floatmax(Float64), 2)) ≈ 2.0
     @test RBMs.wmean([1.0, 3.0]; wts = fill(typemax(UInt128), 2)) ≈ 2.0
+    # finite weights wider than Float64 keep their wide accumulator
+    @test RBMs.wmean([1.0, 3.0]; wts = fill(big"1e400", 2)) ≈ 2.0
     # Float16 weights are accumulated in a wider type (naive Float16 sums overflow)
     n = 70_000
     A = reshape(repeat(Float16[1, 3], n ÷ 2), 1, n)

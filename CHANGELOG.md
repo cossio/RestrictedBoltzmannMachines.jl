@@ -14,8 +14,8 @@ All notable changes to this project will be documented in this file. The format 
   everything built on it: `batchmean`, `moments_from_samples`, `∂free_energy`,
   the standardization statistics, ...) now ignores zero-weight samples exactly
   — even samples with non-finite entries — and accumulates weights internally
-  in `Float64`, normalized by the largest weight, so extreme finite weights
-  cannot overflow the weighted sums. The default number of fantasy particles in
+  in `Float64` (or a wider type when the weights are wider), normalized by the
+  largest weight, so extreme finite weights cannot overflow the weighted sums. The default number of fantasy particles in
   `pcd!` and of
   coupled chains in `ucd!` equals the requested `batchsize`
   ([#143](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/143)).
