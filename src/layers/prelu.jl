@@ -11,7 +11,7 @@ struct pReLU{N,A} <: AbstractLayer{N}
         @assert size(par, 1) == 4 # θ, γ, Δ, η
         @assert ndims(par) == N + 1
         layer = new(par)
-        _check_prelu_eta(layer)
+        _validate_layer_parameters(layer)
         return layer
     end
 end
@@ -50,21 +50,13 @@ end
 
 _valid_prelu_eta(η) = η isa Real && isfinite(η) && -1 < η < 1
 
-function _check_prelu_eta(layer::pReLU)
+function _validate_layer_parameters(layer::pReLU)
     ChainRulesCore.ignore_derivatives() do
         all(_valid_prelu_eta, layer.η) || throw(ArgumentError(
             "invalid pReLU.η: all values must be finite and lie in the open " *
             "interval (-1, 1). Use xReLU or nsReLU for unconstrained learned asymmetry."
         ))
     end
-    return layer
-end
-
-_check_prelu_eta(layer::AbstractLayer) = layer
-
-function _check_prelu_eta(visible::AbstractLayer, hidden::AbstractLayer)
-    _check_prelu_eta(visible)
-    _check_prelu_eta(hidden)
     return nothing
 end
 
@@ -107,7 +99,7 @@ function ∂cgfs(layer::pReLU, inputs = 0)
 end
 
 function ∂energy_from_moments(layer::pReLU, moments::AbstractArray)
-    _check_prelu_eta(layer)
+    _validate_layer_parameters(layer)
     @assert size(layer.par) == size(moments)
 
     xp1 = @view moments[1, ..]

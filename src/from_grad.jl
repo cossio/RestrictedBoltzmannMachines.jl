@@ -21,7 +21,7 @@ function grad2var(l::dReLU, ∂::AbstractArray)
 end
 
 function grad2var(l::pReLU, ∂::AbstractArray)
-    _check_prelu_eta(l)
+    _validate_layer_parameters(l)
     ∂θ = -∂[1, ..]
     ∂γ = -∂[2, ..]
     ∂Δ = -∂[3, ..]
