@@ -49,6 +49,28 @@ jobs:
         if: env.HAS_KEY == 'true'
         with:
           fetch-depth: 0
+      - name: Prepare trusted PR review instructions
+        if: env.HAS_KEY == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IS_PR: ${{ github.event.pull_request.number != null || github.event.issue.pull_request != null }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+          REQUEST: ${{ github.event.comment.body || github.event.review.body || github.event.issue.body || '' }}
+        run: |
+          policy="$RUNNER_TEMP/claude-pr-review-policy.md"
+          : > "$policy"
+
+          if [ "$IS_PR" != 'true' ] || [[ "$REQUEST" != *'@claude review'* ]]; then
+            exit 0
+          fi
+
+          base_ref="$(gh pr view "$PR_NUMBER" --json baseRefName --jq .baseRefName)"
+          git fetch --no-tags --depth=1 origin "$base_ref"
+          {
+            git show "origin/$base_ref:.github/prompts/claude-pr-review.md"
+            printf '\n\n# Repository review policy\n\n'
+            git show "origin/$base_ref:REVIEW.md"
+          } > "$policy"
       - name: Run Claude
         if: env.HAS_KEY == 'true'
         uses: anthropics/claude-code-action@3553f84341b92da26052e28acf1aa898f9511f32 # v1.0.177
@@ -56,3 +78,4 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: |
             --model claude-sonnet-5
+            --append-system-prompt-file "${{ runner.temp }}/claude-pr-review-policy.md"
