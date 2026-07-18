@@ -26,4 +26,5 @@ module standardized_tests include("standardized.jl") end
 module nsReLU_tests include("layers/nsReLU.jl") end
 module ais_tests include("ais.jl") end
 module jlarrays_tests include("jlarrays.jl") end
+module complexity_tests include("complexity.jl") end
 module aqua_tests include("aqua.jl") end

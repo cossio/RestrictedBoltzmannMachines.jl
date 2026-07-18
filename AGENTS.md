@@ -49,6 +49,14 @@ commands, and subsystem-specific edit guidance.
 - Never merge a PR or enable auto-merge unless the repository owner explicitly
   instructs it.
 
+## Review guidelines
+
+- Follow `REVIEW.md` for pull-request reviews. In particular, actively look for
+  avoidable complexity instead of treating correct behavior as sufficient.
+- Treat substantial unnecessary complexity as P1/Important when a materially
+  simpler design satisfies the current requirements. Complexity metrics are a
+  floor, not a substitute for this semantic review.
+
 ## Releases
 
 Use `$register-new-version` for release, registration, tagging, or publishing

@@ -12,7 +12,8 @@ significant, post no findings.
 ## What Important means here
 
 Reserve Important (blocking-severity) for findings that would make the
-package compute wrong results or break users:
+package compute wrong results, break users, or add substantial avoidable
+complexity that materially raises future change risk:
 
 - Bugs and logic errors: wrong edge-case behavior, or crashes on valid
   input.
@@ -34,9 +35,30 @@ package compute wrong results or break users:
 - Breaking changes to exported API or behavior not reflected in tests and
   in the `## Unreleased` section of CHANGELOG.md.
 - Security issues in changes to CI workflows.
+- New abstractions, state paths, sentinel types, dispatch layers, or duplicated
+  mechanisms that are not needed for the requested behavior when a materially
+  simpler design fits the current requirements. Identify the concrete simpler
+  design that preserves the behavior; do not block on vague discomfort or
+  speculative future simplifications.
 
 Style, naming, refactoring suggestions, and docstring wording are Nit at
 most.
+
+## Complexity review
+
+Actively inspect every changed function and every new abstraction for
+complexity. Ask whether each branch, helper, type, state value, and layer of
+indirection is required now; whether an existing mechanism can carry the same
+behavior; and whether the change spreads one concern across more files or
+execution paths than necessary. Passing the deterministic complexity checks is
+only a floor: they cannot detect unnecessary architecture or diffuse
+complexity.
+
+Report a complexity finding only when you can point to the specific structure
+that is unnecessary and describe a meaningfully simpler alternative that
+preserves the required behavior. A small local simplification is a Nit; a
+substantial avoidable design that makes the code materially harder to reason
+about, test, or change is Important.
 
 ## Verification bar
 
@@ -73,6 +95,9 @@ found is a Nit, lead the summary with "No blocking issues."
   new behavior.
 - The version in Project.toml keeps its `-DEV` suffix outside of release
   PRs.
+- Added or changed code does not exceed the deterministic complexity ratchets
+  in `test/complexity.jl`, and any edit to an existing exception lowers or
+  preserves its recorded ceiling rather than raising it.
 
 ## Agent-instruction files
 
