@@ -451,9 +451,9 @@ function pcd!(
     wts::Union{AbstractVector, Nothing} = nothing,
 
     # init fantasy chains
-    vm = _DEFAULT_FANTASY,
+    vm = sample_from_inputs(rbm.visible, Falses(size(rbm.visible)..., batchsize)),
 
-    moments = _DEFAULT_MOMENTS,
+    moments = moments_from_samples(rbm.visible, data; wts),
 
     # damping to update hidden statistics
     hidden_offset_damping::Real = 1//100,
@@ -474,17 +474,10 @@ function pcd!(
     isnothing(wts) || @assert size(data)[end] == length(wts)
     _check_prelu_eta(rbm.visible, rbm.hidden, :pcd_start)
 
-    data, wts, training_wts, normalization, batchsize =
-        _prepare_training_data(data, wts; batchsize)
-    moments === _DEFAULT_MOMENTS &&
-        (moments = moments_from_samples(rbm.visible, data; wts = training_wts))
-    vm === _DEFAULT_FANTASY &&
-        (vm = sample_from_inputs(
-            rbm.visible, Falses(size(rbm.visible)..., batchsize)
-        ))
+    data, wts, normalization, batchsize = _prepare_training_data(data, wts; batchsize)
 
     # initial centering from data
-    center_from_data!(rbm, data; wts = training_wts)
+    center_from_data!(rbm, data; wts)
 
     # gauge constraints
     zerosum && zerosum!(rbm)
@@ -495,13 +488,13 @@ function pcd!(
     state = setup(optim, ps)
 
     for (iter, (vd, wd)) in zip(1:iters, infinite_minibatches(data, wts; batchsize))
-        training_wd, batch_weight = _prepare_training_batch(wd, normalization)
+        batch_weight = _batch_weight(wd, normalization)
 
         # update fantasy chains
         vm .= sample_v_from_v(rbm, vm; steps)
 
         # compute gradient
-        ∂d = ∂free_energy(rbm, vd; wts = training_wd, moments)
+        ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
         ∂m = ∂free_energy(rbm, vm)
         ∂ = ∂d - ∂m
 
