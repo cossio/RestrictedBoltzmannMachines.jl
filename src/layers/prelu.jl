@@ -50,16 +50,12 @@ end
 
 _valid_prelu_eta(η) = η isa Real && isfinite(η) && -1 < η < 1
 
-@noinline function _throw_invalid_prelu_eta()
-    throw(ArgumentError(
-        "invalid pReLU.η: all values must be finite and lie in the open " *
-        "interval (-1, 1). Use xReLU or nsReLU for unconstrained learned asymmetry."
-    ))
-end
-
 function _check_prelu_eta(layer::pReLU)
     ChainRulesCore.ignore_derivatives() do
-        all(_valid_prelu_eta, layer.η) || _throw_invalid_prelu_eta()
+        all(_valid_prelu_eta, layer.η) || throw(ArgumentError(
+            "invalid pReLU.η: all values must be finite and lie in the open " *
+            "interval (-1, 1). Use xReLU or nsReLU for unconstrained learned asymmetry."
+        ))
     end
     return layer
 end
