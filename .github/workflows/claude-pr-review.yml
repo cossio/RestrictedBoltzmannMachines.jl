@@ -18,7 +18,8 @@ jobs:
     if: >-
       ${{
         !github.event.pull_request.draft &&
-        github.event.pull_request.head.repo.full_name == github.repository
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        github.event.pull_request.user.login != 'dependabot[bot]'
       }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -26,6 +27,8 @@ jobs:
       contents: read
       pull-requests: write
       id-token: write
+    env:
+      HAS_CLAUDE_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
@@ -54,8 +57,19 @@ jobs:
           <!-- claude-review-workflow-skip -->'
           fi
 
+      - name: Use trusted review instructions
+        if: >-
+          steps.self_check.outputs.changed != 'true' &&
+          env.HAS_CLAUDE_TOKEN == 'true'
+        run: |
+          git show "origin/${GITHUB_BASE_REF}:.github/prompts/claude-pr-review.md" \
+            > .github/prompts/claude-pr-review.md
+          git show "origin/${GITHUB_BASE_REF}:REVIEW.md" > REVIEW.md
+
       - name: Review pull request with Claude
-        if: steps.self_check.outputs.changed != 'true'
+        if: >-
+          steps.self_check.outputs.changed != 'true' &&
+          env.HAS_CLAUDE_TOKEN == 'true'
         uses: anthropics/claude-code-action@3553f84341b92da26052e28acf1aa898f9511f32 # v1.0.177
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
