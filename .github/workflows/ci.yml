@@ -37,3 +37,22 @@ jobs:
           # Blocking on trusted runs (pushes and same-repo PRs, which have the token).
           # Fork PRs can't access secrets, so their uploads stay best-effort.
           fail_ci_if_error: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+  downgrade:
+    name: Downgrade compat - Julia 1 - ubuntu-latest - x64
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      - uses: julia-actions/setup-julia@fa02766e078afaaf09b14210362cee14137e6a32
+        with:
+          version: '1'
+          arch: x64
+      - uses: julia-actions/julia-downgrade-compat@fab1defb76df9fd672f63c94df73ce131d32e134
+        with:
+          projects: '.'
+          mode: deps
+      - uses: julia-actions/cache@a45e8fa8be21c18a06b7177052533149e61e9b38
+      - uses: julia-actions/julia-buildpkg@e3eb439fad4f9aba7da2667e7510e4a46ebc46e1
+      - uses: julia-actions/julia-runtest@6e050c8013b833b1195105ff2fce9cd802f53271
+        with:
+          allow_reresolve: false
+          force_latest_compatible_version: false
