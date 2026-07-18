@@ -144,7 +144,9 @@ function ∂interaction_energy(rbm::CenteredRBM, v::AbstractArray, h::AbstractAr
     return ∂w
 end
 
-log_pseudolikelihood(rbm::CenteredRBM, v::AbstractArray) = log_pseudolikelihood(uncenter(rbm), v)
+function log_pseudolikelihood(rbm::CenteredRBM, v::AbstractArray; kwargs...)
+    return log_pseudolikelihood(uncenter(rbm), v; kwargs...)
+end
 
 function mirror(rbm::CenteredRBM)
     perm = ntuple(Val(ndims(rbm.w))) do i

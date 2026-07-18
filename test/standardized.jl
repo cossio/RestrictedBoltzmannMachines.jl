@@ -671,6 +671,8 @@ end
     srbm = BinaryStandardizedRBM(randn(1), randn(2), randn(1, 2), randn(1), randn(2), 1 .+ rand(1), 1 .+ rand(2))
     v = bitrand(1, 7)
     @test log_pseudolikelihood(srbm, v) ≈ log_pseudolikelihood(unstandardize(srbm), v)
+    @test log_pseudolikelihood(srbm, v; exact=true) ≈
+        log_pseudolikelihood(unstandardize(srbm), v; exact=true)
 end
 
 @testset "regularization_penalty StandardizedRBM" begin

@@ -428,6 +428,8 @@ end
     rbm = CenteredBinaryRBM(randn(1), randn(2), randn(1, 2), randn(1), randn(2))
     v = bitrand(1, 7)
     @test log_pseudolikelihood(rbm, v) ≈ log_pseudolikelihood(uncenter(rbm), v)
+    @test log_pseudolikelihood(rbm, v; exact=true) ≈
+        log_pseudolikelihood(uncenter(rbm), v; exact=true)
 end
 
 using RestrictedBoltzmannMachines: RBM, rescale_hidden!, rescale_weights!, weight_norms
