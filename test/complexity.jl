@@ -2,43 +2,67 @@ import CodeComplexity as CC
 using Test: @test, @testset
 
 const ROOT = normpath(joinpath(@__DIR__, ".."))
-const SOURCE = joinpath(ROOT, "src")
+const SOURCE_DIRS = (joinpath(ROOT, "src"), joinpath(ROOT, "ext"))
 
 # These are ratchets for exceptions present on master at 561dd05b, not targets.
 # New definitions must stay at or below the general limits, and these
-# definitions may not get worse. Lower a recorded ceiling when an exception is
-# simplified.
+# definitions must exactly match their recorded values. Lower a recorded value
+# when an exception is simplified, or remove it once it meets the general
+# limit. Lines deliberately identify individual methods rather than granting a
+# raised ceiling to every same-named method in a file.
 const CYCLOMATIC_EXCEPTIONS = Dict(
-    ("src/train/ucd.jl", "_maximal_coupling_step") => 13,
-    ("src/train/ucd.jl", "ucd!") => 14,
+    ("src/train/ucd.jl", 36, "_maximal_coupling_step") => 13,
+    ("src/train/ucd.jl", 172, "ucd!") => 14,
 )
 const COGNITIVE_EXCEPTIONS = Dict(
-    ("src/train/ucd.jl", "_maximal_coupling_step") => 19,
-    ("src/train/ucd.jl", "ucd!") => 16,
+    ("src/train/ucd.jl", 36, "_maximal_coupling_step") => 19,
+    ("src/train/ucd.jl", 172, "ucd!") => 16,
 )
 const ARGUMENT_COUNT_EXCEPTIONS = Dict(
-    ("src/centered.jl", "pcd!") => 17,
-    ("src/standardized.jl", "pcd!") => 23,
-    ("src/train/pcd.jl", "pcd!") => 19,
-    ("src/train/ucd.jl", "ucd!") => 22,
+    ("src/centered.jl", 440, "pcd!") => 17,
+    ("src/standardized.jl", 430, "pcd!") => 23,
+    ("src/train/pcd.jl", 39, "pcd!") => 19,
+    ("src/train/ucd.jl", 172, "ucd!") => 22,
 )
 
-function check_metric(label, metric, limit, exceptions)
-    @testset "$label ≤ $limit" begin
-        for file in CC.measure_directory(metric, SOURCE; max_value = limit)
-            path = replace(relpath(file.path, ROOT), '\\' => '/')
-            for definition in file.functions
-                key = (path, definition.name)
-                ceiling = get(exceptions, key, limit)
-                @testset "$path:$(definition.line) $(definition.name)" begin
-                    @test definition.value ≤ ceiling
-                end
+function source_files()
+    files = String[]
+    for source_dir in SOURCE_DIRS
+        for (dir, _, names) in walkdir(source_dir)
+            for name in names
+                endswith(name, ".jl") && push!(files, joinpath(dir, name))
             end
         end
     end
+    return sort(files)
 end
 
-@testset "source complexity ratchets" begin
+function check_metric(label, metric, limit, exceptions)
+    @testset "$label ≤ $limit" begin
+        measured_violations = Set{Tuple{String, Int, String}}()
+        for filepath in source_files()
+            # Call measure_file directly so analyzer errors fail CI instead of
+            # being logged and skipped by measure_directory.
+            file = CC.measure_file(metric, filepath; max_value = limit)
+            path = replace(relpath(filepath, ROOT), '\\' => '/')
+            for definition in file.functions
+                key = (path, definition.line, definition.name)
+                @testset "$path:$(definition.line) $(definition.name)" begin
+                    @test key ∉ measured_violations
+                    push!(measured_violations, key)
+                    @test haskey(exceptions, key)
+                    if haskey(exceptions, key)
+                        @test definition.value == exceptions[key]
+                    end
+                end
+            end
+        end
+        @test measured_violations == Set(keys(exceptions))
+        @test all(>(limit), values(exceptions))
+    end
+end
+
+@testset "source and extension complexity ratchets" begin
     check_metric(
         "cyclomatic complexity",
         CC.CyclomaticComplexity(),

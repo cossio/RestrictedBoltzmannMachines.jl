@@ -96,8 +96,9 @@ found is a Nit, lead the summary with "No blocking issues."
 - The version in Project.toml keeps its `-DEV` suffix outside of release
   PRs.
 - Added or changed code does not exceed the deterministic complexity ratchets
-  in `test/complexity.jl`, and any edit to an existing exception lowers or
-  preserves its recorded ceiling rather than raising it.
+  in `test/complexity.jl`. Each exception must identify one existing
+  definition and equal its current measured value; scrutinize and justify any
+  new exception entry, and never use one to grandfather newly added code.
 
 ## Agent-instruction files
 
