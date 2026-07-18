@@ -29,9 +29,33 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
-          fetch-depth: 1
+          fetch-depth: 0
+
+      - name: Explain when this PR changes the review workflow
+        id: self_check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          changed="$(git diff --name-only "origin/${GITHUB_BASE_REF}...HEAD" -- \
+            .github/workflows/claude-pr-review.yml)"
+          if [ -z "$changed" ]; then
+            exit 0
+          fi
+
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          marker='<!-- claude-review-workflow-skip -->'
+          comments="$(gh pr view "$PR_NUMBER" --json comments --jq '.comments[].body')"
+          if [[ "$comments" != *"$marker"* ]]; then
+            gh pr comment "$PR_NUMBER" --body '**Automatic Claude review was skipped.** This PR changes `.github/workflows/claude-pr-review.yml`, so the Claude action cannot safely run it until it is on the default branch.
+
+          Please comment `@claude review this PR` to request a review through the default-branch workflow.
+
+          <!-- claude-review-workflow-skip -->'
+          fi
 
       - name: Review pull request with Claude
+        if: steps.self_check.outputs.changed != 'true'
         uses: anthropics/claude-code-action@3553f84341b92da26052e28acf1aa898f9511f32 # v1.0.177
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
