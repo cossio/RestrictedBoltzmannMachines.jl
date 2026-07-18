@@ -394,7 +394,11 @@ end
 function standardize_visible_from_data!(rbm::StandardizedRBM, data::AbstractArray; wts = nothing, ϵ::Real = 0)
     μ = batchmean(rbm.visible, data; wts)
     ν = batchvar(rbm.visible, data; wts, mean=μ)
-    return standardize_visible!(rbm, μ, sqrt.(ν .+ ϵ))
+    scale = sqrt.(ν .+ ϵ)
+    # Centered constant coordinates are identically zero, so their scale is arbitrary.
+    # Use the neutral unit scale to avoid dividing by zero during standardization.
+    @. scale = ifelse(iszero(scale), one(scale), scale)
+    return standardize_visible!(rbm, μ, scale)
 end
 
 function standardize_hidden_from_inputs!(rbm::StandardizedRBM, inputs::AbstractArray; wts = nothing, damping::Real = 0, ϵ::Real = 0)

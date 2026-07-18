@@ -307,6 +307,28 @@ end
     @test all(isfinite, adapt(Array, jl_rbm.visible.par))
     @test all(isfinite, adapt(Array, jl_rbm.hidden.par))
 
+    standardized_data = Float32.(bitrand(N..., 32))
+    standardized_data[1, 1, :] .= 0
+    standardized_rbm = StandardizedRBM(
+        BinaryRBM(
+            zeros(Float32, N...), zeros(Float32, 2), fill(0.1f0, N..., 2)
+        )
+    )
+    jl_standardized_data = JLArray(standardized_data)
+    jl_standardized_rbm = adapt(JLArray, standardized_rbm)
+    pcd!(
+        jl_standardized_rbm, jl_standardized_data;
+        iters = 1, batchsize = 16, steps = 1, shuffle = false,
+    )
+    scale_v = adapt(Array, jl_standardized_rbm.scale_v)
+    @test jl_standardized_rbm.scale_v isa JLArray
+    @test scale_v[1, 1] == 1f0
+    @test all(scale_v .> 0)
+    @test all(isfinite, adapt(Array, jl_standardized_rbm.visible.par))
+    @test all(isfinite, adapt(Array, jl_standardized_rbm.hidden.par))
+    @test all(isfinite, adapt(Array, jl_standardized_rbm.w))
+    @test all(isfinite, adapt(Array, free_energy(jl_standardized_rbm, jl_standardized_data)))
+
     wts = JLArray(vcat(zeros(256), fill(floatmax(Float64), 256)))
     pcd!(
         jl_rbm, jl_data;
