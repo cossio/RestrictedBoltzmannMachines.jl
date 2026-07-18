@@ -62,9 +62,8 @@ jobs:
           steps.self_check.outputs.changed != 'true' &&
           env.HAS_CLAUDE_TOKEN == 'true'
         run: |
-          git show "origin/${GITHUB_BASE_REF}:.github/prompts/claude-pr-review.md" \
-            > .github/prompts/claude-pr-review.md
-          git show "origin/${GITHUB_BASE_REF}:REVIEW.md" > REVIEW.md
+          git restore --source="origin/${GITHUB_BASE_REF}" --worktree -- \
+            .github/prompts/claude-pr-review.md REVIEW.md
 
       - name: Review pull request with Claude
         if: >-
