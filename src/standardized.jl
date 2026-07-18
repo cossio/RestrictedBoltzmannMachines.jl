@@ -394,7 +394,11 @@ end
 function standardize_visible_from_data!(rbm::StandardizedRBM, data::AbstractArray; wts = nothing, ϵ::Real = 0)
     μ = batchmean(rbm.visible, data; wts)
     ν = batchvar(rbm.visible, data; wts, mean=μ)
-    return standardize_visible!(rbm, μ, sqrt.(ν .+ ϵ))
+    scale = sqrt.(ν .+ ϵ)
+    # Centered constant coordinates are identically zero, so their scale is arbitrary.
+    # Use the neutral unit scale to avoid dividing by zero during standardization.
+    @. scale = ifelse(iszero(scale), one(scale), scale)
+    return standardize_visible!(rbm, μ, scale)
 end
 
 function standardize_hidden_from_inputs!(rbm::StandardizedRBM, inputs::AbstractArray; wts = nothing, damping::Real = 0, ϵ::Real = 0)
@@ -438,9 +442,9 @@ function pcd!(
     wts::Union{AbstractVector, Nothing} = nothing, # data weights
 
     steps::Int = 1,
-    vm::Union{AbstractArray, _DefaultFantasy} = _DEFAULT_FANTASY,
+    vm::AbstractArray = sample_from_inputs(rbm.visible, Falses(size(rbm.visible)..., batchsize)),
 
-    moments = _DEFAULT_MOMENTS, # sufficient statistics for visible layer
+    moments = moments_from_samples(rbm.visible, data; wts), # sufficient statistics for visible layer
 
     # regularization
     l2_fields::Real = 0, # visible fields L2 regularization
@@ -458,7 +462,7 @@ function pcd!(
     # optimiser
     optim::AbstractRule = Adam(),
     ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w),
-    state = _DEFAULT_OPTIMIZER_STATE,
+    state = setup(optim, ps),
 
     # Absorb the scale_h into the hidden unit activation (for hidden units with scale parameter).
     # Results in hidden units with var(h) ~ 1.
@@ -473,28 +477,20 @@ function pcd!(
     @assert isnothing(wts) || size(data)[end] == length(wts)
     @assert 0 ≤ damping ≤ 1
 
-    data, wts, training_wts, normalization, batchsize =
-        _prepare_training_data(data, wts; batchsize)
-    moments === _DEFAULT_MOMENTS &&
-        (moments = moments_from_samples(rbm.visible, data; wts = training_wts))
-    vm === _DEFAULT_FANTASY &&
-        (vm = sample_from_inputs(
-            rbm.visible, Falses(size(rbm.visible)..., batchsize)
-        ))
-    state === _DEFAULT_OPTIMIZER_STATE && (state = setup(optim, ps))
+    data, wts, normalization, batchsize = _prepare_training_data(data, wts; batchsize)
 
-    standardize_visible_from_data!(rbm, data; wts = training_wts, ϵ = ϵv)
+    standardize_visible_from_data!(rbm, data; wts, ϵ = ϵv)
     zerosum && zerosum!(rbm)
 
     minibatches = infinite_minibatches(data, wts; batchsize, shuffle)
     for (iter, (vd, wd)) in zip(1:iters, minibatches)
-        training_wd, batch_weight = _prepare_training_batch(wd, normalization)
+        batch_weight = _batch_weight(wd, normalization)
 
         # update fantasy chains
         vm .= sample_v_from_v(rbm, vm; steps)
 
         # compute gradient
-        ∂d = ∂free_energy(rbm, vd; wts = training_wd, moments)
+        ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
         ∂m = ∂free_energy(rbm, vm)
         ∂ = ∂d - ∂m
 
@@ -509,7 +505,7 @@ function pcd!(
         state, ps = update!(state, ps, gs)
 
         # update standardization
-        standardize_hidden_from_v!(rbm, vd; wts = training_wd, damping, ϵ=ϵh)
+        standardize_hidden_from_v!(rbm, vd; wts = wd, damping, ϵ=ϵh)
 
         rescale_hidden && rescale_hidden_activations!(rbm)
         zerosum && zerosum!(rbm)

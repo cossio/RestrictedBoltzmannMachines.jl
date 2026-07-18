@@ -19,7 +19,7 @@ parameters with an `Optimisers.jl` rule.
 - `steps::Int=1`: Gibbs steps used to update persistent chains each iteration.
 - `optim::AbstractRule=Adam()`: optimizer rule from `Optimisers.jl`.
 - `moments=moments_from_samples(rbm.visible, data; wts)`: data moments used by
-  the positive phase, computed after zero-weight samples are removed.
+  the positive phase (zero-weight samples contribute nothing).
 - `l2_fields::Real=0`: L2 regularization on visible fields.
 - `l1_weights::Real=0`: L1 regularization on interaction weights.
 - `l2_weights::Real=0`: L2 regularization on interaction weights.
@@ -44,7 +44,7 @@ function pcd!(
     wts::Union{AbstractVector, Nothing} = nothing, # data weights
     steps::Int = 1, # MC steps to update fantasy chains
     optim::AbstractRule = Adam(), # optimizer rule
-    moments = _DEFAULT_MOMENTS, # sufficient statistics for visible layer
+    moments = moments_from_samples(rbm.visible, data; wts), # sufficient statistics for visible layer
 
     # regularization
     l2_fields::Real = 0, # visible fields L2 regularization
@@ -59,39 +59,31 @@ function pcd!(
     callback = Returns(nothing), # called for every batch
 
     # init fantasy chains
-    vm = _DEFAULT_FANTASY,
+    vm = sample_from_inputs(rbm.visible, Falses(size(rbm.visible)..., batchsize)),
 
     shuffle::Bool = true,
 
     # parameters to optimize
     ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w),
-    state = _DEFAULT_OPTIMIZER_STATE,
+    state = setup(optim, ps),
 )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert isnothing(wts) || size(data)[end] == length(wts)
 
-    data, wts, training_wts, normalization, batchsize =
-        _prepare_training_data(data, wts; batchsize)
-    moments === _DEFAULT_MOMENTS &&
-        (moments = moments_from_samples(rbm.visible, data; wts = training_wts))
-    vm === _DEFAULT_FANTASY &&
-        (vm = sample_from_inputs(
-            rbm.visible, Falses(size(rbm.visible)..., batchsize)
-        ))
-    state === _DEFAULT_OPTIMIZER_STATE && (state = setup(optim, ps))
+    data, wts, normalization, batchsize = _prepare_training_data(data, wts; batchsize)
 
     # gauge constraints
     zerosum && zerosum!(rbm)
     rescale && rescale_weights!(rbm)
 
     for (iter, (vd, wd)) in zip(1:iters, infinite_minibatches(data, wts; batchsize, shuffle))
-        training_wd, batch_weight = _prepare_training_batch(wd, normalization)
+        batch_weight = _batch_weight(wd, normalization)
 
         # update fantasy chains
         vm .= sample_v_from_v(rbm, vm; steps)
 
         # compute gradient
-        ∂d = ∂free_energy(rbm, vd; wts = training_wd, moments)
+        ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
         ∂m = ∂free_energy(rbm, vm)
         ∂ = ∂d - ∂m
 
