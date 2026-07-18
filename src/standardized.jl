@@ -461,8 +461,8 @@ function pcd!(
 
     # optimiser
     optim::AbstractRule = Adam(),
-    ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w),
-    state = setup(optim, ps),
+    ps = nothing,
+    state = nothing,
 
     # Absorb the scale_h into the hidden unit activation (for hidden units with scale parameter).
     # Results in hidden units with var(h) ~ 1.
@@ -477,6 +477,9 @@ function pcd!(
     @assert isnothing(wts) || size(data)[end] == length(wts)
     @assert 0 ≤ damping ≤ 1
     _check_prelu_eta(rbm.visible, rbm.hidden, :pcd_start)
+    isnothing(ps) &&
+        (ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w))
+    isnothing(state) && (state = setup(optim, ps))
 
     data, wts, normalization, batchsize = _prepare_training_data(data, wts; batchsize)
 
