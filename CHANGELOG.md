@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+- Fixed `log_pseudolikelihood(...; exact=true)` for `StandardizedRBM` and
+  `CenteredRBM`, whose forwarding methods previously dropped keyword arguments
+  and raised a `MethodError` ([#145](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/145)).
 - Fixed `pcd!(::StandardizedRBM)` producing non-finite parameters and energies when visible data has zero-variance coordinates, such as constant Binary features or absent Potts categories. Such centered coordinates now use a neutral unit scale; nonconstant coordinates and explicit positive `ϵv` behavior are unchanged ([#139](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/139)).
 - Fixed weighted training in plain, centered, and standardized `pcd!`, and in
   `ucd!`, so that zero-weight observations are ignored: they are removed before
