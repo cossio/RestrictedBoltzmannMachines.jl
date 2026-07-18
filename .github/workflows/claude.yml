@@ -65,9 +65,13 @@ jobs:
           fi
 
           base_ref="$(gh pr view "$PR_NUMBER" --json baseRefName --jq .baseRefName)"
-          git fetch --no-tags --depth=1 origin "$base_ref"
           {
-            git show "origin/$base_ref:.github/prompts/claude-pr-review.md"
+            if git cat-file -e \
+                "origin/$base_ref:.github/prompts/claude-pr-review.md" 2>/dev/null; then
+              git show "origin/$base_ref:.github/prompts/claude-pr-review.md"
+            else
+              echo "::notice::The base branch has no external Claude review prompt; using REVIEW.md only." >&2
+            fi
             printf '\n\n# Repository review policy\n\n'
             git show "origin/$base_ref:REVIEW.md"
           } > "$policy"
