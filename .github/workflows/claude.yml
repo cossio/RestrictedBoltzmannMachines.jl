@@ -1,85 +1,50 @@
-# Interactive Claude: responds when @claude is mentioned in an issue, a PR
-# comment, a review, or a reply to a review thread. This is what lets a
-# reply like "@claude this is fixed, resolve it" or "@claude review" get a
-# response, and lets Claude push fix commits to a PR branch when asked.
-#
-# Only mentions from the repo owner, members, and collaborators trigger it,
-# so arbitrary commenters on a public repo cannot spend the quota or drive
-# the agent. Authenticates with the CLAUDE_CODE_OAUTH_TOKEN repo secret.
-name: Claude
+name: Claude Code
+
 on:
   issue_comment:
     types: [created]
   pull_request_review_comment:
     types: [created]
+  issues:
+    types: [opened, assigned]
   pull_request_review:
     types: [submitted]
-  issues:
-    types: [opened]
-permissions:
-  contents: read
-# Serialize (queue, don't cancel) concurrent @claude runs on the same
-# issue/PR, so parallel mentions can't push to the same branch at once.
-concurrency:
-  group: claude-${{ github.event.issue.number || github.event.pull_request.number }}
-  cancel-in-progress: false
+
 jobs:
   claude:
-    name: Claude
     if: |
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') && contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') && contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude') && contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.review.author_association)) ||
-      (github.event_name == 'issues' && contains(github.event.issue.body, '@claude') && contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.issue.author_association))
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
+      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
     runs-on: ubuntu-latest
-    timeout-minutes: 45
     permissions:
-      contents: write
-      pull-requests: write
-      issues: write
+      contents: read
+      pull-requests: read
+      issues: read
       id-token: write
-      actions: read
-    env:
-      HAS_KEY: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+      actions: read # Required for Claude to read CI results on PRs
     steps:
-      - name: Note when the token is unavailable
-        if: env.HAS_KEY != 'true'
-        run: echo "::notice::CLAUDE_CODE_OAUTH_TOKEN is not available; skipping."
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
-        if: env.HAS_KEY == 'true'
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-      - name: Prepare trusted PR review instructions
-        if: env.HAS_KEY == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          IS_PR: ${{ github.event.pull_request.number != null || github.event.issue.pull_request != null }}
-          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
-          REQUEST: ${{ github.event.comment.body || github.event.review.body || github.event.issue.body || '' }}
-        run: |
-          policy="$RUNNER_TEMP/claude-pr-review-policy.md"
-          : > "$policy"
+          fetch-depth: 1
 
-          if [ "$IS_PR" != 'true' ] || [[ "$REQUEST" != *'@claude review'* ]]; then
-            exit 0
-          fi
-
-          base_ref="$(gh pr view "$PR_NUMBER" --json baseRefName --jq .baseRefName)"
-          {
-            if git cat-file -e \
-                "origin/$base_ref:.github/prompts/claude-pr-review.md" 2>/dev/null; then
-              git show "origin/$base_ref:.github/prompts/claude-pr-review.md"
-            else
-              echo "::notice::The base branch has no external Claude review prompt; using REVIEW.md only." >&2
-            fi
-            printf '\n\n# Repository review policy\n\n'
-            git show "origin/$base_ref:REVIEW.md"
-          } > "$policy"
-      - name: Run Claude
-        if: env.HAS_KEY == 'true'
-        uses: anthropics/claude-code-action@3553f84341b92da26052e28acf1aa898f9511f32 # v1.0.177
+      - name: Run Claude Code
+        id: claude
+        uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_args: |
-            --model claude-sonnet-5
-            --append-system-prompt-file "${{ runner.temp }}/claude-pr-review-policy.md"
+
+          # This is an optional setting that allows Claude to read CI results on PRs
+          additional_permissions: |
+            actions: read
+
+          # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
+          # prompt: 'Update the pull request description to include a summary of changes.'
+
+          # Optional: Add claude_args to customize behavior and configuration
+          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
+          # or https://code.claude.com/docs/en/cli-reference for available options
+          # claude_args: '--allowed-tools Bash(gh pr *)'
+

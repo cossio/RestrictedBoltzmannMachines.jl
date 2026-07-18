@@ -66,7 +66,7 @@ GPU compatibility is tested without GPU hardware in `test/jlarrays.jl`, using JL
 
 ## Pull Requests
 
-PRs receive automated review comments from Codex Cloud and from `.github/workflows/claude-pr-review.yml`. Address actionable findings by pushing fixes or reply in the review threads with reasoning when a finding is mistaken. If a PR changes the Claude review workflow itself, request its Claude review manually with `@claude review this PR`.
+PRs receive automated review comments from Codex Cloud and from the default Claude App workflow in `.github/workflows/claude-code-review.yml`. Address actionable findings by pushing fixes or reply in the review threads with reasoning when a finding is mistaken.
 
 Reply in every review thread on your PR before considering the work done: either point at the commit that addresses the finding, or explain why it is mistaken. Resolve a thread once its finding is addressed.
 

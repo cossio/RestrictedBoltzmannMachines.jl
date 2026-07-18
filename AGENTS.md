@@ -40,13 +40,12 @@ commands, and subsystem-specific edit guidance.
 - Add `CHANGELOG.md` entries only for user-facing package changes to source,
   APIs, behavior, or dependencies. Do not add entries for CI, workflows,
   agent plumbing, or other repository tooling.
-- PRs receive automated review comments from Codex Cloud and
-  `.github/workflows/claude-pr-review.yml`. Address each actionable finding or
-  explain the disagreement in its thread.
+- PRs receive automated review comments from Codex Cloud and the default Claude
+  App workflow in `.github/workflows/claude-code-review.yml`. Address each
+  actionable finding or explain the disagreement in its thread, reply to every
+  thread, and resolve it once addressed.
 - Follow `REVIEW.md`; flag substantial avoidable complexity only when a
   materially simpler design satisfies the current requirements.
-- If a PR changes `.github/workflows/claude-pr-review.yml`, request its Claude
-  review manually with `@claude review this PR`.
 - Never merge a PR or enable auto-merge unless the repository owner explicitly
   instructs it.
 
