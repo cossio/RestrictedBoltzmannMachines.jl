@@ -46,11 +46,10 @@ commands, and subsystem-specific edit guidance.
   approval from the latest run of each as the default handoff bar. Address
   each finding or explain the disagreement in its thread, reply to every
   thread, and leave thread resolution to the reviewer that opened it.
-- A PR that changes `.github/workflows/claude-pr-review.yml` or
-  `.github/workflows/codex-pr-review.yml` is reviewed by a fallback run
-  dispatched from the default branch. If that dispatch fails, comment
-  `@claude review this PR` (Claude) or dispatch the Codex workflow from the
-  Actions tab with the PR number (Codex).
+- A PR that changes `.github/workflows/claude-pr-review.yml` is reviewed by a
+  fallback run dispatched from the default branch. Use
+  `@claude review this PR` only if that fallback dispatch fails. The Codex
+  review workflow has no such fallback and always runs directly.
 - Never merge a PR or enable auto-merge unless the repository owner explicitly
   instructs it.
 

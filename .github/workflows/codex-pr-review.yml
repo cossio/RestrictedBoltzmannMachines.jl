@@ -8,15 +8,11 @@
 # repo root, read from the PR's base branch so a PR cannot weaken the
 # rules applied to itself.
 #
-# Unlike claude-code-action, codex-action has no built-in anti-tampering,
-# so the equivalent guard lives in this file: when a PR modifies this
-# workflow, the self-check step skips the direct review and re-dispatches
-# this workflow on the default branch via workflow_dispatch — the one
-# event the built-in GITHUB_TOKEN is allowed to trigger — and that
-# fallback run, which executes the trusted default-branch workflow file,
-# reviews the PR by number. A PR comment explains what happened. The
-# manual escape hatch is dispatching this workflow from the Actions tab
-# ("Run workflow") with the PR number.
+# Unlike claude-pr-review.yml, this workflow has no anti-tampering guard:
+# a PR that modifies this file is reviewed by its own modified version
+# (pull_request runs execute the workflow from the merge ref). Accepted
+# for simplicity — same-repo PRs come from write-access collaborators,
+# and fork PRs never see the secret.
 #
 # Codex posts inline comments and verdicts with the built-in GITHUB_TOKEN,
 # so — like the Claude reviewer — it appears as github-actions[bot].
@@ -38,32 +34,22 @@ name: Codex PR review
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-  workflow_dispatch:
-    inputs:
-      pr_number:
-        description: Pull request number to review
-        required: true
-        type: string
 permissions:
   contents: read
 concurrency:
-  # Include the event name so a dispatched fallback run cannot cancel the
-  # pull_request check run that dispatched it.
-  group: codex-pr-review-${{ github.event_name }}-${{ github.event.pull_request.number || inputs.pr_number }}
+  group: codex-pr-review-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 jobs:
   review:
     name: Codex review
-    if: ${{ github.event_name == 'workflow_dispatch' || !github.event.pull_request.draft }}
+    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       contents: read
       pull-requests: write
-      actions: write # lets the self-check step dispatch the fallback run
     env:
       HAS_KEY: ${{ secrets.OPENAI_API_KEY != '' }}
-      PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
     steps:
       - name: Note when the key is unavailable
         if: env.HAS_KEY != 'true'
@@ -72,56 +58,17 @@ jobs:
         if: env.HAS_KEY == 'true'
         with:
           fetch-depth: 0
-      - name: Dispatch a fallback run when this PR modifies the review workflow itself
-        id: self_check
-        if: env.HAS_KEY == 'true' && github.event_name == 'pull_request'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if git diff --name-only "origin/${GITHUB_BASE_REF}...HEAD" \
-              | grep -q '^\.github/workflows/codex-pr-review\.yml$'; then
-            echo "self_modified=true" >> "$GITHUB_OUTPUT"
-            default_branch="$(gh repo view --json defaultBranchRef --jq .defaultBranchRef.name)"
-            # workflow_dispatch is exempt from GitHub's rule that GITHUB_TOKEN
-            # events don't trigger workflows, and the dispatched run executes
-            # the default-branch workflow file, so the review of this PR comes
-            # from the trusted version of the rules.
-            if gh workflow run codex-pr-review.yml --ref "$default_branch" -f pr_number="$PR_NUMBER"; then
-              echo "::notice::Codex review does not run directly on this PR (it modifies the review workflow itself). A fallback review run was dispatched from the default branch instead. The green check below means skipped here, not reviewed."
-              note="A fallback review run has been dispatched automatically from the default-branch version of the workflow ([workflow runs](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/workflows/codex-pr-review.yml)); its verdict and inline comments will appear on this PR when it finishes, and every new push re-dispatches it."
-            else
-              echo "::notice::Codex review self-skips on this PR and the fallback dispatch failed (the default-branch version of the workflow may not exist or support workflow_dispatch yet). Dispatch it manually from the Actions tab with this PR's number."
-              note="Automatic fallback dispatch failed (the default-branch version of the workflow may not exist or support \`workflow_dispatch\` yet). Request a review manually by dispatching the **Codex PR review** workflow from the Actions tab (\"Run workflow\") with this PR's number."
-            fi
-            marker='<!-- codex-review-workflow-skip -->'
-            if ! gh pr view "$PR_NUMBER" --json comments --jq '.comments[].body' | grep -qF "$marker"; then
-              gh pr comment "$PR_NUMBER" --body "$(cat <<EOF
-          **The automated Codex review does not run directly on this PR.** The PR modifies \`.github/workflows/codex-pr-review.yml\`, and reviewing it with the modified workflow would let a PR change the rules applied to itself. The green "Codex review" check therefore means skipped, not reviewed.
-
-          $note
-
-          $marker
-          EOF
-          )"
-            fi
-          else
-            echo "self_modified=false" >> "$GITHUB_OUTPUT"
-          fi
       - name: Review pull request with Codex
-        if: env.HAS_KEY == 'true' && steps.self_check.outputs.self_modified != 'true'
+        if: env.HAS_KEY == 'true'
         uses: openai/codex-action@52fe01ec70a42f454c9d2ebd47598f9fd6893d56 # v1.11
         env:
           GH_TOKEN: ${{ github.token }}
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
-          # Fallback workflow_dispatch runs are triggered by github-actions[bot],
-          # which has no write access; let trusted bot actors through.
-          allow-bots: true
           safety-strategy: drop-sudo
           prompt: |
             REPO: ${{ github.repository }}
-            PR NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
-            TRIGGER: ${{ github.event_name }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
 
             You are the automated Codex reviewer for this repository. Use
             the `gh` CLI (already authenticated via GH_TOKEN) for all
@@ -129,17 +76,9 @@ jobs:
 
             Always pass PR NUMBER explicitly to `gh pr` commands
             (`gh pr diff <PR NUMBER>`, `gh pr view <PR NUMBER>`,
-            `gh pr review <PR NUMBER> ...`): the checkout is never on the
-            PR's branch (a detached merge ref on pull_request runs, the
-            default branch on workflow_dispatch runs), so bare invocations
-            will not resolve to the right PR.
-
-            If TRIGGER is workflow_dispatch, this is a fallback review run
-            dispatched because the PR modifies the review workflow file
-            itself. The repository checkout is the default branch, not the
-            PR head, so rely on `gh pr diff`, `gh pr view`, and
-            `git diff`/`git show` against the PR's branch (origin/<branch>)
-            for the PR's content rather than files on disk.
+            `gh pr review <PR NUMBER> ...`): the checkout is a detached
+            merge ref, not the PR's branch, so bare invocations will not
+            resolve to the right PR.
 
             First, reconcile earlier runs of this review: list the PR's
             review threads including their replies (`gh api graphql` with
@@ -166,12 +105,8 @@ jobs:
             context. Follow the review instructions in REVIEW.md at the
             repo root: they define what to flag, at what severity, and what
             to skip. Read the file as it exists on the PR's base branch —
-            not from the PR checkout, so a PR cannot change the rules
-            applied to itself: `git show "origin/${GITHUB_BASE_REF}:REVIEW.md"`
-            on pull_request runs; on workflow_dispatch runs GITHUB_BASE_REF
-            is unset, so get the base branch from
-            `gh pr view <PR NUMBER> --json baseRefName` and read
-            `git show origin/<base>:REVIEW.md`.
+            `git show "origin/${GITHUB_BASE_REF}:REVIEW.md"` — not from the
+            PR checkout, so a PR cannot change the rules applied to itself.
             If the PR modifies REVIEW.md, review that change like any other
             part of the diff. If REVIEW.md is missing or unreadable on the
             base branch, fall back to these defaults: report real problems
