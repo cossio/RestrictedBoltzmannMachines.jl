@@ -306,6 +306,15 @@ end
     @test all(isfinite, adapt(Array, jl_rbm.w))
     @test all(isfinite, adapt(Array, jl_rbm.visible.par))
     @test all(isfinite, adapt(Array, jl_rbm.hidden.par))
+
+    wts = JLArray(vcat(zeros(256), fill(floatmax(Float64), 256)))
+    pcd!(
+        jl_rbm, jl_data;
+        wts, iters = 2, batchsize = 32, steps = 0, shuffle = false,
+    )
+    @test all(isfinite, adapt(Array, jl_rbm.w))
+    @test all(isfinite, adapt(Array, jl_rbm.visible.par))
+    @test all(isfinite, adapt(Array, jl_rbm.hidden.par))
 end
 
 @testset "AIS" begin

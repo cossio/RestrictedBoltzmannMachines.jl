@@ -42,12 +42,12 @@ include("pseudolikelihood.jl")
 include("partition.jl")
 include("ais.jl")
 
+include("train/infinite_minibatches.jl")
 include("train/initialization.jl")
 include("train/pcd.jl")
 include("train/ucd.jl")
 include("train/gradient.jl")
 include("from_grad.jl")
-include("train/infinite_minibatches.jl")
 
 include("gauge/zerosum.jl")
 include("gauge/rescale_hidden.jl")
