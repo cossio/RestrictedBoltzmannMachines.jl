@@ -476,7 +476,7 @@ function pcd!(
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert isnothing(wts) || size(data)[end] == length(wts)
     @assert 0 ≤ damping ≤ 1
-    _check_prelu_eta(rbm.visible, rbm.hidden, :pcd_start)
+    _check_prelu_eta(rbm.visible, rbm.hidden)
     isnothing(vm) &&
         (vm = sample_from_inputs(
             rbm.visible, Falses(size(rbm.visible)..., batchsize)
@@ -511,7 +511,7 @@ function pcd!(
         # feed gradient to Optimiser rule
         gs = (; visible = ∂.visible, hidden = ∂.hidden, w = ∂.w)
         state, ps = update!(state, ps, gs)
-        _check_prelu_eta(rbm.visible, rbm.hidden, :pcd_update)
+        _check_prelu_eta(rbm.visible, rbm.hidden)
 
         # update standardization
         standardize_hidden_from_v!(rbm, vd; wts = wd, damping, ϵ=ϵh)

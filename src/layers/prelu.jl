@@ -11,7 +11,7 @@ struct pReLU{N,A} <: AbstractLayer{N}
         @assert size(par, 1) == 4 # θ, γ, Δ, η
         @assert ndims(par) == N + 1
         layer = new(par)
-        _check_prelu_eta(layer, :construction)
+        _check_prelu_eta(layer)
         return layer
     end
 end
@@ -50,41 +50,25 @@ end
 
 _valid_prelu_eta(η) = η isa Real && isfinite(η) && -1 < η < 1
 
-@noinline function _throw_invalid_prelu_eta(context::Symbol, position::Union{Symbol,Nothing})
-    location = if context === :construction
-        " during construction"
-    elseif context === :pcd_start
-        " in the $position layer before pcd! training"
-    elseif context === :pcd_update
-        " in the $position layer after a pcd! optimizer update"
-    else
-        " during evaluation or conversion"
-    end
+@noinline function _throw_invalid_prelu_eta()
     throw(ArgumentError(
-        "invalid pReLU.η$location: all values must be finite and lie in the open " *
+        "invalid pReLU.η: all values must be finite and lie in the open " *
         "interval (-1, 1). Use xReLU or nsReLU for unconstrained learned asymmetry."
     ))
 end
 
-function _check_prelu_eta(
-    layer::pReLU, context::Symbol = :evaluation,
-    position::Union{Symbol,Nothing} = nothing,
-)
+function _check_prelu_eta(layer::pReLU)
     ChainRulesCore.ignore_derivatives() do
-        all(_valid_prelu_eta, layer.η) || _throw_invalid_prelu_eta(context, position)
+        all(_valid_prelu_eta, layer.η) || _throw_invalid_prelu_eta()
     end
     return layer
 end
 
-_check_prelu_eta(
-    layer::AbstractLayer, ::Symbol, ::Union{Symbol,Nothing},
-) = layer
+_check_prelu_eta(layer::AbstractLayer) = layer
 
-function _check_prelu_eta(
-    visible::AbstractLayer, hidden::AbstractLayer, context::Symbol,
-)
-    _check_prelu_eta(visible, context, :visible)
-    _check_prelu_eta(hidden, context, :hidden)
+function _check_prelu_eta(visible::AbstractLayer, hidden::AbstractLayer)
+    _check_prelu_eta(visible)
+    _check_prelu_eta(hidden)
     return nothing
 end
 

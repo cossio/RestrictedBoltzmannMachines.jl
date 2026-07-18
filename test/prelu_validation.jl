@@ -4,7 +4,7 @@ using RestrictedBoltzmannMachines: Binary, RBM, center, cgfs, grad2var, pReLU,
     pcd!, standardize, xReLU, ∂energy_from_moments
 using Test: @test, @testset
 
-function check_prelu_error(f; context::AbstractString)
+function check_prelu_error(f)
     err = try
         f()
         nothing
@@ -18,7 +18,6 @@ function check_prelu_error(f; context::AbstractString)
         @test occursin("(-1, 1)", msg)
         @test occursin("xReLU", msg)
         @test occursin("nsReLU", msg)
-        @test occursin(context, msg)
     end
     return nothing
 end
@@ -110,13 +109,13 @@ end
 
 @testset "pReLU η construction and evaluation" begin
     for η in (-Inf, -1.1, -1.0, 1.0, 1.1, Inf, NaN)
-        check_prelu_error(() -> unit_prelu(η); context = "construction")
+        check_prelu_error(() -> unit_prelu(η))
     end
 
     integer_par = zeros(Int, 4, 1)
     integer_par[2, 1] = 1
     integer_par[4, 1] = typemin(Int)
-    check_prelu_error(() -> pReLU(integer_par); context = "construction")
+    check_prelu_error(() -> pReLU(integer_par))
 
     for η in (nextfloat(-1.0), prevfloat(1.0))
         valid = unit_prelu(η)
@@ -130,16 +129,10 @@ end
 
     invalid = unit_prelu(0.0)
     invalid.η .= 1
-    check_prelu_error(() -> cgfs(invalid); context = "evaluation or conversion")
-    check_prelu_error(
-        () -> ∂energy_from_moments(invalid, zeros(4, 1));
-        context = "evaluation or conversion",
-    )
-    check_prelu_error(() -> xReLU(invalid); context = "evaluation or conversion")
-    check_prelu_error(
-        () -> grad2var(invalid, zeros(4, 1));
-        context = "evaluation or conversion",
-    )
+    check_prelu_error(() -> cgfs(invalid))
+    check_prelu_error(() -> ∂energy_from_moments(invalid, zeros(4, 1)))
+    check_prelu_error(() -> xReLU(invalid))
+    check_prelu_error(() -> grad2var(invalid, zeros(4, 1)))
 end
 
 @testset "pReLU η validation in PCD: $name" for name in (:plain, :centered, :standardized)
@@ -152,15 +145,13 @@ end
     initially_invalid = pcd_model(case)
     initially_invalid.hidden.η .= NaN
     check_prelu_error(
-        () -> run_pcd!(case, initially_invalid, data, copy(vm); iters = 0, callback);
-        context = "before pcd! training",
+        () -> run_pcd!(case, initially_invalid, data, copy(vm); iters = 0, callback)
     )
     @test !callback_called[]
 
     crossing = pcd_model(case)
     check_prelu_error(
-        () -> run_pcd!(case, crossing, data, copy(vm); iters = 1, callback);
-        context = "after a pcd! optimizer update",
+        () -> run_pcd!(case, crossing, data, copy(vm); iters = 1, callback)
     )
     @test only(crossing.hidden.η) > 1
     @test !callback_called[]
@@ -180,8 +171,7 @@ end
         () -> run_pcd!(
             case, crossing, data, copy(vm);
             iters = 1, callback, wts = [0.0, 1.0],
-        );
-        context = "after a pcd! optimizer update",
+        )
     )
     @test only(crossing.hidden.η) > 1
     @test !callback_called[]
@@ -194,8 +184,7 @@ end
             case, initially_invalid, data, copy(vm);
             iters = 1, callback, wts = zeros(2),
             optim = PreluMutatingInitRule(init_calls),
-        );
-        context = "before pcd! training",
+        )
     )
     @test iszero(init_calls[])
     @test !callback_called[]
@@ -213,8 +202,7 @@ end
         () -> run_pcd_with_default_vm!(
             Val(name), rbm, zeros(1, 1);
             callback = (; _...) -> (callback_called[] = true),
-        );
-        context = "visible layer before pcd! training",
+        )
     )
     @test !callback_called[]
 end
