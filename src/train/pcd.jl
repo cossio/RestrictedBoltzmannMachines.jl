@@ -28,7 +28,8 @@ parameters with an `Optimisers.jl` rule.
 - `rescale::Bool=true`: rescale weights (mainly useful for continuous hidden units).
 - `callback=Returns(nothing)`: called after every update as
   `callback(; rbm, optim, state, iter, vm, vd, wd)`.
-- `vm=sample_from_inputs(...)`: initial fantasy particles.
+- `vm=nothing`: initial fantasy particles. By default, these are sampled after
+  validating the model's pReLU parameters.
 - `shuffle::Bool=true`: whether to reshuffle samples between epochs.
 - `ps=nothing`: optimized parameter container. By default, this contains the
   visible, hidden, and interaction parameters.
@@ -60,7 +61,7 @@ function pcd!(
     callback = Returns(nothing), # called for every batch
 
     # init fantasy chains
-    vm = sample_from_inputs(rbm.visible, Falses(size(rbm.visible)..., batchsize)),
+    vm = nothing,
 
     shuffle::Bool = true,
 
@@ -71,6 +72,10 @@ function pcd!(
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert isnothing(wts) || size(data)[end] == length(wts)
     _check_prelu_eta(rbm.visible, rbm.hidden, :pcd_start)
+    isnothing(vm) &&
+        (vm = sample_from_inputs(
+            rbm.visible, Falses(size(rbm.visible)..., batchsize)
+        ))
     isnothing(ps) &&
         (ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w))
     isnothing(state) && (state = setup(optim, ps))

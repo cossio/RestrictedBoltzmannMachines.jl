@@ -442,7 +442,7 @@ function pcd!(
     wts::Union{AbstractVector, Nothing} = nothing, # data weights
 
     steps::Int = 1,
-    vm::AbstractArray = sample_from_inputs(rbm.visible, Falses(size(rbm.visible)..., batchsize)),
+    vm::Union{AbstractArray, Nothing} = nothing,
 
     moments = moments_from_samples(rbm.visible, data; wts), # sufficient statistics for visible layer
 
@@ -477,6 +477,10 @@ function pcd!(
     @assert isnothing(wts) || size(data)[end] == length(wts)
     @assert 0 ≤ damping ≤ 1
     _check_prelu_eta(rbm.visible, rbm.hidden, :pcd_start)
+    isnothing(vm) &&
+        (vm = sample_from_inputs(
+            rbm.visible, Falses(size(rbm.visible)..., batchsize)
+        ))
     isnothing(ps) &&
         (ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w))
     isnothing(state) && (state = setup(optim, ps))

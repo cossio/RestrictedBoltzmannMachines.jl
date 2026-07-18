@@ -82,6 +82,32 @@ function run_pcd!(
     )
 end
 
+function run_pcd_with_default_vm!(::Val{:plain}, rbm, data; callback)
+    return pcd!(
+        rbm, data;
+        batchsize = 1, iters = 0, steps = 0, callback,
+        rescale = false, zerosum = false, shuffle = false,
+    )
+end
+
+function run_pcd_with_default_vm!(::Val{:centered}, rbm, data; callback)
+    return pcd!(
+        rbm, data;
+        batchsize = 1, iters = 0, steps = 0, callback,
+        rescale = false, zerosum = false,
+        hidden_offset_damping = 0,
+    )
+end
+
+function run_pcd_with_default_vm!(::Val{:standardized}, rbm, data; callback)
+    return pcd!(
+        rbm, data;
+        batchsize = 1, iters = 0, steps = 0, callback,
+        rescale_hidden = false, zerosum = false,
+        shuffle = false, damping = 0, ϵv = 1,
+    )
+end
+
 @testset "pReLU η construction and evaluation" begin
     for η in (-Inf, -1.1, -1.0, 1.0, 1.1, Inf, NaN)
         check_prelu_error(() -> unit_prelu(η); context = "construction")
@@ -175,14 +201,20 @@ end
     @test !callback_called[]
 end
 
-@testset "pReLU η validation checks the visible layer" begin
+@testset "pReLU η validation checks the visible layer before default fantasy initialization: $name" for
+    name in (:plain, :centered, :standardized)
+
     rbm = RBM(unit_prelu(0.0), Binary((1,)), ones(1, 1))
+    name === :centered && (rbm = center(rbm))
+    name === :standardized && (rbm = standardize(rbm))
     rbm.visible.η .= Inf
+    callback_called = Ref(false)
     check_prelu_error(
-        () -> run_pcd!(
-            Val(:plain), rbm, zeros(1, 1), zeros(1, 1);
-            iters = 0, callback = (; _...) -> nothing,
+        () -> run_pcd_with_default_vm!(
+            Val(name), rbm, zeros(1, 1);
+            callback = (; _...) -> (callback_called[] = true),
         );
         context = "visible layer before pcd! training",
     )
+    @test !callback_called[]
 end

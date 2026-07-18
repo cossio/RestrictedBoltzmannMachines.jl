@@ -451,7 +451,7 @@ function pcd!(
     wts::Union{AbstractVector, Nothing} = nothing,
 
     # init fantasy chains
-    vm = sample_from_inputs(rbm.visible, Falses(size(rbm.visible)..., batchsize)),
+    vm = nothing,
 
     moments = moments_from_samples(rbm.visible, data; wts),
 
@@ -473,6 +473,10 @@ function pcd!(
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     isnothing(wts) || @assert size(data)[end] == length(wts)
     _check_prelu_eta(rbm.visible, rbm.hidden, :pcd_start)
+    isnothing(vm) &&
+        (vm = sample_from_inputs(
+            rbm.visible, Falses(size(rbm.visible)..., batchsize)
+        ))
 
     data, wts, normalization, batchsize = _prepare_training_data(data, wts; batchsize)
 
