@@ -66,9 +66,9 @@ GPU compatibility is tested without GPU hardware in `test/jlarrays.jl`, using JL
 
 ## Pull Requests
 
-Every PR receives an automated Claude review (`.github/workflows/claude-pr-review.yml`) that posts inline comments and ends with a review verdict: approve, request changes, or comment. PRs that modify that workflow file cannot run it directly (the action self-skips when its own workflow file differs from the default branch); on such PRs CI dispatches a fallback review run from the default-branch version of the workflow via `workflow_dispatch`, and a CI-posted comment explains this. If the fallback dispatch fails, comment `@claude review this PR` to request a review manually. When authoring a PR, treat the reviewer's approval as the default bar before merge: address its findings by pushing fixes, or reply in the review threads with reasoning if a finding is mistaken — the reviewer re-runs on every push, and a fresh verdict supersedes the previous one.
+PRs receive automated review comments from Codex Cloud and from the default Claude App workflow in `.github/workflows/claude-code-review.yml`. Address actionable findings by pushing fixes or reply in the review threads with reasoning when a finding is mistaken.
 
-Reply in every review thread on your PR before considering the work done: either point at the commit that addresses the finding, or explain why it is mistaken. Do not resolve review threads yourself — the reviewer resolves a thread once convinced (by the fix or by your reply), and replies back when not.
+Reply in every review thread on your PR before considering the work done: either point at the commit that addresses the finding, or explain why it is mistaken. Resolve a thread once its finding is addressed.
 
 Never merge a PR or enable auto-merge. Merging happens only when the repo owner clicks merge on GitHub or explicitly instructs it.
 

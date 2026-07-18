@@ -34,6 +34,9 @@ package compute wrong results or break users:
 - Breaking changes to exported API or behavior not reflected in tests and
   in the `## Unreleased` section of CHANGELOG.md.
 - Security issues in changes to CI workflows.
+- Substantial avoidable complexity when a materially simpler design satisfies
+  the current requirements. Identify the unnecessary structure and a concrete,
+  behavior-preserving alternative; do not block on vague preferences.
 
 Style, naming, refactoring suggestions, and docstring wording are Nit at
 most.
