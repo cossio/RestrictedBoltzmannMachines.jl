@@ -1,197 +1,46 @@
-# Claude review of every pull request.
-#
-# Reviews the full PR diff and posts inline review comments for real
-# findings (bugs, correctness, security), then submits a review verdict:
-# approve when convinced the PR is sound, request changes on serious
-# confirmed problems, comment-only otherwise. What gets flagged and at
-# what severity is governed by REVIEW.md at the repo root, read from the
-# PR's base branch so a PR cannot weaken the rules applied to itself.
-#
-# claude-code-action self-skips when this file differs from the version
-# on the default branch (anti-tampering), so PRs that modify this
-# workflow get no direct automated review. On such PRs the pull_request
-# run re-dispatches this workflow on the default branch via
-# workflow_dispatch — the one event the built-in GITHUB_TOKEN is allowed
-# to trigger — and that fallback run, which executes the validated
-# default-branch workflow file, reviews the PR by number. A PR comment
-# explains what happened; commenting "@claude review this PR" remains
-# the manual escape hatch (claude.yml runs from the default branch on
-# comment events and always passes the validation).
-#
-# The job itself never fails because of review findings; the verdict is
-# expressed through the PR review state. Approving requires the repo
-# setting "Allow GitHub Actions to create and approve pull requests"
-# (Settings -> Actions -> General); without it, approval falls back to a
-# comment. Authenticates with the CLAUDE_CODE_OAUTH_TOKEN repo secret (a
-# Claude subscription token from `claude setup-token`) and skips cleanly
-# when the secret is unavailable (e.g. fork PRs).
+# Automatic Claude review of same-repository pull requests.
 name: Claude PR review
+
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-  workflow_dispatch:
-    inputs:
-      pr_number:
-        description: Pull request number to review
-        required: true
-        type: string
+
 permissions:
   contents: read
+
 concurrency:
-  # Include the event name so a dispatched fallback run cannot cancel the
-  # pull_request check run that dispatched it.
-  group: claude-pr-review-${{ github.event_name }}-${{ github.event.pull_request.number || inputs.pr_number }}
+  group: claude-pr-review-${{ github.event.pull_request.number }}
   cancel-in-progress: true
+
 jobs:
   review:
     name: Claude review
-    if: ${{ github.event_name == 'workflow_dispatch' || !github.event.pull_request.draft }}
+    if: >-
+      ${{
+        !github.event.pull_request.draft &&
+        github.event.pull_request.head.repo.full_name == github.repository
+      }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       contents: read
       pull-requests: write
       id-token: write
-      actions: write # lets the self-check step dispatch the fallback run
-    env:
-      HAS_KEY: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
-      PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
     steps:
-      - name: Note when the token is unavailable
-        if: env.HAS_KEY != 'true'
-        run: echo "::notice::CLAUDE_CODE_OAUTH_TOKEN is not available (fork PR or missing secret); skipping Claude review."
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
-        if: env.HAS_KEY == 'true'
         with:
-          fetch-depth: 0
-      - name: Dispatch a fallback run when this PR modifies the review workflow itself
-        id: self_check
-        if: env.HAS_KEY == 'true' && github.event_name == 'pull_request'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if git diff --name-only "origin/${GITHUB_BASE_REF}...HEAD" \
-              | grep -q '^\.github/workflows/claude-pr-review\.yml$'; then
-            echo "self_modified=true" >> "$GITHUB_OUTPUT"
-            default_branch="$(gh repo view --json defaultBranchRef --jq .defaultBranchRef.name)"
-            # workflow_dispatch is exempt from GitHub's rule that GITHUB_TOKEN
-            # events don't trigger workflows, and the dispatched run executes
-            # the default-branch workflow file, so anti-tampering passes.
-            if gh workflow run claude-pr-review.yml --ref "$default_branch" -f pr_number="$PR_NUMBER"; then
-              echo "::notice::Claude review cannot run directly on this PR (it modifies the review workflow itself; anti-tampering). A fallback review run was dispatched from the default branch instead. The green check below means skipped here, not reviewed."
-              note="A fallback review run has been dispatched automatically from the default-branch version of the workflow ([workflow runs](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/workflows/claude-pr-review.yml)); its verdict and inline comments will appear on this PR when it finishes, and every new push re-dispatches it. You can also request a review manually by commenting \`@claude review this PR\`."
-            else
-              echo "::notice::Claude review self-skips on this PR and the fallback dispatch failed (the default-branch version of the workflow may not support workflow_dispatch yet). Comment '@claude review this PR' to request a review manually."
-              note="Automatic fallback dispatch failed (the default-branch version of the workflow may not support \`workflow_dispatch\` yet), so request a review manually by commenting \`@claude review this PR\` — the \`@claude\` workflow runs from the default branch on comment events, so it always passes the validation."
-            fi
-            marker='<!-- claude-review-workflow-skip -->'
-            if ! gh pr view "$PR_NUMBER" --json comments --jq '.comments[].body' | grep -qF "$marker"; then
-              gh pr comment "$PR_NUMBER" --body "$(cat <<EOF
-          **The automated Claude review cannot run directly on this PR.** The PR modifies \`.github/workflows/claude-pr-review.yml\`, and \`claude-code-action\` refuses to run from a workflow file that differs from the version on the repository's default branch (anti-tampering). The green "Claude review" check therefore means skipped, not reviewed.
+          fetch-depth: 1
 
-          $note
-
-          $marker
-          EOF
-          )"
-            fi
-          else
-            echo "self_modified=false" >> "$GITHUB_OUTPUT"
-          fi
       - name: Review pull request with Claude
-        if: env.HAS_KEY == 'true' && steps.self_check.outputs.self_modified != 'true'
         uses: anthropics/claude-code-action@3553f84341b92da26052e28acf1aa898f9511f32 # v1.0.177
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          track_progress: true
           claude_args: |
             --model claude-sonnet-5
-            --max-turns 60
-            --allowedTools "Read,Grep,Glob,LS,WebFetch,Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr review:*),Bash(gh api graphql:*),Bash(git log:*),Bash(git diff:*),Bash(git show:*),mcp__github_inline_comment__create_inline_comment"
+            --max-turns 30
+            --allowedTools "Read,Grep,Glob,LS,Bash(gh pr diff:*),Bash(gh pr view:*),mcp__github_inline_comment__create_inline_comment"
           prompt: |
-            REPO: ${{ github.repository }}
-            PR NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
-            TRIGGER: ${{ github.event_name }}
-
-            Always pass PR NUMBER explicitly to `gh pr` commands
-            (`gh pr diff <PR NUMBER>`, `gh pr view <PR NUMBER>`,
-            `gh pr review <PR NUMBER> ...`): the checkout is never on the
-            PR's branch (a detached merge ref on pull_request runs, the
-            default branch on workflow_dispatch runs), so bare invocations
-            will not resolve to the right PR.
-
-            If TRIGGER is workflow_dispatch, this is a fallback review run
-            dispatched because the PR modifies the review workflow file
-            itself. Two consequences: the repository checkout is the
-            default branch, not the PR head, so rely on `gh pr diff`,
-            `gh pr view`, and `git diff`/`git show` against the PR's
-            branch (origin/<branch>) for the PR's content rather than
-            files on disk; and the
-            mcp__github_inline_comment__create_inline_comment tool is not
-            available, so post inline comments with a `gh api graphql`
-            addPullRequestReview mutation (event: COMMENT, threads with
-            path and line) instead, then submit the verdict with
-            `gh pr review` as described below.
-
-            First, reconcile earlier runs of this review: list the PR's
-            review threads including their replies (`gh api graphql` with
-            the pullRequest reviewThreads query). For each unresolved thread
-            posted by a previous run of this workflow (bot-authored):
-            - If the current code addresses it, or the author's reply
-              convincingly rebuts it, resolve the thread with the
-              resolveReviewThread GraphQL mutation.
-            - If the author replied but you remain unconvinced, reply back
-              in the thread (addPullRequestReviewThreadReply mutation)
-              explaining briefly why the finding stands.
-            Do not post duplicates of comments that are still valid and
-            unresolved.
-
-            Then review this pull request. Read the full diff (`gh pr diff`)
-            and enough of the surrounding code to judge each change in
-            context. Follow the review instructions in REVIEW.md at the
-            repo root: they define what to flag, at what severity, and what
-            to skip. Read the file as it exists on the PR's base branch —
-            not from the PR checkout, so a PR cannot change the rules
-            applied to itself: `git show "origin/${GITHUB_BASE_REF}:REVIEW.md"`
-            on pull_request runs; on workflow_dispatch runs GITHUB_BASE_REF
-            is unset, so get the base branch from
-            `gh pr view <PR NUMBER> --json baseRefName` and read
-            `git show origin/<base>:REVIEW.md`.
-            If the PR modifies REVIEW.md, review that change like any other
-            part of the diff. If REVIEW.md is missing or unreadable on the
-            base branch, fall back to these defaults: report real problems
-            only (bugs and logic errors, correctness of math/statistics,
-            API breakage, security issues); do not comment on style,
-            formatting, or preferences; if you find nothing significant,
-            post no inline comments.
-
-            Post each finding as an inline comment on the relevant line —
-            using mcp__github_inline_comment__create_inline_comment when
-            available, or the `gh api graphql` mutation described above on
-            workflow_dispatch fallback runs — with a short explanation
-            and, where possible, a concrete suggestion.
-            Only include a ```suggestion block when the replacement text is
-            the exact, complete replacement for the anchored lines of the
-            file the comment is on — GitHub applies it verbatim to those
-            lines with one click. If the fix belongs in a different file
-            than the one you are commenting on, describe it in prose
-            instead; never put another file's text in a suggestion block.
-            When a finding spans two files (a change here contradicts text
-            there), prefer anchoring the comment to the file that needs the
-            edit, when that file is part of the diff.
-
-            Finally, submit a review verdict with `gh pr review`:
-            - If you are convinced the PR is correct, complete, and safe,
-              approve it: `gh pr review --approve --body "..."` with a
-              one-paragraph justification of what you checked. If approval
-              is rejected for permission reasons, fall back to
-              `gh pr review --comment --body "..."` with the same text.
-            - If you confirmed a serious problem (a real bug, data
-              corruption, security issue, or broken API), request changes:
-              `gh pr review --request-changes --body "..."` summarizing the
-              blocking findings. Reserve this for confirmed, consequential
-              problems — never for uncertainty or taste.
-            - Otherwise (minor or uncertain findings only), submit
-              `gh pr review --comment --body "..."` with a short summary.
-            On re-runs after new commits, submit a fresh verdict; an
-            approval supersedes your earlier request-changes once the
-            problems are fixed. Never merge the PR.
+            Review ${{ github.repository }} PR
+            #${{ github.event.pull_request.number }} by following
+            .github/prompts/claude-pr-review.md.
