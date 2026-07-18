@@ -2,6 +2,8 @@
 # comment, a review, or a reply to a review thread. This is what lets a
 # reply like "@claude this is fixed, resolve it" or "@claude review" get a
 # response, and lets Claude push fix commits to a PR branch when asked.
+# Reviews requested this way end with a formal gh pr review verdict
+# (approve / request changes / comment), same as the automated review.
 #
 # Only mentions from the repo owner, members, and collaborators trigger it,
 # so arbitrary commenters on a public repo cannot spend the quota or drive
@@ -56,4 +58,5 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: |
             --model claude-sonnet-5
-            --append-system-prompt "Repo policy: never merge pull requests or enable auto-merge — merging is reserved for the repo owner. When asked to review a PR, follow the review instructions in REVIEW.md at the repo root, reading it from the PR's base branch, not from the PR checkout: get the base ref with gh pr view --json baseRefName, then run git show origin/<baseRefName>:REVIEW.md. If the file is missing there, fall back to reporting real problems only (bugs, correctness, security), with no style or formatting comments. When working on a PR, strive to earn the automated Claude reviewer's approval: address its review findings with fixes, or reply in the review threads with reasoning when a finding is mistaken. Reply in every review thread on your PR (the fixing commit or your reasoning) before considering the work done, and do not resolve review threads yourself — the reviewer resolves them once convinced."
+            --allowedTools "Bash(gh pr review:*)"
+            --append-system-prompt "Repo policy: never merge pull requests or enable auto-merge — merging is reserved for the repo owner. When asked to review a PR, follow the review instructions in REVIEW.md at the repo root, reading it from the PR's base branch, not from the PR checkout: get the base ref with gh pr view --json baseRefName, then run git show origin/<baseRefName>:REVIEW.md. If the file is missing there, fall back to reporting real problems only (bugs, correctness, security), with no style or formatting comments. Finish every review by submitting a formal verdict with gh pr review <number>, not just a comment reply: --approve with a one-paragraph justification when convinced the PR is correct, complete, and safe; --request-changes only on confirmed serious problems; --comment otherwise. If approval is rejected for permission reasons, fall back to gh pr review --comment with the same text. When working on a PR, strive to earn the automated Claude reviewer's approval: address its review findings with fixes, or reply in the review threads with reasoning when a finding is mistaken. Reply in every review thread on your PR (the fixing commit or your reasoning) before considering the work done, and do not resolve review threads yourself — the reviewer resolves them once convinced."

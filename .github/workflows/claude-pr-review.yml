@@ -13,10 +13,13 @@
 # run re-dispatches this workflow on the default branch via
 # workflow_dispatch — the one event the built-in GITHUB_TOKEN is allowed
 # to trigger — and that fallback run, which executes the validated
-# default-branch workflow file, reviews the PR by number. A PR comment
-# explains what happened; commenting "@claude review this PR" remains
-# the manual escape hatch (claude.yml runs from the default branch on
-# comment events and always passes the validation).
+# default-branch workflow file, reviews the PR by number. Because the
+# dispatch uses GITHUB_TOKEN, the fallback run's triggering actor is
+# github-actions[bot], which claude-code-action rejects unless that bot
+# is listed in allowed_bots below. A PR comment explains what happened;
+# commenting "@claude review this PR" remains the manual escape hatch
+# (claude.yml runs from the default branch on comment events and always
+# passes the validation).
 #
 # The job itself never fails because of review findings; the verdict is
 # expressed through the PR review state. Approving requires the repo
@@ -103,6 +106,11 @@ jobs:
         uses: anthropics/claude-code-action@3553f84341b92da26052e28acf1aa898f9511f32 # v1.0.177
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Fallback workflow_dispatch runs are dispatched with the built-in
+          # GITHUB_TOKEN, so their triggering actor is github-actions[bot];
+          # without this the action refuses to start ("Workflow initiated by
+          # non-human actor") and self-modifying PRs never get their review.
+          allowed_bots: github-actions
           claude_args: |
             --model claude-sonnet-5
             --max-turns 60
