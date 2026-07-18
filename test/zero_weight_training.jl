@@ -391,6 +391,13 @@ function check_all_zero_pcd(kind)
     return nothing
 end
 
+@testset "invalid batchsize fails before mutation" begin
+    rbm = mutation_sensitive_rbm(Val(:plain))
+    before = model_state(rbm)
+    @test_throws ArgumentError pcd!(rbm, [0.0 1.0; 1.0 0.0]; batchsize = 0)
+    @test model_state(rbm) == before
+end
+
 @testset "all-zero weights fail before mutation ($name PCD)" for (name, kind) in [
     ("plain", Val(:plain)),
     ("centered", Val(:centered)),
