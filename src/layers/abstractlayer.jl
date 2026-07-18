@@ -2,12 +2,6 @@ abstract type AbstractLayer{N} end
 
 _validate_layer_parameters(::AbstractLayer) = nothing
 
-function _validate_layer_parameters(visible::AbstractLayer, hidden::AbstractLayer)
-    _validate_layer_parameters(visible)
-    _validate_layer_parameters(hidden)
-    return nothing
-end
-
 Base.ndims(::AbstractLayer{N}) where {N} = N
 Base.size(layer::AbstractLayer, d::Int) = size(layer)[d]
 
