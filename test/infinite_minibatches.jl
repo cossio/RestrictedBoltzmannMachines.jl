@@ -4,22 +4,22 @@ using RestrictedBoltzmannMachines: nobs, getobs, shuffleobs, infinite_minibatche
 
 @testset "nobs" begin
     @test isnothing(@inferred nobs(nothing))
-    @test @inferred(nobs(randn(3,4,5))) == 5
-    @test @inferred(nobs(nothing, randn(3,4,5))) == 5
-    @test @inferred(nobs(randn(3,4,5), nothing)) == 5
-    @test @inferred(nobs(randn(3,4,5), randn(2,3,5))) == 5
+    @test @inferred(nobs(randn(3, 4, 5))) == 5
+    @test @inferred(nobs(nothing, randn(3, 4, 5))) == 5
+    @test @inferred(nobs(randn(3, 4, 5), nothing)) == 5
+    @test @inferred(nobs(randn(3, 4, 5), randn(2, 3, 5))) == 5
     @test isnothing(@inferred nobs(nothing, nothing))
     @test isnothing(@inferred nobs())
 end
 
 @testset "getobs" begin
-    X = randn(3,4,7,5)
-    Y = randn(2,3,5)
-    @test @inferred(getobs(2, X, Y)) == (X[..,2], Y[..,2])
-    @test @inferred(getobs(1:2, X, Y)) == (X[..,1:2], Y[..,1:2])
-    @test @inferred(getobs(2, nothing, Y)) == (nothing, Y[..,2])
-    @test @inferred(getobs(2, X, nothing)) == (X[..,2], nothing)
-    @test @inferred(getobs(1:2, nothing, Y)) == (nothing, Y[..,1:2])
+    X = randn(3, 4, 7, 5)
+    Y = randn(2, 3, 5)
+    @test @inferred(getobs(2, X, Y)) == (X[.., 2], Y[.., 2])
+    @test @inferred(getobs(1:2, X, Y)) == (X[.., 1:2], Y[.., 1:2])
+    @test @inferred(getobs(2, nothing, Y)) == (nothing, Y[.., 2])
+    @test @inferred(getobs(2, X, nothing)) == (X[.., 2], nothing)
+    @test @inferred(getobs(1:2, nothing, Y)) == (nothing, Y[.., 1:2])
     @test @inferred(getobs(1:2, nothing, nothing)) == (nothing, nothing)
 end
 
@@ -38,18 +38,18 @@ end
 @testset "infinite_minibatches" begin
     data = 1:10
     track = Int[]
-    for (i, (x,)) in zip(1:24, infinite_minibatches(data; batchsize=3, shuffle=false))
+    for (i, (x,)) in zip(1:24, infinite_minibatches(data; batchsize = 3, shuffle = false))
         @test length(x) == 3
         append!(track, x)
     end
     @test track == repeat(1:9, 8)
 
     data = 1:3
-    for (i, (x,)) in zip(1:24, infinite_minibatches(data; batchsize=3, shuffle=false))
+    for (i, (x,)) in zip(1:24, infinite_minibatches(data; batchsize = 3, shuffle = false))
         @test x == 1:3
     end
 
-    @test_throws ArgumentError infinite_minibatches(data; batchsize=0, shuffle=false)
+    @test_throws ArgumentError infinite_minibatches(data; batchsize = 0, shuffle = false)
 end
 
 @testset "batchsize larger than the data" begin

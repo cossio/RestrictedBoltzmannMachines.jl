@@ -19,22 +19,21 @@ randnt(rng::AbstractRNG, a::BigFloat) = randnt(rng, Float64(a))
 randnt(a::Real) = randnt(default_rng(), a)
 
 function randnt(rng::AbstractRNG, a::Base.IEEEFloat)
+    local r = a
     if a ≤ 0
         while true
             r = randn(rng, typeof(a))
-            r ≥ a && return r
+            r ≥ a && break
         end
-    else
+    elseif a < Inf
         t = sqrt1half(a)
-        !(t < Inf) && return a
         while true
             r = a + randexp(rng, typeof(a)) / t
             u = rand(rng, typeof(a))
-            if u < exp(-(r - t)^2 / 2)
-                return r
-            end
+            u < exp(-(r - t)^2 / 2) && break
         end
     end
+    return r
 end
 
 """
@@ -45,10 +44,10 @@ Accurate computation of sqrt(1 + (x/2)^2) + |x|/2.
 sqrt1half(x::Real) = _sqrt1half(float(abs(x)))
 
 function _sqrt1half(x::Real)
-    if x > 2/sqrt(eps(x))
+    if x > 2 / sqrt(eps(x))
         return x
     else
-        return sqrt(one(x) + (x/2)^2) + x/2
+        return sqrt(one(x) + (x / 2)^2) + x / 2
     end
 end
 
@@ -71,7 +70,7 @@ randnt_half(μ::Real, σ::Real) = randnt_half(default_rng(), μ, σ)
 Mean of the standard normal distribution,
 truncated to the interval (a, +∞).
 """
-tnmean(a::Real) = sqrt(two(a)/π) / erfcx(a/√two(a))
+tnmean(a::Real) = sqrt(two(a) / π) / erfcx(a / √two(a))
 
 """
     tnvar(a)

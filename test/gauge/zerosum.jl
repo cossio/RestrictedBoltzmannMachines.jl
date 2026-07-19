@@ -11,8 +11,8 @@ using RestrictedBoltzmannMachines: zerosum, zerosum!, zerosum_weights, free_ener
     M = (2, 3)
     rbm = RBM(Potts(; θ = randn(N...)), Binary(; θ = randn(M...)), randn(N..., M...))
     rbm1 = zerosum(rbm)
-    @test norm(mean(rbm1.w; dims=1)) < 1e-13
-    @test norm(mean(rbm1.visible.θ; dims=1)) < 1e-13
+    @test norm(mean(rbm1.w; dims = 1)) < 1.0e-13
+    @test norm(mean(rbm1.visible.θ; dims = 1)) < 1.0e-13
     v = sample_from_inputs(rbm.visible, zeros(N..., 1000))
     F0 = free_energy(rbm, v)
     F1 = free_energy(rbm1, v)
@@ -27,8 +27,8 @@ end
     M = (3, 2, 3)
     rbm = RBM(Binary(; θ = randn(N...)), Potts(; θ = randn(M...)), randn(N..., M...))
     rbm1 = zerosum(rbm)
-    @test norm(mean(rbm1.w; dims=3)) < 1e-13
-    @test norm(mean(rbm1.hidden.θ; dims=1)) < 1e-13
+    @test norm(mean(rbm1.w; dims = 3)) < 1.0e-13
+    @test norm(mean(rbm1.hidden.θ; dims = 1)) < 1.0e-13
     v = sample_from_inputs(rbm.visible, zeros(N..., 1000))
     F0 = free_energy(rbm, v)
     F1 = free_energy(rbm1, v)
@@ -41,10 +41,10 @@ end
 @testset "zerosum_weights with different weights array" begin
     # Test that zerosum_weights operates on `weights`, not `rbm.w`
     for (vis, hid, N, M) in [
-        (Binary, Potts, (2, 3), (3, 2, 3)),
-        (Potts, Binary, (3, 2, 3), (2, 3)),
-        (Potts, Potts, (3, 2, 3), (3, 2, 3)),
-    ]
+            (Binary, Potts, (2, 3), (3, 2, 3)),
+            (Potts, Binary, (3, 2, 3), (2, 3)),
+            (Potts, Potts, (3, 2, 3), (3, 2, 3)),
+        ]
         rbm = RBM(vis(; θ = randn(N...)), hid(; θ = randn(M...)), randn(N..., M...))
         w_other = randn(size(rbm.w))
         result = zerosum_weights(w_other, rbm)
@@ -62,10 +62,10 @@ end
     M = (3, 2, 3)
     rbm = RBM(Potts(; θ = randn(N...)), Potts(; θ = randn(M...)), randn(N..., M...))
     rbm1 = zerosum(rbm)
-    @test norm(mean(rbm1.w; dims=1)) < 1e-13
-    @test norm(mean(rbm1.w; dims=4)) < 1e-13
-    @test norm(mean(rbm1.visible.θ; dims=1)) < 1e-13
-    @test norm(mean(rbm1.hidden.θ; dims=1)) < 1e-13
+    @test norm(mean(rbm1.w; dims = 1)) < 1.0e-13
+    @test norm(mean(rbm1.w; dims = 4)) < 1.0e-13
+    @test norm(mean(rbm1.visible.θ; dims = 1)) < 1.0e-13
+    @test norm(mean(rbm1.hidden.θ; dims = 1)) < 1.0e-13
     v = sample_from_inputs(rbm.visible, zeros(N..., 1000))
     F0 = free_energy(rbm, v)
     F1 = free_energy(rbm1, v)
@@ -79,13 +79,13 @@ end
     N = (3, 2, 3)
     M = (2, 3)
     hidden_layers = (
-        Binary(M), Spin(M), Gaussian(M), ReLU(M), dReLU(M), pReLU(M), xReLU(M)
+        Binary(M), Spin(M), Gaussian(M), ReLU(M), dReLU(M), pReLU(M), xReLU(M),
     )
     for hidden in hidden_layers
         rbm = RBM(Potts(; θ = randn(N...)), hidden, randn(N..., M...))
         rbm1 = zerosum(rbm)
-        @test norm(mean(rbm1.w; dims=1)) < 1e-13
-        @test norm(mean(rbm1.visible.θ; dims=1)) < 1e-13
+        @test norm(mean(rbm1.w; dims = 1)) < 1.0e-13
+        @test norm(mean(rbm1.visible.θ; dims = 1)) < 1.0e-13
         v = v = sample_from_inputs(rbm.visible, zeros(N..., 1000))
         F0 = free_energy(rbm, v)
         F1 = free_energy(rbm1, v)
@@ -115,18 +115,18 @@ end
     ∂ = ∂free_energy(rbm, v)
     zerosum!(∂, rbm)
     # ∂.hidden has the `par` layout (1, Q, M...); colors are dim 2
-    @test norm(mean(∂.hidden; dims=2)) < 1e-13
+    @test norm(mean(∂.hidden; dims = 2)) < 1.0e-13
     # the projection must not discard the field gradient wholesale
-    @test norm(∂.hidden) > 1e-3
+    @test norm(∂.hidden) > 1.0e-3
     # gradient on w should be zero-sum in the hidden Potts dim (dim 3 = ndims(visible)+1)
-    @test norm(mean(∂.w; dims=ndims(rbm.visible) + 1)) < 1e-13
+    @test norm(mean(∂.w; dims = ndims(rbm.visible) + 1)) < 1.0e-13
 
     # a gradient descent step with the projected gradient preserves the gauge
     rbm.visible.par .-= 0.1 * ∂.visible
     rbm.hidden.par .-= 0.1 * ∂.hidden
     rbm.w .-= 0.1 * ∂.w
-    @test norm(mean(rbm.hidden.θ; dims=1)) < 1e-13
-    @test norm(mean(rbm.w; dims=ndims(rbm.visible) + 1)) < 1e-13
+    @test norm(mean(rbm.hidden.θ; dims = 1)) < 1.0e-13
+    @test norm(mean(rbm.w; dims = ndims(rbm.visible) + 1)) < 1.0e-13
 end
 
 @testset "zerosum! ∂RBM leaves gauge-compatible field gradients unchanged" begin
@@ -147,8 +147,8 @@ end
     @test ∂.visible ≈ ∂0.visible
     @test ∂.hidden ≈ ∂0.hidden
     # ... and the identity is meaningful only because the gradients are nonzero
-    @test norm(∂0.visible) > 1e-3
-    @test norm(∂0.hidden) > 1e-3
+    @test norm(∂0.visible) > 1.0e-3
+    @test norm(∂0.hidden) > 1.0e-3
 end
 
 @testset "zerosum PottsGumbel (visible PottsGumbel, hidden Binary)" begin
@@ -251,9 +251,9 @@ end
     v = sample_from_inputs(rbm_g.visible, zeros(N..., 50))
     ∂ = ∂free_energy(rbm_g, v)
     zerosum!(∂, rbm_g)
-    @test norm(mean(∂.visible; dims=2)) < 1e-13
-    @test norm(∂.visible) > 1e-3
-    @test norm(mean(∂.w; dims=1)) < 1e-13
+    @test norm(mean(∂.visible; dims = 2)) < 1.0e-13
+    @test norm(∂.visible) > 1.0e-3
+    @test norm(mean(∂.w; dims = 1)) < 1.0e-13
 
     # hidden PottsGumbel, visible Binary
     N2 = (2, 3)
@@ -263,9 +263,9 @@ end
     v2 = sample_from_inputs(rbm_g2.visible, zeros(N2..., 50))
     ∂2 = ∂free_energy(rbm_g2, v2)
     zerosum!(∂2, rbm_g2)
-    @test norm(mean(∂2.hidden; dims=2)) < 1e-13
-    @test norm(∂2.hidden) > 1e-3
-    @test norm(mean(∂2.w; dims=ndims(rbm_g2.visible) + 1)) < 1e-13
+    @test norm(mean(∂2.hidden; dims = 2)) < 1.0e-13
+    @test norm(∂2.hidden) > 1.0e-3
+    @test norm(mean(∂2.w; dims = ndims(rbm_g2.visible) + 1)) < 1.0e-13
 
     # both PottsGumbel
     N3 = (3, 2, 3)
@@ -275,10 +275,10 @@ end
     v3 = sample_from_inputs(rbm_g3.visible, zeros(N3..., 50))
     ∂3 = ∂free_energy(rbm_g3, v3)
     zerosum!(∂3, rbm_g3)
-    @test norm(mean(∂3.visible; dims=2)) < 1e-13
-    @test norm(mean(∂3.hidden; dims=2)) < 1e-13
-    @test norm(mean(∂3.w; dims=1)) < 1e-13
-    @test norm(mean(∂3.w; dims=ndims(rbm_g3.visible) + 1)) < 1e-13
+    @test norm(mean(∂3.visible; dims = 2)) < 1.0e-13
+    @test norm(mean(∂3.hidden; dims = 2)) < 1.0e-13
+    @test norm(mean(∂3.w; dims = 1)) < 1.0e-13
+    @test norm(mean(∂3.w; dims = ndims(rbm_g3.visible) + 1)) < 1.0e-13
 end
 
 @testset "zerosum_weights PottsGumbel variants" begin
@@ -334,8 +334,8 @@ end
     @test srbm1.scale_h == srbm.scale_h
     # the equivalent unstandardized RBM is in zerosum gauge
     urbm = unstandardize(srbm1)
-    @test norm(mean(urbm.w; dims=1)) < 1e-10
-    @test norm(mean(urbm.visible.θ; dims=1)) < 1e-10
+    @test norm(mean(urbm.w; dims = 1)) < 1.0e-10
+    @test norm(mean(urbm.visible.θ; dims = 1)) < 1.0e-10
     # idempotent
     srbm2 = zerosum(srbm1)
     @test srbm2.w ≈ srbm1.w
@@ -368,8 +368,8 @@ end
     F1 = free_energy(srbm1, v)
     @test all(F0 - F1 .≈ mean(F0 - F1))
     urbm = unstandardize(srbm1)
-    @test norm(mean(urbm.w; dims=ndims(srbm.visible) + 1)) < 1e-10
-    @test norm(mean(urbm.hidden.θ; dims=1)) < 1e-10
+    @test norm(mean(urbm.w; dims = ndims(srbm.visible) + 1)) < 1.0e-10
+    @test norm(mean(urbm.hidden.θ; dims = 1)) < 1.0e-10
 
     srbm! = deepcopy(srbm)
     zerosum!(srbm!)
@@ -403,8 +403,8 @@ end
     @test crbm1.offset_h == crbm.offset_h
     # the equivalent uncentered RBM is in zerosum gauge
     urbm = uncenter(crbm1)
-    @test norm(mean(urbm.w; dims=1)) < 1e-10
-    @test norm(mean(urbm.visible.θ; dims=1)) < 1e-10
+    @test norm(mean(urbm.w; dims = 1)) < 1.0e-10
+    @test norm(mean(urbm.visible.θ; dims = 1)) < 1.0e-10
 
     crbm! = deepcopy(crbm)
     zerosum!(crbm!)
@@ -436,10 +436,10 @@ end
     F1 = free_energy(srbm1, v)
     @test all(F0 - F1 .≈ mean(F0 - F1))
     urbm = unstandardize(srbm1)
-    @test norm(mean(urbm.w; dims=1)) < 1e-10
-    @test norm(mean(urbm.w; dims=ndims(srbm.visible) + 1)) < 1e-10
-    @test norm(mean(urbm.visible.θ; dims=1)) < 1e-10
-    @test norm(mean(urbm.hidden.θ; dims=1)) < 1e-10
+    @test norm(mean(urbm.w; dims = 1)) < 1.0e-10
+    @test norm(mean(urbm.w; dims = ndims(srbm.visible) + 1)) < 1.0e-10
+    @test norm(mean(urbm.visible.θ; dims = 1)) < 1.0e-10
+    @test norm(mean(urbm.hidden.θ; dims = 1)) < 1.0e-10
 
     # in-place (sequential passes) agrees with out-of-place (joint round trip)
     srbm! = deepcopy(srbm)
@@ -488,10 +488,10 @@ end
     ∂ = ∂free_energy(srbm, v)
     zerosum!(∂, srbm)
     # fields gradient is zero-sum over colors (dim 2 of the `par` layout), but not discarded
-    @test norm(mean(∂.visible; dims=2)) < 1e-13
-    @test norm(∂.visible) > 1e-3
+    @test norm(mean(∂.visible; dims = 2)) < 1.0e-13
+    @test norm(∂.visible) > 1.0e-3
     # weights gradient satisfies the unstandardized gauge condition
-    @test norm(mean(∂.w ./ srbm.scale_v; dims=1)) < 1e-13
+    @test norm(mean(∂.w ./ srbm.scale_v; dims = 1)) < 1.0e-13
     # idempotent
     ∂2 = deepcopy(∂)
     zerosum!(∂2, srbm)
@@ -505,8 +505,8 @@ end
     srbm.hidden.par .-= 0.1 * ∂.hidden
     srbm.w .-= 0.1 * ∂.w
     urbm = unstandardize(srbm)
-    @test norm(mean(urbm.w; dims=1)) < 1e-10
-    @test norm(mean(urbm.visible.θ; dims=1)) < 1e-10
+    @test norm(mean(urbm.w; dims = 1)) < 1.0e-10
+    @test norm(mean(urbm.visible.θ; dims = 1)) < 1.0e-10
 end
 
 @testset "zerosum! ∂RBM StandardizedRBM (hidden Potts)" begin
@@ -523,16 +523,16 @@ end
     v = sample_from_inputs(srbm.visible, zeros(N..., 100))
     ∂ = ∂free_energy(srbm, v)
     zerosum!(∂, srbm)
-    @test norm(mean(∂.hidden; dims=2)) < 1e-13
+    @test norm(mean(∂.hidden; dims = 2)) < 1.0e-13
     scale_h = reshape(srbm.scale_h, map(one, N)..., M...)
-    @test norm(mean(∂.w ./ scale_h; dims=ndims(srbm.visible) + 1)) < 1e-13
+    @test norm(mean(∂.w ./ scale_h; dims = ndims(srbm.visible) + 1)) < 1.0e-13
 
     srbm.visible.par .-= 0.1 * ∂.visible
     srbm.hidden.par .-= 0.1 * ∂.hidden
     srbm.w .-= 0.1 * ∂.w
     urbm = unstandardize(srbm)
-    @test norm(mean(urbm.w; dims=ndims(srbm.visible) + 1)) < 1e-10
-    @test norm(mean(urbm.hidden.θ; dims=1)) < 1e-10
+    @test norm(mean(urbm.w; dims = ndims(srbm.visible) + 1)) < 1.0e-10
+    @test norm(mean(urbm.hidden.θ; dims = 1)) < 1.0e-10
 end
 
 @testset "zerosum! ∂RBM StandardizedRBM (both Potts)" begin
@@ -549,21 +549,21 @@ end
     v = sample_from_inputs(srbm.visible, zeros(N..., 100))
     ∂ = ∂free_energy(srbm, v)
     zerosum!(∂, srbm)
-    @test norm(mean(∂.visible; dims=2)) < 1e-13
-    @test norm(mean(∂.hidden; dims=2)) < 1e-13
+    @test norm(mean(∂.visible; dims = 2)) < 1.0e-13
+    @test norm(mean(∂.hidden; dims = 2)) < 1.0e-13
     # both weight gauge conditions hold after the sequential projection
     scale_h = reshape(srbm.scale_h, map(one, N)..., M...)
-    @test norm(mean(∂.w ./ srbm.scale_v; dims=1)) < 1e-13
-    @test norm(mean(∂.w ./ scale_h; dims=ndims(srbm.visible) + 1)) < 1e-13
+    @test norm(mean(∂.w ./ srbm.scale_v; dims = 1)) < 1.0e-13
+    @test norm(mean(∂.w ./ scale_h; dims = ndims(srbm.visible) + 1)) < 1.0e-13
 
     srbm.visible.par .-= 0.1 * ∂.visible
     srbm.hidden.par .-= 0.1 * ∂.hidden
     srbm.w .-= 0.1 * ∂.w
     urbm = unstandardize(srbm)
-    @test norm(mean(urbm.w; dims=1)) < 1e-10
-    @test norm(mean(urbm.w; dims=ndims(srbm.visible) + 1)) < 1e-10
-    @test norm(mean(urbm.visible.θ; dims=1)) < 1e-10
-    @test norm(mean(urbm.hidden.θ; dims=1)) < 1e-10
+    @test norm(mean(urbm.w; dims = 1)) < 1.0e-10
+    @test norm(mean(urbm.w; dims = ndims(srbm.visible) + 1)) < 1.0e-10
+    @test norm(mean(urbm.visible.θ; dims = 1)) < 1.0e-10
+    @test norm(mean(urbm.hidden.θ; dims = 1)) < 1.0e-10
 end
 
 @testset "zerosum! ∂RBM StandardizedRBM reduces to plain RBM for trivial offsets/scales" begin
@@ -606,8 +606,8 @@ end
     v = sample_from_inputs(srbm_g.visible, zeros(N..., 50))
     ∂ = ∂free_energy(srbm_g, v)
     zerosum!(∂, srbm_g)
-    @test norm(mean(∂.visible; dims=2)) < 1e-13
-    @test norm(mean(∂.w ./ srbm_g.scale_v; dims=1)) < 1e-13
+    @test norm(mean(∂.visible; dims = 2)) < 1.0e-13
+    @test norm(mean(∂.w ./ srbm_g.scale_v; dims = 1)) < 1.0e-13
 end
 
 @testset "∂regularize! zerosum pass-through (StandardizedRBM)" begin
@@ -631,8 +631,8 @@ end
     srbm.hidden.par .-= 0.1 * ∂.hidden
     srbm.w .-= 0.1 * ∂.w
     urbm = unstandardize(srbm)
-    @test norm(mean(urbm.w; dims=1)) < 1e-10
-    @test norm(mean(urbm.visible.θ; dims=1)) < 1e-10
+    @test norm(mean(urbm.w; dims = 1)) < 1.0e-10
+    @test norm(mean(urbm.visible.θ; dims = 1)) < 1.0e-10
 end
 
 @testset "∂regularize! zerosum pass-through (CenteredRBM)" begin
@@ -651,8 +651,8 @@ end
     crbm.hidden.par .-= 0.1 * ∂.hidden
     crbm.w .-= 0.1 * ∂.w
     urbm = uncenter(crbm)
-    @test norm(mean(urbm.w; dims=1)) < 1e-10
-    @test norm(mean(urbm.visible.θ; dims=1)) < 1e-10
+    @test norm(mean(urbm.w; dims = 1)) < 1.0e-10
+    @test norm(mean(urbm.visible.θ; dims = 1)) < 1.0e-10
 end
 
 @testset "zerosum! ∂RBM CenteredRBM" begin
@@ -667,8 +667,8 @@ end
     v = sample_from_inputs(crbm.visible, zeros(N..., 100))
     ∂ = ∂free_energy(crbm, v)
     zerosum!(∂, crbm)
-    @test norm(mean(∂.visible; dims=2)) < 1e-13
-    @test norm(mean(∂.w; dims=1)) < 1e-13
+    @test norm(mean(∂.visible; dims = 2)) < 1.0e-13
+    @test norm(mean(∂.w; dims = 1)) < 1.0e-13
 
     # a gradient descent step with the projected gradient preserves the gauge
     # of the equivalent uncentered RBM
@@ -676,8 +676,8 @@ end
     crbm.hidden.par .-= 0.1 * ∂.hidden
     crbm.w .-= 0.1 * ∂.w
     urbm = uncenter(crbm)
-    @test norm(mean(urbm.w; dims=1)) < 1e-10
-    @test norm(mean(urbm.visible.θ; dims=1)) < 1e-10
+    @test norm(mean(urbm.w; dims = 1)) < 1.0e-10
+    @test norm(mean(urbm.visible.θ; dims = 1)) < 1.0e-10
 end
 
 @testset "zerosum CenteredRBM with nontrivial offsets (hidden Potts)" begin
@@ -698,8 +698,8 @@ end
     @test crbm1.offset_h == crbm.offset_h
     # the equivalent uncentered RBM is in zerosum gauge
     urbm = uncenter(crbm1)
-    @test norm(mean(urbm.w; dims=ndims(crbm.visible) + 1)) < 1e-10
-    @test norm(mean(urbm.hidden.θ; dims=1)) < 1e-10
+    @test norm(mean(urbm.w; dims = ndims(crbm.visible) + 1)) < 1.0e-10
+    @test norm(mean(urbm.hidden.θ; dims = 1)) < 1.0e-10
 
     crbm! = deepcopy(crbm)
     zerosum!(crbm!)

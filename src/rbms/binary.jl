@@ -17,11 +17,11 @@ function BinaryRBM(a::AbstractArray, b::AbstractArray, w::AbstractArray)
     return RBM(visible, hidden, w)
 end
 
-function BinaryRBM(::Type{T}, N::Union{Int,Dims}, M::Union{Int,Dims}) where {T}
+function BinaryRBM(::Type{T}, N::Union{Int, Dims}, M::Union{Int, Dims}) where {T}
     a = zeros(T, N...)
     b = zeros(T, M...)
     w = zeros(T, N..., M...)
     return BinaryRBM(a, b, w)
 end
 
-BinaryRBM(N::Union{Int,Dims}, M::Union{Int,Dims}) = BinaryRBM(Float64, N, M)
+BinaryRBM(N::Union{Int, Dims}, M::Union{Int, Dims}) = BinaryRBM(Float64, N, M)

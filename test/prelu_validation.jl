@@ -47,9 +47,9 @@ pcd_model(::Val{:centered}) = center(boundary_rbm())
 pcd_model(::Val{:standardized}) = standardize(boundary_rbm())
 
 function run_pcd!(
-    ::Val{:plain}, rbm, data, vm;
-    iters::Int, callback, wts = nothing, optim = Descent(1e-3),
-)
+        ::Val{:plain}, rbm, data, vm;
+        iters::Int, callback, wts = nothing, optim = Descent(1.0e-3),
+    )
     return pcd!(
         rbm, data;
         batchsize = 1, iters, steps = 0, vm, callback, wts, optim,
@@ -58,9 +58,9 @@ function run_pcd!(
 end
 
 function run_pcd!(
-    ::Val{:centered}, rbm, data, vm;
-    iters::Int, callback, wts = nothing, optim = Descent(1e-3),
-)
+        ::Val{:centered}, rbm, data, vm;
+        iters::Int, callback, wts = nothing, optim = Descent(1.0e-3),
+    )
     return pcd!(
         rbm, data;
         batchsize = 1, iters, steps = 0, vm, callback, wts, optim,
@@ -70,9 +70,9 @@ function run_pcd!(
 end
 
 function run_pcd!(
-    ::Val{:standardized}, rbm, data, vm;
-    iters::Int, callback, wts = nothing, optim = Descent(1e-3),
-)
+        ::Val{:standardized}, rbm, data, vm;
+        iters::Int, callback, wts = nothing, optim = Descent(1.0e-3),
+    )
     return pcd!(
         rbm, data;
         batchsize = 1, iters, steps = 0, vm, callback, wts, optim,

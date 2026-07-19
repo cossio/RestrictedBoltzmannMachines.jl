@@ -3,9 +3,9 @@
 
 Like Potts, but uses the Gumbel-softmax trick for GPU-friendly sampling.
 """
-struct PottsGumbel{N,A} <: AbstractLayer{N}
+struct PottsGumbel{N, A} <: AbstractLayer{N}
     par::A
-    function PottsGumbel{N,A}(par::A) where {N,A<:AbstractArray}
+    function PottsGumbel{N, A}(par::A) where {N, A <: AbstractArray}
         @assert size(par, 1) == 1 # θ
         @assert ndims(par) == N + 1
         return new(par)
@@ -55,8 +55,8 @@ end
 
 anneal_zero(l::PottsGumbel) = PottsGumbel(; θ = zero(l.θ))
 
-function initialize!(layer::PottsGumbel, data::AbstractArray; ϵ::Real=1e-6, wts=nothing)
-    PottsGumbel(initialize!(Potts(layer), data; ϵ, wts))
+function initialize!(layer::PottsGumbel, data::AbstractArray; ϵ::Real = 1.0e-6, wts = nothing)
+    return PottsGumbel(initialize!(Potts(layer), data; ϵ, wts))
 end
 
 function potts_to_gumbel(layer::AbstractLayer)

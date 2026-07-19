@@ -18,8 +18,8 @@ using Statistics: mean
 using Test: @test, @testset
 
 @testset "∂regularize!" begin
-    rbm = BinaryRBM(randn(3,5), randn(3,2), randn(3,5,3,2))
-    v = bitrand(3,5,100)
+    rbm = BinaryRBM(randn(3, 5), randn(3, 2), randn(3, 5, 3, 2))
+    v = bitrand(3, 5, 100)
 
     l2_fields = rand()
     l1_weights = rand()
@@ -39,7 +39,7 @@ using Test: @test, @testset
 end
 
 @testset "∂regularize" begin
-    rbm = BinaryRBM(randn(3,5), randn(3,2), randn(3,5,3,2))
+    rbm = BinaryRBM(randn(3, 5), randn(3, 2), randn(3, 5, 3, 2))
 
     l2_fields = rand()
     l1_weights = rand()
@@ -59,40 +59,40 @@ end
 @testset "∂regularize_fields" begin
     l2_fields = rand()
 
-    layer = Binary(; θ = randn(3,5))
+    layer = Binary(; θ = randn(3, 5))
     gs = Zygote.gradient(layer) do layer
-        l2_fields/2 * sum(abs2, layer.θ)
+        l2_fields / 2 * sum(abs2, layer.θ)
     end
     ∂ = ∂regularize_fields(layer; l2_fields)
     @test only(gs).par ≈ ∂
 
-    layer = Gaussian(; θ = randn(3,5), γ = rand(3,5))
+    layer = Gaussian(; θ = randn(3, 5), γ = rand(3, 5))
     gs = Zygote.gradient(layer) do layer
-        l2_fields/2 * sum(abs2, layer.θ)
+        l2_fields / 2 * sum(abs2, layer.θ)
     end
     ∂ = ∂regularize_fields(layer; l2_fields)
     @test only(gs).par ≈ ∂
     @test iszero(∂[2, ..]) # ∂γ
 
-    layer = dReLU(; θp = randn(3,5), θn = randn(3,5), γp = rand(3,5), γn = rand(3,5))
+    layer = dReLU(; θp = randn(3, 5), θn = randn(3, 5), γp = rand(3, 5), γn = rand(3, 5))
     gs = Zygote.gradient(layer) do layer
-        l2_fields/2 * (sum(abs2, layer.θp) + sum(abs2, layer.θn))
+        l2_fields / 2 * (sum(abs2, layer.θp) + sum(abs2, layer.θn))
     end
     ∂ = ∂regularize_fields(layer; l2_fields)
     @test only(gs).par ≈ ∂
     @test iszero(∂[3:4, ..]) # ∂γp, ∂γn
 
-    layer = pReLU(; θ = randn(3,5), γ = rand(3,5), Δ = randn(3,5), η = rand(3,5) .- 0.5)
+    layer = pReLU(; θ = randn(3, 5), γ = rand(3, 5), Δ = randn(3, 5), η = rand(3, 5) .- 0.5)
     gs = Zygote.gradient(layer) do layer
-        l2_fields/2 * sum(abs2, layer.θ)
+        l2_fields / 2 * sum(abs2, layer.θ)
     end
     ∂ = ∂regularize_fields(layer; l2_fields)
     @test only(gs).par ≈ ∂
     @test iszero(∂[2:4, ..]) # ∂γ, ∂Δ, ∂η
 
-    layer = xReLU(; θ = randn(3,5), γ = rand(3,5), Δ = randn(3,5), ξ = randn(3,5))
+    layer = xReLU(; θ = randn(3, 5), γ = rand(3, 5), Δ = randn(3, 5), ξ = randn(3, 5))
     gs = Zygote.gradient(layer) do layer
-        l2_fields/2 * sum(abs2, layer.θ)
+        l2_fields / 2 * sum(abs2, layer.θ)
     end
     ∂ = ∂regularize_fields(layer; l2_fields)
     @test only(gs).par ≈ ∂
@@ -118,5 +118,5 @@ using RestrictedBoltzmannMachines: RBM, Potts, sample_from_inputs, zerosum!
     @test ∂.hidden ≈ ∂ref.hidden
     @test ∂.w ≈ ∂ref.w
     # the projected weight gradient is in the zerosum gauge along the color dimension
-    @test all(abs.(sum(∂.w; dims = 1)) .< 1e-10)
+    @test all(abs.(sum(∂.w; dims = 1)) .< 1.0e-10)
 end

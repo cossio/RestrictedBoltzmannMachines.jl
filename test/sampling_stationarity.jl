@@ -24,10 +24,10 @@ using RestrictedBoltzmannMachines: RBM, StandardizedRBM,
 
 Random.seed!(37)
 
-enumerate_states(layer::Union{Binary,Spin}) = collect_states(layer)
+enumerate_states(layer::Union{Binary, Spin}) = collect_states(layer)
 
 # All one-hot configurations of a Potts/PottsGumbel layer, in a (size(layer)..., S) array
-function enumerate_states(layer::Union{Potts,PottsGumbel})
+function enumerate_states(layer::Union{Potts, PottsGumbel})
     q = size(layer, 1)
     sites = length(layer) ÷ q
     states = falses(size(layer)..., q^sites)
@@ -59,9 +59,9 @@ of steps. The tolerance is a multiple of the Monte-Carlo floor of the (plug-in) 
 variation estimate, so it scales correctly with `nchains` instead of being a magic
 constant. Returns the final chains. =#
 function check_no_drift(
-    kernel, logp::AbstractVector, states::AbstractArray;
-    nchains::Int = 20_000, steps = (1, 4, 16), nsigmas::Real = 4,
-)
+        kernel, logp::AbstractVector, states::AbstractArray;
+        nchains::Int = 20_000, steps = (1, 4, 16), nsigmas::Real = 4,
+    )
     p = softmax(logp)
     mcfloor = sum(sqrt.(p .* (1 .- p) ./ nchains)) / 2
     x = states[.., sample(1:length(p), Weights(p), nchains)]
@@ -83,7 +83,7 @@ random_layer(::Type{dReLU}, sz::Dims) = dReLU(;
     θp = randn(sz...) / 2, θn = randn(sz...) / 2, γp = 0.5 .+ rand(sz...), γn = 0.5 .+ rand(sz...)
 )
 random_layer(::Type{pReLU}, sz::Dims) = pReLU(;
-    θ = randn(sz...) / 2, γ = 0.5 .+ rand(sz...), Δ = randn(sz...) / 2, η = rand(sz...) .- 1/2
+    θ = randn(sz...) / 2, γ = 0.5 .+ rand(sz...), Δ = randn(sz...) / 2, η = rand(sz...) .- 1 / 2
 )
 random_layer(::Type{xReLU}, sz::Dims) = xReLU(;
     θ = randn(sz...) / 2, γ = 0.5 .+ rand(sz...), Δ = randn(sz...) / 2, ξ = randn(sz...) / 2
@@ -112,8 +112,8 @@ _hidden = (Gaussian, ReLU, dReLU, pReLU, xReLU, nsReLU)
 # zerosum is only meaningful for Potts-family visible layers (a no-op otherwise)
 _combos = [
     (V, vsz, H, standardized, zs)
-    for (V, vsz) in _visible for H in _hidden for standardized in (false, true)
-    for zs in (V <: Union{Potts, PottsGumbel} ? (false, true) : (false,))
+        for (V, vsz) in _visible for H in _hidden for standardized in (false, true)
+        for zs in (V <: Union{Potts, PottsGumbel} ? (false, true) : (false,))
 ]
 
 @testset "no drift: $V × $H, standardized=$standardized, zerosum=$zs" for (V, vsz, H, standardized, zs) in _combos
@@ -171,6 +171,6 @@ This pins the target distribution the stationarity tests above are checked again
         v = states[.., n]
         F = free_energy(rbm, v)
         Z, ε = quadgk(h -> exp(F - energy(rbm, v, [h])), lo, hi)
-        @test Z ≈ 1 rtol = 1e-6
+        @test Z ≈ 1 rtol = 1.0e-6
     end
 end

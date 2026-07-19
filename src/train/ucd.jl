@@ -15,8 +15,8 @@ struct UnbiasedSample{V}
     met::Bool
 end
 
-_binary_visible_logits(rbm::RBM{<:Binary,<:Binary}, h) = rbm.visible.θ .+ inputs_v_from_h(rbm, h)
-_binary_hidden_logits(rbm::RBM{<:Binary,<:Binary}, v) = rbm.hidden.θ .+ inputs_h_from_v(rbm, v)
+_binary_visible_logits(rbm::RBM{<:Binary, <:Binary}, h) = rbm.visible.θ .+ inputs_v_from_h(rbm, h)
+_binary_hidden_logits(rbm::RBM{<:Binary, <:Binary}, v) = rbm.hidden.θ .+ inputs_h_from_v(rbm, v)
 
 function _binary_sample_from_logits(logits::AbstractArray)
     u = rand!(similar(logits))
@@ -34,13 +34,13 @@ function _zero_gradient(rbm::RBM)
 end
 
 function _maximal_coupling_step(
-    rbm::RBM{<:Binary,<:Binary},
-    vc0::AbstractArray,
-    hc0::AbstractArray,
-    v1::AbstractArray,
-    h1::AbstractArray;
-    max_tries::Int = 500,
-)
+        rbm::RBM{<:Binary, <:Binary},
+        vc0::AbstractArray,
+        hc0::AbstractArray,
+        v1::AbstractArray,
+        h1::AbstractArray;
+        max_tries::Int = 500,
+    )
     v2_logits = _binary_visible_logits(rbm, h1)
     v2 = _binary_sample_from_logits(v2_logits)
     h2 = sample_h_from_v(rbm, v2)
@@ -98,12 +98,12 @@ implementation (https://github.com/yixuan/cdtau), and Heng et al. (2023,
 https://arxiv.org/abs/2305.19684).
 """
 function unbiased_sample(
-    rbm::RBM{<:Binary,<:Binary},
-    v0::AbstractArray;
-    min_steps::Int = 1,
-    max_steps::Int = 100,
-    max_tries::Int = 500,
-)
+        rbm::RBM{<:Binary, <:Binary},
+        v0::AbstractArray;
+        min_steps::Int = 1,
+        max_steps::Int = 100,
+        max_tries::Int = 500,
+    )
     @assert size(v0) == size(rbm.visible)
     @assert min_steps > 0
     @assert max_steps ≥ min_steps
@@ -170,29 +170,29 @@ https://arxiv.org/abs/2305.19684). When a coupled chain does not meet within
 `ArgumentError`.
 """
 function ucd!(
-    rbm::RBM{<:Binary,<:Binary},
-    data::AbstractArray;
-    batchsize::Int = 1,
-    iters::Int = 1,
-    wts::Union{AbstractVector, Nothing} = nothing,
-    nchains::Int = batchsize,
-    min_steps::Int = 1,
-    max_steps::Int = 100,
-    max_tries::Int = 500,
-    max_resamples::Int = 100,
-    optim::AbstractRule = Adam(),
-    moments = moments_from_samples(rbm.visible, data; wts),
-    l2_fields::Real = 0,
-    l1_weights::Real = 0,
-    l2_weights::Real = 0,
-    l2l1_weights::Real = 0,
-    zerosum::Bool = true,
-    rescale::Bool = true,
-    callback = Returns(nothing),
-    shuffle::Bool = true,
-    ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w),
-    state = setup(optim, ps),
-)
+        rbm::RBM{<:Binary, <:Binary},
+        data::AbstractArray;
+        batchsize::Int = 1,
+        iters::Int = 1,
+        wts::Union{AbstractVector, Nothing} = nothing,
+        nchains::Int = batchsize,
+        min_steps::Int = 1,
+        max_steps::Int = 100,
+        max_tries::Int = 500,
+        max_resamples::Int = 100,
+        optim::AbstractRule = Adam(),
+        moments = moments_from_samples(rbm.visible, data; wts),
+        l2_fields::Real = 0,
+        l1_weights::Real = 0,
+        l2_weights::Real = 0,
+        l2l1_weights::Real = 0,
+        zerosum::Bool = true,
+        rescale::Bool = true,
+        callback = Returns(nothing),
+        shuffle::Bool = true,
+        ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w),
+        state = setup(optim, ps),
+    )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert isnothing(wts) || size(data)[end] == length(wts)
     @assert max_resamples ≥ 0

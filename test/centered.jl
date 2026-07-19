@@ -45,7 +45,7 @@ using Zygote: gradient
     h = bitrand(size(rbm.hidden))
     E = -rbm.visible.θ' * v - rbm.hidden.θ' * h - (v - rbm.offset_v)' * rbm.w * (h - rbm.offset_h)
     @test @inferred(energy(rbm, v, h)) ≈ E
-    @test @inferred(inputs_v_from_h(rbm, h)) ≈ rbm.w  * (h - rbm.offset_h)
+    @test @inferred(inputs_v_from_h(rbm, h)) ≈ rbm.w * (h - rbm.offset_h)
     @test @inferred(inputs_h_from_v(rbm, v)) ≈ rbm.w' * (v - rbm.offset_v)
 
     rbm_ = deepcopy(rbm)
@@ -59,7 +59,7 @@ using Zygote: gradient
 end
 
 @testset "center / uncenter" begin
-    rbm = BinaryRBM(randn(3), randn(2), randn(3,2))
+    rbm = BinaryRBM(randn(3), randn(2), randn(3, 2))
     offset_v = randn(3)
     offset_h = randn(2)
     centered_rbm = @inferred center(rbm, offset_v, offset_h)
@@ -69,14 +69,14 @@ end
     @test @inferred(uncenter(centered_rbm)).hidden.θ ≈ rbm.hidden.θ
     @test @inferred(uncenter(centered_rbm)).w ≈ rbm.w
 
-    v = bitrand(3,2)
-    h = bitrand(2,2)
+    v = bitrand(3, 2)
+    h = bitrand(2, 2)
     @test mean_h_from_v(rbm, v) ≈ mean_h_from_v(uncenter(rbm), v)
     @test mean_v_from_h(rbm, h) ≈ mean_v_from_h(uncenter(rbm), h)
 end
 
 @testset "center_visible / center_hidden helpers" begin
-    rbm = center(BinaryRBM(randn(3), randn(2), randn(3,2)))
+    rbm = center(BinaryRBM(randn(3), randn(2), randn(3, 2)))
     offset_v = randn(3)
     offset_h = randn(2)
 
@@ -113,7 +113,7 @@ end
 end
 
 @testset "rbm energy invariance" begin
-    centered_rbm = CenteredBinaryRBM(randn(3), randn(2), randn(3,2), randn(3), randn(2))
+    centered_rbm = CenteredBinaryRBM(randn(3), randn(2), randn(3, 2), randn(3), randn(2))
     rbm = uncenter(centered_rbm)
     ΔE = interaction_energy(rbm, centered_rbm.offset_v, centered_rbm.offset_h)::Number
     v = bitrand(size(rbm.visible)..., 100)
@@ -123,14 +123,14 @@ end
 end
 
 @testset "free energy" begin
-    rbm = CenteredBinaryRBM(randn(3), randn(2), randn(3,2), randn(3), randn(2))
+    rbm = CenteredBinaryRBM(randn(3), randn(2), randn(3, 2), randn(3), randn(2))
     v = bitrand(size(rbm.visible)...)
-    F = -log(sum(exp(-energy(rbm, v, h)) for h in [[0,0], [0,1], [1,0], [1,1]]))
+    F = -log(sum(exp(-energy(rbm, v, h)) for h in [[0, 0], [0, 1], [1, 0], [1, 1]]))
     @test @inferred(free_energy(rbm, v)) ≈ F
 end
 
 @testset "∂free energy" begin
-    rbm = CenteredBinaryRBM(randn(3), randn(2), randn(3,2), randn(3), randn(2))
+    rbm = CenteredBinaryRBM(randn(3), randn(2), randn(3, 2), randn(3), randn(2))
     v = bitrand(size(rbm.visible)...)
     gs = gradient(rbm) do rbm
         mean(free_energy(rbm, v))
@@ -143,7 +143,7 @@ end
 
 @testset "mirror" begin
     rbm = CenteredBinaryRBM(
-        randn(5,2), randn(7,4,3), randn(5,2,7,4,3), randn(5,2), randn(7,4,3)
+        randn(5, 2), randn(7, 4, 3), randn(5, 2, 7, 4, 3), randn(5, 2), randn(7, 4, 3)
     )
     rbm_mirror = @inferred mirror(rbm)
     @test rbm_mirror.visible == rbm.hidden
@@ -156,19 +156,19 @@ end
 end
 
 @testset "centered pcd" begin
-    rbm = center(BinaryRBM((28,28), 100))
-    train_x = bitrand(28,28,1024)
+    rbm = center(BinaryRBM((28, 28), 100))
+    train_x = bitrand(28, 28, 1024)
 
     initialize!(rbm, train_x) # fit independent site statistics and center
-    @test rbm.offset_v ≈ dropdims(mean(train_x; dims=3); dims=3)
+    @test rbm.offset_v ≈ dropdims(mean(train_x; dims = 3); dims = 3)
     train_h = mean_h_from_v(rbm, train_x)
-    @test rbm.offset_h ≈ vec(mean(train_h; dims=2))
-    @test norm(mean(inputs_h_from_v(rbm, train_x); dims=2)) < 1e-6
+    @test rbm.offset_h ≈ vec(mean(train_h; dims = 2))
+    @test norm(mean(inputs_h_from_v(rbm, train_x); dims = 2)) < 1.0e-6
 
-    pcd!(rbm, train_x; batchsize=1024, iters=100)
-    @test rbm.offset_v ≈ dropdims(mean(train_x; dims=3); dims=3)
+    pcd!(rbm, train_x; batchsize = 1024, iters = 100)
+    @test rbm.offset_v ≈ dropdims(mean(train_x; dims = 3); dims = 3)
     train_h = mean_h_from_v(rbm, train_x)
-    @test rbm.offset_h ≈ vec(mean(train_h; dims=2)) rtol=0.1
+    @test rbm.offset_h ≈ vec(mean(train_h; dims = 2)) rtol = 0.1
     # not exact because offset is updated after having updated the parameters!
 end
 
@@ -179,17 +179,17 @@ end
 
     rbm = center(BinaryRBM(2, 5))
     initialize!(rbm, data)
-    pcd!(rbm, data; iters = 10000, batchsize = 64, steps = 10, optim = Adam(5e-4))
+    pcd!(rbm, data; iters = 10000, batchsize = 64, steps = 10, optim = Adam(5.0e-4))
 
-    v_sample = sample_v_from_v(rbm, bitrand(2, 10000); steps=50)
+    v_sample = sample_v_from_v(rbm, bitrand(2, 10000); steps = 50)
 
-    @test 0.4 < mean(v_sample[1,:]) < 0.6
-    @test 0.4 < mean(v_sample[2,:]) < 0.6
-    @test 0.4 < mean(v_sample[1,:] .* v_sample[2,:]) < 0.6
+    @test 0.4 < mean(v_sample[1, :]) < 0.6
+    @test 0.4 < mean(v_sample[2, :]) < 0.6
+    @test 0.4 < mean(v_sample[1, :] .* v_sample[2, :]) < 0.6
 end
 
 @testset "center_from_data! helpers" begin
-    rbm = center(BinaryRBM(randn(3), randn(2), randn(3,2)))
+    rbm = center(BinaryRBM(randn(3), randn(2), randn(3, 2)))
     data = bitrand(3, 7)
     wts = rand(7)
 
@@ -252,16 +252,16 @@ end
 end
 
 @testset "sample_h_from_h centered RBM" begin
-    rbm = center(BinaryRBM(randn(3), randn(2), zeros(3,2)))
+    rbm = center(BinaryRBM(randn(3), randn(2), zeros(3, 2)))
     h = bitrand(2, 10^5)
     v = falses(3, 10^5)
     sample = @inferred sample_h_from_h(rbm, h)
     @test size(sample) == size(h)
-    @test batchmean(rbm.hidden, sample) ≈ batchmean(rbm.hidden, mean_h_from_v(rbm, v)) rtol=0.1
+    @test batchmean(rbm.hidden, sample) ≈ batchmean(rbm.hidden, mean_h_from_v(rbm, v)) rtol = 0.1
 end
 
 @testset "∂regularize! centered RBM" begin
-    rbm = CenteredBinaryRBM(randn(3), randn(2), randn(3,2), randn(3), randn(2))
+    rbm = CenteredBinaryRBM(randn(3), randn(2), randn(3, 2), randn(3), randn(2))
     v = bitrand(3, 100)
     vdims = ntuple(identity, ndims(rbm.visible))
     N = length(rbm.visible)
@@ -280,12 +280,12 @@ end
         L2_fields = sum(abs2, urbm.visible.θ)
         L1_weights = sum(abs, urbm.w)
         L2_weights = sum(abs2, urbm.w)
-        L2L1_weights = sum(abs2, sum(abs, urbm.w; dims=vdims))
+        L2L1_weights = sum(abs2, sum(abs, urbm.w; dims = vdims))
         return (
-            F + l2_fields/2 * L2_fields +
-            l1_weights * L1_weights +
-            l2_weights/2 * L2_weights +
-            l2l1_weights/(2N) * L2L1_weights
+            F + l2_fields / 2 * L2_fields +
+                l1_weights * L1_weights +
+                l2_weights / 2 * L2_weights +
+                l2l1_weights / (2N) * L2L1_weights
         )
     end
 
@@ -299,7 +299,7 @@ end
 
 @testset "∂regularize! centered RBM" begin
     rbm = CenteredRBM(
-        ReLU(; θ=randn(3), γ=rand(3)), Binary(; θ=randn(2)), randn(3,2),
+        ReLU(; θ = randn(3), γ = rand(3)), Binary(; θ = randn(2)), randn(3, 2),
         randn(3), randn(2)
     )
     v = rand(3, 100)
@@ -317,12 +317,12 @@ end
         L2_fields = sum(abs2, urbm.visible.θ)
         L1_weights = sum(abs, urbm.w)
         L2_weights = sum(abs2, urbm.w)
-        L2L1_weights = sum(abs2, sum(abs, urbm.w; dims=vdims))
+        L2L1_weights = sum(abs2, sum(abs, urbm.w; dims = vdims))
         return (
-            F + l2_fields/2 * L2_fields +
-            l1_weights * L1_weights +
-            l2_weights/2 * L2_weights +
-            l2l1_weights/(2N) * L2L1_weights
+            F + l2_fields / 2 * L2_fields +
+                l1_weights * L1_weights +
+                l2_weights / 2 * L2_weights +
+                l2l1_weights / (2N) * L2L1_weights
         )
     end
 
@@ -336,7 +336,7 @@ end
 
 @testset "∂regularize! centered RBM" begin
     rbm = CenteredRBM(
-        dReLU(; θp=randn(3), θn=randn(3), γp=rand(3), γn=rand(3)), Binary(; θ=randn(2)), randn(3,2),
+        dReLU(; θp = randn(3), θn = randn(3), γp = rand(3), γn = rand(3)), Binary(; θ = randn(2)), randn(3, 2),
         randn(3), randn(2),
     )
     v = randn(3, 100)
@@ -354,12 +354,12 @@ end
         L2_fields = sum(abs2, urbm.visible.θp) + sum(abs2, urbm.visible.θn)
         L1_weights = sum(abs, urbm.w)
         L2_weights = sum(abs2, urbm.w)
-        L2L1_weights = sum(abs2, sum(abs, urbm.w; dims=vdims))
+        L2L1_weights = sum(abs2, sum(abs, urbm.w; dims = vdims))
         return (
-            F + l2_fields/2 * L2_fields +
-            l1_weights * L1_weights +
-            l2_weights/2 * L2_weights +
-            l2l1_weights/(2N) * L2L1_weights
+            F + l2_fields / 2 * L2_fields +
+                l1_weights * L1_weights +
+                l2_weights / 2 * L2_weights +
+                l2l1_weights / (2N) * L2L1_weights
         )
     end
 
@@ -428,8 +428,8 @@ end
     rbm = CenteredBinaryRBM(randn(1), randn(2), randn(1, 2), randn(1), randn(2))
     v = bitrand(1, 7)
     @test log_pseudolikelihood(rbm, v) ≈ log_pseudolikelihood(uncenter(rbm), v)
-    @test log_pseudolikelihood(rbm, v; exact=true) ≈
-        log_pseudolikelihood(uncenter(rbm), v; exact=true)
+    @test log_pseudolikelihood(rbm, v; exact = true) ≈
+        log_pseudolikelihood(uncenter(rbm), v; exact = true)
 end
 
 using RestrictedBoltzmannMachines: RBM, rescale_hidden!, rescale_weights!, weight_norms
@@ -504,12 +504,12 @@ the hidden units as h -> h / λ without changing the modeled distribution p(v). 
 offsets are drawn nonzero because offset_h enters the interaction as h - offset_h and
 must be rescaled together with the activations for p(v) to be preserved. =#
 @testset "rescale_hidden! of CenteredRBM is a gauge transformation ($name hidden)" for (name, hidden) in [
-    ("Gaussian", Gaussian(; θ = randn(2), γ = 0.5 .+ rand(2))),
-    ("ReLU", ReLU(; θ = randn(2), γ = 0.5 .+ rand(2))),
-    ("dReLU", dReLU(; θp = randn(2), θn = randn(2), γp = 0.5 .+ rand(2), γn = 0.5 .+ rand(2))),
-    ("pReLU", pReLU(; θ = randn(2), γ = 0.5 .+ rand(2), Δ = randn(2), η = rand(2) .- 0.5)),
-    ("xReLU", xReLU(; θ = randn(2), γ = 0.5 .+ rand(2), Δ = randn(2), ξ = randn(2))),
-]
+        ("Gaussian", Gaussian(; θ = randn(2), γ = 0.5 .+ rand(2))),
+        ("ReLU", ReLU(; θ = randn(2), γ = 0.5 .+ rand(2))),
+        ("dReLU", dReLU(; θp = randn(2), θn = randn(2), γp = 0.5 .+ rand(2), γn = 0.5 .+ rand(2))),
+        ("pReLU", pReLU(; θ = randn(2), γ = 0.5 .+ rand(2), Δ = randn(2), η = rand(2) .- 0.5)),
+        ("xReLU", xReLU(; θ = randn(2), γ = 0.5 .+ rand(2), Δ = randn(2), ξ = randn(2))),
+    ]
     rbm0 = CenteredRBM(Binary(; θ = randn(3)), hidden, randn(3, 2), randn(3), randn(2))
     rbm1 = deepcopy(rbm0)
     λ = 0.5 .+ rand(2)

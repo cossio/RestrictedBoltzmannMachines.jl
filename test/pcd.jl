@@ -14,13 +14,13 @@ Random.seed!(23)
 
     rbm = BinaryRBM(2, 5)
     initialize!(rbm, data)
-    pcd!(rbm, data; iters = 10000, batchsize = 64, steps = 10, optim = Adam(5e-4))
+    pcd!(rbm, data; iters = 10000, batchsize = 64, steps = 10, optim = Adam(5.0e-4))
 
-    v_sample = sample_v_from_v(rbm, bitrand(2, 10000); steps=50)
+    v_sample = sample_v_from_v(rbm, bitrand(2, 10000); steps = 50)
 
-    @test 0.4 < mean(v_sample[1,:]) < 0.6
-    @test 0.4 < mean(v_sample[2,:]) < 0.6
-    @test 0.4 < mean(v_sample[1,:] .* v_sample[2,:]) < 0.6
+    @test 0.4 < mean(v_sample[1, :]) < 0.6
+    @test 0.4 < mean(v_sample[2, :]) < 0.6
+    @test 0.4 < mean(v_sample[1, :] .* v_sample[2, :]) < 0.6
 end
 
 @testset "default pcd! with zero-initialized continuous hidden units" begin

@@ -39,43 +39,45 @@ parameters with an `Optimisers.jl` rule.
 Returns `(state, ps)`.
 """
 function pcd!(
-    rbm::RBM,
-    data::AbstractArray;
-    batchsize::Int = 1,
-    iters::Int = 1, # number of gradient updates
-    wts::Union{AbstractVector, Nothing} = nothing, # data weights
-    steps::Int = 1, # MC steps to update fantasy chains
-    optim::AbstractRule = Adam(), # optimizer rule
-    moments = moments_from_samples(rbm.visible, data; wts), # sufficient statistics for visible layer
+        rbm::RBM,
+        data::AbstractArray;
+        batchsize::Int = 1,
+        iters::Int = 1, # number of gradient updates
+        wts::Union{AbstractVector, Nothing} = nothing, # data weights
+        steps::Int = 1, # MC steps to update fantasy chains
+        optim::AbstractRule = Adam(), # optimizer rule
+        moments = moments_from_samples(rbm.visible, data; wts), # sufficient statistics for visible layer
 
-    # regularization
-    l2_fields::Real = 0, # visible fields L2 regularization
-    l1_weights::Real = 0, # weights L1 regularization
-    l2_weights::Real = 0, # weights L2 regularization
-    l2l1_weights::Real = 0, # weights L2/L1 regularization
+        # regularization
+        l2_fields::Real = 0, # visible fields L2 regularization
+        l1_weights::Real = 0, # weights L1 regularization
+        l2_weights::Real = 0, # weights L2 regularization
+        l2l1_weights::Real = 0, # weights L2/L1 regularization
 
-    # gauge
-    zerosum::Bool = true, # zerosum gauge for Potts layers
-    rescale::Bool = true, # normalize weights to unit norm (for continuous hidden units only)
+        # gauge
+        zerosum::Bool = true, # zerosum gauge for Potts layers
+        rescale::Bool = true, # normalize weights to unit norm (for continuous hidden units only)
 
-    callback = Returns(nothing), # called for every batch
+        callback = Returns(nothing), # called for every batch
 
-    # init fantasy chains
-    vm = nothing,
+        # init fantasy chains
+        vm = nothing,
 
-    shuffle::Bool = true,
+        shuffle::Bool = true,
 
-    # parameters to optimize
-    ps = nothing,
-    state = nothing,
-)
+        # parameters to optimize
+        ps = nothing,
+        state = nothing,
+    )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert isnothing(wts) || size(data)[end] == length(wts)
     _validate_layer_parameters(rbm)
     isnothing(vm) &&
-        (vm = sample_from_inputs(
+        (
+        vm = sample_from_inputs(
             rbm.visible, Falses(size(rbm.visible)..., batchsize)
-        ))
+        )
+    )
     isnothing(ps) &&
         (ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w))
     isnothing(state) && (state = setup(optim, ps))

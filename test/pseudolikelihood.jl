@@ -7,7 +7,7 @@ using RestrictedBoltzmannMachines: RBM, Binary, Gaussian, Spin, Potts, PottsGumb
     substitution_matrix_sites, log_pseudolikelihood_exact, onehot_encode
 
 @testset "binary pseudolikelihood" begin
-    n = (3,2)
+    n = (3, 2)
     m = (2,)
     B = 3
 
@@ -23,9 +23,9 @@ using RestrictedBoltzmannMachines: RBM, Binary, Gaussian, Spin, Potts, PottsGumb
         ΔE[k, i, :] .= free_energy(rbm, v_) - E
     end
     @test ΔE ≈ substitution_matrix_exhaustive(rbm, v)
-    lpl = -logsumexp(-ΔE; dims=1)
+    lpl = -logsumexp(-ΔE; dims = 1)
     @assert size(lpl) == (1, n..., B)
-    @test log_pseudolikelihood(rbm, v; exact=true) ≈ vec(mean(lpl; dims=(1,2,3)))
+    @test log_pseudolikelihood(rbm, v; exact = true) ≈ vec(mean(lpl; dims = (1, 2, 3)))
 
     ΔE = zeros(2, B)
     sites = [rand(CartesianIndices(n)) for _ in 1:B]
@@ -38,12 +38,12 @@ using RestrictedBoltzmannMachines: RBM, Binary, Gaussian, Spin, Potts, PottsGumb
         ΔE[k, :] .= free_energy(rbm, v_) - E
     end
     @test ΔE ≈ substitution_matrix_sites(rbm, v, sites)
-    lpl = -logsumexp(-ΔE; dims=1)
+    lpl = -logsumexp(-ΔE; dims = 1)
     @test log_pseudolikelihood_sites(rbm, v, sites) ≈ vec(lpl)
 end
 
 @testset "spins pseudolikelihood" begin
-    n = (3,2)
+    n = (3, 2)
     m = (2,)
     B = 3
 
@@ -59,9 +59,9 @@ end
         ΔE[k, i, :] .= free_energy(rbm, v_) - E
     end
     @test ΔE ≈ substitution_matrix_exhaustive(rbm, v)
-    lpl = -logsumexp(-ΔE; dims=1)
+    lpl = -logsumexp(-ΔE; dims = 1)
     @assert size(lpl) == (1, n..., B)
-    @test log_pseudolikelihood(rbm, v; exact=true) ≈ vec(mean(lpl; dims=(1,2,3)))
+    @test log_pseudolikelihood(rbm, v; exact = true) ≈ vec(mean(lpl; dims = (1, 2, 3)))
 
     ΔE = zeros(2, B)
     sites = [rand(CartesianIndices(n)) for _ in 1:B]
@@ -73,13 +73,13 @@ end
         ΔE[k, :] .= free_energy(rbm, v_) - E
     end
     @test ΔE ≈ substitution_matrix_sites(rbm, v, sites)
-    lpl = -logsumexp(-ΔE; dims=1)
+    lpl = -logsumexp(-ΔE; dims = 1)
     @test log_pseudolikelihood_sites(rbm, v, sites) ≈ vec(lpl)
 end
 
 @testset "Potts pseudolikelihood" begin
     q = 3
-    n = (3,2)
+    n = (3, 2)
     m = (2,)
     B = 3
 
@@ -99,9 +99,9 @@ end
         ΔE[x, i, :] .= free_energy(rbm, v_) - E
     end
     @test ΔE ≈ substitution_matrix_exhaustive(rbm, v)
-    lpl = -logsumexp(-ΔE; dims=1)
+    lpl = -logsumexp(-ΔE; dims = 1)
     @assert size(lpl) == (1, n..., B)
-    @test log_pseudolikelihood(rbm, v; exact=true) ≈ vec(mean(lpl; dims=(1,2,3)))
+    @test log_pseudolikelihood(rbm, v; exact = true) ≈ vec(mean(lpl; dims = (1, 2, 3)))
 
     ΔE = zeros(q, B)
     sites = [rand(CartesianIndices(n)) for _ in 1:B]
@@ -114,7 +114,7 @@ end
         ΔE[x, :] .= free_energy(rbm, v_) - E
     end
     @test ΔE ≈ substitution_matrix_sites(rbm, v, sites)
-    lpl = -logsumexp(-ΔE; dims=1)
+    lpl = -logsumexp(-ΔE; dims = 1)
     @test log_pseudolikelihood_sites(rbm, v, sites) ≈ vec(lpl)
 end
 
@@ -173,12 +173,12 @@ end
         w = randn(T, size(visible)..., m...) / sqrt(T(length(visible)))
         rbm = RBM(visible, hidden, w)
         reference = invoke(
-            log_pseudolikelihood_exact, Tuple{RBM,AbstractArray}, rbm, v
+            log_pseudolikelihood_exact, Tuple{RBM, AbstractArray}, rbm, v
         )
         result = log_pseudolikelihood_exact(rbm, v)
         @test size(result) == batch
         @test eltype(result) == T
-        @test result ≈ reference rtol = 5e-4 atol = 5e-5
+        @test result ≈ reference rtol = 5.0e-4 atol = 5.0e-5
     end
 
     # The optimized Potts formula preserves the generic implementation's
@@ -190,12 +190,12 @@ end
         randn(T, q, n..., m...) / sqrt(T(q * prod(n))),
     )
     v_dense = rand(T, q, n..., batch...)
-    v_dense ./= sum(v_dense; dims=1)
+    v_dense ./= sum(v_dense; dims = 1)
     reference = invoke(
-        log_pseudolikelihood_exact, Tuple{RBM,AbstractArray}, rbm, v_dense
+        log_pseudolikelihood_exact, Tuple{RBM, AbstractArray}, rbm, v_dense
     )
     @test log_pseudolikelihood_exact(rbm, v_dense) ≈
-        reference rtol = 5e-4 atol = 5e-5
+        reference rtol = 5.0e-4 atol = 5.0e-5
 
     v_unbatched = bitrand(n...)
     rbm_unbatched = RBM(
@@ -206,26 +206,26 @@ end
     result = log_pseudolikelihood_exact(rbm_unbatched, v_unbatched)
     reference = invoke(
         log_pseudolikelihood_exact,
-        Tuple{RBM,AbstractArray},
+        Tuple{RBM, AbstractArray},
         rbm_unbatched,
         v_unbatched,
     )
     @test size(result) == ()
-    @test only(result) ≈ only(reference) rtol = 5e-4 atol = 5e-5
+    @test only(result) ≈ only(reference) rtol = 5.0e-4 atol = 5.0e-5
 
     # Normalize relative logits before logsumexp. Otherwise, a large common
     # term can erase the conditional normalization in finite precision.
     θ_offset = T[0, 1, -1]
     visible = Potts(; θ = reshape(θ_offset, q, 1))
-    hidden_offset = Gaussian(; θ = T[1e8], γ = T[-1])
+    hidden_offset = Gaussian(; θ = T[1.0e8], γ = T[-1])
     rbm_offset = RBM(visible, hidden_offset, ones(T, q, 1, 1))
     for v in (
-        onehot_encode(reshape([1], 1, 1), 1:q),
-        reshape(T[0.2, 0.3, 0.5], q, 1, 1),
-    )
+            onehot_encode(reshape([1], 1, 1), 1:q),
+            reshape(T[0.2, 0.3, 0.5], q, 1, 1),
+        )
         reference = invoke(
             log_pseudolikelihood_exact,
-            Tuple{RBM{<:Potts},AbstractArray},
+            Tuple{RBM{<:Potts}, AbstractArray},
             rbm_offset,
             v,
         )
@@ -240,22 +240,22 @@ end
     hidden_mixed = Gaussian(; θ = Float32[0], γ = Float32[1])
     mixed_cases = (
         (
-            Binary(; θ = Float64[1e8 + 1]),
+            Binary(; θ = Float64[1.0e8 + 1]),
             reshape([false], 1),
             zeros(Float32, 1, 1),
         ),
         (
-            Spin(; θ = Float64[5e7 + 0.5]),
+            Spin(; θ = Float64[5.0e7 + 0.5]),
             reshape(Int8[-1], 1),
             zeros(Float32, 1, 1),
         ),
         (
-            Potts(; θ = reshape(Float64[1e8, 1e8 + 1, 1e8 - 1], q, 1)),
+            Potts(; θ = reshape(Float64[1.0e8, 1.0e8 + 1, 1.0e8 - 1], q, 1)),
             reshape(Bool[1, 0, 0], q, 1),
             zeros(Float32, q, 1, 1),
         ),
         (
-            PottsGumbel(; θ = reshape(Float64[1e8, 1e8 + 1, 1e8 - 1], q, 1)),
+            PottsGumbel(; θ = reshape(Float64[1.0e8, 1.0e8 + 1, 1.0e8 - 1], q, 1)),
             reshape(Bool[1, 0, 0], q, 1),
             zeros(Float32, q, 1, 1),
         ),
@@ -263,11 +263,11 @@ end
     for (visible_mixed, v, w) in mixed_cases
         rbm_mixed = RBM(visible_mixed, hidden_mixed, w)
         reference = invoke(
-            log_pseudolikelihood_exact, Tuple{RBM,AbstractArray}, rbm_mixed, v
+            log_pseudolikelihood_exact, Tuple{RBM, AbstractArray}, rbm_mixed, v
         )
         result = log_pseudolikelihood_exact(rbm_mixed, v)
         @test eltype(result) == Float64
-        @test result ≈ reference rtol = 0 atol = 1e-8
+        @test result ≈ reference rtol = 0 atol = 1.0e-8
     end
 
     # Integer parameters are valid even though inverse Gaussian precisions are
@@ -280,7 +280,7 @@ end
     v_integer = reshape(Bool[1, 0, 0], q, 1)
     reference = invoke(
         log_pseudolikelihood_exact,
-        Tuple{RBM{<:Potts},AbstractArray},
+        Tuple{RBM{<:Potts}, AbstractArray},
         rbm_integer,
         v_integer,
     )
@@ -294,18 +294,18 @@ end
     # so it coincides with the exact pseudolikelihood.
     rbm = RBM(Binary((1,)), Gaussian((2,)), randn(1, 2))
     v = bitrand(1, 7)
-    @test log_pseudolikelihood(rbm, v) ≈ log_pseudolikelihood(rbm, v; exact=true)
+    @test log_pseudolikelihood(rbm, v) ≈ log_pseudolikelihood(rbm, v; exact = true)
 
     # With many sites, the estimator averages to the exact value. Repeat one
     # sample many times and bound the Monte Carlo error from the per-site spread.
     n = (3, 2)
     rbm = RBM(Binary(n), Gaussian((2,)), randn(n..., 2) / √prod(n))
     v0 = bitrand(n..., 1)
-    exact = only(log_pseudolikelihood(rbm, v0; exact=true))
+    exact = only(log_pseudolikelihood(rbm, v0; exact = true))
     persite = [only(log_pseudolikelihood_sites(rbm, v0, [i])) for i in CartesianIndices(n)]
     @test mean(persite) ≈ exact
     B = 2^12
-    vrep = repeat(v0; outer=(1, 1, B))
+    vrep = repeat(v0; outer = (1, 1, B))
     stoch = mean(log_pseudolikelihood(rbm, vrep))
     @test stoch ≈ exact atol = 10 * std(persite) / √B
 end
@@ -349,5 +349,5 @@ end
     @test substitution_matrix_sites(rbm_gumbel, v, sites) ≈ substitution_matrix_sites(rbm_potts, v, sites)
     @test substitution_matrix_exhaustive(rbm_gumbel, v) ≈ substitution_matrix_exhaustive(rbm_potts, v)
     @test log_pseudolikelihood_sites(rbm_gumbel, v, sites) ≈ log_pseudolikelihood_sites(rbm_potts, v, sites)
-    @test log_pseudolikelihood(rbm_gumbel, v; exact=true) ≈ log_pseudolikelihood(rbm_potts, v; exact=true)
+    @test log_pseudolikelihood(rbm_gumbel, v; exact = true) ≈ log_pseudolikelihood(rbm_potts, v; exact = true)
 end

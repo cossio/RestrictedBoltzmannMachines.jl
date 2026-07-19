@@ -1,0 +1,18 @@
+name: Runic formatting
+on:
+  - push
+  - pull_request
+permissions:
+  contents: read
+jobs:
+  runic:
+    name: Runic
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      - uses: julia-actions/setup-julia@fa02766e078afaaf09b14210362cee14137e6a32
+        with:
+          version: '1'
+      - uses: fredrikekre/runic-action@26bdc21c15f81fbd4c7605a5f94fb5a0060820a6 # v1.4.0
+        with:
+          version: '1.7'

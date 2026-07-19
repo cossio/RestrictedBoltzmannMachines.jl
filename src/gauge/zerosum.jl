@@ -3,7 +3,7 @@ zerosum!(A::AbstractArray; dims = 1) = A .= zerosum(A; dims)
 
 # zerosum only affects Potts layers
 has_potts_layers(rbm) =
-    rbm.visible isa Union{Potts,PottsGumbel} || rbm.hidden isa Union{Potts,PottsGumbel}
+    rbm.visible isa Union{Potts, PottsGumbel} || rbm.hidden isa Union{Potts, PottsGumbel}
 
 """
     zerosum(rbm)

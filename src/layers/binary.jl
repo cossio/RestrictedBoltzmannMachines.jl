@@ -3,9 +3,9 @@
 
 Layer with binary units, with external fields `θ`.
 """
-struct Binary{N,A} <: AbstractLayer{N}
+struct Binary{N, A} <: AbstractLayer{N}
     par::A
-    function Binary{N,A}(par::A) where {N,A<:AbstractArray}
+    function Binary{N, A}(par::A) where {N, A <: AbstractArray}
         @assert size(par, 1) == 1 # θ
         @assert ndims(par) == N + 1
         return new(par)

@@ -27,11 +27,11 @@ _layers = (
     dReLU,
     pReLU,
     xReLU,
-    nsReLU
+    nsReLU,
 )
 
 @testset "testing $Layer" for Layer in _layers
-    sz = (3,2)
+    sz = (3, 2)
     layer = Layer(sz)
     randn!(layer.par)
 
@@ -64,7 +64,7 @@ _layers = (
 
     @test size(@inferred sample_from_inputs(layer, 0)) == size(layer)
 
-    for B in ((), (2,), (1,2))
+    for B in ((), (2,), (1, 2))
         x = rand(sz..., B...)
         @test (@inferred batch_size(layer, x)) == (B...,)
         @test (@inferred batchdims(layer, x)) == (length(sz) + 1):ndims(x)
@@ -94,11 +94,11 @@ _layers = (
             @test @inferred(batchvar(layer, x)) == zeros(sz)
             @test @inferred(batchcov(layer, x)) == zeros(sz..., sz...)
         else
-            @test @inferred(energy(layer, x)) ≈ reshape(sum(energies(layer, x); dims=1:ndims(layer)), B)
-            @test @inferred(cgf(layer, x)) ≈ reshape(sum(cgfs(layer, x); dims=1:ndims(layer)), B)
-            @test @inferred(batchmean(layer, x)) ≈ reshape(mean(x; dims=(ndims(layer) + 1):ndims(x)), sz)
-            @test @inferred(batchvar(layer, x)) ≈ reshape(var(x; dims=(ndims(layer) + 1):ndims(x), corrected=false), sz)
-            @test @inferred(batchcov(layer, x)) ≈ reshape(cov(flatten(layer, x); dims=2, corrected=false), sz..., sz...)
+            @test @inferred(energy(layer, x)) ≈ reshape(sum(energies(layer, x); dims = 1:ndims(layer)), B)
+            @test @inferred(cgf(layer, x)) ≈ reshape(sum(cgfs(layer, x); dims = 1:ndims(layer)), B)
+            @test @inferred(batchmean(layer, x)) ≈ reshape(mean(x; dims = (ndims(layer) + 1):ndims(x)), sz)
+            @test @inferred(batchvar(layer, x)) ≈ reshape(var(x; dims = (ndims(layer) + 1):ndims(x), corrected = false), sz)
+            @test @inferred(batchcov(layer, x)) ≈ reshape(cov(flatten(layer, x); dims = 2, corrected = false), sz..., sz...)
         end
 
         μ = @inferred mean_from_inputs(layer, x)
@@ -112,13 +112,13 @@ _layers = (
     @test ∂Γ ≈ only(gs).par
 
     samples = @inferred sample_from_inputs(layer, zeros(size(layer)..., 10^6))
-    @test @inferred(mean_from_inputs(layer)) ≈ reshape(mean(samples; dims=3), size(layer)) rtol=0.1 atol=0.01
-    @test @inferred(var_from_inputs(layer)) ≈ reshape(var(samples; dims=ndims(samples)), size(layer)) rtol=0.1
-    @test @inferred(mean_abs_from_inputs(layer)) ≈ reshape(mean(abs.(samples); dims=ndims(samples)), size(layer)) rtol=0.1
+    @test @inferred(mean_from_inputs(layer)) ≈ reshape(mean(samples; dims = 3), size(layer)) rtol = 0.1 atol = 0.01
+    @test @inferred(var_from_inputs(layer)) ≈ reshape(var(samples; dims = ndims(samples)), size(layer)) rtol = 0.1
+    @test @inferred(mean_abs_from_inputs(layer)) ≈ reshape(mean(abs.(samples); dims = ndims(samples)), size(layer)) rtol = 0.1
 
     ∂Γ = @inferred ∂cgf(layer)
     ∂E = @inferred ∂energy(layer, samples)
-    @test ∂Γ ≈ -∂E rtol=0.1
+    @test ∂Γ ≈ -∂E rtol = 0.1
 
     gs = Zygote.gradient(layer) do layer
         sum(energies(layer, samples)) / size(samples)[end]
@@ -180,11 +180,11 @@ end
     q = 3
     N = (4, 5)
     layer = Potts(; θ = randn(q, N...))
-    @test cgfs(layer) ≈ log.(sum(exp.(layer.θ[h:h,:,:,:]) for h in 1:q))
-    @test all(sum(mean_from_inputs(layer); dims=1) .≈ 1)
+    @test cgfs(layer) ≈ log.(sum(exp.(layer.θ[h:h, :, :, :]) for h in 1:q))
+    @test all(sum(mean_from_inputs(layer); dims = 1) .≈ 1)
     # samples are proper one-hot
     @test sort(unique(sample_from_inputs(layer))) == [0, 1]
-    @test all(sum(sample_from_inputs(layer); dims=1) .== 1)
+    @test all(sum(sample_from_inputs(layer); dims = 1) .== 1)
 
     gs = Zygote.gradient(layer) do layer
         sum(cgfs(layer))
@@ -206,11 +206,11 @@ end
     @test energies(layer, x) ≈ @. abs(layer.γ) * x^2 / 2 - layer.θ * x
 
     function quad_cgf(θ::Real, γ::Real)
-        Z, ϵ = quadgk(h -> exp(-gauss_energy(θ, γ, h)), -Inf,  Inf)
+        Z, ϵ = quadgk(h -> exp(-gauss_energy(θ, γ, h)), -Inf, Inf)
         return log(Z)
     end
 
-    @test cgfs(layer) ≈ quad_cgf.(layer.θ, layer.γ) rtol=1e-6
+    @test cgfs(layer) ≈ quad_cgf.(layer.θ, layer.γ) rtol = 1.0e-6
 
     gs = Zygote.gradient(layer) do layer
         sum(cgfs(layer))
@@ -221,7 +221,7 @@ end
     ∂ = ∂cgf(layer)
     @test ∂ ≈ only(gs).par
     @test ∂[1, ..] ≈ μ
-    @test ∂[2, ..] ≈ -sign.(layer.γ) .* μ2/2
+    @test ∂[2, ..] ≈ -sign.(layer.γ) .* μ2 / 2
     @test grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
     @test grad2var(layer, ∂) ≈ var_from_inputs(layer)
 end
@@ -237,7 +237,7 @@ end
     @test energies(layer, x) ≈ energies(Gaussian(; layer.θ, layer.γ), x)
 
     function quad_cgf(θ::Real, γ::Real)
-        Z, ϵ = quadgk(h -> exp(-relu_energy(θ, γ, h)), 0,  Inf)
+        Z, ϵ = quadgk(h -> exp(-relu_energy(θ, γ, h)), 0, Inf)
         return log(Z)
     end
     @test cgfs(layer) ≈ @. quad_cgf(layer.θ, layer.γ)
@@ -252,7 +252,7 @@ end
 
     @test ∂ ≈ only(gs).par
     @test ∂[1, ..] ≈ μ
-    @test ∂[2, ..] ≈ -sign.(layer.γ) .* μ2/2
+    @test ∂[2, ..] ≈ -sign.(layer.γ) .* μ2 / 2
     @test grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
     @test grad2var(layer, ∂) ≈ var_from_inputs(layer)
 end
@@ -312,27 +312,27 @@ end
     xrelu = @inferred xReLU(gauss)
     @test (
         energies(gauss, x) ≈ energies(drelu, x) ≈
-        energies(prelu, x) ≈ energies(xrelu, x)
+            energies(prelu, x) ≈ energies(xrelu, x)
     )
     @test (
         cgfs(gauss) ≈ cgfs(drelu) ≈
-        cgfs(prelu) ≈ cgfs(xrelu)
+            cgfs(prelu) ≈ cgfs(xrelu)
     )
     @test (
         mode_from_inputs(gauss) ≈ mode_from_inputs(drelu) ≈
-        mode_from_inputs(prelu) ≈ mode_from_inputs(xrelu)
+            mode_from_inputs(prelu) ≈ mode_from_inputs(xrelu)
     )
     @test (
         mean_from_inputs(gauss) ≈ mean_from_inputs(drelu) ≈
-        mean_from_inputs(prelu) ≈ mean_from_inputs(xrelu)
+            mean_from_inputs(prelu) ≈ mean_from_inputs(xrelu)
     )
     @test (
         mean_abs_from_inputs(gauss) ≈ mean_abs_from_inputs(drelu) ≈
-        mean_abs_from_inputs(prelu) ≈ mean_abs_from_inputs(xrelu)
+            mean_abs_from_inputs(prelu) ≈ mean_abs_from_inputs(xrelu)
     )
     @test (
         var_from_inputs(gauss) ≈ var_from_inputs(drelu) ≈
-        var_from_inputs(prelu) ≈ var_from_inputs(xrelu)
+            var_from_inputs(prelu) ≈ var_from_inputs(xrelu)
     )
 
     drelu = dReLU(; θp = randn(1), θn = [0.0], γp = randn(1), γn = [Inf])
@@ -358,7 +358,7 @@ end
         γn = (rand(N...) .+ 1) .* (rand(Bool, N...) .- 0.5)
     )
 
-    Ep = energy(ReLU(; θ =  layer.θp, γ = layer.γp), max.( x, 0))
+    Ep = energy(ReLU(; θ = layer.θp, γ = layer.γp), max.(x, 0))
     En = energy(ReLU(; θ = -layer.θn, γ = layer.γn), max.(-x, 0))
     @test energy(layer, x) ≈ Ep + En
     @test iszero(energy(layer, zero(x)))
@@ -418,10 +418,10 @@ end
 
 @testset "grad2ave $Layer" for Layer in _layers
     layer = Layer((5,))
-    rbm = RBM(layer, Binary(; θ = randn(3)), randn(5,3))
-    v = sample_v_from_v(rbm, randn(5,100); steps=100)
+    rbm = RBM(layer, Binary(; θ = randn(3)), randn(5, 3))
+    v = sample_v_from_v(rbm, randn(5, 100); steps = 100)
     ∂ = ∂free_energy(rbm, v)
-    @test (@inferred grad2ave(rbm.visible, -∂.visible)) ≈ dropdims(mean(v; dims=2); dims=2)
+    @test (@inferred grad2ave(rbm.visible, -∂.visible)) ≈ dropdims(mean(v; dims = 2); dims = 2)
 end
 
 using RestrictedBoltzmannMachines: batchstd, drelu_rand, drelu_mode, PottsGumbel, nsReLU
@@ -485,7 +485,7 @@ using RestrictedBoltzmannMachines: colors, sitedims, sitesize,
     inputs = randn(q, N..., B)
     modes = mode_from_inputs(layer, inputs)
     θ = layer.θ .+ inputs
-    @test all(sum(modes; dims=1) .== 1) # one-hot
+    @test all(sum(modes; dims = 1) .== 1) # one-hot
     for i in CartesianIndices((N..., B))
         @test modes[argmax(θ[:, i]), i]
     end
@@ -539,13 +539,13 @@ end
     u = (0.5:9999.5) ./ 10^4
     for θ in (-0.7, 0.3)
         @test spin_rand.(θ, u) ⊆ (-1, 1)
-        @test mean(spin_rand.(θ, u)) ≈ tanh(θ) atol=1e-3
+        @test mean(spin_rand.(θ, u)) ≈ tanh(θ) atol = 1.0e-3
     end
 
     # relu_rand samples a truncated normal on [0, ∞)
-    samples = [relu_rand(0.5, 2.0) for _ in 1:10^6]
+    samples = [relu_rand(0.5, 2.0) for _ in 1:(10^6)]
     @test all(samples .≥ 0)
-    @test mean(samples) ≈ only(mean_from_inputs(ReLU(; θ = [0.5], γ = [2.0]))) rtol=0.01
+    @test mean(samples) ≈ only(mean_from_inputs(ReLU(; θ = [0.5], γ = [2.0]))) rtol = 0.01
 
     # drelu_cgf agrees with numerical integration
     function quad_drelu_cgf(θp, θn, γp, γn)
@@ -563,10 +563,10 @@ end
     suppressed must reproduce the ReLU statistics. =#
     θp = randn(3)
     γp = rand(3) .+ 1
-    drelu = dReLU(; θp, θn = zeros(3), γp, γn = fill(1e10, 3))
+    drelu = dReLU(; θp, θn = zeros(3), γp, γn = fill(1.0e10, 3))
     relu = ReLU(; θ = θp, γ = γp)
-    @test mean_from_inputs(drelu) ≈ mean_from_inputs(relu) rtol=1e-4
-    @test var_from_inputs(drelu) ≈ var_from_inputs(relu) rtol=1e-4
-    @test mean_abs_from_inputs(drelu) ≈ mean_abs_from_inputs(relu) rtol=1e-4
-    @test cgfs(drelu) ≈ cgfs(relu) .+ log1p.(exp.(relu_cfg.(0, 1e10) .- cgfs(relu))) rtol=1e-6
+    @test mean_from_inputs(drelu) ≈ mean_from_inputs(relu) rtol = 1.0e-4
+    @test var_from_inputs(drelu) ≈ var_from_inputs(relu) rtol = 1.0e-4
+    @test mean_abs_from_inputs(drelu) ≈ mean_abs_from_inputs(relu) rtol = 1.0e-4
+    @test cgfs(drelu) ≈ cgfs(relu) .+ log1p.(exp.(relu_cfg.(0, 1.0e10) .- cgfs(relu))) rtol = 1.0e-6
 end

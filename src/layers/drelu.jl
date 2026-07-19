@@ -3,9 +3,9 @@
 
 Double ReLU layer, with separate parameters for positive and negative parts.
 """
-struct dReLU{N,A} <: AbstractLayer{N}
+struct dReLU{N, A} <: AbstractLayer{N}
     par::A
-    function dReLU{N,A}(par::A) where {N,A<:AbstractArray}
+    function dReLU{N, A}(par::A) where {N, A <: AbstractArray}
         @assert size(par, 1) == 4 # θp, θn, γp, γn
         @assert ndims(par) == N + 1
         return new(par)
@@ -74,47 +74,47 @@ end
 std_from_inputs(layer::dReLU, inputs = 0) = sqrt.(var_from_inputs(layer, inputs))
 
 function mean_from_inputs(layer::dReLU, inputs = 0)
-    lp = ReLU(; θ =  layer.θp, γ = layer.γp)
+    lp = ReLU(; θ = layer.θp, γ = layer.γp)
     ln = ReLU(; θ = -layer.θn, γ = layer.γn)
 
-    Γp = cgfs(lp,  inputs)
+    Γp = cgfs(lp, inputs)
     Γn = cgfs(ln, -inputs)
     Γ = logaddexp.(Γp, Γn)
 
     pp = exp.(Γp - Γ)
     pn = exp.(Γn - Γ)
-    μp = mean_from_inputs(lp,  inputs)
+    μp = mean_from_inputs(lp, inputs)
     μn = mean_from_inputs(ln, -inputs)
     return pp .* μp - pn .* μn
 end
 
 function var_from_inputs(layer::dReLU, inputs = 0)
-    lp = ReLU(; θ =  layer.θp, γ = layer.γp)
+    lp = ReLU(; θ = layer.θp, γ = layer.γp)
     ln = ReLU(; θ = -layer.θn, γ = layer.γn)
 
-    Γp = cgfs(lp,  inputs)
+    Γp = cgfs(lp, inputs)
     Γn = cgfs(ln, -inputs)
     Γ = logaddexp.(Γp, Γn)
 
     pp = exp.(Γp - Γ)
     pn = exp.(Γn - Γ)
-    μp, νp = meanvar_from_inputs(lp,  inputs)
+    μp, νp = meanvar_from_inputs(lp, inputs)
     μn, νn = meanvar_from_inputs(ln, -inputs)
     μ = pp .* μp - pn .* μn
     return @. pp * (νp + μp^2) + pn * (νn + μn^2) - μ^2
 end
 
 function meanvar_from_inputs(layer::dReLU, inputs = 0)
-    lp = ReLU(; θ =  layer.θp, γ = layer.γp)
+    lp = ReLU(; θ = layer.θp, γ = layer.γp)
     ln = ReLU(; θ = -layer.θn, γ = layer.γn)
 
-    Γp = cgfs(lp,  inputs)
+    Γp = cgfs(lp, inputs)
     Γn = cgfs(ln, -inputs)
     Γ = logaddexp.(Γp, Γn)
 
     pp = exp.(Γp - Γ)
     pn = exp.(Γn - Γ)
-    μp, νp = meanvar_from_inputs(lp,  inputs)
+    μp, νp = meanvar_from_inputs(lp, inputs)
     μn, νn = meanvar_from_inputs(ln, -inputs)
     μ = pp .* μp - pn .* μn
     ν = @. pp * (νp + μp^2) + pn * (νn + μn^2) - μ^2
@@ -122,32 +122,32 @@ function meanvar_from_inputs(layer::dReLU, inputs = 0)
 end
 
 function mean_abs_from_inputs(layer::dReLU, inputs = 0)
-    lp = ReLU(; θ =  layer.θp, γ = layer.γp)
+    lp = ReLU(; θ = layer.θp, γ = layer.γp)
     ln = ReLU(; θ = -layer.θn, γ = layer.γn)
 
-    Γp = cgfs(lp,  inputs)
+    Γp = cgfs(lp, inputs)
     Γn = cgfs(ln, -inputs)
     Γ = logaddexp.(Γp, Γn)
 
     pp = exp.(Γp - Γ)
     pn = exp.(Γn - Γ)
 
-    μp =  mean_from_inputs(lp,  inputs)
+    μp = mean_from_inputs(lp, inputs)
     μn = -mean_from_inputs(ln, -inputs)
     return pp .* μp - pn .* μn
 end
 
 function ∂cgfs(layer::dReLU, inputs = 0)
-    lp = ReLU(; θ =  layer.θp, γ = layer.γp)
+    lp = ReLU(; θ = layer.θp, γ = layer.γp)
     ln = ReLU(; θ = -layer.θn, γ = layer.γn)
 
-    Γp = cgfs(lp,  inputs)
+    Γp = cgfs(lp, inputs)
     Γn = cgfs(ln, -inputs)
     Γ = logaddexp.(Γp, Γn)
 
     pp = exp.(Γp - Γ)
     pn = exp.(Γn - Γ)
-    μp, νp = meanvar_from_inputs(lp,  inputs)
+    μp, νp = meanvar_from_inputs(lp, inputs)
     μn, νn = meanvar_from_inputs(ln, -inputs)
     μ2p = @. (νp + μp^2) / 2
     μ2n = @. (νn + μn^2) / 2
@@ -164,8 +164,8 @@ function moments_from_samples(layer::dReLU, data::AbstractArray; wts = nothing)
     xn = min.(data, 0)
     xp1 = batchmean(layer, xp; wts)
     xn1 = batchmean(layer, xn; wts)
-    xp2 = batchmean(layer, xp.^2; wts)
-    xn2 = batchmean(layer, xn.^2; wts)
+    xp2 = batchmean(layer, xp .^ 2; wts)
+    xn2 = batchmean(layer, xn .^ 2; wts)
     return vstack((xp1, xn1, xp2, xn2))
 end
 
@@ -182,7 +182,7 @@ function drelu_energy(θp::Real, θn::Real, γp::Real, γn::Real, x::Real)
     return drelu_energy(promote(θp, θn)..., promote(γp, γn)..., x)
 end
 
-function drelu_energy(θp::T, θn::T, γp::S, γn::S, x::Real) where {T<:Real, S<:Real}
+function drelu_energy(θp::T, θn::T, γp::S, γn::S, x::Real) where {T <: Real, S <: Real}
     if x ≥ 0
         return gauss_energy(θp, γp, x)
     else
@@ -191,7 +191,7 @@ function drelu_energy(θp::T, θn::T, γp::S, γn::S, x::Real) where {T<:Real, S
 end
 
 function drelu_cgf(θp::Real, θn::Real, γp::Real, γn::Real)
-    Γp = relu_cfg( θp, γp)
+    Γp = relu_cfg(θp, γp)
     Γn = relu_cfg(-θn, γn)
     return logaddexp(Γp, Γn)
 end
@@ -200,12 +200,12 @@ function drelu_rand(θp::Real, θn::Real, γp::Real, γn::Real)
     return drelu_rand(promote(θp, θn)..., promote(γp, γn)...)
 end
 
-function drelu_rand(θp::T, θn::T, γp::S, γn::S) where {T<:Real, S<:Real}
+function drelu_rand(θp::T, θn::T, γp::S, γn::S) where {T <: Real, S <: Real}
     Γp = relu_cfg(θp, γp)
     Γn = relu_cfg(-θn, γn)
     Γ = logaddexp(Γp, Γn)
     if randexp(typeof(Γ)) ≥ Γ - Γp
-        return  relu_rand( θp, γp)
+        return relu_rand(θp, γp)
     else
         return -relu_rand(-θn, γn)
     end

@@ -10,9 +10,9 @@ E = -\sum_i \theta_i s_i
 
 where each spin ``s_i`` takes values ``\pm 1``.
 """
-struct Spin{N,A} <: AbstractLayer{N}
+struct Spin{N, A} <: AbstractLayer{N}
     par::A
-    function Spin{N,A}(par::A) where {N,A<:AbstractArray}
+    function Spin{N, A}(par::A) where {N, A <: AbstractArray}
         @assert size(par, 1) == 1 # θ
         @assert ndims(par) == N + 1
         return new(par)

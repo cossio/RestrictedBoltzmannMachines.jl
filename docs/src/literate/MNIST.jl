@@ -36,8 +36,8 @@ containing `width x height` images in a grid of `nrows x ncols`, this returns
 a matrix of size `(width * ncols, height * nrows)`, that can be plotted in a heatmap
 to display all images.
 """
-imggrid(A::AbstractArray{<:Any,4}) =
-    reshape(permutedims(A, (1,3,2,4)), size(A,1)*size(A,3), size(A,2)*size(A,4))
+imggrid(A::AbstractArray{<:Any, 4}) =
+    reshape(permutedims(A, (1, 3, 2, 4)), size(A, 1) * size(A, 3), size(A, 2) * size(A, 4))
 
 #=
 ## Loading and preparing the data
@@ -48,19 +48,19 @@ For faster training, we select only one digit class (zeros).
 =#
 
 Float = Float32
-train_x = MLDatasets.MNIST(split=:train)[:].features
-train_y = MLDatasets.MNIST(split=:train)[:].targets
+train_x = MLDatasets.MNIST(split = :train)[:].features
+train_y = MLDatasets.MNIST(split = :train)[:].targets
 train_x = Array{Float}(train_x[:, :, train_y .== 0] .≥ 0.5)
 nothing #hide
 
 # Let's visualize some random digits from the training set.
 
 nrows, ncols = 10, 15
-fig = Makie.Figure(resolution=(40ncols, 40nrows))
-ax = Makie.Axis(fig[1,1], yreversed=true)
-idx = rand(1:size(train_x,3), nrows * ncols) # random indices of digits
-digits = reshape(train_x[:,:,idx], 28, 28, ncols, nrows)
-Makie.image!(ax, imggrid(digits), colorrange=(1,0))
+fig = Makie.Figure(resolution = (40ncols, 40nrows))
+ax = Makie.Axis(fig[1, 1], yreversed = true)
+idx = rand(1:size(train_x, 3), nrows * ncols) # random indices of digits
+digits = reshape(train_x[:, :, idx], 28, 28, ncols, nrows)
+Makie.image!(ax, imggrid(digits), colorrange = (1, 0))
 Makie.hidedecorations!(ax)
 Makie.hidespines!(ax)
 fig
@@ -75,7 +75,7 @@ initialize the weights to small random values. This gives the RBM a
 reasonable starting point for training.
 =#
 
-rbm = BinaryRBM(Float, (28,28), 400)
+rbm = BinaryRBM(Float, (28, 28), 400)
 initialize!(rbm, train_x)
 nothing #hide
 
@@ -119,7 +119,7 @@ iters = 10000
 history = MVHistory()
 @time pcd!(
     rbm, train_x; iters, batchsize,
-    callback = function(; iter, _...)
+    callback = function (; iter, _...)
         if iszero(iter % 100)
             lpl = mean(log_pseudolikelihood(rbm, train_x))
             @trace history iter lpl
@@ -133,8 +133,8 @@ After training, the pseudolikelihood improves significantly,
 indicating that the model has learned the structure of the data.
 =#
 
-fig = Makie.Figure(resolution=(500,300))
-ax = Makie.Axis(fig[1,1], xlabel = "iteration", ylabel="log-pseudolikelihood")
+fig = Makie.Figure(resolution = (500, 300))
+ax = Makie.Axis(fig[1, 1], xlabel = "iteration", ylabel = "log-pseudolikelihood")
 Makie.lines!(ax, get(history, :lpl)...)
 fig
 
@@ -153,30 +153,30 @@ should stabilize once the chains reach equilibrium.
 =#
 
 nsteps = 3000
-fantasy_F = zeros(nrows*ncols, nsteps)
-fantasy_x = bitrand(28,28,nrows*ncols)
-fantasy_F[:,1] .= free_energy(rbm, fantasy_x)
+fantasy_F = zeros(nrows * ncols, nsteps)
+fantasy_x = bitrand(28, 28, nrows * ncols)
+fantasy_F[:, 1] .= free_energy(rbm, fantasy_x)
 @time for t in 2:nsteps
     fantasy_x .= sample_v_from_v(rbm, fantasy_x)
-    fantasy_F[:,t] .= free_energy(rbm, fantasy_x)
+    fantasy_F[:, t] .= free_energy(rbm, fantasy_x)
 end
 nothing #hide
 
 # The free energy decreases and stabilizes, indicating equilibration.
 
-fig = Makie.Figure(resolution=(400,300))
-ax = Makie.Axis(fig[1,1], xlabel="sampling step", ylabel="free energy")
-fantasy_F_μ = vec(mean(fantasy_F; dims=1))
-fantasy_F_σ = vec(std(fantasy_F; dims=1))
-Makie.band!(ax, 1:nsteps, fantasy_F_μ - fantasy_F_σ/2, fantasy_F_μ + fantasy_F_σ/2)
+fig = Makie.Figure(resolution = (400, 300))
+ax = Makie.Axis(fig[1, 1], xlabel = "sampling step", ylabel = "free energy")
+fantasy_F_μ = vec(mean(fantasy_F; dims = 1))
+fantasy_F_σ = vec(std(fantasy_F; dims = 1))
+Makie.band!(ax, 1:nsteps, fantasy_F_μ - fantasy_F_σ / 2, fantasy_F_μ + fantasy_F_σ / 2)
 Makie.lines!(ax, 1:nsteps, fantasy_F_μ)
 fig
 
 # The sampled digits resemble the training data:
 
-fig = Makie.Figure(resolution=(40ncols, 40nrows))
-ax = Makie.Axis(fig[1,1], yreversed=true)
-Makie.image!(ax, imggrid(reshape(fantasy_x, 28, 28, ncols, nrows)), colorrange=(1,0))
+fig = Makie.Figure(resolution = (40ncols, 40nrows))
+ax = Makie.Axis(fig[1, 1], yreversed = true)
+Makie.image!(ax, imggrid(reshape(fantasy_x, 28, 28, ncols, nrows)), colorrange = (1, 0))
 Makie.hidedecorations!(ax)
 Makie.hidespines!(ax)
 fig

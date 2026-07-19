@@ -3,7 +3,7 @@
 
 RBM, with visible layer of type `V`, hidden layer of type `H`, and weights of type `W`.
 """
-struct RBM{V,H,W}
+struct RBM{V, H, W}
     visible::V
     hidden::H
     w::W
@@ -125,7 +125,7 @@ function interaction_energy(rbm, v, h)
         E = -sum(inputs .* h; dims = 1:ndims(rbm.hidden))
     else
         inputs = inputs_v_from_h(rbm, h)
-        E = -sum(v .* inputs; dims=1:ndims(rbm.visible))
+        E = -sum(v .* inputs; dims = 1:ndims(rbm.visible))
     end
     return reshape_maybe(E, bsz)
 end
@@ -156,7 +156,7 @@ end
 Samples a visible configuration conditional on another visible configuration `v`.
 Ensures type stability by requiring that the returned array is of the same type as `v`.
 """
-function sample_v_from_v(rbm, v; steps=1)
+function sample_v_from_v(rbm, v; steps = 1)
     @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
     for _ in 1:steps
         v = oftype(v, sample_v_from_v_once(rbm, v))
@@ -170,7 +170,7 @@ end
 Samples a hidden configuration conditional on another hidden configuration `h`.
 Ensures type stability by requiring that the returned array is of the same type as `h`.
 """
-function sample_h_from_h(rbm, h; steps=1)
+function sample_h_from_h(rbm, h; steps = 1)
     @assert size(rbm.hidden) == size(h)[1:ndims(rbm.hidden)]
     for _ in 1:steps
         h = oftype(h, sample_h_from_h_once(rbm, h))
@@ -267,7 +267,7 @@ function batch_size(rbm, v, h)
     end
 end
 
-function join_batch_size(bsz_1::Tuple{Int,Vararg{Int}}, bsz_2::Tuple{Int,Vararg{Int}})
+function join_batch_size(bsz_1::Tuple{Int, Vararg{Int}}, bsz_2::Tuple{Int, Vararg{Int}})
     if length(bsz_1) > length(bsz_2)
         D = length(bsz_2)
         sz2 = bsz_1[(D + 1):end]
@@ -288,7 +288,7 @@ end
 
 Stochastic reconstruction error of `v`.
 """
-function reconstruction_error(rbm, v; steps=1)
+function reconstruction_error(rbm, v; steps = 1)
     @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
     v1 = sample_v_from_v(rbm, v; steps)
     ϵ = mean(abs.(v .- v1); dims = 1:ndims(rbm.visible))

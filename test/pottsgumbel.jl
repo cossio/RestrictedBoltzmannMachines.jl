@@ -48,7 +48,7 @@ _layers = (
 )
 
 @testset "testing $Layer" for Layer in _layers
-    sz = (3,2)
+    sz = (3, 2)
     layer = Layer(sz)
     randn!(layer.par)
 
@@ -76,7 +76,7 @@ _layers = (
 
     @test size(@inferred sample_from_inputs(layer, 0)) == size(layer)
 
-    for B in ((), (2,), (1,2))
+    for B in ((), (2,), (1, 2))
         x = rand(sz..., B...)
         @test (@inferred batchdims(layer, x)) == (length(sz) + 1):ndims(x)
         @test size(@inferred energy(layer, x)) == (B...,)
@@ -102,8 +102,8 @@ _layers = (
             @test @inferred(energy(layer, x)) ≈ sum(energies(layer, x))
             @test @inferred(cgf(layer, x)) ≈ sum(cgfs(layer, x))
         else
-            @test @inferred(energy(layer, x)) ≈ reshape(sum(energies(layer, x); dims=1:ndims(layer)), B)
-            @test @inferred(cgf(layer, x)) ≈ reshape(sum(cgfs(layer, x); dims=1:ndims(layer)), B)
+            @test @inferred(energy(layer, x)) ≈ reshape(sum(energies(layer, x); dims = 1:ndims(layer)), B)
+            @test @inferred(cgf(layer, x)) ≈ reshape(sum(cgfs(layer, x); dims = 1:ndims(layer)), B)
         end
 
         μ = @inferred mean_from_inputs(layer, x)
@@ -117,13 +117,13 @@ _layers = (
     @test ∂Γ ≈ only(gs).par
 
     samples = @inferred sample_from_inputs(layer, zeros(size(layer)..., 10^6))
-    @test @inferred(mean_from_inputs(layer)) ≈ reshape(mean(samples; dims=3), size(layer)) rtol=0.1 atol=0.01
-    @test @inferred(var_from_inputs(layer)) ≈ reshape(var(samples; dims=ndims(samples)), size(layer)) rtol=0.1
-    @test @inferred(mean_abs_from_inputs(layer)) ≈ reshape(mean(abs.(samples); dims=ndims(samples)), size(layer)) rtol=0.1
+    @test @inferred(mean_from_inputs(layer)) ≈ reshape(mean(samples; dims = 3), size(layer)) rtol = 0.1 atol = 0.01
+    @test @inferred(var_from_inputs(layer)) ≈ reshape(var(samples; dims = ndims(samples)), size(layer)) rtol = 0.1
+    @test @inferred(mean_abs_from_inputs(layer)) ≈ reshape(mean(abs.(samples); dims = ndims(samples)), size(layer)) rtol = 0.1
 
     ∂Γ = @inferred ∂cgf(layer)
     ∂E = @inferred ∂energy(layer, samples)
-    @test ∂Γ ≈ -∂E rtol=0.1
+    @test ∂Γ ≈ -∂E rtol = 0.1
 
     gs = Zygote.gradient(layer) do layer
         sum(energies(layer, samples)) / size(samples)[end]
@@ -147,11 +147,11 @@ end
     q = 3
     N = (4, 5)
     layer = PottsGumbel(; θ = randn(q, N...))
-    @test cgfs(layer) ≈ log.(sum(exp.(layer.θ[h:h,:,:,:]) for h in 1:q))
-    @test all(sum(mean_from_inputs(layer); dims=1) .≈ 1)
+    @test cgfs(layer) ≈ log.(sum(exp.(layer.θ[h:h, :, :, :]) for h in 1:q))
+    @test all(sum(mean_from_inputs(layer); dims = 1) .≈ 1)
     # samples are proper one-hot
     @test sort(unique(sample_from_inputs(layer))) == [0, 1]
-    @test all(sum(sample_from_inputs(layer); dims=1) .== 1)
+    @test all(sum(sample_from_inputs(layer); dims = 1) .== 1)
 
     gs = Zygote.gradient(layer) do layer
         sum(cgfs(layer))
@@ -166,10 +166,10 @@ end
 
 @testset "grad2ave $Layer" for Layer in _layers
     layer = Layer((5,))
-    rbm = RBM(layer, Binary(; θ = randn(3)), randn(5,3))
-    v = sample_v_from_v(rbm, randn(5,100); steps=100)
+    rbm = RBM(layer, Binary(; θ = randn(3)), randn(5, 3))
+    v = sample_v_from_v(rbm, randn(5, 100); steps = 100)
     ∂ = ∂free_energy(rbm, v)
-    @test (@inferred grad2ave(rbm.visible, -∂.visible)) ≈ dropdims(mean(v; dims=2); dims=2)
+    @test (@inferred grad2ave(rbm.visible, -∂.visible)) ≈ dropdims(mean(v; dims = 2); dims = 2)
 end
 
 using RestrictedBoltzmannMachines: Potts, PottsGumbel, anneal, anneal_zero,
@@ -233,9 +233,9 @@ end
     N = (2, 3)
     layer = PottsGumbel(; θ = randn(q, N...))
     data = onehot_encode(onehot_decode(rand(q, N..., 10^5) .- rand(q, N..., 1)), 1:q)
-    @assert all(sum(data; dims=1) .== 1)
+    @assert all(sum(data; dims = 1) .== 1)
     initialize!(layer, data)
-    @test mean_from_inputs(layer) ≈ reshape(mean(data; dims=4), size(layer)) rtol=0.05
+    @test mean_from_inputs(layer) ≈ reshape(mean(data; dims = 4), size(layer)) rtol = 0.05
 end
 
 @testset "potts_to_gumbel / gumbel_to_potts on non-matching layers" begin

@@ -4,9 +4,9 @@
 A variant of `xReLU` units without scale parameter γ (which is fixed at 1). This is done
 to remove the gauge invariance between the weights and the hidden units scale.
 """
-struct nsReLU{N,A} <: RestrictedBoltzmannMachines.AbstractLayer{N}
+struct nsReLU{N, A} <: RestrictedBoltzmannMachines.AbstractLayer{N}
     par::A
-    function nsReLU{N,A}(par::A) where {N,A<:AbstractArray}
+    function nsReLU{N, A}(par::A) where {N, A <: AbstractArray}
         @assert size(par, 1) == 3 # θ, Δ, ξ (there is no γ)
         @assert ndims(par) == N + 1
         return new(par)
@@ -15,7 +15,7 @@ end
 
 nsReLU(par::AbstractArray) = nsReLU{ndims(par) - 1, typeof(par)}(par)
 nsReLU(; θ, Δ, ξ) = nsReLU(vstack((θ, Δ, ξ)))
-nsReLU(::Type{T}, sz::Dims) where {T} = nsReLU(; θ=zeros(T, sz), Δ=zeros(T, sz), ξ=zeros(T, sz))
+nsReLU(::Type{T}, sz::Dims) where {T} = nsReLU(; θ = zeros(T, sz), Δ = zeros(T, sz), ξ = zeros(T, sz))
 nsReLU(sz::Dims) = nsReLU(Float64, sz)
 
 Base.propertynames(::nsReLU) = (:θ, :Δ, :ξ)
@@ -45,19 +45,19 @@ mean_abs_from_inputs(layer::nsReLU, inputs = 0) = mean_abs_from_inputs(xReLU(lay
 function ∂cgfs(layer::nsReLU, inputs = 0)
     xrelu = xReLU(layer)
     ∂ = ∂cgfs(xrelu, inputs)
-    return ∂[[1,3,4], ..] # skip γ
+    return ∂[[1, 3, 4], ..] # skip γ
 end
 
 function ∂energy_from_moments(layer::nsReLU, moments::AbstractArray)
     @assert size(moments) == (4, size(layer)...)
     ∂ = ∂energy_from_moments(xReLU(layer), moments)
-    return ∂[[1,3,4], ..] # skip γ
+    return ∂[[1, 3, 4], ..] # skip γ
 end
 
-xReLU(layer::nsReLU) = xReLU(; layer.θ, γ=one.(layer.θ), layer.Δ, layer.ξ)
+xReLU(layer::nsReLU) = xReLU(; layer.θ, γ = one.(layer.θ), layer.Δ, layer.ξ)
 dReLU(layer::nsReLU) = dReLU(xReLU(layer))
 
-function initialize!(layer::nsReLU, data::AbstractArray; wts=nothing)
+function initialize!(layer::nsReLU, data::AbstractArray; wts = nothing)
     @assert size(layer) == size(data)[1:ndims(layer)]
     μ = batchmean(layer, data; wts)
     layer.θ .= μ

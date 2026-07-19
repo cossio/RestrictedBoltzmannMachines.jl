@@ -1,6 +1,6 @@
 # convenience functions to get generic Inf and NaN
-inf(::Union{Type{T}, T}) where {T<:Number} = convert(T, Inf)
-two(::Union{Type{T}, T}) where {T<:Number} = convert(T, 2)
+inf(::Union{Type{T}, T}) where {T <: Number} = convert(T, Inf)
+two(::Union{Type{T}, T}) where {T <: Number} = convert(T, 2)
 
 @doc raw"""
     wmean(A; wts = nothing, dims = :)
@@ -11,7 +11,7 @@ Weighted mean of `A` along dimensions `dims`, weighted by `wts`.
 \frac{\sum_i A_i w_i}{\sum_i w_i}
 ```
 """
-function wmean(A::AbstractArray; wts::Union{AbstractArray,Nothing} = nothing, dims = :)
+function wmean(A::AbstractArray; wts::Union{AbstractArray, Nothing} = nothing, dims = :)
     if isnothing(wts)
         # if no weights are given, fallback to unweighted mean
         return mean(A; dims)
@@ -49,7 +49,7 @@ Weighted sum of `A` along dimensions `dims`, weighted by `wts`.
 \frac{\sum_i A_i w_i}
 ```
 """
-function wsum(A::AbstractArray; wts::Union{AbstractArray,Nothing} = nothing, dims = :)
+function wsum(A::AbstractArray; wts::Union{AbstractArray, Nothing} = nothing, dims = :)
     if isnothing(wts)
         return sum(A; dims)
     else
@@ -90,7 +90,7 @@ Like `reshape(x, shape)`, except that zero-dimensional outputs are returned as s
 reshape_maybe(x::Number, ::Tuple{}) = x
 reshape_maybe(x::AbstractArray, ::Tuple{}) = only(x)
 reshape_maybe(x::AbstractArray, sz::Dims) = reshape(x, sz)
-reshape_maybe(x::Union{Number,AbstractArray}, sz::Int...) = reshape(x, sz)
+reshape_maybe(x::Union{Number, AbstractArray}, sz::Int...) = reshape(x, sz)
 
 sizedims(A::AbstractArray, dims::Int...) = sizedims(A, dims)
 sizedims(A::AbstractArray, dims::Tuple{Vararg{Int}}) = map(d -> size(A, d), dims)
@@ -105,14 +105,14 @@ function moving_average(A::AbstractArray, m::Int)
     out = similar(A)
     R = CartesianIndices(A)
     Ifirst, Ilast = first(R), last(R)
-    I1 = m÷2 * oneunit(Ifirst)
+    I1 = m ÷ 2 * oneunit(Ifirst)
     for I in R
         n, s = 0, zero(eltype(out))
-        for J in max(Ifirst, I-I1):min(Ilast, I+I1)
+        for J in max(Ifirst, I - I1):min(Ilast, I + I1)
             s += A[J]
             n += 1
         end
-        out[I] = s/n
+        out[I] = s / n
     end
     return out
 end

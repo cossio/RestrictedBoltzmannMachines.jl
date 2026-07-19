@@ -3,9 +3,9 @@
 
 Extended ReLU layer, like pReLU but with unbounded asymmetry parameter.
 """
-struct xReLU{N,A} <: AbstractLayer{N}
+struct xReLU{N, A} <: AbstractLayer{N}
     par::A
-    function xReLU{N,A}(par::A) where {N,A<:AbstractArray}
+    function xReLU{N, A}(par::A) where {N, A <: AbstractArray}
         @assert size(par, 1) == 4 # θ, γ, Δ, ξ
         @assert ndims(par) == N + 1
         return new(par)
@@ -57,16 +57,16 @@ mean_abs_from_inputs(layer::xReLU, inputs = 0) = mean_abs_from_inputs(dReLU(laye
 function ∂cgfs(layer::xReLU, inputs = 0)
     drelu = dReLU(layer)
 
-    lp = ReLU(; θ =  drelu.θp, γ = drelu.γp)
+    lp = ReLU(; θ = drelu.θp, γ = drelu.γp)
     ln = ReLU(; θ = -drelu.θn, γ = drelu.γn)
 
-    Γp = cgfs(lp,  inputs)
+    Γp = cgfs(lp, inputs)
     Γn = cgfs(ln, -inputs)
     Γ = logaddexp.(Γp, Γn)
 
     pp = exp.(Γp - Γ)
     pn = exp.(Γn - Γ)
-    μp, νp = meanvar_from_inputs(lp,  inputs)
+    μp, νp = meanvar_from_inputs(lp, inputs)
     μn, νn = meanvar_from_inputs(ln, -inputs)
     μ2p = @. νp + μp^2
     μ2n = @. νn + μn^2
@@ -79,8 +79,8 @@ function ∂cgfs(layer::xReLU, inputs = 0)
     ∂Δ = @. (pp * μp / (1 + η) + pn * μn / (1 - η))
     abs_γ = abs.(layer.γ)
     ∂ξ = @. -(
-        pp * (-abs_γ/2 * μ2p + layer.Δ * μp) / (1 + layer.ξ + abs(layer.ξ))^2 +
-        pn * ( abs_γ/2 * μ2n - layer.Δ * μn) / (1 - layer.ξ + abs(layer.ξ))^2
+        pp * (-abs_γ / 2 * μ2p + layer.Δ * μp) / (1 + layer.ξ + abs(layer.ξ))^2 +
+            pn * (abs_γ / 2 * μ2n - layer.Δ * μn) / (1 - layer.ξ + abs(layer.ξ))^2
     )
 
     return vstack((∂θ, ∂γ, ∂Δ, ∂ξ))
@@ -100,8 +100,8 @@ function ∂energy_from_moments(layer::xReLU, moments::AbstractArray)
     ∂γ = @. sign(layer.γ) * (xp2 / (1 + η) + xn2 / (1 - η)) / 2
     ∂Δ = @. -xp1 / (1 + η) + xn1 / (1 - η)
     ∂ξ = @. (
-        (-abs(layer.γ)/2 * xp2 + layer.Δ * xp1) / (1 + layer.ξ + abs(layer.ξ))^2 +
-        ( abs(layer.γ)/2 * xn2 + layer.Δ * xn1) / (1 - layer.ξ + abs(layer.ξ))^2
+        (-abs(layer.γ) / 2 * xp2 + layer.Δ * xp1) / (1 + layer.ξ + abs(layer.ξ))^2 +
+            (abs(layer.γ) / 2 * xn2 + layer.Δ * xn1) / (1 - layer.ξ + abs(layer.ξ))^2
     )
 
     return vstack((∂θ, ∂γ, ∂Δ, ∂ξ))

@@ -9,16 +9,16 @@ using RestrictedBoltzmannMachines: RBM, BinaryRBM, Binary, Spin, Potts, Gaussian
     logmeanexp, logvarexp, logstdexp, log_partition
 
 @testset "logmeanexp, logvarexp" begin
-    A = randn(5,3,2)
-    for dims in (2, (1,2), :)
+    A = randn(5, 3, 2)
+    for dims in (2, (1, 2), :)
         @test logmeanexp(A; dims) ≈ log.(mean(exp.(A); dims))
         for corrected in (true, false)
             @test logvarexp(A; dims, corrected) ≈ log.(var(exp.(A); dims, corrected))
             @test logstdexp(A; dims, corrected) ≈ log.(std(exp.(A); dims, corrected))
         end
     end
-    @test logvarexp(A; dims=2) ≈ log.(var(exp.(A); dims=2))
-    @test logstdexp(A; dims=2) ≈ log.(std(exp.(A); dims=2))
+    @test logvarexp(A; dims = 2) ≈ log.(var(exp.(A); dims = 2))
+    @test logstdexp(A; dims = 2) ≈ log.(std(exp.(A); dims = 2))
     @test logmeanexp(A) ≈ log.(mean(exp.(A)))
     @test logvarexp(A) ≈ log.(var(exp.(A)))
     @test logstdexp(A) ≈ log.(std(exp.(A)))
@@ -26,19 +26,19 @@ end
 
 @testset "logmeanexp properties" begin
     X = randn(1000, 1000)
-    @test only(logmeanexp(logmeanexp(X; dims=1); dims=2)) ≈ logmeanexp(X)
-    @test only(logmeanexp(-logmeanexp(-X; dims=1); dims=2)) ≤ only(-logmeanexp(-logmeanexp(X; dims=1); dims=2))
+    @test only(logmeanexp(logmeanexp(X; dims = 1); dims = 2)) ≈ logmeanexp(X)
+    @test only(logmeanexp(-logmeanexp(-X; dims = 1); dims = 2)) ≤ only(-logmeanexp(-logmeanexp(X; dims = 1); dims = 2))
     x = randn()
     @test logmeanexp([x]) ≈ x
     X = randn(1000, 1000, 1)
-    @test logmeanexp(X; dims=3) ≈ X
+    @test logmeanexp(X; dims = 3) ≈ X
     @test -logmeanexp(-X) ≤ logmeanexp(X)
 end
 
 @testset "log_partition_zero_weight" begin
-    rbm0 = BinaryRBM(randn(3), randn(2), zeros(3,2))
+    rbm0 = BinaryRBM(randn(3), randn(2), zeros(3, 2))
     @test log_partition_zero_weight(rbm0) ≈ log_partition(rbm0)
-    rbm1 = RBM(rbm0.visible, rbm0.hidden, randn(3,2))
+    rbm1 = RBM(rbm0.visible, rbm0.hidden, randn(3, 2))
     @test log_partition_zero_weight(rbm1) ≈ log_partition_zero_weight(rbm0)
 end
 
@@ -96,12 +96,12 @@ end
     β = 0.3
     N = 11
     M = 5
-    rbm = BinaryRBM(randn(N), randn(M), randn(N,M))
+    rbm = BinaryRBM(randn(N), randn(M), randn(N, M))
     init = Binary(; θ = randn(N))
-    null = BinaryRBM(init.θ, zeros(M), zeros(N,M))
+    null = BinaryRBM(init.θ, zeros(M), zeros(N, M))
     v = bitrand(N, 10)
     h = bitrand(M, 10)
-    @test energy(anneal_zero(init, rbm), v, h) ≈ energy(anneal(null, rbm; β=0), v, h)
+    @test energy(anneal_zero(init, rbm), v, h) ≈ energy(anneal(null, rbm; β = 0), v, h)
     @test iszero(anneal_zero(init, rbm).w)
 
     layer = Binary(; θ = randn(N))
@@ -149,8 +149,8 @@ end
     N = 10
     M = 7
     β = 0.3
-    rbm0 = BinaryRBM(randn(N), randn(M), randn(N,M))
-    rbm1 = BinaryRBM(randn(N), randn(M), randn(N,M))
+    rbm0 = BinaryRBM(randn(N), randn(M), randn(N, M))
+    rbm1 = BinaryRBM(randn(N), randn(M), randn(N, M))
     rbm = anneal(rbm0, rbm1; β)
     v = bitrand(N)
     h = bitrand(M)
@@ -158,50 +158,50 @@ end
 end
 
 @testset "ais" begin
-    rbm0 = BinaryRBM(randn(2), randn(1), zeros(2,1))
-    rbm1 = BinaryRBM(randn(2), randn(1), randn(2,1))
-    v0 = sample_v_from_v(rbm0, bitrand(2, 100000); steps=1)
-    data = ais(rbm0, rbm1, v0; nbetas=10)
-    @test logmeanexp(data) ≈ log_partition(rbm1) - log_partition(rbm0) rtol=0.1
-    @test mean(logmeanexp.(Iterators.partition(data, 10))) ≈ log_partition(rbm1) - log_partition(rbm0) rtol=0.1
+    rbm0 = BinaryRBM(randn(2), randn(1), zeros(2, 1))
+    rbm1 = BinaryRBM(randn(2), randn(1), randn(2, 1))
+    v0 = sample_v_from_v(rbm0, bitrand(2, 100000); steps = 1)
+    data = ais(rbm0, rbm1, v0; nbetas = 10)
+    @test logmeanexp(data) ≈ log_partition(rbm1) - log_partition(rbm0) rtol = 0.1
+    @test mean(logmeanexp.(Iterators.partition(data, 10))) ≈ log_partition(rbm1) - log_partition(rbm0) rtol = 0.1
 
-    v0 = sample_v_from_v(rbm0, bitrand(2); steps=1)
-    data = ais(rbm0, rbm1, v0; nbetas=100000)
-    @test only(data) ≈ log_partition(rbm1) - log_partition(rbm0) rtol=0.1
+    v0 = sample_v_from_v(rbm0, bitrand(2); steps = 1)
+    data = ais(rbm0, rbm1, v0; nbetas = 100000)
+    @test only(data) ≈ log_partition(rbm1) - log_partition(rbm0) rtol = 0.1
 end
 
 @testset "aise" begin
-    rbm = BinaryRBM(randn(2), randn(1), randn(2,1))
-    lZ = aise(rbm; nbetas=3, nsamples=100000)
-    @test logmeanexp(lZ) ≈ log_partition(rbm) rtol=0.1
-    lZ = aise(rbm; nbetas=10000, nsamples=10)
-    @test logmeanexp(lZ) ≈ log_partition(rbm) rtol=0.1
+    rbm = BinaryRBM(randn(2), randn(1), randn(2, 1))
+    lZ = aise(rbm; nbetas = 3, nsamples = 100000)
+    @test logmeanexp(lZ) ≈ log_partition(rbm) rtol = 0.1
+    lZ = aise(rbm; nbetas = 10000, nsamples = 10)
+    @test logmeanexp(lZ) ≈ log_partition(rbm) rtol = 0.1
 end
 
 @testset "raise (w = 0)" begin
-    rbm = BinaryRBM(randn(2), randn(1), zeros(2,1))
-    v = sample_v_from_v(rbm, bitrand(2, 50000); steps=1)
-    lZ = raise(rbm; v, nbetas=10)
-    @test logmeanexp(lZ) ≈ log_partition(rbm) rtol=0.1
-    v = sample_v_from_v(rbm, bitrand(2, 10); steps=1)
-    lZ = raise(rbm; v, nbetas=10000)
-    @test logmeanexp(lZ) ≈ log_partition(rbm) rtol=0.1
+    rbm = BinaryRBM(randn(2), randn(1), zeros(2, 1))
+    v = sample_v_from_v(rbm, bitrand(2, 50000); steps = 1)
+    lZ = raise(rbm; v, nbetas = 10)
+    @test logmeanexp(lZ) ≈ log_partition(rbm) rtol = 0.1
+    v = sample_v_from_v(rbm, bitrand(2, 10); steps = 1)
+    lZ = raise(rbm; v, nbetas = 10000)
+    @test logmeanexp(lZ) ≈ log_partition(rbm) rtol = 0.1
 end
 
 @testset "raise" begin
-    rbm = BinaryRBM(randn(2), randn(1), randn(2,1))
-    v = sample_v_from_v(rbm, bitrand(2, 50000); steps=1000) # need to equilibrate
-    lZ = raise(rbm; v, nbetas=10)
-    @test logmeanexp(lZ) ≈ log_partition(rbm) rtol=0.1
-    @test -logmeanexp(-lZ) ≈ log_partition(rbm) rtol=0.1
+    rbm = BinaryRBM(randn(2), randn(1), randn(2, 1))
+    v = sample_v_from_v(rbm, bitrand(2, 50000); steps = 1000) # need to equilibrate
+    lZ = raise(rbm; v, nbetas = 10)
+    @test logmeanexp(lZ) ≈ log_partition(rbm) rtol = 0.1
+    @test -logmeanexp(-lZ) ≈ log_partition(rbm) rtol = 0.1
 end
 
 @testset "aise ≤ lZ ≤ raise" begin
-    rbm = BinaryRBM(randn(3), randn(2), randn(3,2))
+    rbm = BinaryRBM(randn(3), randn(2), randn(3, 2))
     lZ = log_partition(rbm)
-    v = sample_v_from_v(rbm, bitrand(size(rbm.visible)..., 100_000); steps=500)
-    lZf = aise(rbm; nbetas=3, nsamples=size(v)[end])
-    lZr = raise(rbm; v, nbetas=3)
+    v = sample_v_from_v(rbm, bitrand(size(rbm.visible)..., 100_000); steps = 500)
+    lZf = aise(rbm; nbetas = 3, nsamples = size(v)[end])
+    lZr = raise(rbm; v, nbetas = 3)
     @info @test mean(logmeanexp.(Iterators.partition(lZf, 2))) ≤ lZ ≤ mean(-logmeanexp.(Iterators.partition(-lZr, 2)))
     @test -logmeanexp(-lZr) ≤ logmeanexp(lZr)
 end
@@ -219,16 +219,16 @@ end
     )
     lZ0 = log_partition(rbm0)
     lZ1 = log_partition(rbm1)
-    v0 = sample_v_from_v(rbm0, randn(20, 10); steps=1)
-    R = ais(rbm0, rbm1, v0, nbetas=10000)
-    @test logmeanexp(R) ≈ lZ1 - lZ0 rtol=0.1
+    v0 = sample_v_from_v(rbm0, randn(20, 10); steps = 1)
+    R = ais(rbm0, rbm1, v0, nbetas = 10000)
+    @test logmeanexp(R) ≈ lZ1 - lZ0 rtol = 0.1
 end
 
 @testset "zero hidden units" begin
-    rbm = BinaryRBM(randn(2), randn(0), randn(2,0))
-    v = sample_v_from_v(rbm, bitrand(2, 100); steps=1)
-    lZ = aise(rbm; nbetas=3, nsamples=100)
+    rbm = BinaryRBM(randn(2), randn(0), randn(2, 0))
+    v = sample_v_from_v(rbm, bitrand(2, 100); steps = 1)
+    lZ = aise(rbm; nbetas = 3, nsamples = 100)
     @test logmeanexp(lZ) ≈ log_partition(rbm)
-    lZ = raise(rbm; v, nbetas=3)
+    lZ = raise(rbm; v, nbetas = 3)
     @test logmeanexp(lZ) ≈ log_partition(rbm)
 end

@@ -215,13 +215,13 @@ end
         @test result isa JLArray
         @test eltype(result) == T
         @test size(result) == batch
-        @test adapt(Array, result) ≈ expected rtol = 5e-4 atol = 5e-5
+        @test adapt(Array, result) ≈ expected rtol = 5.0e-4 atol = 5.0e-5
     end
 
     θ_offset = T[0, 1, -1, 0.5]
     offset_rbm = RBM(
         Potts(; θ = reshape(θ_offset, Q, 1)),
-        Gaussian(; θ = T[1e8], γ = T[-1]),
+        Gaussian(; θ = T[1.0e8], γ = T[-1]),
         ones(T, Q, 1, 1),
     )
     offset_v = reshape(Bool[1, 0, 0, 0], Q, 1)
@@ -233,7 +233,7 @@ end
         θ_offset[1] - log(sum(exp, θ_offset))
 
     mixed_rbm = RBM(
-        Potts(; θ = reshape(Float64[1e8, 1e8 + 1, 1e8 - 1, 1e8 + 0.5], Q, 1)),
+        Potts(; θ = reshape(Float64[1.0e8, 1.0e8 + 1, 1.0e8 - 1, 1.0e8 + 0.5], Q, 1)),
         Gaussian(; θ = Float32[0], γ = Float32[1]),
         zeros(Float32, Q, 1, 1),
     )
@@ -244,7 +244,7 @@ end
     @test mixed_result isa JLArray
     @test eltype(mixed_result) == Float64
     @test adapt(Array, mixed_result) ≈
-        log_pseudolikelihood(mixed_rbm, mixed_v; exact = true) rtol = 0 atol = 1e-8
+        log_pseudolikelihood(mixed_rbm, mixed_v; exact = true) rtol = 0 atol = 1.0e-8
 end
 
 @testset "gauge transformations" begin
@@ -393,7 +393,7 @@ end
     )
     scale_v = adapt(Array, jl_standardized_rbm.scale_v)
     @test jl_standardized_rbm.scale_v isa JLArray
-    @test scale_v[1, 1] == 1f0
+    @test scale_v[1, 1] == 1.0f0
     @test all(scale_v .> 0)
     @test all(isfinite, adapt(Array, jl_standardized_rbm.visible.par))
     @test all(isfinite, adapt(Array, jl_standardized_rbm.hidden.par))

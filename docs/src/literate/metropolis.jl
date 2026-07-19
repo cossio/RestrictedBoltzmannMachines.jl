@@ -50,13 +50,13 @@ steps as burn-in) and compare them to the exact Boltzmann probabilities.
 
 counts = Dict{BitVector, Int}()
 for t in 1000:nsteps, n in 1:nchains
-    counts[v[:,n,t]] = get(counts, v[:,n,t], 0) + 1
+    counts[v[:, n, t]] = get(counts, v[:, n, t], 0) + 1
 end
-freqs = Dict(v => c / sum(values(counts)) for (v,c) in counts);
+freqs = Dict(v => c / sum(values(counts)) for (v, c) in counts);
 
 # Enumerate all ``2^N = 32`` possible configurations and compute their free energies.
 
-𝒱 = [BitVector(digits(Bool, x; base=2, pad=N)) for x in 0:(2^N - 1)];
+𝒱 = [BitVector(digits(Bool, x; base = 2, pad = N)) for x in 0:(2^N - 1)];
 ℱ = free_energy.(Ref(rbm), 𝒱);
 
 #=
@@ -66,14 +66,15 @@ Points falling on the diagonal (red line) indicate perfect agreement.
 =#
 
 fig = Makie.Figure()
-ax = Makie.Axis(fig[1,1], xlabel="empirical log-frequency", ylabel="theoretical log-probability")
-Makie.scatter!(ax,
+ax = Makie.Axis(fig[1, 1], xlabel = "empirical log-frequency", ylabel = "theoretical log-probability")
+Makie.scatter!(
+    ax,
     log.([get(freqs, v, 0.0) for v in 𝒱]),
     -β * ℱ .- logsumexp(-β * ℱ),
     label = "β = $β"
 )
-Makie.ablines!(ax, 0, 1, color=:red, linestyle=:dash, label="y = x")
-Makie.axislegend(ax, position=:lt)
+Makie.ablines!(ax, 0, 1, color = :red, linestyle = :dash, label = "y = x")
+Makie.axislegend(ax, position = :lt)
 fig
 
 # The Pearson correlation confirms excellent agreement:

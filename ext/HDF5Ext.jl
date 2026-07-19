@@ -44,7 +44,7 @@ end
 Save an RBM to an HDF5 file at `path`. If `overwrite` is `false` (the default),
 an error is thrown if the file already exists.
 """
-function RestrictedBoltzmannMachines.save_rbm(path::AbstractString, rbm::RBM; overwrite::Bool=false)
+function RestrictedBoltzmannMachines.save_rbm(path::AbstractString, rbm::RBM; overwrite::Bool = false)
     if !overwrite && isfile(path)
         error("File already exists: $path")
     end
@@ -60,7 +60,7 @@ function RestrictedBoltzmannMachines.save_rbm(path::AbstractString, rbm::RBM; ov
     return path
 end
 
-function RestrictedBoltzmannMachines.save_rbm(path::AbstractString, rbm::StandardizedRBM; overwrite::Bool=false)
+function RestrictedBoltzmannMachines.save_rbm(path::AbstractString, rbm::StandardizedRBM; overwrite::Bool = false)
     if !overwrite && isfile(path)
         error("File already exists: $path")
     end
@@ -80,7 +80,7 @@ function RestrictedBoltzmannMachines.save_rbm(path::AbstractString, rbm::Standar
     return path
 end
 
-function RestrictedBoltzmannMachines.save_rbm(path::AbstractString, rbm::CenteredRBM; overwrite::Bool=false)
+function RestrictedBoltzmannMachines.save_rbm(path::AbstractString, rbm::CenteredRBM; overwrite::Bool = false)
     if !overwrite && isfile(path)
         error("File already exists: $path")
     end
