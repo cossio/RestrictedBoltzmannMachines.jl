@@ -120,20 +120,22 @@ end
 
 # The specialized fast paths for Binary/Spin/Potts must agree with the generic
 # reference implementation based on substitution matrices.
-@testset "generic fallback vs fast path ($vis)" for vis in (:Binary, :Spin, :Potts)
+@testset "generic fallback vs fast path ($vis, $hid)" for
+    vis in (:Binary, :Spin, :Potts), hid in (:Gaussian, :Binary)
     q = 3
     n = (3, 2)
     m = (2,)
     B = 4
+    hidden = hid === :Gaussian ? Gaussian(m) : Binary(m)
 
     if vis === :Binary
-        rbm = RBM(Binary(n), Gaussian(m), randn(n..., m...) / √prod(n))
+        rbm = RBM(Binary(n), hidden, randn(n..., m...) / √prod(n))
         v = bitrand(n..., B)
     elseif vis === :Spin
-        rbm = RBM(Spin(n), Gaussian(m), randn(n..., m...) / √prod(n))
+        rbm = RBM(Spin(n), hidden, randn(n..., m...) / √prod(n))
         v = rand((-1, +1), n..., B)
     else
-        rbm = RBM(Potts((q, n...)), Gaussian(m), randn(q, n..., m...) / sqrt(q * prod(n)))
+        rbm = RBM(Potts((q, n...)), hidden, randn(q, n..., m...) / sqrt(q * prod(n)))
         v = onehot_encode(rand(1:q, n..., B), 1:q)
     end
     sites = [rand(CartesianIndices(n)) for _ in 1:B]
@@ -147,6 +149,144 @@ end
 
     lpl_exact_generic = invoke(log_pseudolikelihood_exact, Tuple{RBM, AbstractArray}, rbm, v)
     @test lpl_exact_generic ≈ log_pseudolikelihood_exact(rbm, v)
+end
+
+@testset "Gaussian-hidden exact fast paths" begin
+    T = Float32
+    n = (2, 2)
+    m = (2, 2)
+    batch = (2, 3)
+    q = 3
+    hidden = Gaussian(
+        ; θ = randn(T, m...), γ = reshape(T[-2, -0.7, 1.1, 2.3], m)
+    )
+    v_potts = onehot_encode(rand(1:q, n..., batch...), 1:q)
+
+    cases = (
+        (Binary(; θ = randn(T, n...)), bitrand(n..., batch...)),
+        (Spin(; θ = randn(T, n...)), rand((Int8(-1), Int8(1)), n..., batch...)),
+        (Potts(; θ = randn(T, q, n...)), v_potts),
+        (PottsGumbel(; θ = randn(T, q, n...)), v_potts),
+    )
+
+    for (visible, v) in cases
+        w = randn(T, size(visible)..., m...) / sqrt(T(length(visible)))
+        rbm = RBM(visible, hidden, w)
+        reference = invoke(
+            log_pseudolikelihood_exact, Tuple{RBM, AbstractArray}, rbm, v
+        )
+        result = log_pseudolikelihood_exact(rbm, v)
+        @test size(result) == batch
+        @test eltype(result) == T
+        @test result ≈ reference rtol = 5.0e-4 atol = 5.0e-5
+    end
+
+    # The optimized Potts formula preserves the generic implementation's
+    # behavior for dense site vectors, not only the usual one-hot inputs.
+    visible = Potts(; θ = randn(T, q, n...))
+    rbm = RBM(
+        visible,
+        hidden,
+        randn(T, q, n..., m...) / sqrt(T(q * prod(n))),
+    )
+    v_dense = rand(T, q, n..., batch...)
+    v_dense ./= sum(v_dense; dims = 1)
+    reference = invoke(
+        log_pseudolikelihood_exact, Tuple{RBM, AbstractArray}, rbm, v_dense
+    )
+    @test log_pseudolikelihood_exact(rbm, v_dense) ≈
+        reference rtol = 5.0e-4 atol = 5.0e-5
+
+    v_unbatched = bitrand(n...)
+    rbm_unbatched = RBM(
+        Binary(; θ = randn(T, n...)),
+        hidden,
+        randn(T, n..., m...) / sqrt(T(prod(n))),
+    )
+    result = log_pseudolikelihood_exact(rbm_unbatched, v_unbatched)
+    reference = invoke(
+        log_pseudolikelihood_exact,
+        Tuple{RBM, AbstractArray},
+        rbm_unbatched,
+        v_unbatched,
+    )
+    @test size(result) == ()
+    @test only(result) ≈ only(reference) rtol = 5.0e-4 atol = 5.0e-5
+
+    # Normalize relative logits before logsumexp. Otherwise, a large common
+    # term can erase the conditional normalization in finite precision.
+    θ_offset = T[0, 1, -1]
+    visible = Potts(; θ = reshape(θ_offset, q, 1))
+    hidden_offset = Gaussian(; θ = T[1.0e8], γ = T[-1])
+    rbm_offset = RBM(visible, hidden_offset, ones(T, q, 1, 1))
+    for v in (
+            onehot_encode(reshape([1], 1, 1), 1:q),
+            reshape(T[0.2, 0.3, 0.5], q, 1, 1),
+        )
+        reference = invoke(
+            log_pseudolikelihood_exact,
+            Tuple{RBM{<:Potts}, AbstractArray},
+            rbm_offset,
+            v,
+        )
+        result = log_pseudolikelihood_exact(rbm_offset, v)
+        expected = sum(v .* visible.θ) - logsumexp(θ_offset)
+        @test only(reference) ≈ expected
+        @test result ≈ reference
+    end
+
+    # Mixed-precision models retain visible fields that are finer than the
+    # weights and hidden parameters.
+    hidden_mixed = Gaussian(; θ = Float32[0], γ = Float32[1])
+    mixed_cases = (
+        (
+            Binary(; θ = Float64[1.0e8 + 1]),
+            reshape([false], 1),
+            zeros(Float32, 1, 1),
+        ),
+        (
+            Spin(; θ = Float64[5.0e7 + 0.5]),
+            reshape(Int8[-1], 1),
+            zeros(Float32, 1, 1),
+        ),
+        (
+            Potts(; θ = reshape(Float64[1.0e8, 1.0e8 + 1, 1.0e8 - 1], q, 1)),
+            reshape(Bool[1, 0, 0], q, 1),
+            zeros(Float32, q, 1, 1),
+        ),
+        (
+            PottsGumbel(; θ = reshape(Float64[1.0e8, 1.0e8 + 1, 1.0e8 - 1], q, 1)),
+            reshape(Bool[1, 0, 0], q, 1),
+            zeros(Float32, q, 1, 1),
+        ),
+    )
+    for (visible_mixed, v, w) in mixed_cases
+        rbm_mixed = RBM(visible_mixed, hidden_mixed, w)
+        reference = invoke(
+            log_pseudolikelihood_exact, Tuple{RBM, AbstractArray}, rbm_mixed, v
+        )
+        result = log_pseudolikelihood_exact(rbm_mixed, v)
+        @test eltype(result) == Float64
+        @test result ≈ reference rtol = 0 atol = 1.0e-8
+    end
+
+    # Integer parameters are valid even though inverse Gaussian precisions are
+    # fractional.
+    rbm_integer = RBM(
+        Potts(; θ = zeros(Int, q, 1)),
+        Gaussian(; θ = Int[0], γ = Int[2]),
+        reshape(Int[0, 1, 2], q, 1, 1),
+    )
+    v_integer = reshape(Bool[1, 0, 0], q, 1)
+    reference = invoke(
+        log_pseudolikelihood_exact,
+        Tuple{RBM{<:Potts}, AbstractArray},
+        rbm_integer,
+        v_integer,
+    )
+    result = log_pseudolikelihood_exact(rbm_integer, v_integer)
+    @test eltype(result) == Float64
+    @test result ≈ reference
 end
 
 @testset "stochastic log_pseudolikelihood" begin
