@@ -4,7 +4,7 @@
 A variant of `xReLU` units without scale parameter γ (which is fixed at 1). This is done
 to remove the gauge invariance between the weights and the hidden units scale.
 """
-struct nsReLU{N, A} <: RestrictedBoltzmannMachines.AbstractLayer{N}
+struct nsReLU{N, A} <: AbstractLayer{N}
     par::A
     function nsReLU{N, A}(par::A) where {N, A <: AbstractArray}
         @assert size(par, 1) == 3 # θ, Δ, ξ (there is no γ)

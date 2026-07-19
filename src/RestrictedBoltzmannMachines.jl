@@ -3,15 +3,14 @@ module RestrictedBoltzmannMachines
 import ChainRulesCore
 import LinearAlgebra
 using Adapt: Adapt, adapt
-using Base: front, tail
 using EllipsisNotation: (..)
-using FillArrays: Fill, Falses, Trues, Zeros, Ones
-using LinearAlgebra: Diagonal, dot, I, logdet, norm
+using FillArrays: Falses, Zeros, Ones
+using LinearAlgebra: Diagonal, dot, I, logdet
 using LogExpFunctions: log1pexp, logaddexp, logistic, logsubexp, logsumexp, softmax
 using Optimisers: AbstractRule, Adam, setup, update!
 using Random: AbstractRNG, default_rng, rand!, randexp, randn!, randperm
 using SpecialFunctions: erf, erfcx, logerfcx
-using Statistics: mean, std
+using Statistics: mean
 
 include("util/util.jl")
 include("util/onehot.jl")

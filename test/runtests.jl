@@ -67,6 +67,9 @@ end
 module pottsgumbel_tests
     include("pottsgumbel.jl")
 end
+module explicit_imports_tests
+    include("explicit_imports.jl")
+end
 module hdf5_tests
     include("hdf5.jl")
 end

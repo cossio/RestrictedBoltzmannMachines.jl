@@ -18,7 +18,7 @@ randnt(rng::AbstractRNG, a::Real) = randnt(rng, float(a))
 randnt(rng::AbstractRNG, a::BigFloat) = randnt(rng, Float64(a))
 randnt(a::Real) = randnt(default_rng(), a)
 
-function randnt(rng::AbstractRNG, a::Base.IEEEFloat)
+function randnt(rng::AbstractRNG, a::Union{Float16,Float32,Float64})
     local r = a
     if a ≤ 0
         while true

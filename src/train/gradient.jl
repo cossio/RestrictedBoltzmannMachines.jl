@@ -3,7 +3,7 @@ struct ∂RBM{V, H, W}
     hidden::H
     w::W
     function ∂RBM(visible::AbstractArray, hidden::AbstractArray, w::AbstractArray)
-        @assert size(w) == (tail(size(visible))..., tail(size(hidden))...)
+        @assert size(w) == (size(visible)[2:end]..., size(hidden)[2:end]...)
         return new{typeof(visible), typeof(hidden), typeof(w)}(visible, hidden, w)
     end
 end
