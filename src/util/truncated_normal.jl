@@ -25,7 +25,6 @@ function randnt(rng::AbstractRNG, a::Base.IEEEFloat)
             r = randn(rng, typeof(a))
             r ≥ a && break
         end
-        return r
     else
         t = sqrt1half(a)
         !(t < Inf) && return a
@@ -34,8 +33,8 @@ function randnt(rng::AbstractRNG, a::Base.IEEEFloat)
             u = rand(rng, typeof(a))
             u < exp(-(r - t)^2 / 2) && break
         end
-        return r
     end
+    return r
 end
 
 """
