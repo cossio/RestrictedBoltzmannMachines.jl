@@ -27,33 +27,34 @@ those locally only.
 
 During development the version in `Project.toml` carries a `-DEV` suffix
 (e.g. `5.4.0-DEV`), and changes accumulate under an `## Unreleased` section in
-`CHANGELOG.md`. To release:
+`CHANGELOG.md`. Choose the release number using
+[ColPrac's Julia package guidance](https://docs.sciml.ai/ColPrac/stable/#Guidance-on-Package-Releases):
+for this post-1.0 package, use a major bump for breaking changes, a minor bump
+for non-breaking features (including ordinary dependency or Julia compatibility
+changes), and a patch bump for bug fixes (including compatibility changes made
+solely to fix a bug). Treat documented unexported names as public API,
+corrections to clearly broken behavior as bug fixes, introducing deprecations
+as non-breaking, and removing deprecations as breaking. The release agent
+suggests one version with a brief explanation, but the user always makes the
+final decision. Do not change release files or begin registration until the
+user explicitly chooses the version. Then:
 
 1. Make a single commit titled `vX.Y.Z` that drops the `-DEV` suffix from
    `version` in `Project.toml` and renames the `## Unreleased` CHANGELOG
    section to `## X.Y.Z`. Land it on `master` (directly, or via a PR).
-2. Push a frozen branch `release-X.Y.Z` pointing at the master commit that
-   contains the release (the merge commit if it landed via PR):
-   `git push origin <sha>:refs/heads/release-X.Y.Z`. Never commit to this
-   branch — it pins the commit that gets registered even if `master` keeps
-   moving.
-3. Comment on the permanent (closed) registration issue
-   [#124](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/124):
-   `@JuliaRegistrator register branch=release-X.Y.Z`, including release notes
-   (markdown, typically the CHANGELOG entries for this version) in the same
-   comment. Registrator ignores PR comments, and issue comments accept only a
-   `branch=` target (no SHA), hence the pinned branch. The notes are added to
-   the registry PR and to the GitHub release that TagBot creates. Registrator
-   opens a PR in the General registry; once it merges, TagBot creates the
-   `vX.Y.Z` tag at the registered commit and the GitHub release automatically.
-4. Monitor the registration PR in General (linked in Registrator's reply to
-   the triggering comment) until it merges — AutoMerge usually takes
+2. Push the release commit, open that exact commit on GitHub (the merge commit
+   if the release landed via PR), and comment `@JuliaRegistrator register`
+   directly on it. Include a `Release notes:` section containing the CHANGELOG
+   entries for this version in the same comment. The commit comment pins the
+   registered SHA, so no release branch is needed. Registrator replies on the
+   commit with the General registry PR.
+3. Monitor the registration PR until it merges — AutoMerge usually takes
    ~15–30 minutes. If AutoMerge fails or a registry maintainer requests
-   changes, restart the flow: commit the fixes to `master` (keeping
-   `Project.toml` at `X.Y.Z`), delete and recreate `release-X.Y.Z` at the new
-   master commit, and comment on issue #124 again to re-trigger the
-   registration pointing at the new branch. Once the registry PR has merged
-   and TagBot has tagged, the `release-X.Y.Z` branch may be deleted.
+   changes, commit the fixes to `master` while keeping `Project.toml` at
+   `X.Y.Z`, then post a new Registrator comment on the corrected commit.
+4. Once the registry PR merges, TagBot creates the `vX.Y.Z` tag at the
+   registered commit and the GitHub release with the supplied notes
+   automatically.
 5. Right after the release (registry PR merged, tag created), follow up with
    a new PR that bumps `Project.toml` to the next `-DEV` version (e.g.
    `5.7.1-DEV` after releasing `5.7.0`, or `5.8.0-DEV` if new features are
