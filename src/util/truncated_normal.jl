@@ -19,7 +19,7 @@ randnt(rng::AbstractRNG, a::BigFloat) = randnt(rng, Float64(a))
 randnt(a::Real) = randnt(default_rng(), a)
 
 # This union mirrors private `Base.IEEEFloat` without relying on a non-public name.
-function randnt(rng::AbstractRNG, a::Union{Float16,Float32,Float64})
+function randnt(rng::AbstractRNG, a::Union{Float16, Float32, Float64})
     local r = a
     if a ≤ 0
         while true
