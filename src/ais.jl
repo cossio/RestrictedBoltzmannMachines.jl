@@ -49,7 +49,7 @@ function ais(rbm0::RBM, rbm1::RBM, v::AbstractArray, βs::AbstractVector)
     return F
 end
 
-function ais(rbm0::RBM, rbm1::RBM, v0::AbstractArray; nbetas::Int=2)
+function ais(rbm0::RBM, rbm1::RBM, v0::AbstractArray; nbetas::Int = 2)
     βs = range(0, 1, nbetas)
     return ais(rbm0, rbm1, v0, βs)
 end
@@ -64,7 +64,7 @@ the single-site statistics of `rbm` (or the data).
     For more accurate estimates, use larger `nbetas`. It is usually better to have
     large `nbetas` and small `nsamples`, rather than large `nsamples` and small `nbetas`.
 """
-function aise(rbm::RBM, βs::AbstractVector{<:Real}; init::AbstractLayer=rbm.visible, nsamples::Int=1)
+function aise(rbm::RBM, βs::AbstractVector{<:Real}; init::AbstractLayer = rbm.visible, nsamples::Int = 1)
     rbm0 = anneal_zero(init, rbm)
     v0 = sample_from_inputs(init, Falses(size(init)..., nsamples))
     F = ais(rbm0, rbm, v0, βs)
@@ -86,14 +86,14 @@ overstimate it. `v` must be an equilibrated sample from `rbm`.
     If `Rf = aise(...)`, `Rr = raise(...)` are the AIS and reverse AIS estimators, we have the
     stochastic bounds `logmeanexp(Rf) ≤ log(Z) ≤ -logmeanexp(-Rr)`.
 """
-function raise(rbm::RBM, βs::AbstractVector; v::AbstractArray, init::AbstractLayer=rbm.visible)
+function raise(rbm::RBM, βs::AbstractVector; v::AbstractArray, init::AbstractLayer = rbm.visible)
     rbm0 = anneal_zero(init, rbm)
     F = ais(rbm, rbm0, v, βs)
     return log_partition_zero_weight(rbm0) .- F
 end
 
-aise(rbm::RBM; nbetas::Int=10000, kw...) = aise(rbm, range(0, 1, nbetas); kw...)
-raise(rbm::RBM; nbetas::Int=10000, kw...) = raise(rbm, range(0, 1, nbetas); kw...)
+aise(rbm::RBM; nbetas::Int = 10000, kw...) = aise(rbm, range(0, 1, nbetas); kw...)
+raise(rbm::RBM; nbetas::Int = 10000, kw...) = raise(rbm, range(0, 1, nbetas); kw...)
 
 """
     anneal(rbm0, rbm1; β)
@@ -193,7 +193,7 @@ log_partition_zero_weight(rbm) = cgf(rbm.visible) + cgf(rbm.hidden)
 
 Computes `log.(mean(exp.(A); dims))`, in a numerically stable way.
 """
-function logmeanexp(A::AbstractArray; dims=:)
+function logmeanexp(A::AbstractArray; dims = :)
     R = logsumexp(A; dims)
     N = length(A) ÷ length(R)
     return R .- log(N)
@@ -205,12 +205,12 @@ end
 Computes `log.(var(exp.(A); dims))`, in a numerically stable way.
 """
 function logvarexp(
-    A::AbstractArray; dims=:, corrected::Bool=true, logmean=logmeanexp(A; dims)
-)
+        A::AbstractArray; dims = :, corrected::Bool = true, logmean = logmeanexp(A; dims)
+    )
     R = logsumexp(2logsubexp.(A, logmean); dims)
     N = length(A) ÷ length(R)
-	if corrected
-		return R .- log(N - 1)
+    if corrected
+        return R .- log(N - 1)
     else
         return R .- log(N)
     end
@@ -222,7 +222,7 @@ end
 Computes `log.(std(exp.(A); dims))`, in a numerically stable way.
 """
 function logstdexp(
-    A::AbstractArray; dims=:, corrected::Bool=true, logmean=logmeanexp(A; dims)
-)
+        A::AbstractArray; dims = :, corrected::Bool = true, logmean = logmeanexp(A; dims)
+    )
     return logvarexp(A; dims, corrected, logmean) / 2
 end

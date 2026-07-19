@@ -57,7 +57,7 @@ Only defined for discrete layers.
     For large layers, the exponential number of states will not fit in memory.
 """
 function collect_states(layer::Union{Binary, Spin, Potts})
-    reduce(iterate_states(layer)) do x, y
+    return reduce(iterate_states(layer)) do x, y
         cat(x, y; dims = ndims(layer) + 1)
     end
 end

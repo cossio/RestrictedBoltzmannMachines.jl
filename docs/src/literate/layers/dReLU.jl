@@ -47,16 +47,16 @@ combinations, illustrating how the curvature parameters shape the distribution.
 Samples are generated per-parameter combination to avoid materializing a large tensor.
 =#
 
-fig = Makie.Figure(resolution=(1000, 700))
+fig = Makie.Figure(resolution = (1000, 700))
 for (iθp, θp) in enumerate(θps), (iθn, θn) in enumerate(θns)
-    ax = Makie.Axis(fig[iθp,iθn], title="θ⁺=$θp, θ⁻=$θn", xlabel="h", ylabel="P(h)")
+    ax = Makie.Axis(fig[iθp, iθn], title = "θ⁺=$θp, θ⁻=$θn", xlabel = "h", ylabel = "P(h)")
     for (iγp, γp) in enumerate(γps), (iγn, γn) in enumerate(γns)
-        sublayer = RBMs.dReLU(; θp=[θp], θn=[θn], γp=[γp], γn=[γn])
+        sublayer = RBMs.dReLU(; θp = [θp], θn = [θn], γp = [γp], γn = [γn])
         samples = vec(RBMs.sample_from_inputs(sublayer, zeros(1, 10^4)))
         xrange = range(minimum(samples), maximum(samples), 100)
         pdf_vals = exp.(-only(RBMs.cgfs(sublayer)) .- RBMs.energies(sublayer, reshape(collect(xrange), 1, 100))[1, :])
-        Makie.hist!(ax, samples, normalization=:pdf, bins=30, label="γ⁺=$γp, γ⁻=$γn")
-        Makie.lines!(ax, collect(xrange), pdf_vals, linewidth=2)
+        Makie.hist!(ax, samples, normalization = :pdf, bins = 30, label = "γ⁺=$γp, γ⁻=$γn")
+        Makie.lines!(ax, collect(xrange), pdf_vals, linewidth = 2)
     end
     if iθp == iθn == 1
         Makie.axislegend(ax)

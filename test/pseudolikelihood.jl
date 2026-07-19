@@ -7,7 +7,7 @@ using RestrictedBoltzmannMachines: RBM, Binary, Gaussian, Spin, Potts, PottsGumb
     substitution_matrix_sites, log_pseudolikelihood_exact, onehot_encode
 
 @testset "binary pseudolikelihood" begin
-    n = (3,2)
+    n = (3, 2)
     m = (2,)
     B = 3
 
@@ -23,9 +23,9 @@ using RestrictedBoltzmannMachines: RBM, Binary, Gaussian, Spin, Potts, PottsGumb
         ΔE[k, i, :] .= free_energy(rbm, v_) - E
     end
     @test ΔE ≈ substitution_matrix_exhaustive(rbm, v)
-    lpl = -logsumexp(-ΔE; dims=1)
+    lpl = -logsumexp(-ΔE; dims = 1)
     @assert size(lpl) == (1, n..., B)
-    @test log_pseudolikelihood(rbm, v; exact=true) ≈ vec(mean(lpl; dims=(1,2,3)))
+    @test log_pseudolikelihood(rbm, v; exact = true) ≈ vec(mean(lpl; dims = (1, 2, 3)))
 
     ΔE = zeros(2, B)
     sites = [rand(CartesianIndices(n)) for _ in 1:B]
@@ -38,12 +38,12 @@ using RestrictedBoltzmannMachines: RBM, Binary, Gaussian, Spin, Potts, PottsGumb
         ΔE[k, :] .= free_energy(rbm, v_) - E
     end
     @test ΔE ≈ substitution_matrix_sites(rbm, v, sites)
-    lpl = -logsumexp(-ΔE; dims=1)
+    lpl = -logsumexp(-ΔE; dims = 1)
     @test log_pseudolikelihood_sites(rbm, v, sites) ≈ vec(lpl)
 end
 
 @testset "spins pseudolikelihood" begin
-    n = (3,2)
+    n = (3, 2)
     m = (2,)
     B = 3
 
@@ -59,9 +59,9 @@ end
         ΔE[k, i, :] .= free_energy(rbm, v_) - E
     end
     @test ΔE ≈ substitution_matrix_exhaustive(rbm, v)
-    lpl = -logsumexp(-ΔE; dims=1)
+    lpl = -logsumexp(-ΔE; dims = 1)
     @assert size(lpl) == (1, n..., B)
-    @test log_pseudolikelihood(rbm, v; exact=true) ≈ vec(mean(lpl; dims=(1,2,3)))
+    @test log_pseudolikelihood(rbm, v; exact = true) ≈ vec(mean(lpl; dims = (1, 2, 3)))
 
     ΔE = zeros(2, B)
     sites = [rand(CartesianIndices(n)) for _ in 1:B]
@@ -73,13 +73,13 @@ end
         ΔE[k, :] .= free_energy(rbm, v_) - E
     end
     @test ΔE ≈ substitution_matrix_sites(rbm, v, sites)
-    lpl = -logsumexp(-ΔE; dims=1)
+    lpl = -logsumexp(-ΔE; dims = 1)
     @test log_pseudolikelihood_sites(rbm, v, sites) ≈ vec(lpl)
 end
 
 @testset "Potts pseudolikelihood" begin
     q = 3
-    n = (3,2)
+    n = (3, 2)
     m = (2,)
     B = 3
 
@@ -99,9 +99,9 @@ end
         ΔE[x, i, :] .= free_energy(rbm, v_) - E
     end
     @test ΔE ≈ substitution_matrix_exhaustive(rbm, v)
-    lpl = -logsumexp(-ΔE; dims=1)
+    lpl = -logsumexp(-ΔE; dims = 1)
     @assert size(lpl) == (1, n..., B)
-    @test log_pseudolikelihood(rbm, v; exact=true) ≈ vec(mean(lpl; dims=(1,2,3)))
+    @test log_pseudolikelihood(rbm, v; exact = true) ≈ vec(mean(lpl; dims = (1, 2, 3)))
 
     ΔE = zeros(q, B)
     sites = [rand(CartesianIndices(n)) for _ in 1:B]
@@ -114,7 +114,7 @@ end
         ΔE[x, :] .= free_energy(rbm, v_) - E
     end
     @test ΔE ≈ substitution_matrix_sites(rbm, v, sites)
-    lpl = -logsumexp(-ΔE; dims=1)
+    lpl = -logsumexp(-ΔE; dims = 1)
     @test log_pseudolikelihood_sites(rbm, v, sites) ≈ vec(lpl)
 end
 
@@ -154,18 +154,18 @@ end
     # so it coincides with the exact pseudolikelihood.
     rbm = RBM(Binary((1,)), Gaussian((2,)), randn(1, 2))
     v = bitrand(1, 7)
-    @test log_pseudolikelihood(rbm, v) ≈ log_pseudolikelihood(rbm, v; exact=true)
+    @test log_pseudolikelihood(rbm, v) ≈ log_pseudolikelihood(rbm, v; exact = true)
 
     # With many sites, the estimator averages to the exact value. Repeat one
     # sample many times and bound the Monte Carlo error from the per-site spread.
     n = (3, 2)
     rbm = RBM(Binary(n), Gaussian((2,)), randn(n..., 2) / √prod(n))
     v0 = bitrand(n..., 1)
-    exact = only(log_pseudolikelihood(rbm, v0; exact=true))
+    exact = only(log_pseudolikelihood(rbm, v0; exact = true))
     persite = [only(log_pseudolikelihood_sites(rbm, v0, [i])) for i in CartesianIndices(n)]
     @test mean(persite) ≈ exact
     B = 2^12
-    vrep = repeat(v0; outer=(1, 1, B))
+    vrep = repeat(v0; outer = (1, 1, B))
     stoch = mean(log_pseudolikelihood(rbm, vrep))
     @test stoch ≈ exact atol = 10 * std(persite) / √B
 end
@@ -209,5 +209,5 @@ end
     @test substitution_matrix_sites(rbm_gumbel, v, sites) ≈ substitution_matrix_sites(rbm_potts, v, sites)
     @test substitution_matrix_exhaustive(rbm_gumbel, v) ≈ substitution_matrix_exhaustive(rbm_potts, v)
     @test log_pseudolikelihood_sites(rbm_gumbel, v, sites) ≈ log_pseudolikelihood_sites(rbm_potts, v, sites)
-    @test log_pseudolikelihood(rbm_gumbel, v; exact=true) ≈ log_pseudolikelihood(rbm_potts, v; exact=true)
+    @test log_pseudolikelihood(rbm_gumbel, v; exact = true) ≈ log_pseudolikelihood(rbm_potts, v; exact = true)
 end

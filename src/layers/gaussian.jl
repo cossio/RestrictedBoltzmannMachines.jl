@@ -3,9 +3,9 @@
 
 Gaussian layer, with location parameters `θ` and scale parameters `γ`.
 """
-struct Gaussian{N,A} <: AbstractLayer{N}
+struct Gaussian{N, A} <: AbstractLayer{N}
     par::A
-    function Gaussian{N,A}(par::A) where {N,A<:AbstractArray}
+    function Gaussian{N, A}(par::A) where {N, A <: AbstractArray}
         @assert size(par, 1) == 2 # θ, γ
         @assert ndims(par) == N + 1
         return new(par)
@@ -42,7 +42,7 @@ energies(layer::Gaussian, x::AbstractArray) = gauss_energy.(layer.θ, layer.γ, 
 gauss_energy(θ::Real, γ::Real, x::Real) = (abs(γ) * x / 2 - θ) * x
 
 cgfs(layer::Gaussian, inputs = 0) = gauss_cfg.(layer.θ .+ inputs, layer.γ)
-gauss_cfg(θ::Real, γ::Real) = θ^2 / abs(2γ) - log(abs(γ)/π/2) / 2
+gauss_cfg(θ::Real, γ::Real) = θ^2 / abs(2γ) - log(abs(γ) / π / 2) / 2
 
 function sample_from_inputs(layer::Gaussian, inputs = 0)
     μ = mean_from_inputs(layer, inputs)
@@ -63,7 +63,7 @@ end
 function mean_abs_from_inputs(layer::Gaussian, inputs = 0)
     μ = mean_from_inputs(layer, inputs)
     ν = var_from_inputs(layer, inputs)
-    return @. √(2ν/π) * exp(-μ^2 / (2ν)) + μ * erf(μ / √(2ν))
+    return @. √(2ν / π) * exp(-μ^2 / (2ν)) + μ * erf(μ / √(2ν))
 end
 
 function ∂cgfs(layer::Gaussian, inputs = 0)
@@ -83,6 +83,6 @@ end
 
 function moments_from_samples(layer::Gaussian, data::AbstractArray; wts = nothing)
     x1 = batchmean(layer, data; wts)
-    x2 = batchmean(layer, data.^2; wts)
+    x2 = batchmean(layer, data .^ 2; wts)
     return vstack((x1, x2))
 end

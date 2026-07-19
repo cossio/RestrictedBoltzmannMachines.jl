@@ -19,9 +19,9 @@ Here we assume that `A` and `D` are invertible, and moreover are easy to invert
 We use this to chose one or the other of the two formulas above.
 """
 function block_matrix_logdet(
-    A::AbstractMatrix, B::AbstractMatrix,
-    C::AbstractMatrix, D::AbstractMatrix
-)
+        A::AbstractMatrix, B::AbstractMatrix,
+        C::AbstractMatrix, D::AbstractMatrix
+    )
     @assert size(A, 1) == size(B, 1)
     @assert size(C, 1) == size(D, 1)
     @assert size(A, 2) == size(C, 2)
@@ -58,9 +58,9 @@ Inversion of a block matrix, using the formula:
 Assumes that `A` and `D` are square and invertible.
 """
 function block_matrix_invert(
-    A::AbstractMatrix, B::AbstractMatrix,
-    C::AbstractMatrix, D::AbstractMatrix
-)
+        A::AbstractMatrix, B::AbstractMatrix,
+        C::AbstractMatrix, D::AbstractMatrix
+    )
     @assert size(A, 1) == size(A, 2) == size(B, 1) == size(C, 2)
     @assert size(D, 1) == size(D, 2) == size(B, 2) == size(C, 1)
 

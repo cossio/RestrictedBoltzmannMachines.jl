@@ -17,7 +17,7 @@ using RestrictedBoltzmannMachines: RBM, BinaryRBM, Binary, Spin, Potts, Gaussian
     collect_states, mean_h_from_v, generate_sequences, onehot_encode,
     center, standardize, unstandardize, weight_norms
 
-all_visible_states(layer::Union{Binary,Spin}) = collect_states(layer)
+all_visible_states(layer::Union{Binary, Spin}) = collect_states(layer)
 
 function all_visible_states(layer::Potts)
     Q, N = size(layer)
@@ -70,10 +70,10 @@ function potts_dataset()
 end
 
 @testset "pcd binary moment matching: $name" for (name, kwargs) in [
-    ("Adam", (; batchsize = 32, iters = 5000, steps = 5, optim = Adam(1e-3))),
-    ("steps=1, no shuffle", (; batchsize = 16, iters = 5000, steps = 1, shuffle = false, optim = Adam(1e-3))),
-    ("SGD", (; batchsize = 32, iters = 5000, steps = 5, optim = Descent(2e-2))),
-]
+        ("Adam", (; batchsize = 32, iters = 5000, steps = 5, optim = Adam(1.0e-3))),
+        ("steps=1, no shuffle", (; batchsize = 16, iters = 5000, steps = 1, shuffle = false, optim = Adam(1.0e-3))),
+        ("SGD", (; batchsize = 32, iters = 5000, steps = 5, optim = Descent(2.0e-2))),
+    ]
     seed!(7)
     data = binary_dataset()
     rbm = BinaryRBM(3, 5)
@@ -91,17 +91,17 @@ end
     rbm = BinaryRBM(3, 5)
     initialize!(rbm, data)
     ll_init = mean(log_likelihood(rbm, data))
-    pcd!(rbm, data; batchsize = 32, iters = 5000, steps = 5, optim = Adam(1e-3))
+    pcd!(rbm, data; batchsize = 32, iters = 5000, steps = 5, optim = Adam(1.0e-3))
     ll_trained = mean(log_likelihood(rbm, data))
     @test ll_trained > ll_init
 
     # compare against the entropy bound: ll ≤ mean(log(empirical probability))
-    counts = Dict{Vector{Bool},Int}()
+    counts = Dict{Vector{Bool}, Int}()
     for v in eachcol(data)
         counts[v] = get(counts, v, 0) + 1
     end
     ll_bound = sum(c * log(c / size(data, 2)) for c in values(counts)) / size(data, 2)
-    @test ll_trained ≤ ll_bound + 1e-3
+    @test ll_trained ≤ ll_bound + 1.0e-3
     @test ll_trained > ll_bound - 0.25 # close to the optimum, up to model misspecification
 end
 
@@ -111,7 +111,7 @@ end
     wts = [v[1] ? 3.0 : 1.0 for v in eachcol(data)]
     rbm = BinaryRBM(3, 5)
     initialize!(rbm, data; wts)
-    pcd!(rbm, data; wts, batchsize = 32, iters = 5000, steps = 5, optim = Adam(1e-3))
+    pcd!(rbm, data; wts, batchsize = 32, iters = 5000, steps = 5, optim = Adam(1.0e-3))
     gaps = moment_gaps(rbm, data; wts)
     @test gaps.v < 0.05
     @test gaps.h < 0.05
@@ -124,11 +124,11 @@ end
 
     rbm_weak = BinaryRBM(3, 5)
     initialize!(rbm_weak, data)
-    pcd!(rbm_weak, data; batchsize = 32, iters = 5000, steps = 5, optim = Adam(1e-3), l2_weights = 1e-4)
+    pcd!(rbm_weak, data; batchsize = 32, iters = 5000, steps = 5, optim = Adam(1.0e-3), l2_weights = 1.0e-4)
 
     rbm_strong = BinaryRBM(3, 5)
     initialize!(rbm_strong, data)
-    pcd!(rbm_strong, data; batchsize = 32, iters = 5000, steps = 5, optim = Adam(1e-3), l2_weights = 10.0)
+    pcd!(rbm_strong, data; batchsize = 32, iters = 5000, steps = 5, optim = Adam(1.0e-3), l2_weights = 10.0)
 
     # weak regularization barely perturbs the maximum-likelihood solution
     gaps = moment_gaps(rbm_weak, data)
@@ -146,7 +146,7 @@ end
     data = spin_dataset()
     rbm = RBM(Spin((3,)), Spin((4,)), zeros(3, 4))
     initialize!(rbm, data)
-    pcd!(rbm, data; batchsize = 32, iters = 5000, steps = 5, optim = Adam(1e-3))
+    pcd!(rbm, data; batchsize = 32, iters = 5000, steps = 5, optim = Adam(1.0e-3))
     gaps = moment_gaps(rbm, data)
     @test gaps.v < 0.1 # spins range over [-1, 1]
     @test gaps.h < 0.1
@@ -158,14 +158,14 @@ end
     data = potts_dataset()
     rbm = RBM(Potts((3, 2)), Binary((3,)), zeros(3, 2, 3))
     initialize!(rbm, data)
-    pcd!(rbm, data; batchsize = 32, iters = 5000, steps = 5, optim = Adam(1e-3))
+    pcd!(rbm, data; batchsize = 32, iters = 5000, steps = 5, optim = Adam(1.0e-3))
     gaps = moment_gaps(rbm, data)
     @test gaps.v < 0.05
     @test gaps.h < 0.05
     @test gaps.vh < 0.05
     # zerosum gauge is maintained
-    @test norm(mean(rbm.visible.θ; dims = 1)) < 1e-10
-    @test norm(mean(rbm.w; dims = 1)) < 1e-10
+    @test norm(mean(rbm.visible.θ; dims = 1)) < 1.0e-10
+    @test norm(mean(rbm.w; dims = 1)) < 1.0e-10
 end
 
 @testset "pcd potts learns visible fields" begin
@@ -178,10 +178,10 @@ end
     seed!(69)
     data = potts_dataset()
     rbm = RBM(Potts((3, 2)), Binary((3,)), zeros(3, 2, 3))
-    pcd!(rbm, data; batchsize = 32, iters = 100, steps = 5, optim = Descent(1e-2))
-    @test norm(rbm.visible.θ) > 1e-3
+    pcd!(rbm, data; batchsize = 32, iters = 100, steps = 5, optim = Descent(1.0e-2))
+    @test norm(rbm.visible.θ) > 1.0e-3
     # while staying in the zerosum gauge
-    @test norm(mean(rbm.visible.θ; dims = 1)) < 1e-10
+    @test norm(mean(rbm.visible.θ; dims = 1)) < 1.0e-10
 end
 
 @testset "pcd gaussian hidden moment matching" begin
@@ -189,7 +189,7 @@ end
     data = binary_dataset()
     rbm = RBM(Binary((3,)), Gaussian((2,)), zeros(3, 2))
     initialize!(rbm, data)
-    pcd!(rbm, data; batchsize = 32, iters = 5000, steps = 5, optim = Adam(1e-3))
+    pcd!(rbm, data; batchsize = 32, iters = 5000, steps = 5, optim = Adam(1.0e-3))
     gaps = moment_gaps(rbm, data)
     @test gaps.v < 0.05
     @test gaps.h < 0.1
@@ -203,7 +203,7 @@ end
     data = binary_dataset()
     rbm = center(BinaryRBM(3, 5))
     initialize!(rbm, data)
-    pcd!(rbm, data; batchsize = 32, iters = 5000, steps = 5, optim = Adam(1e-3))
+    pcd!(rbm, data; batchsize = 32, iters = 5000, steps = 5, optim = Adam(1.0e-3))
     gaps = moment_gaps(rbm, data)
     @test gaps.v < 0.05
     @test gaps.h < 0.05
@@ -214,7 +214,7 @@ end
     seed!(61)
     data = binary_dataset()
     rbm = standardize(initialize!(BinaryRBM(3, 5), data))
-    pcd!(rbm, data; batchsize = 32, iters = 5000, steps = 5, optim = Adam(1e-3))
+    pcd!(rbm, data; batchsize = 32, iters = 5000, steps = 5, optim = Adam(1.0e-3))
     gaps = moment_gaps(rbm, data)
     @test gaps.v < 0.05
     @test gaps.h < 0.05
@@ -226,7 +226,7 @@ end
     data = binary_dataset()
     wts = [v[1] ? 3.0 : 1.0 for v in eachcol(data)]
     rbm = standardize(initialize!(BinaryRBM(3, 5), data; wts))
-    pcd!(rbm, data; wts, batchsize = 32, iters = 5000, steps = 5, optim = Adam(1e-3))
+    pcd!(rbm, data; wts, batchsize = 32, iters = 5000, steps = 5, optim = Adam(1.0e-3))
     gaps = moment_gaps(rbm, data; wts)
     @test gaps.v < 0.05
     @test gaps.h < 0.05
@@ -237,15 +237,15 @@ end
     seed!(63)
     data = potts_dataset()
     rbm = standardize(initialize!(RBM(Potts((3, 2)), Binary((3,)), zeros(3, 2, 3)), data))
-    pcd!(rbm, data; batchsize = 32, iters = 5000, steps = 5, optim = Adam(1e-3))
+    pcd!(rbm, data; batchsize = 32, iters = 5000, steps = 5, optim = Adam(1.0e-3))
     gaps = moment_gaps(rbm, data)
     @test gaps.v < 0.05
     @test gaps.h < 0.05
     @test gaps.vh < 0.05
     # zerosum gauge of the equivalent unstandardized RBM is maintained
     urbm = unstandardize(rbm)
-    @test norm(mean(urbm.visible.θ; dims = 1)) < 1e-10
-    @test norm(mean(urbm.w; dims = 1)) < 1e-10
+    @test norm(mean(urbm.visible.θ; dims = 1)) < 1.0e-10
+    @test norm(mean(urbm.w; dims = 1)) < 1.0e-10
 end
 
 @testset "ucd moment matching" begin
@@ -253,7 +253,7 @@ end
     data = binary_dataset()
     rbm = BinaryRBM(3, 3)
     initialize!(rbm, data)
-    ucd!(rbm, data; batchsize = 32, iters = 2000, nchains = 4, max_steps = 32, optim = Adam(2e-3))
+    ucd!(rbm, data; batchsize = 32, iters = 2000, nchains = 4, max_steps = 32, optim = Adam(2.0e-3))
     gaps = moment_gaps(rbm, data)
     @test gaps.v < 0.1
     @test gaps.h < 0.1

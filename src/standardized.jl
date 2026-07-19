@@ -1,4 +1,4 @@
-struct StandardizedRBM{V,H,W,Ov,Oh,Sv,Sh}
+struct StandardizedRBM{V, H, W, Ov, Oh, Sv, Sh}
     visible::V
     hidden::H
     w::W
@@ -7,25 +7,25 @@ struct StandardizedRBM{V,H,W,Ov,Oh,Sv,Sh}
     scale_v::Sv
     scale_h::Sh
     function StandardizedRBM(
-        visible::AbstractLayer, hidden::AbstractLayer, w::AbstractArray,
-        offset_v::AbstractArray, offset_h::AbstractArray,
-        scale_v::AbstractArray, scale_h::AbstractArray
-    )
+            visible::AbstractLayer, hidden::AbstractLayer, w::AbstractArray,
+            offset_v::AbstractArray, offset_h::AbstractArray,
+            scale_v::AbstractArray, scale_h::AbstractArray
+        )
         @assert size(w) == (size(visible)..., size(hidden)...)
         @assert size(visible) == size(offset_v) == size(scale_v)
-        @assert size(hidden)  == size(offset_h) == size(scale_h)
+        @assert size(hidden) == size(offset_h) == size(scale_h)
         V, H, W = typeof(visible), typeof(hidden), typeof(w)
         Ov, Oh, Sv, Sh = typeof(offset_v), typeof(offset_h), typeof(scale_v), typeof(scale_h)
-        return new{V,H,W,Ov,Oh,Sv,Sh}(visible, hidden, w, offset_v, offset_h, scale_v, scale_h)
+        return new{V, H, W, Ov, Oh, Sv, Sh}(visible, hidden, w, offset_v, offset_h, scale_v, scale_h)
     end
 end
 
 function StandardizedRBM(
-    rbm::RBM,
-    offset_v::AbstractArray, offset_h::AbstractArray,
-    scale_v::AbstractArray, scale_h::AbstractArray
-)
-    StandardizedRBM(rbm.visible, rbm.hidden, rbm.w, offset_v, offset_h, scale_v, scale_h)
+        rbm::RBM,
+        offset_v::AbstractArray, offset_h::AbstractArray,
+        scale_v::AbstractArray, scale_h::AbstractArray
+    )
+    return StandardizedRBM(rbm.visible, rbm.hidden, rbm.w, offset_v, offset_h, scale_v, scale_h)
 end
 
 function StandardizedRBM(rbm::RBM)
@@ -81,9 +81,9 @@ function free_energy_h(rbm::StandardizedRBM, h::AbstractArray)
 end
 
 function ∂free_energy(
-    rbm::StandardizedRBM, v::AbstractArray;
-    wts = nothing, moments = moments_from_samples(rbm.visible, v; wts)
-)
+        rbm::StandardizedRBM, v::AbstractArray;
+        wts = nothing, moments = moments_from_samples(rbm.visible, v; wts)
+    )
     inputs = inputs_h_from_v(rbm, v)
     ∂v = ∂energy_from_moments(rbm.visible, moments)
     ∂Γ = ∂cgfs(rbm.hidden, inputs)
@@ -100,9 +100,9 @@ function ∂free_energy_v(rbm::StandardizedRBM, v::AbstractArray; kwargs...)
 end
 
 function ∂free_energy_h(
-    rbm::StandardizedRBM, h::AbstractArray;
-    wts = nothing, moments = moments_from_samples(rbm.hidden, h; wts)
-)
+        rbm::StandardizedRBM, h::AbstractArray;
+        wts = nothing, moments = moments_from_samples(rbm.hidden, h; wts)
+    )
     inputs = inputs_v_from_h(rbm, h)
     ∂h = ∂energy_from_moments(rbm.hidden, moments)
     ∂Γ = ∂cgfs(rbm.visible, inputs)
@@ -115,8 +115,8 @@ function ∂free_energy_h(
 end
 
 function ∂interaction_energy(
-    rbm::StandardizedRBM, v::AbstractArray, h::AbstractArray; wts = nothing
-)
+        rbm::StandardizedRBM, v::AbstractArray, h::AbstractArray; wts = nothing
+    )
     std_v = standardize_v(rbm, v)
     std_h = standardize_h(rbm, h)
     ∂w = ∂interaction_energy(RBM(rbm), std_v, std_h; wts)
@@ -128,14 +128,14 @@ function log_pseudolikelihood(rbm::StandardizedRBM, v::AbstractArray; kwargs...)
 end
 
 function ∂regularize!(
-    ∂::∂RBM, std_rbm::StandardizedRBM;
-    l2_fields::Real = 0,
-    l1_weights::Real = 0,
-    l2_weights::Real = 0,
-    l2l1_weights::Real = 0,
-    regularize_unstandardized::Bool = true,
-    zerosum::Bool = false # whether to zerosum gradients
-)
+        ∂::∂RBM, std_rbm::StandardizedRBM;
+        l2_fields::Real = 0,
+        l1_weights::Real = 0,
+        l2_weights::Real = 0,
+        l2l1_weights::Real = 0,
+        regularize_unstandardized::Bool = true,
+        zerosum::Bool = false # whether to zerosum gradients
+    )
     if regularize_unstandardized
         # regularization applies the unstandardized parameters
         rbm = unstandardize(std_rbm)
@@ -169,17 +169,17 @@ function ∂regularize!(
 end
 
 function ∂regularize_add_visible_offset!(∂::∂RBM, visible_regularization::AbstractArray, offset_h::AbstractArray, scale_w::AbstractArray, ::dReLU)
-    ∂.w .-= (visible_regularization[1, ..] + visible_regularization[2, ..]) .* offset_h ./ scale_w
+    return ∂.w .-= (visible_regularization[1, ..] + visible_regularization[2, ..]) .* offset_h ./ scale_w
 end
 
-function ∂regularize_add_visible_offset!(∂::∂RBM, visible_regularization::AbstractArray, offset_h::AbstractArray, scale_w::AbstractArray, ::Union{Binary,Spin,Potts,PottsGumbel,Gaussian,ReLU,xReLU,pReLU,nsReLU})
-    ∂.w .-= visible_regularization[1, ..] .* offset_h ./ scale_w
+function ∂regularize_add_visible_offset!(∂::∂RBM, visible_regularization::AbstractArray, offset_h::AbstractArray, scale_w::AbstractArray, ::Union{Binary, Spin, Potts, PottsGumbel, Gaussian, ReLU, xReLU, pReLU, nsReLU})
+    return ∂.w .-= visible_regularization[1, ..] .* offset_h ./ scale_w
 end
 
 function regularization_penalty(
-    std_rbm::StandardizedRBM; regularize_unstandardized::Bool = true,
-    l1_weights::Real = 0, l2_weights::Real = 0, l2l1_weights::Real = 0, l2_fields::Real = 0,
-)
+        std_rbm::StandardizedRBM; regularize_unstandardized::Bool = true,
+        l1_weights::Real = 0, l2_weights::Real = 0, l2l1_weights::Real = 0, l2_fields::Real = 0,
+    )
     if regularize_unstandardized
         rbm = unstandardize(std_rbm)
         return regularization_penalty(rbm; l1_weights, l2_weights, l2l1_weights, l2_fields)
@@ -304,10 +304,10 @@ function standardize(rbm::StandardizedRBM)
 end
 
 function standardize(
-    rbm::StandardizedRBM,
-    offset_v::AbstractArray, offset_h::AbstractArray,
-    scale_v::AbstractArray, scale_h::AbstractArray
-)
+        rbm::StandardizedRBM,
+        offset_v::AbstractArray, offset_h::AbstractArray,
+        scale_v::AbstractArray, scale_h::AbstractArray
+    )
     @assert size(rbm.visible) == size(offset_v) == size(scale_v)
     @assert size(rbm.hidden) == size(offset_h) == size(scale_h)
     std_rbm = standardize_visible(rbm, offset_v, scale_v)
@@ -315,10 +315,10 @@ function standardize(
 end
 
 function standardize(
-    rbm::RBM,
-    offset_v::AbstractArray, offset_h::AbstractArray,
-    scale_v::AbstractArray, scale_h::AbstractArray
-)
+        rbm::RBM,
+        offset_v::AbstractArray, offset_h::AbstractArray,
+        scale_v::AbstractArray, scale_h::AbstractArray
+    )
     std_rbm = standardize(rbm)
     return standardize(std_rbm, offset_v, offset_h, scale_v, scale_h)
 end
@@ -395,7 +395,7 @@ end
 
 function standardize_visible_from_data!(rbm::StandardizedRBM, data::AbstractArray; wts = nothing, ϵ::Real = 0)
     μ = batchmean(rbm.visible, data; wts)
-    ν = batchvar(rbm.visible, data; wts, mean=μ)
+    ν = batchvar(rbm.visible, data; wts, mean = μ)
     scale = sqrt.(ν .+ ϵ)
     # Centered constant coordinates are identically zero, so their scale is arbitrary.
     # Use the neutral unit scale to avoid dividing by zero during standardization.
@@ -406,13 +406,13 @@ end
 function standardize_hidden_from_inputs!(rbm::StandardizedRBM, inputs::AbstractArray; wts = nothing, damping::Real = 0, ϵ::Real = 0)
     μ, ν = total_meanvar_from_inputs(rbm.hidden, inputs; wts)
     offset_h = (1 - damping) .* rbm.offset_h + damping .* μ
-    scale_h = sqrt.((1 - damping) .* rbm.scale_h.^2 + damping .* (ν .+ ϵ))
+    scale_h = sqrt.((1 - damping) .* rbm.scale_h .^ 2 + damping .* (ν .+ ϵ))
     return standardize_hidden!(rbm, offset_h, scale_h)
 end
 
 function standardize_hidden_from_v!(rbm::StandardizedRBM, v::AbstractArray; wts = nothing, damping::Real = 0, ϵ::Real = 0)
     inputs = inputs_h_from_v(rbm, v)
-    standardize_hidden_from_inputs!(rbm, inputs; damping, wts, ϵ)
+    return standardize_hidden_from_inputs!(rbm, inputs; damping, wts, ϵ)
 end
 
 function unstandardized_weights(rbm::StandardizedRBM)
@@ -434,55 +434,57 @@ function gumbel_to_potts(rbm::StandardizedRBM)
 end
 
 function pcd!(
-    rbm::StandardizedRBM,
-    data::AbstractArray;
+        rbm::StandardizedRBM,
+        data::AbstractArray;
 
-    batchsize::Int = 1,
-    shuffle::Bool = true,
+        batchsize::Int = 1,
+        shuffle::Bool = true,
 
-    iters::Int = 1, # number of gradient updates
-    wts::Union{AbstractVector, Nothing} = nothing, # data weights
+        iters::Int = 1, # number of gradient updates
+        wts::Union{AbstractVector, Nothing} = nothing, # data weights
 
-    steps::Int = 1,
-    vm::Union{AbstractArray, Nothing} = nothing,
+        steps::Int = 1,
+        vm::Union{AbstractArray, Nothing} = nothing,
 
-    moments = moments_from_samples(rbm.visible, data; wts), # sufficient statistics for visible layer
+        moments = moments_from_samples(rbm.visible, data; wts), # sufficient statistics for visible layer
 
-    # regularization
-    l2_fields::Real = 0, # visible fields L2 regularization
-    l1_weights::Real = 0, # weights L1 regularization
-    l2_weights::Real = 0, # weights L2 regularization
-    l2l1_weights::Real = 0, # weights L2/L1 regularization
+        # regularization
+        l2_fields::Real = 0, # visible fields L2 regularization
+        l1_weights::Real = 0, # weights L1 regularization
+        l2_weights::Real = 0, # weights L2 regularization
+        l2l1_weights::Real = 0, # weights L2/L1 regularization
 
-    # "pseudocount" for estimating variances of v and h and damping
-    damping::Real = 1//100, ϵv::Real = 0, ϵh::Real = 0,
+        # "pseudocount" for estimating variances of v and h and damping
+        damping::Real = 1 // 100, ϵv::Real = 0, ϵh::Real = 0,
 
-    # whether regularization applies to unstandardized model parameters (default),
-    # or to the parameters of the standardized model
-    regularize_unstandardized::Bool = true,
+        # whether regularization applies to unstandardized model parameters (default),
+        # or to the parameters of the standardized model
+        regularize_unstandardized::Bool = true,
 
-    # optimiser
-    optim::AbstractRule = Adam(),
-    ps = nothing,
-    state = nothing,
+        # optimiser
+        optim::AbstractRule = Adam(),
+        ps = nothing,
+        state = nothing,
 
-    # Absorb the scale_h into the hidden unit activation (for hidden units with scale parameter).
-    # Results in hidden units with var(h) ~ 1.
-    rescale_hidden::Bool = true,
+        # Absorb the scale_h into the hidden unit activation (for hidden units with scale parameter).
+        # Results in hidden units with var(h) ~ 1.
+        rescale_hidden::Bool = true,
 
-    zerosum::Bool = true, # zerosum gauge for Potts layers
+        zerosum::Bool = true, # zerosum gauge for Potts layers
 
-    # called for every gradient update
-    callback = Returns(nothing)
-)
+        # called for every gradient update
+        callback = Returns(nothing)
+    )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert isnothing(wts) || size(data)[end] == length(wts)
     @assert 0 ≤ damping ≤ 1
     _validate_layer_parameters(rbm)
     isnothing(vm) &&
-        (vm = sample_from_inputs(
+        (
+        vm = sample_from_inputs(
             rbm.visible, Falses(size(rbm.visible)..., batchsize)
-        ))
+        )
+    )
     isnothing(ps) &&
         (ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w))
     isnothing(state) && (state = setup(optim, ps))
@@ -516,7 +518,7 @@ function pcd!(
         _validate_layer_parameters(rbm)
 
         # update standardization
-        standardize_hidden_from_v!(rbm, vd; wts = wd, damping, ϵ=ϵh)
+        standardize_hidden_from_v!(rbm, vd; wts = wd, damping, ϵ = ϵh)
 
         rescale_hidden && rescale_hidden_activations!(rbm)
         zerosum && zerosum!(rbm)
@@ -528,10 +530,10 @@ function pcd!(
 end
 
 function BinaryStandardizedRBM(
-    a::AbstractArray, b::AbstractArray, w::AbstractArray,
-    offset_v::AbstractArray, offset_h::AbstractArray,
-    scale_v::AbstractArray, scale_h::AbstractArray
-)
+        a::AbstractArray, b::AbstractArray, w::AbstractArray,
+        offset_v::AbstractArray, offset_h::AbstractArray,
+        scale_v::AbstractArray, scale_h::AbstractArray
+    )
     rbm = BinaryRBM(a, b, w)
     return StandardizedRBM(rbm, offset_v, offset_h, scale_v, scale_h)
 end
@@ -542,10 +544,10 @@ function BinaryStandardizedRBM(a::AbstractArray, b::AbstractArray, w::AbstractAr
 end
 
 function SpinStandardizedRBM(
-    a::AbstractArray, b::AbstractArray, w::AbstractArray,
-    offset_v::AbstractArray, offset_h::AbstractArray,
-    scale_v::AbstractArray, scale_h::AbstractArray
-)
+        a::AbstractArray, b::AbstractArray, w::AbstractArray,
+        offset_v::AbstractArray, offset_h::AbstractArray,
+        scale_v::AbstractArray, scale_h::AbstractArray
+    )
     rbm = SpinRBM(a, b, w)
     return StandardizedRBM(rbm, offset_v, offset_h, scale_v, scale_h)
 end
@@ -601,6 +603,6 @@ of the standardized weights, use `weight_norms(RBM(std_rbm))`.
 """
 function weight_norms(rbm::StandardizedRBM)
     w = unstandardized_weights(rbm)
-    w2 = sum(abs2, w; dims=1:ndims(rbm.visible))
+    w2 = sum(abs2, w; dims = 1:ndims(rbm.visible))
     return reshape(sqrt.(w2), size(rbm.hidden))
 end

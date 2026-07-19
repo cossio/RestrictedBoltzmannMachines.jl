@@ -13,8 +13,8 @@ end
 
 function GaussianRBM(θv::AbstractArray, γv::AbstractArray, w::AbstractArray)
     @assert size(θv) == size(γv) == size(w)[1:ndims(θv)]
-    θh = fill!(similar(θv, eltype(θv), size(w)[(ndims(θv) + 1):end]),  0)
-    γh = fill!(similar(γv, eltype(γv), size(w)[(ndims(γv) + 1):end]),  1)
+    θh = fill!(similar(θv, eltype(θv), size(w)[(ndims(θv) + 1):end]), 0)
+    γh = fill!(similar(γv, eltype(γv), size(w)[(ndims(γv) + 1):end]), 1)
     return GaussianRBM(θv, γv, θh, γh, w)
 end
 
@@ -25,10 +25,12 @@ function log_partition(rbm::RBM{<:Gaussian, <:Gaussian})
     γh = vec(abs.(rbm.hidden.γ))
     w = flat_w(rbm)
 
-    A = LinearAlgebra.Symmetric([
-        Diagonal(γv) -w
-        -w' Diagonal(γh)
-    ])
+    A = LinearAlgebra.Symmetric(
+        [
+            Diagonal(γv) -w
+            -w' Diagonal(γh)
+        ]
+    )
     F = LinearAlgebra.cholesky(A; check = false)
     logZ0 = length(θ) / 2 * log(2π)
 

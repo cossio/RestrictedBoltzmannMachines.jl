@@ -25,9 +25,9 @@ end
 
 coverage = process_folder("src")
 
-println("=" ^ 80)
+println("="^80)
 println("FILE COVERAGE REPORT")
-println("=" ^ 80)
+println("="^80)
 println()
 
 global total_hit = 0
@@ -38,7 +38,7 @@ for fc in coverage
     hit = count(x -> x !== nothing && x > 0, fc.coverage)
     miss = count(x -> x !== nothing && x == 0, fc.coverage)
     total = hit + miss
-    pct = total > 0 ? round(100 * hit / total; digits=1) : 100.0
+    pct = total > 0 ? round(100 * hit / total; digits = 1) : 100.0
     relpath = replace(fc.filename, pwd() * "/" => "")
     uncovered = [i for (i, c) in enumerate(fc.coverage) if c !== nothing && c == 0]
     push!(results, (relpath, hit, miss, total, pct, uncovered))
@@ -58,5 +58,5 @@ end
 
 println()
 total_total = total_hit + total_miss
-total_pct = round(100 * total_hit / total_total; digits=1)
+total_pct = round(100 * total_hit / total_total; digits = 1)
 println("TOTAL: $total_pct%  ($total_hit / $total_total lines)")

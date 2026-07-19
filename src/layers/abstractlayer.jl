@@ -92,10 +92,10 @@ end
 Variance of `x` over batch dimensions, weigthed by `wts`.
 """
 function batchvar(
-    layer::AbstractLayer, x::AbstractArray; wts = nothing, mean = batchmean(layer, x; wts)
-)
+        layer::AbstractLayer, x::AbstractArray; wts = nothing, mean = batchmean(layer, x; wts)
+    )
     @assert size(layer) == size(x)[1:ndims(layer)] == size(mean)
-    return batchmean(layer, (x .- mean).^2; wts)
+    return batchmean(layer, (x .- mean) .^ 2; wts)
 end
 
 """
@@ -104,8 +104,8 @@ end
 Standard deviation of `x` over batch dimensions, weigthed by `wts`.
 """
 function batchstd(
-    layer::AbstractLayer, x::AbstractArray; wts = nothing, mean = batchmean(layer, x; wts)
-)
+        layer::AbstractLayer, x::AbstractArray; wts = nothing, mean = batchmean(layer, x; wts)
+    )
     return sqrt.(batchvar(layer, x; wts, mean))
 end
 
@@ -115,8 +115,8 @@ end
 Covariance of `x` over batch dimensions, weigthed by `wts`.
 """
 function batchcov(
-    layer::AbstractLayer, x::AbstractArray; wts = nothing, mean = batchmean(layer, x; wts)
-)
+        layer::AbstractLayer, x::AbstractArray; wts = nothing, mean = batchmean(layer, x; wts)
+    )
     @assert size(layer) == size(x)[1:ndims(layer)] == size(mean)
     ξ = flatten(layer, x .- mean)
     if isnothing(wts)

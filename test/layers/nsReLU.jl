@@ -35,7 +35,7 @@ using Test: @testset
     @test all(isone, xrelu.γ)
     @test cgfs(drelu) ≈ cgfs(xrelu) ≈ cgfs(nrelu)
     @test mode_from_inputs(drelu) ≈ mode_from_inputs(xrelu) ≈ mode_from_inputs(nrelu)
-    @test mean_from_inputs(drelu) ≈ mean_from_inputs(xrelu)  ≈ mean_from_inputs(nrelu)
+    @test mean_from_inputs(drelu) ≈ mean_from_inputs(xrelu) ≈ mean_from_inputs(nrelu)
     @test mean_abs_from_inputs(drelu) ≈ mean_abs_from_inputs(xrelu) ≈ mean_abs_from_inputs(nrelu)
     @test var_from_inputs(drelu) ≈ var_from_inputs(xrelu) ≈ var_from_inputs(nrelu)
 
@@ -99,7 +99,7 @@ end
     layer2 = nsReLU(; θ = randn(N...), Δ = randn(N...), ξ = randn(N...))
     data = 0.5randn(N..., 10^5) .+ 1
     initialize!(layer2, data)
-    @test layer2.θ ≈ batchmean(layer2, data) rtol=0.05
+    @test layer2.θ ≈ batchmean(layer2, data) rtol = 0.05
     @test all(iszero, layer2.Δ)
     @test all(iszero, layer2.ξ)
 end

@@ -53,7 +53,7 @@ end
 
     rbm = BinaryRBM(2, 5)
     initialize!(rbm, data)
-    ucd!(rbm, data; iters = 3000, batchsize = 64, nchains = 8, min_steps = 1, max_steps = 32, optim = Adam(5e-4))
+    ucd!(rbm, data; iters = 3000, batchsize = 64, nchains = 8, min_steps = 1, max_steps = 32, optim = Adam(5.0e-4))
 
     v_sample = sample_v_from_v(rbm, bitrand(2, 10000); steps = 50)
 

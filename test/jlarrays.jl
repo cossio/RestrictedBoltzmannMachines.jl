@@ -332,7 +332,7 @@ end
     )
     scale_v = adapt(Array, jl_standardized_rbm.scale_v)
     @test jl_standardized_rbm.scale_v isa JLArray
-    @test scale_v[1, 1] == 1f0
+    @test scale_v[1, 1] == 1.0f0
     @test all(scale_v .> 0)
     @test all(isfinite, adapt(Array, jl_standardized_rbm.visible.par))
     @test all(isfinite, adapt(Array, jl_standardized_rbm.hidden.par))

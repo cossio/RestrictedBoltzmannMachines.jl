@@ -29,7 +29,7 @@ function rescale_weights!(rbm::RBM)
 end
 
 function weight_norms(rbm::RBM)
-    w2 = sum(abs2, rbm.w; dims=1:ndims(rbm.visible))
+    w2 = sum(abs2, rbm.w; dims = 1:ndims(rbm.visible))
     return reshape(sqrt.(w2), size(rbm.hidden))
 end
 
@@ -39,16 +39,16 @@ end
 For continuous layers with scale parameters, re-parameterizes such that unit activations
 are divided by `λ`, and returns `true`. For other layers, does nothing and returns `false`.
 """
-rescale_activations!(::Union{Binary,Spin,Potts,PottsGumbel,nsReLU}, ::AbstractArray) = false
+rescale_activations!(::Union{Binary, Spin, Potts, PottsGumbel, nsReLU}, ::AbstractArray) = false
 
 #= Note that λ < 0 can lead to trouble, e.g. for ReLU which
 must have positive activations. So we dissallow it below. =#
 
-function rescale_activations!(layer::Union{Gaussian,ReLU}, λ::AbstractArray)
+function rescale_activations!(layer::Union{Gaussian, ReLU}, λ::AbstractArray)
     @assert size(layer) == size(λ)
     @assert all(>(0), λ)
     layer.θ .*= λ
-    layer.γ .*= λ.^2
+    layer.γ .*= λ .^ 2
     return true
 end
 
@@ -57,16 +57,16 @@ function rescale_activations!(layer::dReLU, λ::AbstractArray)
     @assert all(>(0), λ)
     layer.θp .*= λ
     layer.θn .*= λ
-    layer.γp .*= λ.^2
-    layer.γn .*= λ.^2
+    layer.γp .*= λ .^ 2
+    layer.γn .*= λ .^ 2
     return true
 end
 
-function rescale_activations!(layer::Union{pReLU,xReLU}, λ::AbstractArray)
+function rescale_activations!(layer::Union{pReLU, xReLU}, λ::AbstractArray)
     @assert size(layer) == size(λ)
     @assert all(>(0), λ) # it's just simpler
     layer.θ .*= λ
     layer.Δ .*= λ
-    layer.γ .*= λ.^2
+    layer.γ .*= λ .^ 2
     return true
 end

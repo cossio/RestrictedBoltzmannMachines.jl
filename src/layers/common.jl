@@ -1,14 +1,14 @@
-Base.size(layer::Union{Binary,Spin,Potts,PottsGumbel,Gaussian,ReLU,pReLU,xReLU,nsReLU}) = size(layer.θ)
-Base.length(layer::Union{Binary,Spin,Potts,PottsGumbel,Gaussian,ReLU,pReLU,xReLU,nsReLU}) = length(layer.θ)
+Base.size(layer::Union{Binary, Spin, Potts, PottsGumbel, Gaussian, ReLU, pReLU, xReLU, nsReLU}) = size(layer.θ)
+Base.length(layer::Union{Binary, Spin, Potts, PottsGumbel, Gaussian, ReLU, pReLU, xReLU, nsReLU}) = length(layer.θ)
 
-const _FieldLayers = Union{Binary,Spin,Potts,PottsGumbel}
+const _FieldLayers = Union{Binary, Spin, Potts, PottsGumbel}
 
 Base.propertynames(::_FieldLayers) = (:θ,)
 
 function Base.getproperty(layer::_FieldLayers, name::Symbol)
     if name === :θ
         #return @view getfield(layer, :par)[1, ..] # https://github.com/JuliaGPU/CUDA.jl/issues/1957
-        return dropdims(getfield(layer, :par); dims=1)
+        return dropdims(getfield(layer, :par); dims = 1)
     else
         return getfield(layer, name)
     end
@@ -57,7 +57,7 @@ end
 
 Number of possible states of units in discrete layers.
 """
-colors(layer::Union{Spin,Binary}) = 2
+colors(layer::Union{Spin, Binary}) = 2
 colors(layer::Potts) = size(layer, 1)
 
 """
@@ -146,12 +146,12 @@ xReLU(layer::Gaussian) = xReLU(dReLU(layer))
 #     return xReLU(θ, γ, Δ, ξ)
 # end
 
-function moments_from_samples(layer::Union{pReLU,xReLU,nsReLU}, data::AbstractArray; wts = nothing)
+function moments_from_samples(layer::Union{pReLU, xReLU, nsReLU}, data::AbstractArray; wts = nothing)
     xp = max.(data, 0)
     xn = min.(data, 0)
     xp1 = batchmean(layer, xp; wts)
     xn1 = batchmean(layer, xn; wts)
-    xp2 = batchmean(layer, xp.^2; wts)
-    xn2 = batchmean(layer, xn.^2; wts)
+    xp2 = batchmean(layer, xp .^ 2; wts)
+    xn2 = batchmean(layer, xn .^ 2; wts)
     return vstack((xp1, xn1, xp2, xn2))
 end

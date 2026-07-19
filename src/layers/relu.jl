@@ -3,9 +3,9 @@
 
 Layer with ReLU units, with location parameters `θ` and scale parameters `γ`.
 """
-struct ReLU{N,A} <: AbstractLayer{N}
+struct ReLU{N, A} <: AbstractLayer{N}
     par::A
-    function ReLU{N,A}(par::A) where {N,A<:AbstractArray}
+    function ReLU{N, A}(par::A) where {N, A <: AbstractArray}
         @assert size(par, 1) == 2 # θ, γ
         @assert ndims(par) == N + 1
         return new(par)
@@ -75,7 +75,7 @@ end
 function ∂cgfs(layer::ReLU, inputs = 0)
     μ, ν = meanvar_from_inputs(layer, inputs)
     ∂θ = μ
-    ∂γ = -sign.(layer.γ) .* (ν .+ μ.^2) / 2
+    ∂γ = -sign.(layer.γ) .* (ν .+ μ .^ 2) / 2
     return vstack((∂θ, ∂γ))
 end
 
@@ -94,7 +94,7 @@ end
 
 function relu_cfg(θ::Real, γ::Real)
     abs_γ = abs(γ)
-    return logerfcx(-θ / √(2abs_γ)) - log(2abs_γ/π) / 2
+    return logerfcx(-θ / √(2abs_γ)) - log(2abs_γ / π) / 2
 end
 
 function relu_rand(θ::Real, γ::Real)

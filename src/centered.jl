@@ -1,26 +1,26 @@
-struct CenteredRBM{V,H,W,Ov,Oh}
+struct CenteredRBM{V, H, W, Ov, Oh}
     visible::V
     hidden::H
     w::W
     offset_v::Ov
     offset_h::Oh
-    function CenteredRBM{V,H,W,Ov,Oh}(
-        visible::V, hidden::H, w::W, λv::Ov, λh::Oh
-    ) where {V<:AbstractLayer, H<:AbstractLayer, W<:AbstractArray, Ov<:AbstractArray, Oh<:AbstractArray}
+    function CenteredRBM{V, H, W, Ov, Oh}(
+            visible::V, hidden::H, w::W, λv::Ov, λh::Oh
+        ) where {V <: AbstractLayer, H <: AbstractLayer, W <: AbstractArray, Ov <: AbstractArray, Oh <: AbstractArray}
         @assert size(w) == (size(visible)..., size(hidden)...)
         @assert size(visible) == size(λv)
         @assert size(hidden) == size(λh)
-        return new{V,H,W,Ov,Oh}(visible, hidden, w, λv, λh)
+        return new{V, H, W, Ov, Oh}(visible, hidden, w, λv, λh)
     end
 end
 
 function CenteredRBM(
-    visible::AbstractLayer, hidden::AbstractLayer, w::AbstractArray,
-    offset_v::AbstractArray, offset_h::AbstractArray
-)
+        visible::AbstractLayer, hidden::AbstractLayer, w::AbstractArray,
+        offset_v::AbstractArray, offset_h::AbstractArray
+    )
     V, H, W = typeof(visible), typeof(hidden), typeof(w)
     Ov, Oh = typeof(offset_v), typeof(offset_h)
-    return CenteredRBM{V,H,W,Ov,Oh}(visible, hidden, w, offset_v, offset_h)
+    return CenteredRBM{V, H, W, Ov, Oh}(visible, hidden, w, offset_v, offset_h)
 end
 
 """
@@ -41,7 +41,7 @@ Creates a centered RBM, with offsets initialized to zero.
 """
 function CenteredRBM(visible::AbstractLayer, hidden::AbstractLayer, w::AbstractArray)
     offset_v = similar(w, size(visible)) .= 0
-    offset_h = similar(w, size(hidden)).= 0
+    offset_h = similar(w, size(hidden)) .= 0
     return CenteredRBM(RBM(visible, hidden, w), offset_v, offset_h)
 end
 
@@ -56,9 +56,9 @@ E(v,h) = -a' * v - b' * h - (v - λv)' * w * (h - λh)
 ```
 """
 function CenteredBinaryRBM(
-    a::AbstractArray, b::AbstractArray, w::AbstractArray,
-    offset_v::AbstractArray, offset_h::AbstractArray
-)
+        a::AbstractArray, b::AbstractArray, w::AbstractArray,
+        offset_v::AbstractArray, offset_h::AbstractArray
+    )
     return CenteredRBM(BinaryRBM(a, b, w), offset_v, offset_h)
 end
 
@@ -121,9 +121,9 @@ function mean_v_from_h(rbm::CenteredRBM, h::AbstractArray)
 end
 
 function ∂free_energy(
-    rbm::CenteredRBM, v::AbstractArray;
-    wts = nothing, moments = moments_from_samples(rbm.visible, v; wts)
-)
+        rbm::CenteredRBM, v::AbstractArray;
+        wts = nothing, moments = moments_from_samples(rbm.visible, v; wts)
+    )
     inputs = inputs_h_from_v(rbm, v)
     ∂v = ∂energy_from_moments(rbm.visible, moments)
 
@@ -263,18 +263,18 @@ function center_hidden!(rbm::CenteredRBM, offset_h::AbstractArray)
     return rbm
 end
 
-function center_visible_from_data!(rbm::CenteredRBM, data::AbstractArray; wts=nothing)
+function center_visible_from_data!(rbm::CenteredRBM, data::AbstractArray; wts = nothing)
     offset_v = batchmean(rbm.visible, data; wts)
     return center_visible!(rbm, offset_v)
 end
 
-function center_hidden_from_data!(rbm::CenteredRBM, data::AbstractArray; wts=nothing)
+function center_hidden_from_data!(rbm::CenteredRBM, data::AbstractArray; wts = nothing)
     h = mean_h_from_v(rbm, data)
     offset_h = batchmean(rbm.hidden, h; wts)
     return center_hidden!(rbm, offset_h)
 end
 
-function center_from_data!(rbm::CenteredRBM, data::AbstractArray; wts=nothing)
+function center_from_data!(rbm::CenteredRBM, data::AbstractArray; wts = nothing)
     center_visible_from_data!(rbm, data; wts)
     center_hidden_from_data!(rbm, data; wts)
     return rbm
@@ -359,20 +359,20 @@ end
 
 weight_norms(rbm::CenteredRBM) = weight_norms(RBM(rbm))
 
-function initialize!(rbm::CenteredRBM, data::AbstractArray; ϵ::Real = 1e-6)
+function initialize!(rbm::CenteredRBM, data::AbstractArray; ϵ::Real = 1.0e-6)
     initialize!(RBM(rbm), data; ϵ)
     center_from_data!(rbm, data)
     return rbm
 end
 
 function ∂regularize!(
-    ∂::∂RBM, rbm::CenteredRBM;
-    l2_fields::Real = 0,
-    l1_weights::Real = 0,
-    l2_weights::Real = 0,
-    l2l1_weights::Real = 0,
-    zerosum::Bool = false # whether to zerosum gradients
-)
+        ∂::∂RBM, rbm::CenteredRBM;
+        l2_fields::Real = 0,
+        l1_weights::Real = 0,
+        l2_weights::Real = 0,
+        l2l1_weights::Real = 0,
+        zerosum::Bool = false # whether to zerosum gradients
+    )
     urbm = uncenter(rbm)
     offset_h = reshape(rbm.offset_h, map(one, size(rbm.offset_v))..., size(rbm.offset_h)...)
 
@@ -396,11 +396,11 @@ function ∂regularize!(
 end
 
 function ∂regularize_add_visible_offset!(∂::∂RBM, visible_regularization::AbstractArray, offset_h::AbstractArray, ::dReLU)
-    ∂.w .-= (visible_regularization[1, ..] + visible_regularization[2, ..]) .* offset_h
+    return ∂.w .-= (visible_regularization[1, ..] + visible_regularization[2, ..]) .* offset_h
 end
 
-function ∂regularize_add_visible_offset!(∂::∂RBM, visible_regularization::AbstractArray, offset_h::AbstractArray, ::Union{Binary,Spin,Potts,PottsGumbel,Gaussian,ReLU,xReLU,pReLU,nsReLU})
-    ∂.w .-= visible_regularization[1, ..] .* offset_h
+function ∂regularize_add_visible_offset!(∂::∂RBM, visible_regularization::AbstractArray, offset_h::AbstractArray, ::Union{Binary, Spin, Potts, PottsGumbel, Gaussian, ReLU, xReLU, pReLU, nsReLU})
+    return ∂.w .-= visible_regularization[1, ..] .* offset_h
 end
 
 function sample_h_from_v(rbm::CenteredRBM, v::AbstractArray)
@@ -440,45 +440,47 @@ function sample_h_from_h_once(rbm::CenteredRBM, h::AbstractArray)
 end
 
 function pcd!(
-    rbm::CenteredRBM,
-    data::AbstractArray;
+        rbm::CenteredRBM,
+        data::AbstractArray;
 
-    batchsize::Int = 1,
-    iters::Int = 1,
+        batchsize::Int = 1,
+        iters::Int = 1,
 
-    optim::AbstractRule = Adam(), # a rule from Optimisers
-    steps::Int = 1, # Monte-Carlo steps to update persistent chains
+        optim::AbstractRule = Adam(), # a rule from Optimisers
+        steps::Int = 1, # Monte-Carlo steps to update persistent chains
 
-    # data point weights
-    wts::Union{AbstractVector, Nothing} = nothing,
+        # data point weights
+        wts::Union{AbstractVector, Nothing} = nothing,
 
-    # init fantasy chains
-    vm = nothing,
+        # init fantasy chains
+        vm = nothing,
 
-    moments = moments_from_samples(rbm.visible, data; wts),
+        moments = moments_from_samples(rbm.visible, data; wts),
 
-    # damping to update hidden statistics
-    hidden_offset_damping::Real = 1//100,
+        # damping to update hidden statistics
+        hidden_offset_damping::Real = 1 // 100,
 
-    # regularization
-    l2_fields::Real = 0, # visible fields L2 regularization
-    l1_weights::Real = 0, # weights L1 regularization
-    l2_weights::Real = 0, # weights L2 regularization
-    l2l1_weights::Real = 0, # weights L2/L1 regularization
+        # regularization
+        l2_fields::Real = 0, # visible fields L2 regularization
+        l1_weights::Real = 0, # weights L1 regularization
+        l2_weights::Real = 0, # weights L2 regularization
+        l2l1_weights::Real = 0, # weights L2/L1 regularization
 
-    # gauge
-    zerosum::Bool = true, # zerosum gauge for Potts layers
-    rescale::Bool = true, # normalize weights to unit norm (for continuous hidden units only)
+        # gauge
+        zerosum::Bool = true, # zerosum gauge for Potts layers
+        rescale::Bool = true, # normalize weights to unit norm (for continuous hidden units only)
 
-    callback = Returns(nothing)
-)
+        callback = Returns(nothing)
+    )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     isnothing(wts) || @assert size(data)[end] == length(wts)
     _validate_layer_parameters(rbm)
     isnothing(vm) &&
-        (vm = sample_from_inputs(
+        (
+        vm = sample_from_inputs(
             rbm.visible, Falses(size(rbm.visible)..., batchsize)
-        ))
+        )
+    )
 
     data, wts, normalization, batchsize = _prepare_training_data(data, wts; batchsize)
 

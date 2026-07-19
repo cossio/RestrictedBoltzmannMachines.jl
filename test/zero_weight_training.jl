@@ -5,7 +5,7 @@ import RestrictedBoltzmannMachines as RBMs
 using RestrictedBoltzmannMachines: RBM, Binary, Gaussian, BinaryRBM,
     CenteredRBM, StandardizedRBM, center, standardize, pcd!, ucd!
 
-struct CountingDescent{T,R} <: Optimisers.AbstractRule
+struct CountingDescent{T, R} <: Optimisers.AbstractRule
     eta::T
     calls::R
 end
@@ -76,9 +76,9 @@ function weighted_data()
 end
 
 function train_pcd!(
-    ::Val{:plain}, rbm, data, wts, vm, optim, callback;
-    iters::Int, batchsize::Int,
-)
+        ::Val{:plain}, rbm, data, wts, vm, optim, callback;
+        iters::Int, batchsize::Int,
+    )
     return pcd!(
         rbm, data;
         wts, vm, optim, callback, iters, batchsize,
@@ -87,25 +87,25 @@ function train_pcd!(
 end
 
 function train_pcd!(
-    ::Val{:centered}, rbm, data, wts, vm, optim, callback;
-    iters::Int, batchsize::Int,
-)
+        ::Val{:centered}, rbm, data, wts, vm, optim, callback;
+        iters::Int, batchsize::Int,
+    )
     return pcd!(
         rbm, data;
         wts, vm, optim, callback, iters, batchsize,
-        steps = 1, hidden_offset_damping = 1//4,
+        steps = 1, hidden_offset_damping = 1 // 4,
         zerosum = false, rescale = false,
     )
 end
 
 function train_pcd!(
-    ::Val{:standardized}, rbm, data, wts, vm, optim, callback;
-    iters::Int, batchsize::Int,
-)
+        ::Val{:standardized}, rbm, data, wts, vm, optim, callback;
+        iters::Int, batchsize::Int,
+    )
     return pcd!(
         rbm, data;
         wts, vm, optim, callback, iters, batchsize,
-        steps = 1, shuffle = false, damping = 1//4, ϵv = 0.1, ϵh = 0.1,
+        steps = 1, shuffle = false, damping = 1 // 4, ϵv = 0.1, ϵh = 0.1,
         zerosum = false, rescale_hidden = false,
     )
 end
@@ -150,10 +150,10 @@ function check_pcd_filter_equivalence(kind, seed)
 end
 
 @testset "zero-weight PCD matches filtering ($name)" for (name, kind, seed) in [
-    ("plain", Val(:plain), 101),
-    ("centered", Val(:centered), 102),
-    ("standardized", Val(:standardized), 103),
-]
+        ("plain", Val(:plain), 101),
+        ("centered", Val(:centered), 102),
+        ("standardized", Val(:standardized), 103),
+    ]
     check_pcd_filter_equivalence(kind, seed)
 end
 
@@ -169,8 +169,8 @@ end
     filtered_calls = Ref(0)
     mixed_log = callback_log()
     filtered_log = callback_log()
-    mixed_chain_stats = Tuple{Float64,Float64}[]
-    filtered_chain_stats = Tuple{Float64,Float64}[]
+    mixed_chain_stats = Tuple{Float64, Float64}[]
+    filtered_chain_stats = Tuple{Float64, Float64}[]
     mixed_callback = (; meeting_steps, discarded, kwargs...) -> begin
         mixed_log.callback(; kwargs...)
         push!(mixed_chain_stats, (meeting_steps, discarded))
@@ -210,11 +210,11 @@ end
 @testset "invalid training weights" begin
     data = zeros(2, 2)
     for (bad_wts, err) in (
-        ([2.0, -1.0], ArgumentError),
-        ([1.0, NaN], ArgumentError),
-        ([1.0, Inf], ArgumentError),
-        (ComplexF64[1, 1], MethodError), # complex weights have no ordering
-    )
+            ([2.0, -1.0], ArgumentError),
+            ([1.0, NaN], ArgumentError),
+            ([1.0, Inf], ArgumentError),
+            (ComplexF64[1, 1], MethodError), # complex weights have no ordering
+        )
         @test_throws ArgumentError RBMs._prepare_training_data(data, bad_wts; batchsize = 1)
         rbm = base_rbm()
         before = model_state(rbm)
@@ -229,14 +229,14 @@ end
 
 @testset "finite extreme $weight_type weights are scale-stable ($name PCD)" for
     (name, kind, seed) in [
-        ("plain", Val(:plain), 109),
-        ("centered", Val(:centered), 110),
-        ("standardized", Val(:standardized), 111),
-    ],
-    (weight_type, extreme_weight) in [
-        ("Float64", floatmax(Float64)),
-        ("UInt128", typemax(UInt128)),
-    ]
+            ("plain", Val(:plain), 109),
+            ("centered", Val(:centered), 110),
+            ("standardized", Val(:standardized), 111),
+        ],
+        (weight_type, extreme_weight) in [
+            ("Float64", floatmax(Float64)),
+            ("UInt128", typemax(UInt128)),
+        ]
     data = [
         NaN 0.0 1.0
         NaN 1.0 0.0
@@ -331,7 +331,7 @@ end
     @test RBMs.wmean([1.0, 3.0]; wts = Any[1.0, 3.0]) ≈ 2.5
     # wsum never materializes the raw weight sum, which can overflow
     # even when the weighted sum itself is finite
-    @test RBMs.wsum([1e-308, 1e-308]; wts = fill(1e308, 2)) ≈ 2.0
+    @test RBMs.wsum([1.0e-308, 1.0e-308]; wts = fill(1.0e308, 2)) ≈ 2.0
     @test RBMs.wsum(zeros(2); wts = fill(floatmax(Float64), 2)) == 0
     # Float16 weights are accumulated in a wider type (naive Float16 sums overflow)
     n = 70_000
@@ -406,10 +406,10 @@ end
 end
 
 @testset "all-zero weights fail before mutation ($name PCD)" for (name, kind) in [
-    ("plain", Val(:plain)),
-    ("centered", Val(:centered)),
-    ("standardized", Val(:standardized)),
-]
+        ("plain", Val(:plain)),
+        ("centered", Val(:centered)),
+        ("standardized", Val(:standardized)),
+    ]
     check_all_zero_pcd(kind)
 end
 
@@ -478,8 +478,8 @@ function train_sparse_default_pcd!(::Val{:centered}, rbm, data, wts, optim, call
 end
 
 function train_sparse_default_pcd!(
-    ::Val{:standardized}, rbm, data, wts, optim, callback,
-)
+        ::Val{:standardized}, rbm, data, wts, optim, callback,
+    )
     return pcd!(
         rbm, data;
         wts, optim, callback,
@@ -490,10 +490,10 @@ function train_sparse_default_pcd!(
 end
 
 @testset "fewer positive samples than batchsize complete ($name PCD)" for (name, kind) in [
-    ("plain", Val(:plain)),
-    ("centered", Val(:centered)),
-    ("standardized", Val(:standardized)),
-]
+        ("plain", Val(:plain)),
+        ("centered", Val(:centered)),
+        ("standardized", Val(:standardized)),
+    ]
     data = [
         NaN NaN NaN NaN 1.0
         NaN NaN NaN NaN 0.0

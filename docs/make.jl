@@ -16,6 +16,7 @@ function clear_md_files(dir::String)
             end
         end
     end
+    return
 end
 
 #=
@@ -36,7 +37,7 @@ changed (.jl -> .md).
 for (root, dirs, files) in walkdir(literate_dir)
     for file in files
         if endswith(file, ".jl")
-            Literate.markdown(joinpath(root, file), root; documenter=true)
+            Literate.markdown(joinpath(root, file), root; documenter = true)
         end
     end
 end
@@ -64,7 +65,7 @@ Documenter.makedocs(
             "Design & performance notes" => "developer/design_notes.md",
             "Testing & releasing" => "developer/testing.md",
         ],
-        "Reference" => "reference.md"
+        "Reference" => "reference.md",
     ]
 )
 

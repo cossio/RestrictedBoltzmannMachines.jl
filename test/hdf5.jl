@@ -20,7 +20,7 @@ using Test: @testset
 using Test: @test_throws
 
 @testset "rbm" begin
-    rbm = RBM(Potts(; θ=randn(2,3)), Binary(; θ=randn(4)), randn(2,3,4))
+    rbm = RBM(Potts(; θ = randn(2, 3)), Binary(; θ = randn(4)), randn(2, 3, 4))
     path = save_rbm(tempname(), rbm)
     loaded_rbm = load_rbm(path)
     @test loaded_rbm.visible isa Potts
@@ -31,8 +31,8 @@ using Test: @test_throws
 end
 
 @testset "layers" begin
-    for Layer = (Binary, Spin, Potts)
-        rbm = RBM(Layer(; θ=randn(2,3)), xReLU(; θ=randn(4), γ=randn(4), Δ=randn(4), ξ=randn(4)), randn(2,3,4))
+    for Layer in (Binary, Spin, Potts)
+        rbm = RBM(Layer(; θ = randn(2, 3)), xReLU(; θ = randn(4), γ = randn(4), Δ = randn(4), ξ = randn(4)), randn(2, 3, 4))
         path = save_rbm(tempname(), rbm)
         loaded_rbm = load_rbm(path)
         @test loaded_rbm.visible isa Layer
@@ -47,7 +47,7 @@ end
 end
 
 @testset "Gaussian" begin
-    rbm = RBM(Binary(; θ=randn(2,3)), Gaussian(; θ=randn(4), γ=randn(4)), randn(2,3,4))
+    rbm = RBM(Binary(; θ = randn(2, 3)), Gaussian(; θ = randn(4), γ = randn(4)), randn(2, 3, 4))
     path = save_rbm(tempname(), rbm)
     loaded_rbm = load_rbm(path)
     @test loaded_rbm.visible isa Binary
@@ -59,7 +59,7 @@ end
 end
 
 @testset "nsReLU" begin
-    rbm = RBM(Binary(; θ=randn(2,3)), nsReLU(; θ=randn(4), Δ=randn(4), ξ=randn(4)), randn(2,3,4))
+    rbm = RBM(Binary(; θ = randn(2, 3)), nsReLU(; θ = randn(4), Δ = randn(4), ξ = randn(4)), randn(2, 3, 4))
     path = save_rbm(tempname(), rbm)
     loaded_rbm = load_rbm(path)
     @test loaded_rbm.visible isa Binary
@@ -72,7 +72,7 @@ end
 end
 
 @testset "PottsGumbel" begin
-    rbm = RBM(PottsGumbel(; θ=randn(2,3)), Binary(; θ=randn(4)), randn(2,3,4))
+    rbm = RBM(PottsGumbel(; θ = randn(2, 3)), Binary(; θ = randn(4)), randn(2, 3, 4))
     path = save_rbm(tempname(), rbm)
     loaded_rbm = load_rbm(path)
     @test loaded_rbm.visible isa PottsGumbel
@@ -82,7 +82,7 @@ end
 end
 
 @testset "ReLU" begin
-    rbm = RBM(Binary(; θ=randn(2,3)), ReLU(; θ=randn(4), γ=randn(4)), randn(2,3,4))
+    rbm = RBM(Binary(; θ = randn(2, 3)), ReLU(; θ = randn(4), γ = randn(4)), randn(2, 3, 4))
     path = save_rbm(tempname(), rbm)
     loaded_rbm = load_rbm(path)
     @test loaded_rbm.visible isa Binary
@@ -95,9 +95,9 @@ end
 
 @testset "dReLU" begin
     rbm = RBM(
-        Binary(; θ=randn(2,3)),
-        dReLU(; θp=randn(4), θn=randn(4), γp=randn(4), γn=randn(4)),
-        randn(2,3,4),
+        Binary(; θ = randn(2, 3)),
+        dReLU(; θp = randn(4), θn = randn(4), γp = randn(4), γn = randn(4)),
+        randn(2, 3, 4),
     )
     path = save_rbm(tempname(), rbm)
     loaded_rbm = load_rbm(path)
@@ -113,9 +113,9 @@ end
 
 @testset "pReLU" begin
     rbm = RBM(
-        Binary(; θ=randn(2,3)),
-        pReLU(; θ=randn(4), γ=randn(4), Δ=randn(4), η=rand(4) .- 0.5),
-        randn(2,3,4),
+        Binary(; θ = randn(2, 3)),
+        pReLU(; θ = randn(4), γ = randn(4), Δ = randn(4), η = rand(4) .- 0.5),
+        randn(2, 3, 4),
     )
     path = save_rbm(tempname(), rbm)
     loaded_rbm = load_rbm(path)
@@ -131,10 +131,10 @@ end
 
 @testset "centered" begin
     rbm = CenteredRBM(
-        Binary(; θ=randn(2,3)),
-        ReLU(; θ=randn(4), γ=randn(4)),
-        randn(2,3,4),
-        randn(2,3),
+        Binary(; θ = randn(2, 3)),
+        ReLU(; θ = randn(4), γ = randn(4)),
+        randn(2, 3, 4),
+        randn(2, 3),
         randn(4),
     )
     path = save_rbm(tempname(), rbm)
@@ -151,7 +151,7 @@ end
 end
 
 @testset "std" begin
-    rbm = standardize(RBM(Binary(; θ=randn(2,3)), xReLU(; θ=randn(4), γ=randn(4), Δ=randn(4), ξ=randn(4)), randn(2,3,4)))
+    rbm = standardize(RBM(Binary(; θ = randn(2, 3)), xReLU(; θ = randn(4), γ = randn(4), Δ = randn(4), ξ = randn(4)), randn(2, 3, 4)))
     rbm.offset_v .= randn.()
     rbm.offset_h .= randn.()
     rbm.scale_v .= randn.()

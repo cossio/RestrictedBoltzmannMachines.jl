@@ -14,7 +14,7 @@ getobs(i, ds::Union{AbstractArray, Nothing}...) = map(ds) do d
     isnothing(d) ? nothing : d[.., i]
 end
 
-function shuffleobs(ds::Union{AbstractArray,Nothing}...)
+function shuffleobs(ds::Union{AbstractArray, Nothing}...)
     n = nobs(ds...)
     if isnothing(n)
         return ds
@@ -55,17 +55,17 @@ function Base.iterate(iter::InfiniteMinibatchIterator, (i, shuffled))
 end
 
 function infinite_minibatches(
-    ds::Union{AbstractArray, Nothing}...; batchsize::Int, shuffle::Bool = true
-)
+        ds::Union{AbstractArray, Nothing}...; batchsize::Int, shuffle::Bool = true
+    )
     batchsize > 0 || throw(ArgumentError("batchsize must be positive"))
     return InfiniteMinibatchIterator(ds, batchsize, shuffle)
 end
 
 function _prepare_training_data(
-    data::AbstractArray,
-    wts::Union{AbstractVector, Nothing};
-    batchsize::Int,
-)
+        data::AbstractArray,
+        wts::Union{AbstractVector, Nothing};
+        batchsize::Int,
+    )
     batchsize > 0 || throw(ArgumentError("batchsize must be positive"))
     isnothing(wts) && return data, wts, nothing, batchsize
 

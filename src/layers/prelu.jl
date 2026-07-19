@@ -5,9 +5,9 @@ Parametric ReLU layer, with shared scale and asymmetry ratio. Every value of
 `η` must be finite and lie strictly inside `(-1, 1)`. For unconstrained learned
 asymmetry, use `xReLU` or the fixed-scale `nsReLU` instead.
 """
-struct pReLU{N,A} <: AbstractLayer{N}
+struct pReLU{N, A} <: AbstractLayer{N}
     par::A
-    function pReLU{N,A}(par::A) where {N,A<:AbstractArray}
+    function pReLU{N, A}(par::A) where {N, A <: AbstractArray}
         @assert size(par, 1) == 4 # θ, γ, Δ, η
         @assert ndims(par) == N + 1
         layer = new(par)
@@ -52,10 +52,12 @@ _valid_prelu_eta(η) = η isa Real && isfinite(η) && -1 < η < 1
 
 function _validate_layer_parameters(layer::pReLU)
     ChainRulesCore.ignore_derivatives() do
-        all(_valid_prelu_eta, layer.η) || throw(ArgumentError(
-            "invalid pReLU.η: all values must be finite and lie in the open " *
-            "interval (-1, 1). Use xReLU or nsReLU for unconstrained learned asymmetry."
-        ))
+        all(_valid_prelu_eta, layer.η) || throw(
+            ArgumentError(
+                "invalid pReLU.η: all values must be finite and lie in the open " *
+                    "interval (-1, 1). Use xReLU or nsReLU for unconstrained learned asymmetry."
+            )
+        )
     end
     return nothing
 end
@@ -73,16 +75,16 @@ std_from_inputs(layer::pReLU, inputs = 0) = sqrt.(var_from_inputs(layer, inputs)
 function ∂cgfs(layer::pReLU, inputs = 0)
     drelu = dReLU(layer)
 
-    lp = ReLU(; θ =  drelu.θp, γ = drelu.γp)
+    lp = ReLU(; θ = drelu.θp, γ = drelu.γp)
     ln = ReLU(; θ = -drelu.θn, γ = drelu.γn)
 
-    Γp = cgfs(lp,  inputs)
+    Γp = cgfs(lp, inputs)
     Γn = cgfs(ln, -inputs)
     Γ = logaddexp.(Γp, Γn)
 
     pp = exp.(Γp - Γ)
     pn = exp.(Γn - Γ)
-    μp, νp = meanvar_from_inputs(lp,  inputs)
+    μp, νp = meanvar_from_inputs(lp, inputs)
     μn, νn = meanvar_from_inputs(ln, -inputs)
     μ2p = @. (νp + μp^2) / 2
     μ2n = @. (νn + μn^2) / 2
@@ -92,7 +94,7 @@ function ∂cgfs(layer::pReLU, inputs = 0)
     ∂Δ = @. pp * μp / (1 + layer.η) + pn * μn / (1 - layer.η)
     ∂η = @. -(
         pp * (-abs(layer.γ) * μ2p + layer.Δ * μp) / (1 + layer.η)^2 +
-        pn * ( abs(layer.γ) * μ2n - layer.Δ * μn) / (1 - layer.η)^2
+            pn * (abs(layer.γ) * μ2n - layer.Δ * μn) / (1 - layer.η)^2
     )
 
     return vstack((∂θ, ∂γ, ∂Δ, ∂η))
@@ -112,7 +114,7 @@ function ∂energy_from_moments(layer::pReLU, moments::AbstractArray)
     ∂Δ = @. -(xp1 / (1 + layer.η) - xn1 / (1 - layer.η))
     ∂η = @. (
         (-abs(layer.γ) * xp2 / 2 + layer.Δ * xp1) / (1 + layer.η)^2 +
-        ( abs(layer.γ) * xn2 / 2 + layer.Δ * xn1) / (1 - layer.η)^2
+            (abs(layer.γ) * xn2 / 2 + layer.Δ * xn1) / (1 - layer.η)^2
     )
 
     return vstack((∂θ, ∂γ, ∂Δ, ∂η))

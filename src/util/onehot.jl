@@ -15,7 +15,7 @@ Given a onehot encoded array `X` of `N + 1` dimensions, returns the
 equivalent categorical array of `N` dimensions.
 """
 function onehot_decode(X::AbstractArray)
-    idx = dropdims(argmax(X; dims=1); dims=1)
+    idx = dropdims(argmax(X; dims = 1); dims = 1)
     return first.(Tuple.(idx))
 end
 
@@ -27,7 +27,7 @@ returns an array `X` of size `(*)`, such that `X[i]` is a categorical random sam
 from the distribution with logits `logits[:,i]`.
 """
 function categorical_sample_from_logits(logits::AbstractArray)
-    p = softmax(logits; dims=1)
+    p = softmax(logits; dims = 1)
     return categorical_sample(p)
 end
 
@@ -38,7 +38,7 @@ Like categorical_sample_from_logits, but using the Gumbel trick.
 """
 function categorical_sample_from_logits_gumbel(logits::AbstractArray)
     z = logits .+ randgumbel.(eltype(logits))
-    idx = dropdims(argmax(z; dims=1); dims=1)
+    idx = dropdims(argmax(z; dims = 1); dims = 1)
     c = first.(Tuple.(idx))
     return c
 end
@@ -55,7 +55,7 @@ function categorical_sample(P::AbstractArray)
     idx = CartesianIndices(tail(size(P)))
     C = Array{Int}(undef, tail(size(P)))
     @inbounds for i in idx
-        ps = @view P[:,i]
+        ps = @view P[:, i]
         C[i] = categorical_rand(ps)
     end
     return C
