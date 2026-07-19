@@ -7,58 +7,60 @@ using Statistics: mean, std, middle
 using ValueHistories: MVHistory
 using RestrictedBoltzmannMachines: Binary, BinaryRBM, initialize!, pcd!,
     aise, raise, logmeanexp, logstdexp, sample_v_from_v</code></pre><h2 id="Training"><a class="docs-heading-anchor" href="#Training">Training</a><a id="Training-1"></a><a class="docs-heading-anchor-permalink" href="#Training" title="Permalink"></a></h2><p>Load MNIST (digit 0 only) and train a small RBM.</p><pre><code class="language-julia hljs">Float = Float32
-train_x = MLDatasets.MNIST(split=:train)[:].features
-train_y = MLDatasets.MNIST(split=:train)[:].targets
+train_x = MLDatasets.MNIST(split = :train)[:].features
+train_y = MLDatasets.MNIST(split = :train)[:].targets
 train_x = Array{Float}(train_x[:, :, train_y .== 0] .&gt; 0.5)
 
-rbm = BinaryRBM(Float, (28,28), 128)
+rbm = BinaryRBM(Float, (28, 28), 128)
 initialize!(rbm, train_x)
-@time pcd!(rbm, train_x; iters=10000, batchsize=128)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"> 87.901190 seconds (2.58 M allocations: 69.161 GiB, 39.11% gc time, 0.21% compilation time)</code></pre><h2 id="Estimating-the-partition-function"><a class="docs-heading-anchor" href="#Estimating-the-partition-function">Estimating the partition function</a><a id="Estimating-the-partition-function-1"></a><a class="docs-heading-anchor-permalink" href="#Estimating-the-partition-function" title="Permalink"></a></h2><p>We estimate <span>$\log Z$</span> using <code>aise</code> (forward AIS) and <code>raise</code> (reverse AIS) for increasing numbers of interpolating distributions. Forward AIS provides a stochastic lower bound on <span>$\log Z$</span>, while reverse AIS provides an upper bound. With enough intermediate distributions, both converge to the true value.</p><p>First, get equilibrated samples from the model (needed for reverse AIS).</p><pre><code class="language-julia hljs">v = train_x[:, :, rand(1:size(train_x, 3), 1000)]
-v = sample_v_from_v(rbm, v; steps=1000)</code></pre><p>Now run AIS and reverse AIS with different numbers of interpolating distributions.</p><pre><code class="language-julia hljs">nsamples=100
+@time pcd!(rbm, train_x; iters = 10000, batchsize = 128)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi"> 78.970169 seconds (2.58 M allocations: 69.161 GiB, 36.84% gc time, 0.23% compilation time)</code></pre><h2 id="Estimating-the-partition-function"><a class="docs-heading-anchor" href="#Estimating-the-partition-function">Estimating the partition function</a><a id="Estimating-the-partition-function-1"></a><a class="docs-heading-anchor-permalink" href="#Estimating-the-partition-function" title="Permalink"></a></h2><p>We estimate <span>$\log Z$</span> using <code>aise</code> (forward AIS) and <code>raise</code> (reverse AIS) for increasing numbers of interpolating distributions. Forward AIS provides a stochastic lower bound on <span>$\log Z$</span>, while reverse AIS provides an upper bound. With enough intermediate distributions, both converge to the true value.</p><p>First, get equilibrated samples from the model (needed for reverse AIS).</p><pre><code class="language-julia hljs">v = train_x[:, :, rand(1:size(train_x, 3), 1000)]
+v = sample_v_from_v(rbm, v; steps = 1000)</code></pre><p>Now run AIS and reverse AIS with different numbers of interpolating distributions.</p><pre><code class="language-julia hljs">nsamples = 100
 ndists = [10, 100, 1000, 10_000, 100_000]
 R_ais = Vector{Float64}[]
 R_rev = Vector{Float64}[]
 init = initialize!(Binary(; θ = zero(rbm.visible.θ)), v)
 
 for nbetas in ndists
-    push!(R_ais,
+    push!(
+        R_ais,
         @time aise(rbm; nbetas, nsamples, init)
     )
-    push!(R_rev,
-        @time raise(rbm; nbetas, init, v=v[:,:,rand(1:size(v, 3), nsamples)])
+    push!(
+        R_rev,
+        @time raise(rbm; nbetas, init, v = v[:, :, rand(1:size(v, 3), nsamples)])
     )
-end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">  3.384537 seconds (5.52 M allocations: 329.217 MiB, 1.90% gc time, 99.04% compilation time)
-  0.327746 seconds (487.14 k allocations: 84.176 MiB, 91.71% compilation time)
-  0.982499 seconds (13.12 k allocations: 703.575 MiB, 61.90% gc time)
-  0.343426 seconds (13.10 k allocations: 731.379 MiB, 6.44% gc time)
-  5.795567 seconds (132.82 k allocations: 6.979 GiB, 34.80% gc time)
-  4.645132 seconds (132.80 k allocations: 7.269 GiB, 29.53% gc time)
- 54.215350 seconds (1.33 M allocations: 69.903 GiB, 30.19% gc time)
- 50.328012 seconds (1.33 M allocations: 72.821 GiB, 34.79% gc time)
-536.903700 seconds (13.30 M allocations: 699.135 GiB, 29.51% gc time)
-506.611804 seconds (13.30 M allocations: 728.338 GiB, 35.30% gc time)</code></pre><h2 id="Results"><a class="docs-heading-anchor" href="#Results">Results</a><a id="Results-1"></a><a class="docs-heading-anchor-permalink" href="#Results" title="Permalink"></a></h2><p>The plot below shows the AIS and reverse AIS estimates as a function of the number of interpolating distributions. Solid lines show the mean estimate (with ±1 std band), while dashed lines show <code>logmeanexp</code> estimates, which are more statistically principled (they correspond to the actual lower/upper bounds on <span>$\log Z$</span>). The red dashed line marks the midpoint of the tightest AIS/reverse-AIS estimates, which serves as our best approximation of the true <span>$\log Z$</span>.</p><pre><code class="language-julia hljs">fig = Makie.Figure()
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">  3.425165 seconds (5.52 M allocations: 329.229 MiB, 99.04% compilation time)
+  0.375972 seconds (487.14 k allocations: 84.176 MiB, 10.14% gc time, 82.27% compilation time)
+  0.408915 seconds (13.12 k allocations: 703.575 MiB, 9.11% gc time)
+  0.898306 seconds (13.10 k allocations: 731.379 MiB, 64.23% gc time)
+  4.977855 seconds (132.82 k allocations: 6.979 GiB, 25.09% gc time)
+  4.992440 seconds (132.80 k allocations: 7.269 GiB, 35.59% gc time)
+ 52.877853 seconds (1.33 M allocations: 69.903 GiB, 29.13% gc time)
+ 48.914875 seconds (1.33 M allocations: 72.821 GiB, 34.26% gc time)
+525.804712 seconds (13.30 M allocations: 699.135 GiB, 29.17% gc time)
+484.194639 seconds (13.30 M allocations: 728.338 GiB, 34.40% gc time)</code></pre><h2 id="Results"><a class="docs-heading-anchor" href="#Results">Results</a><a id="Results-1"></a><a class="docs-heading-anchor-permalink" href="#Results" title="Permalink"></a></h2><p>The plot below shows the AIS and reverse AIS estimates as a function of the number of interpolating distributions. Solid lines show the mean estimate (with ±1 std band), while dashed lines show <code>logmeanexp</code> estimates, which are more statistically principled (they correspond to the actual lower/upper bounds on <span>$\log Z$</span>). The red dashed line marks the midpoint of the tightest AIS/reverse-AIS estimates, which serves as our best approximation of the true <span>$\log Z$</span>.</p><pre><code class="language-julia hljs">fig = Makie.Figure()
 ax = Makie.Axis(
-    fig[1,1], width=700, height=400, xscale=log10, xlabel=&quot;interpolating distributions&quot;, ylabel=&quot;log(Z)&quot;
+    fig[1, 1], width = 700, height = 400, xscale = log10, xlabel = &quot;interpolating distributions&quot;, ylabel = &quot;log(Z)&quot;
 )
 Makie.band!(
     ax, ndists,
     mean.(R_ais) - std.(R_ais),
     mean.(R_ais) + std.(R_ais);
-    color=(:blue, 0.25)
+    color = (:blue, 0.25)
 )
 Makie.band!(
     ax, ndists,
     mean.(R_rev) - std.(R_rev),
     mean.(R_rev) + std.(R_rev);
-    color=(:black, 0.25)
+    color = (:black, 0.25)
 )
-Makie.lines!(ax, ndists, mean.(R_ais); color=:blue, label=&quot;AIS&quot;)
-Makie.lines!(ax, ndists, mean.(R_rev); color=:black, label=&quot;reverse AIS&quot;)
-Makie.lines!(ax, ndists, logmeanexp.(R_ais); color=:blue, linestyle=:dash)
-Makie.lines!(ax, ndists, logmeanexp.(R_rev); color=:black, linestyle=:dash)
-Makie.lines!(ax, ndists, -logmeanexp.(-R_rev); color=:orange, linestyle=:dash)
-Makie.hlines!(ax, middle(mean(R_ais[end]), mean(R_rev[end])), linestyle=:dash, color=:red, label=&quot;limiting estimate&quot;)
+Makie.lines!(ax, ndists, mean.(R_ais); color = :blue, label = &quot;AIS&quot;)
+Makie.lines!(ax, ndists, mean.(R_rev); color = :black, label = &quot;reverse AIS&quot;)
+Makie.lines!(ax, ndists, logmeanexp.(R_ais); color = :blue, linestyle = :dash)
+Makie.lines!(ax, ndists, logmeanexp.(R_rev); color = :black, linestyle = :dash)
+Makie.lines!(ax, ndists, -logmeanexp.(-R_rev); color = :orange, linestyle = :dash)
+Makie.hlines!(ax, middle(mean(R_ais[end]), mean(R_rev[end])), linestyle = :dash, color = :red, label = &quot;limiting estimate&quot;)
 Makie.xlims!(extrema(ndists)...)
-Makie.axislegend(ax, position=:rb)
+Makie.axislegend(ax, position = :rb)
 Makie.resize_to_layout!(fig)
-fig</code></pre><img src="c1d38a68.png" alt="Example block output"/><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../layers/dReLU/">« dReLU family</a><a class="docs-footer-nextpage" href="../metropolis/">Metropolis »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Sunday 19 July 2026 10:11">Sunday 19 July 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+fig</code></pre><img src="d182528a.png" alt="Example block output"/><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../layers/dReLU/">« dReLU family</a><a class="docs-footer-nextpage" href="../metropolis/">Metropolis »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Sunday 19 July 2026 10:58">Sunday 19 July 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

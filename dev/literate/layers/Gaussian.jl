@@ -29,7 +29,7 @@ Initialize a Gaussian layer with units spanning different parameter combinations
 
 θs = [-5; 5]
 γs = [1; 2]
-layer = RBMs.Gaussian(; θ=[θ for θ in θs, γ in γs], γ=[γ for θ in θs, γ in γs])
+layer = RBMs.Gaussian(; θ = [θ for θ in θs, γ in γs], γ = [γ for θ in θs, γ in γs])
 nothing #hide
 
 # Sample from the layer (with zero input from the other layer).
@@ -42,13 +42,13 @@ Plot the empirical histogram of the samples alongside the exact analytical PDF.
 The close agreement validates the sampling implementation.
 =#
 
-fig = Figure(resolution=(700,500))
-ax = Axis(fig[1,1], xlabel="x", ylabel="P(x)")
+fig = Figure(resolution = (700, 500))
+ax = Axis(fig[1, 1], xlabel = "x", ylabel = "P(x)")
 xs = repeat(reshape(range(minimum(data), maximum(data), 100), 1, 1, 100), size(layer)...)
 ps = exp.(-RBMs.cgfs(layer) .- RBMs.energies(layer, xs))
 for (iθ, θ) in enumerate(θs), (iγ, γ) in enumerate(γs)
-    hist!(ax, data[iθ, iγ, :], normalization=:pdf, label="θ=$θ, γ=$γ")
-    lines!(xs[iθ, iγ, :], ps[iθ, iγ, :], linewidth=2)
+    hist!(ax, data[iθ, iγ, :], normalization = :pdf, label = "θ=$θ, γ=$γ")
+    lines!(xs[iθ, iγ, :], ps[iθ, iγ, :], linewidth = 2)
 end
 axislegend(ax)
 fig
