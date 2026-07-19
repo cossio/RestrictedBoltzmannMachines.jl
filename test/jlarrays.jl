@@ -186,6 +186,39 @@ end
     end
 end
 
+@testset "Gaussian-hidden exact pseudolikelihood" begin
+    T = Float32
+    batch = (2, 3)
+    hidden_size = (2, 2)
+    hidden = Gaussian(
+        ; θ = randn(T, hidden_size...),
+        γ = reshape(T[-2, -0.7, 1.1, 2.3], hidden_size),
+    )
+    potts_visible = Potts(; θ = randn(T, Q, N...))
+    v_potts = sample_from_inputs(
+        potts_visible, zeros(T, Q, N..., batch...)
+    )
+    cases = (
+        (Binary(; θ = randn(T, N...)), bitrand(N..., batch...)),
+        (Spin(; θ = randn(T, N...)), rand((Int8(-1), Int8(1)), N..., batch...)),
+        (potts_visible, v_potts),
+        (PottsGumbel(potts_visible.par), v_potts),
+    )
+
+    for (visible, v) in cases
+        w = randn(T, size(visible)..., hidden_size...) / sqrt(T(length(visible)))
+        rbm = RBM(visible, hidden, w)
+        expected = log_pseudolikelihood(rbm, v; exact = true)
+        jl_rbm = adapt(JLArray, rbm)
+        jl_v = JLArray(v)
+        result = log_pseudolikelihood(jl_rbm, jl_v; exact = true)
+        @test result isa JLArray
+        @test eltype(result) == T
+        @test size(result) == batch
+        @test adapt(Array, result) ≈ expected rtol = 5e-4 atol = 5e-5
+    end
+end
+
 @testset "gauge transformations" begin
     rbm = RBM(
         Potts(; θ = randn(Q, N...)),
