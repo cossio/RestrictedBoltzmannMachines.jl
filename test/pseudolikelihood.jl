@@ -215,7 +215,8 @@ end
 
     # Normalize relative logits before logsumexp. Otherwise, a large common
     # term can erase the conditional normalization in finite precision.
-    visible = Potts(; θ = zeros(T, q, 1))
+    θ_offset = T[0, 1, -1]
+    visible = Potts(; θ = reshape(θ_offset, q, 1))
     hidden_offset = Gaussian(; θ = T[1e8], γ = T[-1])
     rbm_offset = RBM(visible, hidden_offset, ones(T, q, 1, 1))
     for v in (
@@ -224,14 +225,68 @@ end
     )
         reference = invoke(
             log_pseudolikelihood_exact,
-            Tuple{RBM,AbstractArray},
+            Tuple{RBM{<:Potts},AbstractArray},
             rbm_offset,
             v,
         )
         result = log_pseudolikelihood_exact(rbm_offset, v)
-        @test only(reference) ≈ -log(T(q))
+        expected = sum(v .* visible.θ) - logsumexp(θ_offset)
+        @test only(reference) ≈ expected
         @test result ≈ reference
     end
+
+    # Mixed-precision models retain visible fields that are finer than the
+    # weights and hidden parameters.
+    hidden_mixed = Gaussian(; θ = Float32[0], γ = Float32[1])
+    mixed_cases = (
+        (
+            Binary(; θ = Float64[1e8 + 1]),
+            reshape([false], 1),
+            zeros(Float32, 1, 1),
+        ),
+        (
+            Spin(; θ = Float64[5e7 + 0.5]),
+            reshape(Int8[-1], 1),
+            zeros(Float32, 1, 1),
+        ),
+        (
+            Potts(; θ = reshape(Float64[1e8, 1e8 + 1, 1e8 - 1], q, 1)),
+            reshape(Bool[1, 0, 0], q, 1),
+            zeros(Float32, q, 1, 1),
+        ),
+        (
+            PottsGumbel(; θ = reshape(Float64[1e8, 1e8 + 1, 1e8 - 1], q, 1)),
+            reshape(Bool[1, 0, 0], q, 1),
+            zeros(Float32, q, 1, 1),
+        ),
+    )
+    for (visible_mixed, v, w) in mixed_cases
+        rbm_mixed = RBM(visible_mixed, hidden_mixed, w)
+        reference = invoke(
+            log_pseudolikelihood_exact, Tuple{RBM,AbstractArray}, rbm_mixed, v
+        )
+        result = log_pseudolikelihood_exact(rbm_mixed, v)
+        @test eltype(result) == Float64
+        @test result ≈ reference rtol = 0 atol = 1e-8
+    end
+
+    # Integer parameters are valid even though inverse Gaussian precisions are
+    # fractional.
+    rbm_integer = RBM(
+        Potts(; θ = zeros(Int, q, 1)),
+        Gaussian(; θ = Int[0], γ = Int[2]),
+        reshape(Int[0, 1, 2], q, 1, 1),
+    )
+    v_integer = reshape(Bool[1, 0, 0], q, 1)
+    reference = invoke(
+        log_pseudolikelihood_exact,
+        Tuple{RBM{<:Potts},AbstractArray},
+        rbm_integer,
+        v_integer,
+    )
+    result = log_pseudolikelihood_exact(rbm_integer, v_integer)
+    @test eltype(result) == Float64
+    @test result ≈ reference
 end
 
 @testset "stochastic log_pseudolikelihood" begin

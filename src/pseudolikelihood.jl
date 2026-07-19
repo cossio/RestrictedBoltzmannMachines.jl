@@ -297,7 +297,9 @@ function _gaussian_hidden_pseudolikelihood_context(
     #
     # Precompute the terms shared by all visible-site substitutions. This turns
     # the repeated hidden cgf evaluations below into matrix multiplications.
-    T = promote_type(eltype(rbm.w), eltype(rbm.hidden.par))
+    T = float(promote_type(
+        eltype(rbm.visible.par), eltype(rbm.hidden.par), eltype(rbm.w)
+    ))
     wflat = convert_eltype(T, flat_w(rbm))
     vcalc = convert_eltype(T, vflat)
     inputs = wflat' * vcalc
@@ -321,7 +323,8 @@ function _log_pseudolikelihood_exact_2states(rbm::RBM, v::AbstractArray, flip::I
         δ .= ifelse.(view(vflat, j, :) .> 0, -flip, flip)
         Inew .= Iflat .+ view(wflat, j, :) .* reshape(δ, 1, B)
         Γ1 = vec(cgf(rbm.hidden, reshape(Inew, size(rbm.hidden)..., B)))
-        lPL .-= log1pexp.(view(θflat, j:j) .* δ .+ Γ1 .- Γ0)
+        Γ1 .-= Γ0
+        lPL .-= log1pexp.(view(θflat, j:j) .* δ .+ Γ1)
     end
     lPL ./= length(rbm.visible)
     return reshape(lPL, batch_sz)
@@ -381,7 +384,8 @@ function log_pseudolikelihood_exact(rbm::RBM{<:Potts}, v::AbstractArray)
         for x in 1:q
             Inew .= Iflat .+ (view(Wsite, x, :) .- Wold)
             Γx = vec(cgf(rbm.hidden, reshape(Inew, size(rbm.hidden)..., B)))
-            minusΔF[x, :] .= view(θsite, x:x) .- θold .+ Γx .- Γ0
+            Γx .-= Γ0
+            minusΔF[x, :] .= view(θsite, x:x) .- θold .+ Γx
         end
         lPL .-= vec(logsumexp(minusΔF; dims=1))
     end
@@ -401,7 +405,8 @@ function log_pseudolikelihood_exact(
     θflat = convert_eltype(eltype(linear), vec(rbm.visible.θ))
     lPL = zero(similar(linear, B))
     logits = similar(linear, q, B)
-    wscaled_site = similar(wflat, q, length(rbm.hidden))
+    wscaled_site = similar(linear, q, length(rbm.hidden))
+    current = similar(linear, B)
 
     for j in 1:nsites
         rows = ((j - 1) * q + 1):(j * q)
@@ -418,17 +423,16 @@ function log_pseudolikelihood_exact(
         #   θ_x + w_x' * (z / |γ|) + w_x' * (w_x / |γ|) / 2
         #       - w_x' * (Wsite' * vsite / |γ|).
         #
-        # Keep the x-independent term explicitly so this remains correct for
-        # dense Potts inputs as well as the usual one-hot representation.
-        current = vec(sum(
-            Vsite .* (
-                reshape(θsite, q, 1) .+ linear_site .- gram_v ./ 2
-            );
-            dims=1,
-        ))
-        logits .= reshape(θsite, q, 1) .+ linear_site .+
-            reshape(LinearAlgebra.diag(gram), q, 1) ./ 2 .- gram_v
-        logits .-= reshape(current, 1, B)
+        # Subtract x-independent terms before adding the visible fields. This
+        # preserves small field differences when the hidden contribution has a
+        # large common offset. Keep all three dense-input corrections explicit.
+        current .= vec(sum(Vsite .* linear_site; dims=1))
+        logits .= linear_site .- reshape(current, 1, B)
+        current .= vec(sum(Vsite .* reshape(θsite, q, 1); dims=1))
+        logits .+= reshape(θsite, q, 1) .- reshape(current, 1, B)
+        current .= vec(sum(Vsite .* gram_v; dims=1))
+        logits .+= reshape(LinearAlgebra.diag(gram), q, 1) ./ 2 .- gram_v .+
+            reshape(current, 1, B) ./ 2
         lPL .-= vec(logsumexp(logits; dims=1))
     end
     lPL ./= nsites
