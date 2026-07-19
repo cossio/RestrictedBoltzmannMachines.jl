@@ -19,22 +19,21 @@ randnt(rng::AbstractRNG, a::BigFloat) = randnt(rng, Float64(a))
 randnt(a::Real) = randnt(default_rng(), a)
 
 function randnt(rng::AbstractRNG, a::Base.IEEEFloat)
-    if a ≤ 0
-        r = randn(rng, typeof(a))
-        while !(r ≥ a)
+    return if a ≤ 0
+        while true
             r = randn(rng, typeof(a))
+            r ≥ a && return r
         end
-        return r
     else
         t = sqrt1half(a)
         !(t < Inf) && return a
-        r = a + randexp(rng, typeof(a)) / t
-        u = rand(rng, typeof(a))
-        while !(u < exp(-(r - t)^2 / 2))
+        while true
             r = a + randexp(rng, typeof(a)) / t
             u = rand(rng, typeof(a))
+            if u < exp(-(r - t)^2 / 2)
+                return r
+            end
         end
-        return r
     end
 end
 
