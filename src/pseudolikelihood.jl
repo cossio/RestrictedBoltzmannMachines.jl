@@ -284,6 +284,32 @@ function log_pseudolikelihood_sites(
     return log_pseudolikelihood_sites(RBM(Potts(rbm.visible), rbm.hidden, rbm.w), v, sites)
 end
 
+function _gaussian_hidden_pseudolikelihood_context(
+    rbm::RBM{<:AbstractLayer,<:Gaussian}, v::AbstractArray
+)
+    batch_sz = batch_size(rbm.visible, v)
+    B = prod(batch_sz)
+    vflat = reshape(v, length(rbm.visible), B)
+
+    # The Gaussian cgf is quadratic. Its change under a hidden-input shift u is
+    #
+    #   Γ(z + u) - Γ(z) = u' * (z / |γ|) + u' * (u / |γ|) / 2.
+    #
+    # Precompute the terms shared by all visible-site substitutions. This turns
+    # the repeated hidden cgf evaluations below into matrix multiplications.
+    T = float(promote_type(
+        eltype(rbm.visible.par), eltype(rbm.hidden.par), eltype(rbm.w)
+    ))
+    wflat = convert_eltype(T, flat_w(rbm))
+    vcalc = convert_eltype(T, vflat)
+    inputs = wflat' * vcalc
+    θh = convert_eltype(T, vec(rbm.hidden.θ))
+    γh = convert_eltype(T, vec(rbm.hidden.γ))
+    invγ = inv.(abs.(γh))
+    hidden_mean = (θh .+ inputs) .* reshape(invγ, length(rbm.hidden), 1)
+    return batch_sz, B, vcalc, wflat, invγ, hidden_mean
+end
+
 function _log_pseudolikelihood_exact_2states(rbm::RBM, v::AbstractArray, flip::Integer)
     @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
     batch_sz, B, vB, Iflat, Γ0 = _pseudolikelihood_context(rbm, v)
@@ -291,13 +317,40 @@ function _log_pseudolikelihood_exact_2states(rbm::RBM, v::AbstractArray, flip::I
     wflat = flat_w(rbm)
     θflat = vec(rbm.visible.θ)
     lPL = zero(Γ0)
+    δ = similar(Γ0)
+    Inew = similar(Iflat)
     for j in 1:length(rbm.visible)
-        δ = ifelse.(view(vflat, j, :) .> 0, -flip, flip)
-        Inew = Iflat .+ view(wflat, j, :) .* reshape(δ, 1, B)
+        δ .= ifelse.(view(vflat, j, :) .> 0, -flip, flip)
+        Inew .= Iflat .+ view(wflat, j, :) .* reshape(δ, 1, B)
         Γ1 = vec(cgf(rbm.hidden, reshape(Inew, size(rbm.hidden)..., B)))
-        ΔF = .-view(θflat, j:j) .* δ .- (Γ1 .- Γ0)
-        lPL .-= log1pexp.(.-ΔF)
+        Γ1 .-= Γ0
+        lPL .-= log1pexp.(view(θflat, j:j) .* δ .+ Γ1)
     end
+    lPL ./= length(rbm.visible)
+    return reshape(lPL, batch_sz)
+end
+
+function _log_pseudolikelihood_exact_2states(
+    rbm::RBM{<:Union{Binary,Spin},<:Gaussian}, v::AbstractArray, flip::Integer
+)
+    @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
+    batch_sz, _, vflat, wflat, invγ, hidden_mean =
+        _gaussian_hidden_pseudolikelihood_context(rbm, v)
+    T = eltype(wflat)
+    flipT = convert(T, flip)
+    θv = reshape(convert_eltype(T, vec(rbm.visible.θ)), length(rbm.visible), 1)
+    wscaled = wflat .* reshape(invγ, 1, length(rbm.hidden))
+    linear = wflat * hidden_mean
+    quadratic = vec(mapreduce(*, +, wscaled, wflat; dims=2))
+    quadratic ./= 2
+    quadratic = reshape(quadratic, length(rbm.visible), 1)
+
+    # If δ is the change of a visible unit, then
+    # -ΔF = δ * (θv + W * (z / |γ|)) + δ² * diag(W / |γ| * W') / 2.
+    minusΔF = linear
+    @. minusΔF = (θv + minusΔF) * ifelse(vflat > 0, -flipT, flipT) +
+        quadratic * abs2(flipT)
+    lPL = vec(sum(.-log1pexp.(minusΔF); dims=1))
     lPL ./= length(rbm.visible)
     return reshape(lPL, batch_sz)
 end
@@ -318,8 +371,9 @@ function log_pseudolikelihood_exact(rbm::RBM{<:Potts}, v::AbstractArray)
     vflat = reshape(vB, length(rbm.visible), B)
     wflat = flat_w(rbm)
     θflat = vec(rbm.visible.θ)
-    ΔF = similar(Γ0, q, B)
+    minusΔF = similar(Γ0, q, B)
     lPL = zero(Γ0)
+    Inew = similar(Iflat)
     for j in 1:nsites
         rows = ((j - 1) * q + 1):(j * q)
         Vsite = with_eltype_of(wflat, view(vflat, rows, :)) # q × B, one-hot columns
@@ -328,11 +382,58 @@ function log_pseudolikelihood_exact(rbm::RBM{<:Potts}, v::AbstractArray)
         Wold = Wsite' * Vsite # M × B
         θold = Vsite' * θsite # B
         for x in 1:q
-            Inew = Iflat .+ (view(Wsite, x, :) .- Wold)
+            Inew .= Iflat .+ (view(Wsite, x, :) .- Wold)
             Γx = vec(cgf(rbm.hidden, reshape(Inew, size(rbm.hidden)..., B)))
-            ΔF[x, :] .= θold .- view(θsite, x:x) .- (Γx .- Γ0)
+            Γx .-= Γ0
+            minusΔF[x, :] .= view(θsite, x:x) .- θold .+ Γx
         end
-        lPL .-= vec(logsumexp(.-ΔF; dims=1))
+        lPL .-= vec(logsumexp(minusΔF; dims=1))
+    end
+    lPL ./= nsites
+    return reshape(lPL, batch_sz)
+end
+
+function log_pseudolikelihood_exact(
+    rbm::RBM{<:Potts,<:Gaussian}, v::AbstractArray
+)
+    @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
+    batch_sz, B, vflat, wflat, invγ, hidden_mean =
+        _gaussian_hidden_pseudolikelihood_context(rbm, v)
+    q = colors(rbm.visible)
+    nsites = prod(sitesize(rbm.visible))
+    linear = wflat * hidden_mean
+    θflat = convert_eltype(eltype(linear), vec(rbm.visible.θ))
+    lPL = zero(similar(linear, B))
+    logits = similar(linear, q, B)
+    wscaled_site = similar(linear, q, length(rbm.hidden))
+    current = similar(linear, B)
+
+    for j in 1:nsites
+        rows = ((j - 1) * q + 1):(j * q)
+        Vsite = view(vflat, rows, :)
+        Wsite = view(wflat, rows, :)
+        wscaled_site .= Wsite .* reshape(invγ, 1, length(rbm.hidden))
+        gram = wscaled_site * Wsite'
+        gram_v = gram * Vsite
+        θsite = view(θflat, rows)
+        linear_site = view(linear, rows, :)
+
+        # Up to an x-independent term, -ΔF_x is the conditional logit
+        #
+        #   θ_x + w_x' * (z / |γ|) + w_x' * (w_x / |γ|) / 2
+        #       - w_x' * (Wsite' * vsite / |γ|).
+        #
+        # Subtract x-independent terms before adding the visible fields. This
+        # preserves small field differences when the hidden contribution has a
+        # large common offset. Keep all three dense-input corrections explicit.
+        current .= vec(sum(Vsite .* linear_site; dims=1))
+        logits .= linear_site .- reshape(current, 1, B)
+        current .= vec(sum(Vsite .* reshape(θsite, q, 1); dims=1))
+        logits .+= reshape(θsite, q, 1) .- reshape(current, 1, B)
+        current .= vec(sum(Vsite .* gram_v; dims=1))
+        logits .+= reshape(LinearAlgebra.diag(gram), q, 1) ./ 2 .- gram_v .+
+            reshape(current, 1, B) ./ 2
+        lPL .-= vec(logsumexp(logits; dims=1))
     end
     lPL ./= nsites
     return reshape(lPL, batch_sz)

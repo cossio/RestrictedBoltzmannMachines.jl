@@ -186,6 +186,67 @@ end
     end
 end
 
+@testset "Gaussian-hidden exact pseudolikelihood" begin
+    T = Float32
+    batch = (2, 3)
+    hidden_size = (2, 2)
+    hidden = Gaussian(
+        ; θ = randn(T, hidden_size...),
+        γ = reshape(T[-2, -0.7, 1.1, 2.3], hidden_size),
+    )
+    potts_visible = Potts(; θ = randn(T, Q, N...))
+    v_potts = sample_from_inputs(
+        potts_visible, zeros(T, Q, N..., batch...)
+    )
+    cases = (
+        (Binary(; θ = randn(T, N...)), bitrand(N..., batch...)),
+        (Spin(; θ = randn(T, N...)), rand((Int8(-1), Int8(1)), N..., batch...)),
+        (potts_visible, v_potts),
+        (PottsGumbel(potts_visible.par), v_potts),
+    )
+
+    for (visible, v) in cases
+        w = randn(T, size(visible)..., hidden_size...) / sqrt(T(length(visible)))
+        rbm = RBM(visible, hidden, w)
+        expected = log_pseudolikelihood(rbm, v; exact = true)
+        jl_rbm = adapt(JLArray, rbm)
+        jl_v = JLArray(v)
+        result = log_pseudolikelihood(jl_rbm, jl_v; exact = true)
+        @test result isa JLArray
+        @test eltype(result) == T
+        @test size(result) == batch
+        @test adapt(Array, result) ≈ expected rtol = 5e-4 atol = 5e-5
+    end
+
+    θ_offset = T[0, 1, -1, 0.5]
+    offset_rbm = RBM(
+        Potts(; θ = reshape(θ_offset, Q, 1)),
+        Gaussian(; θ = T[1e8], γ = T[-1]),
+        ones(T, Q, 1, 1),
+    )
+    offset_v = reshape(Bool[1, 0, 0, 0], Q, 1)
+    offset_result = log_pseudolikelihood(
+        adapt(JLArray, offset_rbm), JLArray(offset_v); exact = true
+    )
+    @test offset_result isa JLArray
+    @test only(adapt(Array, offset_result)) ≈
+        θ_offset[1] - log(sum(exp, θ_offset))
+
+    mixed_rbm = RBM(
+        Potts(; θ = reshape(Float64[1e8, 1e8 + 1, 1e8 - 1, 1e8 + 0.5], Q, 1)),
+        Gaussian(; θ = Float32[0], γ = Float32[1]),
+        zeros(Float32, Q, 1, 1),
+    )
+    mixed_v = reshape(Bool[1, 0, 0, 0], Q, 1)
+    mixed_result = log_pseudolikelihood(
+        adapt(JLArray, mixed_rbm), JLArray(mixed_v); exact = true
+    )
+    @test mixed_result isa JLArray
+    @test eltype(mixed_result) == Float64
+    @test adapt(Array, mixed_result) ≈
+        log_pseudolikelihood(mixed_rbm, mixed_v; exact = true) rtol = 0 atol = 1e-8
+end
+
 @testset "gauge transformations" begin
     rbm = RBM(
         Potts(; θ = randn(Q, N...)),

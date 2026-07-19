@@ -7,6 +7,14 @@ All notable changes to this project will be documented in this file. The format 
 - Fixed `log_pseudolikelihood(...; exact=true)` for `StandardizedRBM` and
   `CenteredRBM`, whose forwarding methods previously dropped keyword arguments
   and raised a `MethodError` ([#145](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/145)).
+- Accelerated exact `log_pseudolikelihood(...; exact=true)` for RBMs with
+  Gaussian hidden units by evaluating the quadratic Gaussian cumulant
+  analytically instead of recomputing it for every visible-site substitution.
+  The new Binary, Spin, Potts, and PottsGumbel paths preserve multidimensional
+  batches, dense Potts inputs, and GPU-compatible array semantics while
+  substantially reducing runtime and allocations. Exact paths for other
+  hidden layers now reuse their hidden-input buffers, roughly halving allocated
+  memory.
 - Raised the minimum supported ChainRulesCore version to 1.25.2, which fixes an ambiguous `ProjectTo{NoTangent}` call involving thunks during Zygote differentiation.
 - Fixed `pcd!(::StandardizedRBM)` producing non-finite parameters and energies when visible data has zero-variance coordinates, such as constant Binary features or absent Potts categories. Such centered coordinates now use a neutral unit scale; nonconstant coordinates and explicit positive `ϵv` behavior are unchanged ([#139](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/139)).
 - Fixed weighted training in plain, centered, and standardized `pcd!`, and in
