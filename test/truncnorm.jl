@@ -6,6 +6,16 @@ using SpecialFunctions: erfcx
 using Distributions: truncated, Normal
 using RestrictedBoltzmannMachines: tnmean, tnvar, tnmeanvar, sqrt1half, randnt, randnt_half
 
+mutable struct TruncatedNormalTestRNG <: Random.AbstractRNG
+    normals::Vector{Float64}
+    exponentials::Vector{Float64}
+    uniforms::Vector{Float64}
+end
+
+Random.randn(rng::TruncatedNormalTestRNG, ::Type{Float64}) = popfirst!(rng.normals)
+Random.randexp(rng::TruncatedNormalTestRNG, ::Type{Float64}) = popfirst!(rng.exponentials)
+Random.rand(rng::TruncatedNormalTestRNG, ::Type{Float64}) = popfirst!(rng.uniforms)
+
 for a in -10:10
     d = truncated(Normal(); lower = a)
     @test tnmean(a) ≈ mean(d)
@@ -31,6 +41,22 @@ end
     @test (@inferred randnt(Inf)) == Inf
     @test isnan(@inferred randnt(NaN))
     @test (@inferred randnt(floatmax(Float64))) == floatmax(Float64)
+end
+
+@testset "randnt draw sequences" begin
+    rng = TruncatedNormalTestRNG([-1.0, 0.0], Float64[], Float64[])
+    @test randnt(rng, -0.5) == 0.0
+    @test isempty(rng.normals)
+
+    t = sqrt1half(1.0)
+    rng = TruncatedNormalTestRNG(Float64[], [10.0, 1.0], [0.5, 0.5])
+    @test randnt(rng, 1.0) == 1.0 + 1.0 / t
+    @test isempty(rng.exponentials)
+    @test isempty(rng.uniforms)
+
+    rng = TruncatedNormalTestRNG(Float64[], Float64[], Float64[])
+    @test randnt(rng, Inf) == Inf
+    @test isnan(randnt(rng, NaN))
 end
 
 Random.seed!(18)
