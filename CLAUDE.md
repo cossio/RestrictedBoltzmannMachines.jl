@@ -134,10 +134,14 @@ CUDA.jl, and HDF5 persistence. It requires Julia 1.10 or later.
 - During development, the version in `Project.toml` carries a `-DEV` suffix
   (for example, `5.4.0-DEV`), and changes accumulate under `## Unreleased` in
   `CHANGELOG.md`.
+- Choose release numbers using ColPrac's Julia package SemVer guidance. For this
+  post-1.0 package, breaking changes bump major, non-breaking features bump
+  minor, and bug fixes bump patch. Suggest one version with a brief explanation,
+  but always leave the final decision to the user and wait for explicit
+  confirmation before making release changes.
 - Use `$register-new-version` for release, registration, tagging, or publishing
   tasks. The shared workflow lives at
   `.claude/skills/register-new-version/SKILL.md` and is exposed to Codex at
   `.agents/skills/register-new-version/SKILL.md`. It covers the release commit,
-  frozen `release-X.Y.Z` registration branch, triggering Registrator from
-  [issue #124](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/124),
-  and monitoring the General registry PR.
+  triggering Registrator directly on that commit, and monitoring the General
+  registry PR.
