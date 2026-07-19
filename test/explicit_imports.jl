@@ -23,12 +23,13 @@ end
         all_qualified_accesses_are_public = (ignore = (Symbol("@adapt_structure"),),),
     )
 
-    # The CUDA fixture uses CUDA's real UUID to load the actual package
-    # extension. Keep it in a subprocess so it cannot trigger CUDA extensions
-    # in unrelated test dependencies such as Zygote and NNlib.
+    # The CUDA fixture uses a non-CUDA UUID so unrelated CUDA extensions do not
+    # mistake it for CUDA.jl; the child includes the actual CUDAExt source.
+    # Keep it in a subprocess so its stub module remains isolated.
     cuda_test = joinpath(@__DIR__, "explicit_imports_cuda.jl")
     project = dirname(Base.active_project())
-    @test success(`$(Base.julia_cmd()) --project=$project $cuda_test`)
+    process = run(ignorestatus(`$(Base.julia_cmd()) --project=$project $cuda_test`))
+    @test process.exitcode == 0
 
     @testset "HDF5Ext" begin
         extension_module = load_hdf5_extension()
