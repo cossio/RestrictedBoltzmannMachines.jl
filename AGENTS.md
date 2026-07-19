@@ -1,8 +1,6 @@
 # AGENTS.md
 
-This file provides repository guidance to Codex. Use the
-`$restricted-boltzmann-machines-jl` skill for the package architecture,
-commands, and subsystem-specific edit guidance.
+This file provides repository guidance to Codex.
 
 ## Repository workflow
 
@@ -27,6 +25,29 @@ commands, and subsystem-specific edit guidance.
   CUDA or physical GPU hardware.
 - Test GPU semantics in `test/jlarrays.jl` with JLArrays and
   `allowscalar(false)`. Do not commit tests that require physical GPU hardware.
+
+## Package architecture and invariants
+
+- The package exports no symbols. Prefer
+  `import RestrictedBoltzmannMachines as RBMs` or explicit
+  `using RestrictedBoltzmannMachines: ...`.
+- Layer dimensions come first and trailing dimensions are batch dimensions. A
+  layer of size `(N,)` accepts `(N,)` or `(N, B)` data; a Potts layer with `Q`
+  classes and `N` sites accepts `(Q, N)` or `(Q, N, B)`.
+- `RBM.w` has shape `(size(visible)..., size(hidden)...)`; preserve this
+  convention for higher-dimensional layers rather than assuming matrices.
+- `AbstractLayer{N}` records the number of layer dimensions. Layer parameters
+  share one `par` array whose first dimension selects the parameter and whose
+  remaining dimensions are `size(layer)`, so `ndims(par) == N + 1`. Named
+  properties such as `layer.θ` and `layer.γ` are views into `par`.
+- For Potts layers, the first layer dimension indexes classes and the remaining
+  layer dimensions index sites. Sampling and reductions must preserve this
+  distinction while allowing trailing batch dimensions.
+- Preserve generic array and multiple-dispatch behavior in core code. Put
+  dependency-specific methods in `ext/`; treat the versioned HDF5 format in
+  `ext/HDF5Ext.jl` as compatibility-sensitive.
+- Literate sources live in `docs/src/literate/`. Generated Markdown there is a
+  transient build artifact removed by `docs/make.jl`.
 
 ## GitHub operations
 
