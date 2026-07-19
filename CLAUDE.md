@@ -1,77 +1,143 @@
-# CLAUDE.md
+# Repository instructions
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to coding agents working in this repository.
 
-## Project Overview
+## Project overview
 
-RestrictedBoltzmannMachines.jl is a Julia package for training and inference with Restricted Boltzmann Machines (RBMs). It supports multiple layer types (Binary, Spin, Potts, Gaussian, ReLU variants), GPU acceleration via CUDA.jl, and HDF5 persistence. Requires Julia 1.10+.
+RestrictedBoltzmannMachines.jl is a Julia package for training and inference
+with Restricted Boltzmann Machines (RBMs). It supports multiple layer types
+(Binary, Spin, Potts, Gaussian, and ReLU variants), GPU acceleration through
+CUDA.jl, and HDF5 persistence. It requires Julia 1.10 or later.
 
-## Common Commands
+## Repository workflow
 
-```bash
-# Run all tests
-julia --project=. -e 'using Pkg; Pkg.test()'
+- This is a Julia package supporting Julia 1.10 and later.
+- Run commands from the repository root. Use `--project=.` for the package,
+  `--project=test` for standalone test files, and `--project=docs` for docs.
+- Run the narrowest relevant test file first, then
+  `julia --project=. -e 'using Pkg; Pkg.test()'` when the change crosses
+  subsystems or affects public behavior.
+- Load the package with
+  `julia --project=. -e 'import RestrictedBoltzmannMachines as RBMs'`.
+- Common commands:
 
-# Run a single test file (uses test/ project for test-only deps like Zygote, QuadGK)
-julia --project=test test/pcd.jl
+  ```bash
+  # Run all tests
+  julia --project=. -e 'using Pkg; Pkg.test()'
 
-# Start a REPL with the package loaded
-julia --project=.
-julia> import RestrictedBoltzmannMachines as RBMs
-```
+  # Run one test file with test-only dependencies
+  julia --project=test test/pcd.jl
 
-## Architecture
+  # Start a package REPL, then import the package
+  julia --project=.
+  ```
 
-### Array Dimension Convention
+## Workspace and environment
 
-Data arrays have layer dimensions first and batch dimension last. For a layer of size `(N,)`, a single sample is a vector of length `N`, and a batch is a matrix `(N, B)`. For Potts layers of size `(Q, N)`, a batch is `(Q, N, B)`. The weight matrix `w` has shape `(size(visible)..., size(hidden)...)`. Functions like `energy`, `free_energy`, `sample_from_inputs` all follow this convention and broadcast over the trailing batch dimension.
+- The root Julia workspace includes `test`, `docs`, `notebooks`, and `repl`
+  and uses one shared, gitignored root `Manifest.toml`.
+- The test project needs the root package developed into it. If that setup is
+  missing, run
+  `julia --project=test -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'`.
+- No external services are required. CUDA and HDF5 are optional package
+  extensions. The test project includes HDF5 coverage; CPU tests do not need
+  CUDA or physical GPU hardware.
+- Test GPU semantics in `test/jlarrays.jl` with JLArrays and
+  `allowscalar(false)`. Do not commit tests that require physical GPU hardware.
+- Tests in `test/runtests.jl` are organized as independent modules. Test files
+  can run standalone with `--project=test`; the suite uses property-based tests
+  across dimensions and gradient checks with Zygote and FiniteDifferences.
 
-### Type Hierarchy
+## Package architecture and invariants
 
-`AbstractLayer{N}` (N = ndims) is the base type for all unit types. Each layer implements: `energy`, `cgfs`, `sample_from_inputs`, `mean_from_inputs`, `var_from_inputs`, `mode_from_inputs`.
+- The package exports no symbols. Prefer
+  `import RestrictedBoltzmannMachines as RBMs` or explicit
+  `using RestrictedBoltzmannMachines: ...`.
+- Layer dimensions come first and trailing dimensions are batch dimensions. A
+  layer of size `(N,)` accepts `(N,)` or `(N, B)` data; a Potts layer with `Q`
+  classes and `N` sites accepts `(Q, N)` or `(Q, N, B)`.
+- `RBM.w` has shape `(size(visible)..., size(hidden)...)`; preserve this
+  convention for higher-dimensional layers rather than assuming matrices.
+- `AbstractLayer{N}` records the number of layer dimensions. Layer parameters
+  share one `par` array whose first dimension selects the parameter and whose
+  remaining dimensions are `size(layer)`, so `ndims(par) == N + 1`. Named
+  properties such as `layer.θ` and `layer.γ` are views into `par`.
+- Each layer implements `energy`, `cgfs`, `sample_from_inputs`,
+  `mean_from_inputs`, `var_from_inputs`, and `mode_from_inputs`.
+- Binary, Spin, and Potts layers have one parameter (`θ`); Gaussian layers have
+  two (`θ` and `γ`); dReLU layers have four.
+- For Potts layers, the first layer dimension indexes classes and the remaining
+  layer dimensions index sites. Sampling and reductions must preserve this
+  distinction while allowing trailing batch dimensions. Thus a Potts layer
+  with spatial shape `N...` has size `(Q, N...)`, while `par` has shape
+  `(1, Q, N...)`.
+- Layer types include `Binary`, `Spin`, `Potts`, `Gaussian`, `ReLU`, `dReLU`,
+  `pReLU`, `xReLU`, `nsReLU`, and `PottsGumbel`.
+- `RBM{V,H,W}` stores the `visible` layer, `hidden` layer, and weights `w`.
+  `CenteredRBM` adds offset parameters; `StandardizedRBM` adds offsets and
+  scales.
+- Preserve generic array and multiple-dispatch behavior in core code. Put
+  dependency-specific methods in `ext/`; treat the versioned HDF5 format in
+  `ext/HDF5Ext.jl` as compatibility-sensitive.
+- Literate sources live in `docs/src/literate/`. Generated Markdown there is a
+  transient build artifact removed by `docs/make.jl`.
 
-All layers store parameters in a single `.par` array. The first dimension is the number of parameters of the layer type (e.g. 1 for Binary/Spin/Potts which have only `θ`, 2 for Gaussian which has `θ` and `γ`, 4 for dReLU). The remaining dimensions are the layer's spatial dimensions (the grid of units). So `ndims(par) == N + 1` where `N` is the layer ndims. Named parameter accessors (e.g. `layer.θ`, `layer.γ`) are views into `.par`.
+## Module organization
 
-Potts is special: its first layer dimension is the one-hot (categorical) dimension with `Q` classes, and the remaining dimensions describe the grid of units. So `size(potts_layer) == (Q, N...)` and `par` has shape `(1, Q, N...)`.
+- `src/layers/` contains layer definitions. `abstractlayer.jl` defines the
+  interface, individual files implement layer types, and `common.jl` contains
+  shared utilities.
+- `src/rbms/` contains convenience constructors such as `BinaryRBM` and
+  `HopfieldRBM`.
+- `src/train/` contains training code: persistent contrastive divergence in
+  `pcd.jl`, data-driven initialization in `initialization.jl`, and gradients in
+  `gradient.jl`.
+- `src/gauge/` contains gauge transformations, including `zerosum.jl`,
+  `rescale_hidden.jl`, and `shift_fields.jl`.
+- `src/util/` contains linear-algebra helpers, one-hot encoding, and truncated
+  normal sampling.
+- `ext/` contains the CUDA and HDF5 package extensions.
 
-Layer types: `Binary`, `Spin`, `Potts`, `Gaussian`, `ReLU`, `dReLU`, `pReLU`, `xReLU`, `nsReLU`, `PottsGumbel`.
+## Key functions
 
-`RBM{V,H,W}` holds `visible` layer, `hidden` layer, and weight matrix `w`. Extended by `CenteredRBM` (with offset parameters) and `StandardizedRBM` (with offset + scale parameters).
+- Training: `pcd!` and `initialize!`.
+- Sampling: `sample_v_from_h`, `sample_h_from_v`, `sample_v_from_v`, and
+  `metropolis`.
+- Evaluation: `free_energy`, `energy`, `log_pseudolikelihood`,
+  `log_partition`, and `reconstruction_error`.
+- Partition-function estimation: `aise` (annealed importance sampling) and
+  `raise` (reverse AIS).
 
-### Module Organization
+## GitHub operations
 
-- **`src/layers/`** — Layer type definitions. `abstractlayer.jl` defines the interface; each file implements one layer type; `common.jl` has shared utilities.
-- **`src/rbms/`** — Convenience constructors (`BinaryRBM`, `HopfieldRBM`, etc.).
-- **`src/train/`** — Training: `pcd.jl` (Persistent Contrastive Divergence), `initialization.jl` (data-driven init), `gradient.jl`.
-- **`src/gauge/`** — Gauge transformations: `zerosum.jl`, `rescale_hidden.jl`, `shift_fields.jl`.
-- **`src/util/`** — Utilities: linear algebra helpers, one-hot encoding, truncated normal sampling.
-- **`ext/`** — Package extensions for CUDA (GPU) and HDF5 (save/load).
+- A network-restricted sandbox can make `gh auth status` look like an invalid
+  token. If it fails in the sandbox, retry it with host/network access before
+  asking the user to reauthenticate; treat credentials as invalid only if that
+  host-level check also fails.
 
-### Key Functions
+## Changes and pull requests
 
-- **Training:** `pcd!(rbm, data; ...)`, `initialize!(rbm, data)`
-- **Sampling:** `sample_v_from_h`, `sample_h_from_v`, `sample_v_from_v`, `metropolis`
-- **Evaluation:** `free_energy`, `energy`, `log_pseudolikelihood`, `log_partition`, `reconstruction_error`
-- **Partition function:** `aise` (Annealed Importance Sampling), `raise` (reverse AIS)
+- Add `CHANGELOG.md` entries only for user-facing package changes to source,
+  APIs, behavior, or dependencies. Do not add entries for CI, workflows,
+  agent plumbing, or other repository tooling.
+- PRs receive automated review comments from Codex Cloud and the default Claude
+  App workflow in `.github/workflows/claude-code-review.yml`. Address each
+  actionable finding or explain the disagreement in its thread, reply to every
+  thread, and resolve it once addressed.
+- Follow `REVIEW.md`; flag substantial avoidable complexity only when a
+  materially simpler design satisfies the current requirements.
+- Never merge a PR or enable auto-merge unless the repository owner explicitly
+  instructs it.
 
-### Workspace
+## Releases
 
-The project uses Julia workspaces (`[workspace]` in Project.toml) with sub-projects: test, docs, notebooks, repl.
-
-## Testing
-
-Tests in `test/runtests.jl` are organized as independent modules (each wrapped in its own `module`). Each test file can be run standalone with `--project=test`. Tests use property-based testing across dimensions and gradient checking with Zygote and FiniteDifferences.
-
-GPU compatibility is tested without GPU hardware in `test/jlarrays.jl`, using JLArrays with `allowscalar(false)`. Do not commit tests that require a physical GPU (GitHub CI has none); run those locally only.
-
-## Pull Requests
-
-PRs receive automated review comments from Codex Cloud and from the default Claude App workflow in `.github/workflows/claude-code-review.yml`. Address actionable findings by pushing fixes or reply in the review threads with reasoning when a finding is mistaken.
-
-Reply in every review thread on your PR before considering the work done: either point at the commit that addresses the finding, or explain why it is mistaken. Resolve a thread once its finding is addressed.
-
-Never merge a PR or enable auto-merge. Merging happens only when the repo owner clicks merge on GitHub or explicitly instructs it.
-
-## Releasing a new version
-
-During development the version in Project.toml carries a `-DEV` suffix (e.g. `5.4.0-DEV`), and changes accumulate under an `## Unreleased` section in CHANGELOG.md. CHANGELOG.md records only changes to the package code that affect users (source, API, behavior, dependencies). Do not add entries for CI/workflow changes, repo tooling, or other development-infrastructure changes. To release and register a new version, use the shared `register-new-version` skill (`.claude/skills/register-new-version/SKILL.md`, exposed to Codex through `.agents/skills/register-new-version/SKILL.md`), which documents the full workflow: release commit, frozen `release-X.Y.Z` registration branch, triggering Registrator from issue [#124](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/124), and monitoring the General registry PR.
+- During development, the version in `Project.toml` carries a `-DEV` suffix
+  (for example, `5.4.0-DEV`), and changes accumulate under `## Unreleased` in
+  `CHANGELOG.md`.
+- Use `$register-new-version` for release, registration, tagging, or publishing
+  tasks. The shared workflow lives at
+  `.claude/skills/register-new-version/SKILL.md` and is exposed to Codex at
+  `.agents/skills/register-new-version/SKILL.md`. It covers the release commit,
+  frozen `release-X.Y.Z` registration branch, triggering Registrator from
+  [issue #124](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/124),
+  and monitoring the General registry PR.
