@@ -302,6 +302,58 @@ end
     @test any(iszero, groupnorms)                            # exact-zero color groups survive
 end
 
+@testset "group-lasso gradients (Potts hidden)" begin
+    # With a Potts hidden layer the glasso atom groups over BOTH color axes (visible dim 1
+    # and hidden dim ndims(visible)+1). ∂regularize! must still match autodiff of the penalty.
+    rbm = RBM(Potts(; θ = randn(3, 4)), Potts(; θ = randn(2, 3)), randn(3, 4, 2, 3))
+    v = sample_from_inputs(rbm.visible, zeros(3, 4, 20))
+    l2_fields, l1_weights, l2_weights, l2l1_weights, gl2l1_weights, glasso_weights = rand(6)
+
+    gs = Zygote.gradient(rbm) do rbm
+        mean(free_energy(rbm, v)) + regularization_penalty(
+            rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, gl2l1_weights, glasso_weights
+        )
+    end
+    ∂ = ∂free_energy(rbm, v)
+    ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, gl2l1_weights, glasso_weights)
+    @test only(gs).visible.par ≈ ∂.visible
+    @test only(gs).hidden.par ≈ ∂.hidden
+    @test only(gs).w ≈ ∂.w
+end
+
+@testset "prox_glasso! zeros survive zerosum! for Potts hidden layers" begin
+    # Regression: previously prox_glasso! grouped over the visible color axis only, so for a
+    # Potts hidden layer the immediately-following zerosum! (which recenters across sibling
+    # hidden colors) refilled every zero, giving NO persistent sparsity. Grouping over the
+    # hidden color axis too makes the exact zeros stable under the (visible AND hidden) gauge.
+    rbm = RBM(Potts(; θ = randn(3, 4)), Potts(; θ = randn(2, 5)), randn(3, 4, 2, 5))
+    zerosum!(rbm)
+    g = vec(sqrt.(sum(abs2, rbm.w; dims = (1, 3)))) # edge norms over both color axes
+    t = (sort(g)[1] + sort(g)[2]) / 2               # zeros exactly the smallest-norm edge
+    prox_glasso!(rbm, t)
+    zeroed = vec(iszero.(sqrt.(sum(abs2, rbm.w; dims = (1, 3)))))
+    @test any(zeroed)                               # at least one edge zeroed
+
+    zerosum!(rbm)                                   # the step that used to refill the zeros
+    still_zero = vec(iszero.(sqrt.(sum(abs2, rbm.w; dims = (1, 3)))))
+    @test still_zero == zeroed                      # every zeroed edge stays exactly zero
+    @test all(abs.(sum(rbm.w; dims = 1)) .< 1.0e-10)              # visible zero-sum gauge
+    @test all(abs.(sum(rbm.w; dims = 3)) .< 1.0e-10)              # hidden zero-sum gauge
+end
+
+@testset "pcd! glasso gives persistent sparsity with Potts hidden" begin
+    # End-to-end reproduction of the reported scenario: Potts visible × Potts hidden, default
+    # zerosum=true. The trained model must retain exact-zero edges (grouped over both colors).
+    seed!(0)
+    rbm = RBM(Potts(; θ = randn(3, 5)), Potts(; θ = randn(2, 4)), 0.1 * randn(3, 5, 2, 4))
+    data = sample_from_inputs(rbm.visible, zeros(3, 5, 200))
+    pcd!(rbm, data; iters = 40, batchsize = 32, glasso_weights = 0.5, rescale = false, zerosum = true)
+
+    @test all(isfinite, rbm.w)
+    edgenorms = vec(sqrt.(sum(abs2, rbm.w; dims = (1, 3))))
+    @test any(iszero, edgenorms)                    # persistent exact-zero edges after training
+end
+
 @testset "∂regularize! zerosum keyword" begin
     # zerosum=true must be equivalent to regularizing and then projecting with zerosum!
     rbm = RBM(Potts(; θ = randn(3, 4)), Binary(; θ = randn(2)), randn(3, 4, 2))

@@ -6,16 +6,24 @@ All notable changes to this project will be documented in this file. The format 
 
 - Added group-lasso weight regularization for edge-level sparsity over the Potts color
   axis ([#168](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/168)):
-  - `glasso_weights`: plain group lasso `∑_{i,μ} ‖w[:, i, μ]‖₂`. In `pcd!`, `ucd!`, and the
-    centered/standardized `pcd!` it is applied as a proximal block-soft-threshold step
-    (`prox_glasso!`) after each optimizer update, yielding *exact* zeros for whole
-    site–hidden color groups (gauge-stable, preserved by `zerosum!`).
+  - `glasso_weights`: plain group lasso `∑_edges ‖w[edge]‖₂`, where each edge group spans
+    every Potts color axis — the visible colors (Potts visible) and the hidden colors (Potts
+    hidden). In `pcd!`, `ucd!`, and the centered/standardized `pcd!` it is applied as a
+    proximal block-soft-threshold step (`prox_glasso!`) right after each optimizer update
+    (before the gauge resets), yielding *exact* zeros for whole edges. Because a group spans
+    all Potts color axes, its zeros are stable under the zero-sum gauge of both layers and
+    under `rescale_weights!`, so they persist across training steps (including for models
+    with a Potts hidden layer).
   - `gl2l1_weights`: the group version of `l2l1_weights`, `∑_μ (∑_i ‖w[:, i, μ]‖₂)² / (2N)`
     with `N` the number of visible sites, replacing the inner color-`L1` of `l2l1` with a
-    color-`L2` group norm, added as a gradient term.
-  - New `prox_glasso!(rbm, t)` for `RBM`, `CenteredRBM`, and `StandardizedRBM`.
-  - For non-Potts visible layers each group is a scalar, so `glasso` reduces to `l1` and
-    `gl2l1` reduces to `l2l1`.
+    color-`L2` group norm over the visible colors, added as a gradient term.
+  - New `prox_glasso!(rbm, t)` for `RBM`, `CenteredRBM`, and `StandardizedRBM`. Its threshold
+    `t` is an absolute per-update amount and, unlike the gradient-based penalties, is not
+    scaled by the optimizer's step size.
+  - `regularization_penalty` computes the group norms through a zero-safe adjoint, so its
+    Zygote gradient stays finite at exact-zero weight groups (e.g. after `prox_glasso!`).
+  - With no Potts layers each `glasso` group is a scalar, so `glasso` reduces to `l1`; for a
+    non-Potts visible layer `gl2l1` reduces to `l2l1`.
 
 ## 5.8.1
 

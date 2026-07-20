@@ -3,17 +3,19 @@
 
 Updates RBM gradients `∂`, with the regularization gradient.
 
-`gl2l1_weights` and `glasso_weights` are group-lasso penalties whose sparsity atom is the
-block-`L2` norm `‖w[:, i, μ]‖₂` over the Potts color axis of each site–hidden edge `(i, μ)`:
+`gl2l1_weights` and `glasso_weights` are group-lasso penalties whose sparsity atom is a
+block-`L2` norm over the Potts color axes of each site–hidden edge:
 
-- `glasso` is the plain group lasso `∑_{i,μ} ‖w[:, i, μ]‖₂`.
+- `glasso` is the plain group lasso `∑_edges ‖w[edge]‖₂`, where each group spans the visible
+  color axis (Potts visible) and the hidden color axis (Potts hidden); see [`prox_glasso!`].
 - `gl2l1` is the group version of `l2l1`, `∑_μ (∑_i ‖w[:, i, μ]‖₂)² / (2N)` with `N` the
   number of visible sites, obtained by replacing the inner color-`L1` of `l2l1` with a
-  color-`L2` group norm.
+  color-`L2` group norm over the visible colors only (its hidden index `μ` is the outer
+  `L2`-coupling axis).
 
-For non-Potts visible layers each group is a single scalar, so `gl2l1` reduces to `l2l1`
-and `glasso` reduces to `l1`. For genuine edge sparsity, prefer the proximal step
-[`prox_glasso!`](@ref) over adding the `glasso` subgradient here (see the note there).
+With no Potts layers each `glasso` group is a single scalar, so `glasso` reduces to `l1`;
+for a non-Potts visible layer `gl2l1` reduces to `l2l1`. For genuine edge sparsity, prefer
+the proximal step [`prox_glasso!`](@ref) over adding the `glasso` subgradient here.
 """
 function ∂regularize!(
         ∂::∂RBM, # unregularized gradient
@@ -43,7 +45,7 @@ function ∂regularize!(
         ∂.w .+= ∂gl2l1_weights(rbm.w, gl2l1_weights, rbm.visible)
     end
     if !iszero(glasso_weights)
-        ∂.w .+= ∂glasso_weights(rbm.w, glasso_weights, rbm.visible)
+        ∂.w .+= ∂glasso_weights(rbm.w, glasso_weights, rbm)
     end
     zerosum && zerosum!(∂, rbm)
     return ∂
@@ -64,6 +66,20 @@ function _glasso_num_groups(visible::AbstractLayer)
     return length(visible) ÷ prod(d -> size(visible, d), dims; init = 1)
 end
 
+# Block dimensions of the `glasso` atom over the full weight tensor `w`: the visible color
+# axis (dim 1) when the visible layer is Potts, together with the hidden color axis
+# (dim `ndims(visible)+1`) when the hidden layer is Potts. Grouping over the hidden color
+# axis too keeps `prox_glasso!`'s exact zeros stable under the hidden Potts zero-sum gauge:
+# `zerosum!` recenters each weight across sibling hidden colors, which would otherwise refill
+# a slice zeroed over the visible colors only. Reduces to `()` (plain L1) when neither layer
+# is Potts. `gl2l1` keeps the visible-only grouping (`_glasso_group_dims`) since its hidden
+# axis is the outer L2-coupling index, not part of the block norm.
+function _glasso_dims(rbm::RBM)
+    vdims = _glasso_group_dims(rbm.visible)
+    hdims = rbm.hidden isa Union{Potts, PottsGumbel} ? (ndims(rbm.visible) + 1,) : ()
+    return (vdims..., hdims...)
+end
+
 # Group-`L2` norm with a zero-safe reverse-mode adjoint (∂‖w_g‖/∂w_g = w_g/‖w_g‖, taken to
 # be `0` at `w_g = 0`, matching the `_inv_or_one` subgradient used by `∂glasso_weights` and
 # `∂gl2l1_weights`). Plain `sqrt.(sum(abs2, w; dims))` is singular at zero groups under
@@ -80,9 +96,9 @@ function ChainRulesCore.rrule(::typeof(_group_norm), w::AbstractArray; dims)
     return n, _group_norm_pullback
 end
 
-# gradient of glasso_weights * ∑_{i,μ} ‖w[:, i, μ]‖₂
-function ∂glasso_weights(w::AbstractArray, glasso_weights::Real, visible::AbstractLayer)
-    dims = _glasso_group_dims(visible)
+# gradient of glasso_weights * ∑_edges ‖w[edge]‖₂ (block-L2 over the Potts color axes)
+function ∂glasso_weights(w::AbstractArray, glasso_weights::Real, rbm::RBM)
+    dims = _glasso_dims(rbm)
     nrm = sqrt.(sum(abs2, w; dims))
     return glasso_weights * w .* _inv_or_one.(nrm)
 end
@@ -98,33 +114,24 @@ function ∂gl2l1_weights(w::AbstractArray, gl2l1_weights::Real, visible::Abstra
 end
 
 """
-    prox_glasso!(rbm, t; dims = <Potts color axis>)
+    prox_glasso!(rbm, t; dims = <Potts color axes>)
 
 In-place proximal (block soft-threshold) step for the group-lasso weight penalty
-`t · ∑_{i,μ} ‖w[:, i, μ]‖₂`, grouping over `dims` (the Potts *visible* color axis by default,
-or the whole scalar weight for non-Potts layers). Each group is shrunk toward zero,
+`t · ∑_edges ‖w[edge]‖₂`. By default each *edge* group spans the Potts color axes present:
+the visible color axis when the visible layer is Potts, and the hidden color axis when the
+hidden layer is Potts (for a non-Potts layer that axis contributes no grouping, and with no
+Potts layers each group is a single scalar, i.e. an L1 soft-threshold). Each group is shrunk
+toward zero,
 
-    w[:, i, μ] .*= max(0, 1 - t / ‖w[:, i, μ]‖₂),
+    w[edge] .*= max(0, 1 - t / ‖w[edge]‖₂),
 
-landing groups with `‖w[:, i, μ]‖₂ ≤ t` on *exact* zero. This reaches genuine edge-level
+landing groups with `‖w[edge]‖₂ ≤ t` on *exact* zero. This reaches genuine edge-level
 sparsity that a plain subgradient step does not.
 
-The training loops apply this as a proximal step right after the optimizer update and
-*before* re-imposing the `rescale_weights!` / `zerosum!` gauges, mirroring proximal-gradient
-descent. Because it scales each *visible* color group uniformly, the resulting zeros are
-stable under the visible Potts zero-sum gauge and under `rescale_weights!` (both preserve
-exact-zero groups).
-
-The grouping is over the visible color axis only. **For a Potts/`PottsGumbel` *hidden*
-layer, this is not just "not preserved": the training loops' own subsequent `zerosum!(rbm)`
-call actively erases the zeros.** `zerosum!` re-centers each visible-color entry across the
-*hidden* color axis by subtracting the mean of its sibling hidden-color weights; whenever
-those siblings are nonzero (the common case), a group this function just zeroed is
-overwritten with a nonzero value. So with a Potts hidden layer and the default
-`zerosum = true`, `glasso_weights` does not produce persistent edge sparsity at all — every
-training step, the exact zeros this function creates are filled back in before the callback
-or the next fantasy update ever see them. Only visible-Potts/non-Potts-hidden models (or
-runs with `zerosum = false`) get the sparsity this penalty promises.
+descent. Because each group spans every Potts color axis and is scaled uniformly, the
+resulting zeros are stable under the Potts zero-sum gauge (of *both* layers) and under
+`rescale_weights!` — all preserve exact-zero groups — so the zeros persist for the callback
+and the next fantasy update.
 
 Unlike the gradient-based penalties (`l1_weights`, `l2_weights`, `l2l1_weights`,
 `gl2l1_weights`), `t` is applied as a threshold directly and is *not* scaled by the
@@ -135,7 +142,7 @@ norm per update regardless of `optim`. Tune `glasso_weights` jointly with the ch
 `optim` (and its learning rate) rather than assuming it is directly comparable in scale to
 the other `*_weights` regularizers.
 """
-function prox_glasso!(rbm::RBM, t::Real; dims = _glasso_group_dims(rbm.visible))
+function prox_glasso!(rbm::RBM, t::Real; dims = _glasso_dims(rbm))
     nrm = sqrt.(sum(abs2, rbm.w; dims))
     rbm.w .*= max.(0, 1 .- t .* _inv_or_one.(nrm))
     return rbm
@@ -216,7 +223,7 @@ function ∂regularize_weights(
     ∂l1 = l1_weights * sign.(rbm.w)
     ∂l2 = l2_weights * rbm.w
     ∂gl2l1 = ∂gl2l1_weights(rbm.w, gl2l1_weights, rbm.visible)
-    ∂glasso = ∂glasso_weights(rbm.w, glasso_weights, rbm.visible)
+    ∂glasso = ∂glasso_weights(rbm.w, glasso_weights, rbm)
     return ∂l2l1 + ∂l1 + ∂l2 + ∂gl2l1 + ∂glasso
 end
 
@@ -225,18 +232,20 @@ function regularization_penalty(
         gl2l1_weights::Real = 0, glasso_weights::Real = 0, l2_fields::Real = 0
     )
     dims = ntuple(identity, ndims(rbm.visible))
-    gdims = _glasso_group_dims(rbm.visible)
     N = length(rbm.visible)
     Ng = _glasso_num_groups(rbm.visible) # number of sites (groups), = N for non-Potts
 
-    nrm = _group_norm(rbm.w; dims = gdims) # ‖w[:, i, μ]‖₂ (group norms)
+    # gl2l1 groups its inner block norm over the visible colors only (hidden is the outer
+    # coupling axis); glasso groups over every Potts color axis (visible and hidden).
+    nrm_gl2l1 = _group_norm(rbm.w; dims = _glasso_group_dims(rbm.visible))
+    nrm_glasso = _group_norm(rbm.w; dims = _glasso_dims(rbm))
 
     reg_fields = l2_fields / 2 * regularization_penalty_fields(rbm.visible)
     reg_l1_weights = l1_weights * sum(abs, rbm.w)
     reg_l2_weights = l2_weights / 2 * sum(abs2, rbm.w)
     reg_l2l1_weights = l2l1_weights / (2N) * sum(abs2, sum(abs, rbm.w; dims))
-    reg_gl2l1_weights = gl2l1_weights / (2Ng) * sum(abs2, sum(nrm; dims))
-    reg_glasso_weights = glasso_weights * sum(nrm)
+    reg_gl2l1_weights = gl2l1_weights / (2Ng) * sum(abs2, sum(nrm_gl2l1; dims))
+    reg_glasso_weights = glasso_weights * sum(nrm_glasso)
 
     return reg_fields + reg_l1_weights + reg_l2_weights + reg_l2l1_weights + reg_gl2l1_weights + reg_glasso_weights
 end

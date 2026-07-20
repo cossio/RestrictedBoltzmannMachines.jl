@@ -397,7 +397,7 @@ function ∂regularize!(
         ∂.w .+= ∂gl2l1_weights(urbm.w, gl2l1_weights, urbm.visible)
     end
     if !iszero(glasso_weights)
-        ∂.w .+= ∂glasso_weights(urbm.w, glasso_weights, urbm.visible)
+        ∂.w .+= ∂glasso_weights(urbm.w, glasso_weights, urbm)
     end
     zerosum && zerosum!(∂, rbm)
     return ∂
@@ -405,7 +405,7 @@ end
 
 # CenteredRBM shares its interaction weights with the underlying RBM, so the group-lasso
 # proximal step acts on them directly.
-function prox_glasso!(rbm::CenteredRBM, t::Real; dims = _glasso_group_dims(rbm.visible))
+function prox_glasso!(rbm::CenteredRBM, t::Real; dims = _glasso_dims(RBM(rbm)))
     prox_glasso!(RBM(rbm), t; dims)
     return rbm
 end

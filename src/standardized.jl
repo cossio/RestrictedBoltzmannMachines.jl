@@ -166,7 +166,7 @@ function ∂regularize!(
             ∂.w .+= ∂gl2l1_weights(rbm.w, gl2l1_weights, rbm.visible) ./ scale_w
         end
         if !iszero(glasso_weights)
-            ∂.w .+= ∂glasso_weights(rbm.w, glasso_weights, rbm.visible) ./ scale_w
+            ∂.w .+= ∂glasso_weights(rbm.w, glasso_weights, rbm) ./ scale_w
         end
     else
         # regularization applies directly to standardized parameters
@@ -181,7 +181,7 @@ end
 # zero group maps to a zero group in either parameterization.
 function prox_glasso!(
         std_rbm::StandardizedRBM, t::Real;
-        regularize_unstandardized::Bool = true, dims = _glasso_group_dims(std_rbm.visible)
+        regularize_unstandardized::Bool = true, dims = _glasso_dims(RBM(std_rbm))
     )
     w = regularize_unstandardized ? unstandardized_weights(std_rbm) : std_rbm.w
     nrm = sqrt.(sum(abs2, w; dims))
