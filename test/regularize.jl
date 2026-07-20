@@ -131,6 +131,32 @@ using Random: seed!
     @test only(gw).w ≈ ∂w
 end
 
+@testset "regularization_penalty is NaN-safe at zero weight groups" begin
+    # A Zygote gradient through regularization_penalty must stay finite when a Potts color
+    # group is exactly zero (e.g. one already pruned by prox_glasso!), both when gl2l1/glasso
+    # are unused (the sqrt(0) singularity must not leak into unrelated terms via 0 * Inf) and
+    # when they are the active regularizer (the adjoint must pick the same w=0 subgradient as
+    # ∂regularize!/∂glasso_weights/∂gl2l1_weights).
+    rbm = RBM(Potts(; θ = randn(3, 4)), Binary(; θ = randn(2)), randn(3, 4, 2))
+    rbm.w[:, 1, 1] .= 0 # one exact-zero color group
+
+    l2_fields, l1_weights, l2_weights, l2l1_weights = rand(4)
+
+    gs0 = only(
+        Zygote.gradient(rbm) do rbm
+            regularization_penalty(rbm; l2_fields, l1_weights, l2_weights, l2l1_weights)
+        end
+    )
+    @test all(isfinite, gs0.w)
+    @test all(isfinite, gs0.visible.par)
+
+    gl2l1_weights, glasso_weights = rand(2)
+    gs = only(Zygote.gradient(rbm -> regularization_penalty(rbm; gl2l1_weights, glasso_weights), rbm))
+    @test all(isfinite, gs.w)
+    @test gs.w ≈ ∂regularize(rbm; gl2l1_weights, glasso_weights).w
+    @test all(iszero, gs.w[:, 1, 1]) # zero group contributes zero subgradient
+end
+
 @testset "group-lasso reduces to l1/l2l1 for non-Potts" begin
     # For Binary (scalar groups): glasso == l1 and gl2l1 == l2l1, in both penalty and gradient.
     rbm = BinaryRBM(randn(3, 5), randn(3, 2), randn(3, 5, 3, 2))

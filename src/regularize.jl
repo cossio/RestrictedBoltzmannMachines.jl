@@ -64,6 +64,22 @@ function _glasso_num_groups(visible::AbstractLayer)
     return length(visible) ÷ prod(d -> size(visible, d), dims; init = 1)
 end
 
+# Group-`L2` norm with a zero-safe reverse-mode adjoint (∂‖w_g‖/∂w_g = w_g/‖w_g‖, taken to
+# be `0` at `w_g = 0`, matching the `_inv_or_one` subgradient used by `∂glasso_weights` and
+# `∂gl2l1_weights`). Plain `sqrt.(sum(abs2, w; dims))` is singular at zero groups under
+# Zygote, which would otherwise poison the gradient of `regularization_penalty` with `NaN`s
+# whenever the model has an exact-zero group (e.g. one already pruned by `prox_glasso!`).
+_group_norm(w::AbstractArray; dims) = sqrt.(sum(abs2, w; dims))
+
+function ChainRulesCore.rrule(::typeof(_group_norm), w::AbstractArray; dims)
+    n = _group_norm(w; dims)
+    function _group_norm_pullback(Δ)
+        Δn = ChainRulesCore.unthunk(Δ)
+        return ChainRulesCore.NoTangent(), Δn .* w .* _inv_or_one.(n)
+    end
+    return n, _group_norm_pullback
+end
+
 # gradient of glasso_weights * ∑_{i,μ} ‖w[:, i, μ]‖₂
 function ∂glasso_weights(w::AbstractArray, glasso_weights::Real, visible::AbstractLayer)
     dims = _glasso_group_dims(visible)
@@ -100,6 +116,15 @@ stable under the visible Potts zero-sum gauge and under `rescale_weights!` (both
 exact-zero groups). Note the grouping is over the visible color axis only: for a Potts
 *hidden* layer it does not preserve the hidden zero-sum gauge (use the color-axis grouping
 that matches your model, or reapply the gauge as needed).
+
+Unlike the gradient-based penalties (`l1_weights`, `l2_weights`, `l2l1_weights`,
+`gl2l1_weights`), `t` is applied as a threshold directly and is *not* scaled by the
+optimizer's step size: gradient-based penalties are folded into the gradient before
+`optim` updates the parameters, so their effective strength automatically shrinks with
+smaller learning rates, while `t` here always removes the same absolute amount of group
+norm per update regardless of `optim`. Tune `glasso_weights` jointly with the chosen
+`optim` (and its learning rate) rather than assuming it is directly comparable in scale to
+the other `*_weights` regularizers.
 """
 function prox_glasso!(rbm::RBM, t::Real; dims = _glasso_group_dims(rbm.visible))
     nrm = sqrt.(sum(abs2, rbm.w; dims))
@@ -195,7 +220,7 @@ function regularization_penalty(
     N = length(rbm.visible)
     Ng = _glasso_num_groups(rbm.visible) # number of sites (groups), = N for non-Potts
 
-    nrm = sqrt.(sum(abs2, rbm.w; dims = gdims)) # ‖w[:, i, μ]‖₂ (group norms)
+    nrm = _group_norm(rbm.w; dims = gdims) # ‖w[:, i, μ]‖₂ (group norms)
 
     reg_fields = l2_fields / 2 * regularization_penalty_fields(rbm.visible)
     reg_l1_weights = l1_weights * sum(abs, rbm.w)

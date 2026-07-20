@@ -30,7 +30,8 @@ parameters with an `Optimisers.jl` rule.
   regularization, applied as a proximal block-soft-threshold step (see [`prox_glasso!`])
   after each optimizer update rather than as a gradient term. `glasso_weights` is the
   per-update threshold; nonzero groups shrink and groups with norm `≤ glasso_weights`
-  become exact zeros.
+  become exact zeros. Unlike the gradient-based penalties above, this threshold is not
+  scaled by `optim`'s step size, so tune it jointly with `optim` (see [`prox_glasso!`]).
 - `zerosum::Bool=true`: enforce zero-sum gauge on Potts layers.
 - `rescale::Bool=true`: rescale weights (mainly useful for continuous hidden units).
 - `callback=Returns(nothing)`: called after every update as
