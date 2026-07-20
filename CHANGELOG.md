@@ -10,9 +10,9 @@ All notable changes to this project will be documented in this file. The format 
     centered/standardized `pcd!` it is applied as a proximal block-soft-threshold step
     (`prox_glasso!`) after each optimizer update, yielding *exact* zeros for whole
     site–hidden color groups (gauge-stable, preserved by `zerosum!`).
-  - `gl2l1_weights`: the group version of `l2l1_weights`, `∑_μ (∑_i ‖w[:, i, μ]‖₂)² / (2N)`,
-    replacing the inner color-`L1` of `l2l1` with a color-`L2` group norm, added as a
-    gradient term.
+  - `gl2l1_weights`: the group version of `l2l1_weights`, `∑_μ (∑_i ‖w[:, i, μ]‖₂)² / (2N)`
+    with `N` the number of visible sites, replacing the inner color-`L1` of `l2l1` with a
+    color-`L2` group norm, added as a gradient term.
   - New `prox_glasso!(rbm, t)` for `RBM`, `CenteredRBM`, and `StandardizedRBM`.
   - For non-Potts visible layers each group is a scalar, so `glasso` reduces to `l1` and
     `gl2l1` reduces to `l2l1`.

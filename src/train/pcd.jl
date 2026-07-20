@@ -119,12 +119,12 @@ function pcd!(
         state, ps = update!(state, ps, gs)
         _validate_layer_parameters(rbm)
 
-        # reset gauge
+        # proximal group-lasso step, before the gauge resets (proximal-gradient order)
+        iszero(glasso_weights) || prox_glasso!(rbm, glasso_weights)
+
+        # reset gauge (rescale_weights! and zerosum! both preserve exact-zero color groups)
         rescale && rescale_weights!(rbm)
         zerosum && zerosum!(rbm)
-
-        # proximal group-lasso step (block soft-threshold, preserves the zerosum gauge)
-        iszero(glasso_weights) || prox_glasso!(rbm, glasso_weights)
 
         callback(; rbm, optim, state, iter, vm, vd, wd)
     end

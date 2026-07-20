@@ -239,11 +239,11 @@ function ucd!(
         gs = (; visible = ∂.visible, hidden = ∂.hidden, w = ∂.w)
         state, ps = update!(state, ps, gs)
 
+        # proximal group-lasso step, before the gauge resets (proximal-gradient order)
+        iszero(glasso_weights) || prox_glasso!(rbm, glasso_weights)
+
         rescale && rescale_weights!(rbm)
         zerosum && zerosum!(rbm)
-
-        # proximal group-lasso step (block soft-threshold, preserves the zerosum gauge)
-        iszero(glasso_weights) || prox_glasso!(rbm, glasso_weights)
 
         callback(; rbm, optim, state, iter, vd, wd, meeting_steps = meeting_steps / nchains, discarded = discarded / nchains)
     end

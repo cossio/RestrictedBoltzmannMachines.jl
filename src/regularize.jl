@@ -7,8 +7,9 @@ Updates RBM gradients `∂`, with the regularization gradient.
 block-`L2` norm `‖w[:, i, μ]‖₂` over the Potts color axis of each site–hidden edge `(i, μ)`:
 
 - `glasso` is the plain group lasso `∑_{i,μ} ‖w[:, i, μ]‖₂`.
-- `gl2l1` is the group version of `l2l1`, `∑_μ (∑_i ‖w[:, i, μ]‖₂)² / (2N)`, obtained by
-  replacing the inner color-`L1` of `l2l1` with a color-`L2` group norm.
+- `gl2l1` is the group version of `l2l1`, `∑_μ (∑_i ‖w[:, i, μ]‖₂)² / (2N)` with `N` the
+  number of visible sites, obtained by replacing the inner color-`L1` of `l2l1` with a
+  color-`L2` group norm.
 
 For non-Potts visible layers each group is a single scalar, so `gl2l1` reduces to `l2l1`
 and `glasso` reduces to `l1`. For genuine edge sparsity, prefer the proximal step
@@ -54,6 +55,15 @@ end
 _glasso_group_dims(::AbstractLayer) = ()
 _glasso_group_dims(::Union{Potts, PottsGumbel}) = (1,)
 
+# Number of block groups per hidden unit summed over in the gl2l1 inner sum: the number of
+# visible sites for Potts (colors collapsed into each group norm), or the number of visible
+# units for non-Potts layers (where each group is a scalar). Used to normalize gl2l1 so its
+# strength does not scale with the number of Potts colors Q (and so gl2l1 reduces to l2l1).
+function _glasso_num_groups(visible::AbstractLayer)
+    dims = _glasso_group_dims(visible)
+    return length(visible) ÷ prod(d -> size(visible, d), dims; init = 1)
+end
+
 # gradient of glasso_weights * ∑_{i,μ} ‖w[:, i, μ]‖₂
 function ∂glasso_weights(w::AbstractArray, glasso_weights::Real, visible::AbstractLayer)
     dims = _glasso_group_dims(visible)
@@ -61,11 +71,11 @@ function ∂glasso_weights(w::AbstractArray, glasso_weights::Real, visible::Abst
     return glasso_weights * w .* _inv_or_one.(nrm)
 end
 
-# gradient of gl2l1_weights / (2N) * ∑_μ (∑_i ‖w[:, i, μ]‖₂)²
+# gradient of gl2l1_weights / (2N) * ∑_μ (∑_i ‖w[:, i, μ]‖₂)², with N the number of sites
 function ∂gl2l1_weights(w::AbstractArray, gl2l1_weights::Real, visible::AbstractLayer)
     dims = _glasso_group_dims(visible)
     vdims = ntuple(identity, ndims(visible))
-    N = length(visible)
+    N = _glasso_num_groups(visible)
     nrm = sqrt.(sum(abs2, w; dims)) # ‖w[:, i, μ]‖₂
     s = sum(nrm; dims = vdims)      # ∑_i ‖w[:, i, μ]‖₂ per hidden μ
     return (gl2l1_weights / N) * s .* w .* _inv_or_one.(nrm)
@@ -75,15 +85,21 @@ end
     prox_glasso!(rbm, t; dims = <Potts color axis>)
 
 In-place proximal (block soft-threshold) step for the group-lasso weight penalty
-`t · ∑_{i,μ} ‖w[:, i, μ]‖₂`, grouping over `dims` (the Potts visible color axis by default,
+`t · ∑_{i,μ} ‖w[:, i, μ]‖₂`, grouping over `dims` (the Potts *visible* color axis by default,
 or the whole scalar weight for non-Potts layers). Each group is shrunk toward zero,
 
     w[:, i, μ] .*= max(0, 1 - t / ‖w[:, i, μ]‖₂),
 
-landing groups with `‖w[:, i, μ]‖₂ ≤ t` on *exact* zero. Applied after an optimizer step
-(as `zerosum!` and `rescale_weights!` are), this reaches genuine edge-level sparsity that a
-plain subgradient step does not; such zeros are gauge-stable and preserved by `zerosum!`.
-`prox_glasso!` itself preserves the zero-sum gauge (it scales each group uniformly).
+landing groups with `‖w[:, i, μ]‖₂ ≤ t` on *exact* zero. This reaches genuine edge-level
+sparsity that a plain subgradient step does not.
+
+The training loops apply this as a proximal step right after the optimizer update and
+*before* re-imposing the `rescale_weights!` / `zerosum!` gauges, mirroring proximal-gradient
+descent. Because it scales each *visible* color group uniformly, the resulting zeros are
+stable under the visible Potts zero-sum gauge and under `rescale_weights!` (both preserve
+exact-zero groups). Note the grouping is over the visible color axis only: for a Potts
+*hidden* layer it does not preserve the hidden zero-sum gauge (use the color-axis grouping
+that matches your model, or reapply the gauge as needed).
 """
 function prox_glasso!(rbm::RBM, t::Real; dims = _glasso_group_dims(rbm.visible))
     nrm = sqrt.(sum(abs2, rbm.w; dims))
@@ -177,6 +193,7 @@ function regularization_penalty(
     dims = ntuple(identity, ndims(rbm.visible))
     gdims = _glasso_group_dims(rbm.visible)
     N = length(rbm.visible)
+    Ng = _glasso_num_groups(rbm.visible) # number of sites (groups), = N for non-Potts
 
     nrm = sqrt.(sum(abs2, rbm.w; dims = gdims)) # ‖w[:, i, μ]‖₂ (group norms)
 
@@ -184,7 +201,7 @@ function regularization_penalty(
     reg_l1_weights = l1_weights * sum(abs, rbm.w)
     reg_l2_weights = l2_weights / 2 * sum(abs2, rbm.w)
     reg_l2l1_weights = l2l1_weights / (2N) * sum(abs2, sum(abs, rbm.w; dims))
-    reg_gl2l1_weights = gl2l1_weights / (2N) * sum(abs2, sum(nrm; dims))
+    reg_gl2l1_weights = gl2l1_weights / (2Ng) * sum(abs2, sum(nrm; dims))
     reg_glasso_weights = glasso_weights * sum(nrm)
 
     return reg_fields + reg_l1_weights + reg_l2_weights + reg_l2l1_weights + reg_gl2l1_weights + reg_glasso_weights

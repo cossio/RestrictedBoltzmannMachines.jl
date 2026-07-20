@@ -100,8 +100,9 @@ end
 end
 
 using RestrictedBoltzmannMachines: RBM, Potts, sample_from_inputs, zerosum!
-using RestrictedBoltzmannMachines: prox_glasso!, CenteredRBM, StandardizedRBM
+using RestrictedBoltzmannMachines: prox_glasso!, CenteredRBM, StandardizedRBM, pcd!
 using LinearAlgebra: norm
+using Random: seed!
 
 @testset "group-lasso gradients (Potts)" begin
     # ∂regularize! must match the autodiff gradient of regularization_penalty for the
@@ -257,6 +258,22 @@ end
         @test srbm.w[:, i, μ] ≈ max(0, 1 - t / g) * w0[:, i, μ]
     end
     @test all(isfinite, srbm.w)
+end
+
+@testset "pcd! proximal glasso ends in gauge with exact zeros" begin
+    # Realistic case: Potts visible + continuous (Gaussian) hidden, rescale + zerosum on.
+    # The proximal step runs before the gauge resets, so the model still ends in the
+    # visible zero-sum gauge, and rescale_weights! renormalizes the surviving groups while
+    # leaving zeroed groups zero.
+    seed!(0)
+    rbm = RBM(Potts(; θ = randn(3, 6)), Gaussian(; θ = randn(4), γ = ones(4)), 0.1 * randn(3, 6, 4))
+    data = sample_from_inputs(rbm.visible, zeros(3, 6, 200))
+    pcd!(rbm, data; iters = 40, batchsize = 32, glasso_weights = 0.5, rescale = true, zerosum = true)
+
+    @test all(isfinite, rbm.w)
+    @test maximum(abs, sum(rbm.w; dims = 1)) < 1.0e-8       # visible zero-sum gauge preserved
+    groupnorms = vec(sqrt.(sum(abs2, rbm.w; dims = 1)))
+    @test any(iszero, groupnorms)                            # exact-zero color groups survive
 end
 
 @testset "∂regularize! zerosum keyword" begin

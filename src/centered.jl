@@ -533,17 +533,17 @@ function pcd!(
         state, ps = update!(state, ps, gs)
         _validate_layer_parameters(rbm)
 
+        # proximal group-lasso step, before the gauge resets (proximal-gradient order)
+        iszero(glasso_weights) || prox_glasso!(rbm, glasso_weights)
+
         # centering
         offset_h_new = grad2ave(rbm.hidden, -∂d.hidden) # <h>_d from minibatch
         offset_h = (1 - hidden_offset_damping) * rbm.offset_h + hidden_offset_damping * offset_h_new
         center_hidden!(rbm, offset_h)
 
-        # gauge constraints
+        # gauge constraints (rescale_weights! and zerosum! both preserve exact-zero color groups)
         zerosum && zerosum!(rbm)
         rescale && rescale_weights!(rbm)
-
-        # proximal group-lasso step (block soft-threshold, preserves the zerosum gauge)
-        iszero(glasso_weights) || prox_glasso!(rbm, glasso_weights)
 
         callback(; rbm, optim, iter, vm, vd, wd)
     end
