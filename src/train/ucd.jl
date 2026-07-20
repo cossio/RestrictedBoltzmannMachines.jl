@@ -186,6 +186,8 @@ function ucd!(
         l1_weights::Real = 0,
         l2_weights::Real = 0,
         l2l1_weights::Real = 0,
+        gl2l1_weights::Real = 0,
+        glasso_weights::Real = 0,
         zerosum::Bool = true,
         rescale::Bool = true,
         callback = Returns(nothing),
@@ -232,13 +234,16 @@ function ucd!(
 
         ∂ *= batch_weight
 
-        ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum)
+        ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, gl2l1_weights, zerosum)
 
         gs = (; visible = ∂.visible, hidden = ∂.hidden, w = ∂.w)
         state, ps = update!(state, ps, gs)
 
         rescale && rescale_weights!(rbm)
         zerosum && zerosum!(rbm)
+
+        # proximal group-lasso step (block soft-threshold, preserves the zerosum gauge)
+        iszero(glasso_weights) || prox_glasso!(rbm, glasso_weights)
 
         callback(; rbm, optim, state, iter, vd, wd, meeting_steps = meeting_steps / nchains, discarded = discarded / nchains)
     end

@@ -24,6 +24,13 @@ parameters with an `Optimisers.jl` rule.
 - `l1_weights::Real=0`: L1 regularization on interaction weights.
 - `l2_weights::Real=0`: L2 regularization on interaction weights.
 - `l2l1_weights::Real=0`: group-like L2/L1 weight regularization.
+- `gl2l1_weights::Real=0`: group L2/L1 weight regularization (block-`L2` over Potts colors
+  replacing the inner `L1` of `l2l1_weights`), added as a gradient term.
+- `glasso_weights::Real=0`: group-lasso (block-`L2` over Potts colors) weight
+  regularization, applied as a proximal block-soft-threshold step (see [`prox_glasso!`])
+  after each optimizer update rather than as a gradient term. `glasso_weights` is the
+  per-update threshold; nonzero groups shrink and groups with norm `≤ glasso_weights`
+  become exact zeros.
 - `zerosum::Bool=true`: enforce zero-sum gauge on Potts layers.
 - `rescale::Bool=true`: rescale weights (mainly useful for continuous hidden units).
 - `callback=Returns(nothing)`: called after every update as
@@ -53,6 +60,8 @@ function pcd!(
         l1_weights::Real = 0, # weights L1 regularization
         l2_weights::Real = 0, # weights L2 regularization
         l2l1_weights::Real = 0, # weights L2/L1 regularization
+        gl2l1_weights::Real = 0, # weights group L2/L1 regularization
+        glasso_weights::Real = 0, # weights group-lasso regularization (proximal, see prox_glasso!)
 
         # gauge
         zerosum::Bool = true, # zerosum gauge for Potts layers
@@ -103,7 +112,7 @@ function pcd!(
         ∂ *= batch_weight
 
         # weight decay
-        ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum)
+        ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, gl2l1_weights, zerosum)
 
         # feed gradient to Optimiser rule
         gs = (; visible = ∂.visible, hidden = ∂.hidden, w = ∂.w)
@@ -113,6 +122,9 @@ function pcd!(
         # reset gauge
         rescale && rescale_weights!(rbm)
         zerosum && zerosum!(rbm)
+
+        # proximal group-lasso step (block soft-threshold, preserves the zerosum gauge)
+        iszero(glasso_weights) || prox_glasso!(rbm, glasso_weights)
 
         callback(; rbm, optim, state, iter, vm, vd, wd)
     end

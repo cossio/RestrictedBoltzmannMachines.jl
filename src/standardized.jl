@@ -133,6 +133,8 @@ function ∂regularize!(
         l1_weights::Real = 0,
         l2_weights::Real = 0,
         l2l1_weights::Real = 0,
+        gl2l1_weights::Real = 0,
+        glasso_weights::Real = 0,
         regularize_unstandardized::Bool = true,
         zerosum::Bool = false # whether to zerosum gradients
     )
@@ -160,12 +162,31 @@ function ∂regularize!(
             dims = ntuple(identity, ndims(std_rbm.visible))
             ∂.w .+= l2l1_weights * sign.(rbm.w) .* mean(abs, rbm.w; dims) ./ scale_w
         end
+        if !iszero(gl2l1_weights)
+            ∂.w .+= ∂gl2l1_weights(rbm.w, gl2l1_weights, rbm.visible) ./ scale_w
+        end
+        if !iszero(glasso_weights)
+            ∂.w .+= ∂glasso_weights(rbm.w, glasso_weights, rbm.visible) ./ scale_w
+        end
     else
         # regularization applies directly to standardized parameters
-        ∂regularize!(∂, RBM(std_rbm); l2_fields, l1_weights, l2_weights, l2l1_weights)
+        ∂regularize!(∂, RBM(std_rbm); l2_fields, l1_weights, l2_weights, l2l1_weights, gl2l1_weights, glasso_weights)
     end
     zerosum && zerosum!(∂, std_rbm)
     return ∂
+end
+
+# StandardizedRBM group-lasso proximal step. Thresholds the (default) unstandardized weight
+# groups but scales the stored standardized weights; the standardization factor cancels, so a
+# zero group maps to a zero group in either parameterization.
+function prox_glasso!(
+        std_rbm::StandardizedRBM, t::Real;
+        regularize_unstandardized::Bool = true, dims = _glasso_group_dims(std_rbm.visible)
+    )
+    w = regularize_unstandardized ? unstandardized_weights(std_rbm) : std_rbm.w
+    nrm = sqrt.(sum(abs2, w; dims))
+    std_rbm.w .*= max.(0, 1 .- t .* _inv_or_one.(nrm))
+    return std_rbm
 end
 
 function ∂regularize_add_visible_offset!(∂::∂RBM, visible_regularization::AbstractArray, offset_h::AbstractArray, scale_w::AbstractArray, ::dReLU)
@@ -178,13 +199,14 @@ end
 
 function regularization_penalty(
         std_rbm::StandardizedRBM; regularize_unstandardized::Bool = true,
-        l1_weights::Real = 0, l2_weights::Real = 0, l2l1_weights::Real = 0, l2_fields::Real = 0,
+        l1_weights::Real = 0, l2_weights::Real = 0, l2l1_weights::Real = 0,
+        gl2l1_weights::Real = 0, glasso_weights::Real = 0, l2_fields::Real = 0,
     )
     if regularize_unstandardized
         rbm = unstandardize(std_rbm)
-        return regularization_penalty(rbm; l1_weights, l2_weights, l2l1_weights, l2_fields)
+        return regularization_penalty(rbm; l1_weights, l2_weights, l2l1_weights, gl2l1_weights, glasso_weights, l2_fields)
     else
-        return regularization_penalty(RBM(std_rbm); l1_weights, l2_weights, l2l1_weights, l2_fields)
+        return regularization_penalty(RBM(std_rbm); l1_weights, l2_weights, l2l1_weights, gl2l1_weights, glasso_weights, l2_fields)
     end
 end
 
@@ -453,6 +475,8 @@ function pcd!(
         l1_weights::Real = 0, # weights L1 regularization
         l2_weights::Real = 0, # weights L2 regularization
         l2l1_weights::Real = 0, # weights L2/L1 regularization
+        gl2l1_weights::Real = 0, # weights group L2/L1 regularization
+        glasso_weights::Real = 0, # weights group-lasso regularization (proximal, see prox_glasso!)
 
         # "pseudocount" for estimating variances of v and h and damping
         damping::Real = 1 // 100, ϵv::Real = 0, ϵh::Real = 0,
@@ -510,7 +534,7 @@ function pcd!(
         ∂ *= batch_weight
 
         # weight decay
-        ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, regularize_unstandardized, zerosum)
+        ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, gl2l1_weights, regularize_unstandardized, zerosum)
 
         # feed gradient to Optimiser rule
         gs = (; visible = ∂.visible, hidden = ∂.hidden, w = ∂.w)
@@ -522,6 +546,9 @@ function pcd!(
 
         rescale_hidden && rescale_hidden_activations!(rbm)
         zerosum && zerosum!(rbm)
+
+        # proximal group-lasso step (block soft-threshold, preserves the zerosum gauge)
+        iszero(glasso_weights) || prox_glasso!(rbm, glasso_weights; regularize_unstandardized)
 
         callback(; rbm, optim, state, ps, iter, vm, vd, wd, ∂)
     end
