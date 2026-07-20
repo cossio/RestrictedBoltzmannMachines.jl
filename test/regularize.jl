@@ -100,7 +100,7 @@ end
 end
 
 using RestrictedBoltzmannMachines: RBM, Potts, sample_from_inputs, zerosum!
-using RestrictedBoltzmannMachines: prox_glasso!
+using RestrictedBoltzmannMachines: prox_glasso!, CenteredRBM, StandardizedRBM
 using LinearAlgebra: norm
 
 @testset "group-lasso gradients (Potts)" begin
@@ -183,6 +183,80 @@ end
     t = 0.25
     prox_glasso!(rbm, t)
     @test rbm.w ≈ sign.(w0) .* max.(0, abs.(w0) .- t)
+end
+
+# Weight-gradient increment added by ∂regularize! (isolates the regularization term).
+function _reg_w_increment(rbm, v; kw...)
+    ∂ = ∂free_energy(rbm, v)
+    w0 = copy(∂.w)
+    ∂regularize!(∂, rbm; kw...)
+    return ∂.w - w0
+end
+
+@testset "group-lasso gradients (CenteredRBM)" begin
+    # With trivial (zero) offsets, the group-lasso weight gradient matches the plain RBM.
+    rbm = RBM(Potts(; θ = randn(3, 4)), Binary(; θ = randn(2)), randn(3, 4, 2))
+    zerosum!(rbm)
+    crbm = CenteredRBM(rbm)
+    v = sample_from_inputs(rbm.visible, zeros(3, 4, 20))
+    gl2l1_weights, glasso_weights = rand(2)
+
+    @test _reg_w_increment(crbm, v; gl2l1_weights, glasso_weights) ≈
+        _reg_w_increment(rbm, v; gl2l1_weights, glasso_weights)
+
+    # prox_glasso! on the CenteredRBM matches prox on its underlying weights.
+    w0 = copy(crbm.w)
+    prox_glasso!(crbm, 0.3)
+    ref = RBM(Potts(; θ = randn(3, 4)), Binary(; θ = randn(2)), copy(w0))
+    prox_glasso!(ref, 0.3)
+    @test crbm.w ≈ ref.w
+end
+
+@testset "group-lasso gradients (StandardizedRBM)" begin
+    # With trivial standardization (unit scale, zero offset), everything matches the plain RBM.
+    rbm = RBM(Potts(; θ = randn(3, 4)), Binary(; θ = randn(2)), randn(3, 4, 2))
+    zerosum!(rbm)
+    srbm = StandardizedRBM(rbm)
+    v = sample_from_inputs(rbm.visible, zeros(3, 4, 20))
+    gl2l1_weights, glasso_weights = rand(2)
+
+    incr_plain = _reg_w_increment(rbm, v; gl2l1_weights, glasso_weights)
+    @test _reg_w_increment(srbm, v; gl2l1_weights, glasso_weights) ≈ incr_plain
+    # regularize_unstandardized = false forwards to the underlying RBM.
+    @test _reg_w_increment(srbm, v; gl2l1_weights, glasso_weights, regularize_unstandardized = false) ≈ incr_plain
+
+    # prox_glasso! matches the plain RBM prox under trivial standardization.
+    w0 = copy(srbm.w)
+    prox_glasso!(srbm, 0.3)
+    ref = RBM(Potts(; θ = randn(3, 4)), Binary(; θ = randn(2)), copy(w0))
+    prox_glasso!(ref, 0.3)
+    @test srbm.w ≈ ref.w
+end
+
+@testset "prox_glasso! (StandardizedRBM, nontrivial scale)" begin
+    # Group norms are taken on the *unstandardized* weights; a group whose unstandardized
+    # norm falls below t is zeroed, and the standardization factor cancels in the round-trip.
+    rbm = RBM(Potts(; θ = randn(2, 3)), Binary(; θ = randn(2)), randn(2, 3, 2))
+    zerosum!(rbm)
+    scale_v = rand(2, 3) .+ 0.5
+    scale_h = rand(2) .+ 0.5
+    offset_v = zeros(2, 3)
+    offset_h = zeros(2)
+    srbm = StandardizedRBM(rbm, offset_v, offset_h, scale_v, scale_h)
+
+    w0 = copy(srbm.w)
+    # unstandardized weight = w ./ (scale_v ⊗ scale_h)
+    cv = reshape(scale_v, (2, 3, 1))
+    ch = reshape(scale_h, (1, 1, 2))
+    w_unstd = w0 ./ (cv .* ch)
+    t = 0.4
+    prox_glasso!(srbm, t)
+
+    for i in 1:3, μ in 1:2
+        g = norm(w_unstd[:, i, μ])
+        @test srbm.w[:, i, μ] ≈ max(0, 1 - t / g) * w0[:, i, μ]
+    end
+    @test all(isfinite, srbm.w)
 end
 
 @testset "∂regularize! zerosum keyword" begin
