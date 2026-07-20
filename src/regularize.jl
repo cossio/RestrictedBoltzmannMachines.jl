@@ -113,9 +113,18 @@ The training loops apply this as a proximal step right after the optimizer updat
 *before* re-imposing the `rescale_weights!` / `zerosum!` gauges, mirroring proximal-gradient
 descent. Because it scales each *visible* color group uniformly, the resulting zeros are
 stable under the visible Potts zero-sum gauge and under `rescale_weights!` (both preserve
-exact-zero groups). Note the grouping is over the visible color axis only: for a Potts
-*hidden* layer it does not preserve the hidden zero-sum gauge (use the color-axis grouping
-that matches your model, or reapply the gauge as needed).
+exact-zero groups).
+
+The grouping is over the visible color axis only. **For a Potts/`PottsGumbel` *hidden*
+layer, this is not just "not preserved": the training loops' own subsequent `zerosum!(rbm)`
+call actively erases the zeros.** `zerosum!` re-centers each visible-color entry across the
+*hidden* color axis by subtracting the mean of its sibling hidden-color weights; whenever
+those siblings are nonzero (the common case), a group this function just zeroed is
+overwritten with a nonzero value. So with a Potts hidden layer and the default
+`zerosum = true`, `glasso_weights` does not produce persistent edge sparsity at all — every
+training step, the exact zeros this function creates are filled back in before the callback
+or the next fantasy update ever see them. Only visible-Potts/non-Potts-hidden models (or
+runs with `zerosum = false`) get the sparsity this penalty promises.
 
 Unlike the gradient-based penalties (`l1_weights`, `l2_weights`, `l2l1_weights`,
 `gl2l1_weights`), `t` is applied as a threshold directly and is *not* scaled by the
