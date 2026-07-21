@@ -190,7 +190,7 @@ module Sparse
     # (`sparse_prox!`, when `prox = true`, after the optimizer update and before the gauge resets).
     function _pcd_sparse!(
             rbm::RBM, data::AbstractArray;
-            sparse_grad!, sparse_prox!, prox::Bool,
+            sparse_grad!, sparse_prox!, prox::Bool, sparse_weight::Real, sparse_name::AbstractString,
             batchsize::Int = 1,
             iters::Int = 1,
             wts::Union{AbstractVector, Nothing} = nothing,
@@ -211,6 +211,11 @@ module Sparse
         )
         @assert size(data) == (size(rbm.visible)..., size(data)[end])
         @assert isnothing(wts) || size(data)[end] == length(wts)
+        # The four weight-magnitude penalties (l1, l2l1, gl2l1, glasso) are overlapping sparsity
+        # priors on the same weights; combining them is redundant, and mixing this penalty's
+        # proximal step with another non-smooth penalty breaks the proximal-gradient objective.
+        # Enforce that at most one is active (l2_weights, being smooth, is unrestricted).
+        @assert count(!iszero, (l1_weights, l2l1_weights, sparse_weight)) ≤ 1 "at most one of l1_weights, l2l1_weights, and $sparse_name may be nonzero at a time"
         _validate_layer_parameters(rbm)
         isnothing(vm) && (vm = sample_from_inputs(rbm.visible, Falses(size(rbm.visible)..., batchsize)))
         isnothing(ps) && (ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w))
@@ -268,10 +273,14 @@ module Sparse
     `prox = true` it is applied as a proximal block-soft-threshold step ([`prox_glasso!`]) after
     each optimizer update, yielding *exact*, gauge-stable zeros. All other keyword arguments
     match the base [`RestrictedBoltzmannMachines.pcd!`](@ref).
+
+    At most one of `l1_weights`, `l2l1_weights`, and `glasso_weights` may be nonzero — they are
+    overlapping sparsity priors, and mixing the proximal step with another non-smooth penalty
+    is ill-posed. `l2_weights` (smooth) is unrestricted.
     """
     function pcd_glasso!(rbm::RBM, data::AbstractArray; glasso_weights::Real = 0, prox::Bool = false, kwargs...)
         return _pcd_sparse!(
-            rbm, data; prox,
+            rbm, data; prox, sparse_weight = glasso_weights, sparse_name = "glasso_weights",
             sparse_grad! = (∂, r) -> (iszero(glasso_weights) || (∂.w .+= ∂glasso_weights(r.w, glasso_weights, r)); nothing),
             sparse_prox! = r -> (iszero(glasso_weights) || prox_glasso!(r, glasso_weights); nothing),
             kwargs...,
@@ -287,10 +296,14 @@ module Sparse
     `prox = true` it is applied as the proximal step ([`prox_gl2l1!`], prox of the squared
     group-ℓ1,2 norm) after each optimizer update, yielding *exact* zeros. All other keyword
     arguments match the base [`RestrictedBoltzmannMachines.pcd!`](@ref).
+
+    At most one of `l1_weights`, `l2l1_weights`, and `gl2l1_weights` may be nonzero — they are
+    overlapping sparsity priors, and mixing the proximal step with another non-smooth penalty
+    is ill-posed. `l2_weights` (smooth) is unrestricted.
     """
     function pcd_gl2l1!(rbm::RBM, data::AbstractArray; gl2l1_weights::Real = 0, prox::Bool = false, kwargs...)
         return _pcd_sparse!(
-            rbm, data; prox,
+            rbm, data; prox, sparse_weight = gl2l1_weights, sparse_name = "gl2l1_weights",
             sparse_grad! = (∂, r) -> (iszero(gl2l1_weights) || (∂.w .+= ∂gl2l1_weights(r.w, gl2l1_weights, r.visible)); nothing),
             sparse_prox! = r -> (iszero(gl2l1_weights) || prox_gl2l1!(r, gl2l1_weights); nothing),
             kwargs...,

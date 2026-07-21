@@ -24,6 +24,10 @@ All notable changes to this project will be documented in this file. The format 
   - `prox_glasso!`, `prox_gl2l1!`, and a zero-safe `regularization_penalty` are exposed from
     the submodule. The prox threshold is an absolute per-update amount and, unlike the
     gradient-based penalties, is not scaled by the optimizer's step size.
+  - Both variants enforce that at most one of `l1_weights`, `l2l1_weights`, and the group-lasso
+    weight (`glasso_weights`/`gl2l1_weights`) is nonzero — they are overlapping sparsity priors
+    and mixing a proximal step with another non-smooth penalty is ill-posed; `l2_weights`
+    (smooth) is unrestricted.
 
 ## 5.8.1
 

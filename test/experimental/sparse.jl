@@ -8,7 +8,7 @@ using RestrictedBoltzmannMachines.Experimental.Sparse: pcd_glasso!, pcd_gl2l1!,
 using LinearAlgebra: norm
 using Random: seed!
 using Statistics: mean
-using Test: @test, @testset
+using Test: @test, @testset, @test_throws
 
 @testset "group-lasso subgradient matches autodiff" begin
     # Potts visible + Potts hidden: glasso groups over both color axes, gl2l1 over visible.
@@ -120,4 +120,17 @@ end
     pcd_gl2l1!(rbm, data; iters = 40, batchsize = 32, gl2l1_weights = 0.5, prox = true, rescale = false)
     @test all(isfinite, rbm.w)
     @test any(iszero, vec(sqrt.(sum(abs2, rbm.w; dims = 1))))
+end
+
+@testset "at most one weight-magnitude penalty may be active" begin
+    data = sample_from_inputs(Potts((3, 4)), zeros(3, 4, 32))
+    mk() = RBM(Potts(; θ = randn(3, 4)), Binary(; θ = randn(2)), 0.1 * randn(3, 4, 2))
+    # combining the sparse penalty with l1 or l2l1 is rejected
+    @test_throws AssertionError pcd_glasso!(mk(), data; iters = 1, glasso_weights = 0.1, l1_weights = 0.1)
+    @test_throws AssertionError pcd_glasso!(mk(), data; iters = 1, glasso_weights = 0.1, l2l1_weights = 0.1)
+    @test_throws AssertionError pcd_gl2l1!(mk(), data; iters = 1, gl2l1_weights = 0.1, l1_weights = 0.1)
+    @test_throws AssertionError pcd_gl2l1!(mk(), data; iters = 1, l1_weights = 0.1, l2l1_weights = 0.1)
+    # l2_weights (smooth) may be combined freely
+    pcd_glasso!(mk(), data; iters = 1, glasso_weights = 0.1, l2_weights = 0.1)
+    @test true
 end
