@@ -61,6 +61,8 @@ include("centered.jl")
 
 include("adapt.jl")
 
+include("experimental/sparse.jl")
+
 function cpu end
 function gpu end
 function save_rbm end

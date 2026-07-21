@@ -371,8 +371,6 @@ function ∂regularize!(
         l1_weights::Real = 0,
         l2_weights::Real = 0,
         l2l1_weights::Real = 0,
-        gl2l1_weights::Real = 0,
-        glasso_weights::Real = 0,
         zerosum::Bool = false # whether to zerosum gradients
     )
     urbm = uncenter(rbm)
@@ -393,21 +391,8 @@ function ∂regularize!(
         dims = ntuple(identity, ndims(rbm.visible))
         ∂.w .+= l2l1_weights * sign.(urbm.w) .* mean(abs, urbm.w; dims)
     end
-    if !iszero(gl2l1_weights)
-        ∂.w .+= ∂gl2l1_weights(urbm.w, gl2l1_weights, urbm.visible)
-    end
-    if !iszero(glasso_weights)
-        ∂.w .+= ∂glasso_weights(urbm.w, glasso_weights, urbm)
-    end
     zerosum && zerosum!(∂, rbm)
     return ∂
-end
-
-# CenteredRBM shares its interaction weights with the underlying RBM, so the group-lasso
-# proximal step acts on them directly.
-function prox_glasso!(rbm::CenteredRBM, t::Real; dims = _glasso_dims(RBM(rbm)))
-    prox_glasso!(RBM(rbm), t; dims)
-    return rbm
 end
 
 function ∂regularize_add_visible_offset!(∂::∂RBM, visible_regularization::AbstractArray, offset_h::AbstractArray, ::dReLU)
@@ -480,8 +465,6 @@ function pcd!(
         l1_weights::Real = 0, # weights L1 regularization
         l2_weights::Real = 0, # weights L2 regularization
         l2l1_weights::Real = 0, # weights L2/L1 regularization
-        gl2l1_weights::Real = 0, # weights group L2/L1 regularization
-        glasso_weights::Real = 0, # weights group-lasso regularization (proximal, see prox_glasso!)
 
         # gauge
         zerosum::Bool = true, # zerosum gauge for Potts layers
@@ -526,22 +509,19 @@ function pcd!(
         ∂ *= batch_weight
 
         # weight decay
-        ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, gl2l1_weights, zerosum)
+        ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum)
 
         # feed gradient to Optimiser rule
         gs = (; visible = ∂.visible, hidden = ∂.hidden, w = ∂.w)
         state, ps = update!(state, ps, gs)
         _validate_layer_parameters(rbm)
 
-        # proximal group-lasso step, before the gauge resets (proximal-gradient order)
-        iszero(glasso_weights) || prox_glasso!(rbm, glasso_weights)
-
         # centering
         offset_h_new = grad2ave(rbm.hidden, -∂d.hidden) # <h>_d from minibatch
         offset_h = (1 - hidden_offset_damping) * rbm.offset_h + hidden_offset_damping * offset_h_new
         center_hidden!(rbm, offset_h)
 
-        # gauge constraints (rescale_weights! and zerosum! both preserve exact-zero color groups)
+        # gauge constraints
         zerosum && zerosum!(rbm)
         rescale && rescale_weights!(rbm)
 

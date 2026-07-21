@@ -28,6 +28,9 @@ end
 module regularize_tests
     include("regularize.jl")
 end
+module experimental_sparse_tests
+    include("experimental/sparse.jl")
+end
 module truncnorm_tests
     include("truncnorm.jl")
 end

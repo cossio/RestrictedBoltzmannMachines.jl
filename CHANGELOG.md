@@ -4,26 +4,26 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
-- Added group-lasso weight regularization for edge-level sparsity over the Potts color
-  axis ([#168](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/168)):
-  - `glasso_weights`: plain group lasso `∑_edges ‖w[edge]‖₂`, where each edge group spans
-    every Potts color axis — the visible colors (Potts visible) and the hidden colors (Potts
-    hidden). In `pcd!`, `ucd!`, and the centered/standardized `pcd!` it is applied as a
-    proximal block-soft-threshold step (`prox_glasso!`) right after each optimizer update
-    (before the gauge resets), yielding *exact* zeros for whole edges. Because a group spans
-    all Potts color axes, its zeros are stable under the zero-sum gauge of both layers and
-    under `rescale_weights!`, so they persist across training steps (including for models
-    with a Potts hidden layer).
-  - `gl2l1_weights`: the group version of `l2l1_weights`, `∑_μ (∑_i ‖w[:, i, μ]‖₂)² / (2N)`
-    with `N` the number of visible sites, replacing the inner color-`L1` of `l2l1` with a
-    color-`L2` group norm over the visible colors, added as a gradient term.
-  - New `prox_glasso!(rbm, t)` for `RBM`, `CenteredRBM`, and `StandardizedRBM`. Its threshold
-    `t` is an absolute per-update amount and, unlike the gradient-based penalties, is not
-    scaled by the optimizer's step size.
-  - `regularization_penalty` computes the group norms through a zero-safe adjoint, so its
-    Zygote gradient stays finite at exact-zero weight groups (e.g. after `prox_glasso!`).
-  - With no Potts layers each `glasso` group is a scalar, so `glasso` reduces to `l1`; for a
-    non-Potts visible layer `gl2l1` reduces to `l2l1`.
+- Added an experimental `Experimental.Sparse` submodule with group-lasso weight
+  regularization for structural (edge-level) sparsity on Potts RBMs
+  ([#168](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/168)). The base
+  `pcd!` / `ucd!` are unchanged; the new functionality lives entirely in the submodule and
+  its API is experimental (may change without a breaking release):
+  - `pcd_glasso!(rbm, data; glasso_weights, prox=false)` — PCD with a plain group-lasso
+    penalty `glasso_weights · ∑_edges ‖w[edge]‖₂` (each edge group spans the Potts color
+    axes present, visible and hidden). With `prox=false` (default) it is a subgradient term;
+    with `prox=true` it is applied as a proximal block-soft-threshold step (`prox_glasso!`)
+    after each optimizer update, yielding *exact* zeros. Because a group spans every Potts
+    color axis, those zeros are stable under the zero-sum gauge of both layers and under
+    `rescale_weights!`.
+  - `pcd_gl2l1!(rbm, data; gl2l1_weights, prox=false)` — PCD with the group version of
+    `l2l1`, `gl2l1_weights · (1/2N) ∑_μ (∑_i ‖w[:, i, μ]‖₂)²` (`N` = number of visible
+    sites). With `prox=true` the proximal step (`prox_gl2l1!`, the prox of the squared
+    group-ℓ1,2 norm — a per-hidden-unit sorted soft-threshold) yields exact zeros; for a
+    non-Potts visible layer it reduces to the prox of the squared ℓ1 norm.
+  - `prox_glasso!`, `prox_gl2l1!`, and a zero-safe `regularization_penalty` are exposed from
+    the submodule. The prox threshold is an absolute per-update amount and, unlike the
+    gradient-based penalties, is not scaled by the optimizer's step size.
 
 ## 5.8.1
 
