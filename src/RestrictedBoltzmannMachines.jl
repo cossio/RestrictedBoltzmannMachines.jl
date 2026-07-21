@@ -61,7 +61,7 @@ include("centered.jl")
 
 include("adapt.jl")
 
-include("experimental/sparse.jl")
+include("experimental/experimental.jl")
 
 function cpu end
 function gpu end

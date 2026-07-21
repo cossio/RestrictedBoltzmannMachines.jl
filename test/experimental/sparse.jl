@@ -2,9 +2,9 @@ import Zygote
 import RestrictedBoltzmannMachines as RBMs
 using RestrictedBoltzmannMachines: RBM, Potts, Binary, Gaussian
 using RestrictedBoltzmannMachines: sample_from_inputs, zerosum!, free_energy
-using RestrictedBoltzmannMachines.Experimental.Sparse: pcd_glasso!, pcd_gl2l1!,
-    prox_glasso!, prox_gl2l1!, regularization_penalty, ∂glasso_weights, ∂gl2l1_weights,
-    _prox_squared_l1_threshold
+using RestrictedBoltzmannMachines.Experimental.Sparse: proxpcd!,
+    prox_glasso!, prox_gl2l1!, regularization_penalty,
+    ∂glasso_weights, ∂gl2l1_weights, _prox_squared_l1_threshold
 using LinearAlgebra: norm
 using Random: seed!
 using Statistics: mean
@@ -91,46 +91,43 @@ end
     @test all(abs.(sum(rbm.w; dims = 1)) .< 1.0e-10)       # preserves zerosum
 end
 
-@testset "pcd_glasso! subgradient (prox=false) and proximal (prox=true)" begin
+@testset "proxpcd! glasso: subgradient (prox=false) and proximal (prox=true)" begin
     seed!(0)
     data = sample_from_inputs(Potts((3, 6)), zeros(3, 6, 200))
 
-    # prox = false: plain subgradient training, no exact zeros expected but must run finite
+    # prox = false: plain subgradient training, must run finite
     rbm = RBM(Potts(; θ = randn(3, 6)), Gaussian(; θ = randn(4), γ = ones(4)), 0.1 * randn(3, 6, 4))
-    pcd_glasso!(rbm, data; iters = 20, batchsize = 32, glasso_weights = 0.05, prox = false)
+    proxpcd!(rbm, data; iters = 20, batchsize = 32, glasso_weights = 0.05, prox = false)
     @test all(isfinite, rbm.w)
 
     # prox = true: exact zeros, model ends in zerosum gauge
     rbm = RBM(Potts(; θ = randn(3, 6)), Gaussian(; θ = randn(4), γ = ones(4)), 0.1 * randn(3, 6, 4))
-    pcd_glasso!(rbm, data; iters = 40, batchsize = 32, glasso_weights = 0.5, prox = true, rescale = true)
+    proxpcd!(rbm, data; iters = 40, batchsize = 32, glasso_weights = 0.5, prox = true, rescale = true)
     @test all(isfinite, rbm.w)
     @test maximum(abs, sum(rbm.w; dims = 1)) < 1.0e-8
     @test any(iszero, vec(sqrt.(sum(abs2, rbm.w; dims = 1))))
 end
 
-@testset "pcd_gl2l1! subgradient (prox=false) and proximal (prox=true)" begin
+@testset "proxpcd! gl2l1: subgradient (prox=false) and proximal (prox=true)" begin
     seed!(0)
     data = sample_from_inputs(Potts((3, 6)), zeros(3, 6, 200))
 
     rbm = RBM(Potts(; θ = randn(3, 6)), Binary(; θ = randn(4)), 0.1 * randn(3, 6, 4))
-    pcd_gl2l1!(rbm, data; iters = 20, batchsize = 32, gl2l1_weights = 0.05, prox = false)
+    proxpcd!(rbm, data; iters = 20, batchsize = 32, gl2l1_weights = 0.05, prox = false)
     @test all(isfinite, rbm.w)
 
     rbm = RBM(Potts(; θ = randn(3, 6)), Binary(; θ = randn(4)), 0.1 * randn(3, 6, 4))
-    pcd_gl2l1!(rbm, data; iters = 40, batchsize = 32, gl2l1_weights = 0.5, prox = true, rescale = false)
+    proxpcd!(rbm, data; iters = 40, batchsize = 32, gl2l1_weights = 0.5, prox = true, rescale = false)
     @test all(isfinite, rbm.w)
     @test any(iszero, vec(sqrt.(sum(abs2, rbm.w; dims = 1))))
 end
 
-@testset "at most one weight-magnitude penalty may be active" begin
+@testset "proxpcd! enforces at most one group-lasso penalty" begin
     data = sample_from_inputs(Potts((3, 4)), zeros(3, 4, 32))
     mk() = RBM(Potts(; θ = randn(3, 4)), Binary(; θ = randn(2)), 0.1 * randn(3, 4, 2))
-    # combining the sparse penalty with l1 or l2l1 is rejected
-    @test_throws AssertionError pcd_glasso!(mk(), data; iters = 1, glasso_weights = 0.1, l1_weights = 0.1)
-    @test_throws AssertionError pcd_glasso!(mk(), data; iters = 1, glasso_weights = 0.1, l2l1_weights = 0.1)
-    @test_throws AssertionError pcd_gl2l1!(mk(), data; iters = 1, gl2l1_weights = 0.1, l1_weights = 0.1)
-    @test_throws AssertionError pcd_gl2l1!(mk(), data; iters = 1, l1_weights = 0.1, l2l1_weights = 0.1)
-    # l2_weights (smooth) may be combined freely
-    pcd_glasso!(mk(), data; iters = 1, glasso_weights = 0.1, l2_weights = 0.1)
+    @test_throws AssertionError proxpcd!(mk(), data; iters = 1, gl2l1_weights = 0.1, glasso_weights = 0.1)
+    # each alone, and combined with the smooth l2_weights, is fine
+    proxpcd!(mk(), data; iters = 1, glasso_weights = 0.1, l2_weights = 0.1)
+    proxpcd!(mk(), data; iters = 1, gl2l1_weights = 0.1)
     @test true
 end

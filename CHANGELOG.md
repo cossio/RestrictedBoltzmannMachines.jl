@@ -9,25 +9,23 @@ All notable changes to this project will be documented in this file. The format 
   ([#168](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/168)). The base
   `pcd!` / `ucd!` are unchanged; the new functionality lives entirely in the submodule and
   its API is experimental (may change without a breaking release):
-  - `pcd_glasso!(rbm, data; glasso_weights, prox=false)` — PCD with a plain group-lasso
-    penalty `glasso_weights · ∑_edges ‖w[edge]‖₂` (each edge group spans the Potts color
-    axes present, visible and hidden). With `prox=false` (default) it is a subgradient term;
-    with `prox=true` it is applied as a proximal block-soft-threshold step (`prox_glasso!`)
-    after each optimizer update, yielding *exact* zeros. Because a group spans every Potts
-    color axis, those zeros are stable under the zero-sum gauge of both layers and under
-    `rescale_weights!`.
-  - `pcd_gl2l1!(rbm, data; gl2l1_weights, prox=false)` — PCD with the group version of
-    `l2l1`, `gl2l1_weights · (1/2N) ∑_μ (∑_i ‖w[:, i, μ]‖₂)²` (`N` = number of visible
-    sites). With `prox=true` the proximal step (`prox_gl2l1!`, the prox of the squared
-    group-ℓ1,2 norm — a per-hidden-unit sorted soft-threshold) yields exact zeros; for a
-    non-Potts visible layer it reduces to the prox of the squared ℓ1 norm.
+  - `proxpcd!(rbm, data; gl2l1_weights=0, glasso_weights=0, prox=false, …)` — PCD with a
+    single group-lasso penalty, added as a subgradient (`prox=false`, default) or applied as
+    its proximal operator (`prox=true`) after each optimizer update, yielding *exact* zeros.
+    At most one of `gl2l1_weights`/`glasso_weights` may be nonzero (a proximal step is only
+    well-posed for a single non-smooth penalty); the smooth `l2_weights`/`l2_fields` are
+    unrestricted.
+  - `glasso` is the plain group lasso `glasso_weights · ∑_edges ‖w[edge]‖₂`, each edge group
+    spanning the Potts color axes present (visible and hidden), so `prox_glasso!`'s zeros are
+    gauge-stable under the zero-sum gauge of both layers and under `rescale_weights!`.
+  - `gl2l1` is the group version of `l2l1`, `gl2l1_weights · (1/2N) ∑_μ (∑_i ‖w[:, i, μ]‖₂)²`
+    (`N` = number of visible sites); `prox_gl2l1!` is the prox of the squared group-ℓ1,2 norm
+    (a per-hidden-unit sorted soft-threshold).
+  - Plain elementwise `l1`/`l2l1` are the non-Potts special cases of `glasso`/`gl2l1`, so
+    they are not offered separately.
   - `prox_glasso!`, `prox_gl2l1!`, and a zero-safe `regularization_penalty` are exposed from
     the submodule. The prox threshold is an absolute per-update amount and, unlike the
-    gradient-based penalties, is not scaled by the optimizer's step size.
-  - Both variants enforce that at most one of `l1_weights`, `l2l1_weights`, and the group-lasso
-    weight (`glasso_weights`/`gl2l1_weights`) is nonzero — they are overlapping sparsity priors
-    and mixing a proximal step with another non-smooth penalty is ill-posed; `l2_weights`
-    (smooth) is unrestricted.
+    gradient-based penalty, is not scaled by the optimizer's step size.
 
 ## 5.8.1
 
