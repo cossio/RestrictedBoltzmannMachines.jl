@@ -11,3 +11,12 @@ See also the [Layer Types](@ref layer_types) page for an overview of the availab
 ```@autodocs
 Modules = [RestrictedBoltzmannMachines]
 ```
+
+## Experimental
+
+Unstable API that may change arbitrarily at any time, without a breaking release. Do not
+depend on it in code that needs a stable API.
+
+```@autodocs
+Modules = [RestrictedBoltzmannMachines.Experimental, RestrictedBoltzmannMachines.Experimental.Sparse]
+```
