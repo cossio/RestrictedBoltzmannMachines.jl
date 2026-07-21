@@ -20,7 +20,8 @@ All notable changes to this project will be documented in this file. The format 
     gauge-stable under the zero-sum gauge of both layers and under `rescale_weights!`.
   - `gl2l1` is the group version of `l2l1`, `gl2l1_weights · (1/2N) ∑_μ (∑_i ‖w[:, i, μ]‖₂)²`
     (`N` = number of visible sites); `prox_gl2l1!` is the prox of the squared group-ℓ1,2 norm
-    (a per-hidden-unit sorted soft-threshold).
+    (a per-hidden-unit sorted soft-threshold). Unlike `glasso_weights`, `prox_gl2l1!` is
+    CPU-only (scalar indexing) and errors on GPU-array-backed models.
   - Plain elementwise `l1`/`l2l1` are the non-Potts special cases of `glasso`/`gl2l1`, so
     they are not offered separately.
   - `prox_glasso!`, `prox_gl2l1!`, and a zero-safe `regularization_penalty` are exposed from

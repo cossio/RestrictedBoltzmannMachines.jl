@@ -215,7 +215,11 @@ With `prox = true` the active penalty is applied via its prox after each optimiz
 before the gauge resets ([`prox_gl2l1!`] or [`prox_glasso!`]); `glasso` groups over every
 Potts color axis, so its zeros are gauge-stable under `zerosum!` and `rescale_weights!`. All
 other keyword arguments (`batchsize`, `iters`, `optim`, `steps`, `zerosum`, `rescale`,
-`wts`, `callback`, …) match the base [`RestrictedBoltzmannMachines.pcd!`](@ref).
+`wts`, `callback`, …) match the base [`RestrictedBoltzmannMachines.pcd!`](@ref), including
+GPU-array support for `rbm.w` — with one exception: `gl2l1_weights` with `prox = true`
+calls [`prox_gl2l1!`], which is CPU-only (its per-hidden-unit sorted threshold uses scalar
+indexing and will error under `allowscalar(false)`); `glasso_weights` (either mode) and
+`gl2l1_weights` with `prox = false` are elementwise/broadcast-only and GPU-compatible.
 """
 function proxpcd!(
         rbm::RBM, data::AbstractArray;
