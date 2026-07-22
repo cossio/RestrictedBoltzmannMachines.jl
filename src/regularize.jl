@@ -91,6 +91,13 @@ function ∂regularize_fields(layer::xReLU; l2_fields::Real = 0)
     return vstack((∂θ, ∂γ, ∂Δ, ∂ξ))
 end
 
+function ∂regularize_fields(layer::nsReLU; l2_fields::Real = 0)
+    ∂θ = l2_fields * layer.θ
+    ∂Δ = zero(layer.Δ)
+    ∂ξ = zero(layer.ξ)
+    return vstack((∂θ, ∂Δ, ∂ξ))
+end
+
 function ∂regularize_weights(
         rbm::RBM;
         l1_weights::Real = 0, # L1 regularization of weights

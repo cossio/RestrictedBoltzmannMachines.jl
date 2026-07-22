@@ -47,7 +47,7 @@ function initialize!(layer::Spin, data::AbstractArray; ϵ::Real = 1.0e-6, wts = 
     return layer
 end
 
-function initialize!(layer::Potts, data::AbstractArray; ϵ::Real = 1.0e-6, wts = nothing)
+function initialize!(layer::Union{Potts, PottsGumbel}, data::AbstractArray; ϵ::Real = 1.0e-6, wts = nothing)
     @assert size(layer) == size(data)[1:ndims(layer)]
     @assert 0 < ϵ < 1 / 2
     μ = batchmean(layer, data; wts)
@@ -125,6 +125,19 @@ end
 function initialize!(layer::xReLU)
     layer.θ .= layer.Δ .= layer.ξ .= 0
     layer.γ .= 1
+    return layer
+end
+
+function initialize!(layer::nsReLU, data::AbstractArray; wts = nothing)
+    @assert size(layer) == size(data)[1:ndims(layer)]
+    μ = batchmean(layer, data; wts)
+    layer.θ .= μ
+    layer.Δ .= layer.ξ .= 0
+    return layer
+end
+
+function initialize!(layer::nsReLU)
+    layer.θ .= layer.Δ .= layer.ξ .= 0
     return layer
 end
 

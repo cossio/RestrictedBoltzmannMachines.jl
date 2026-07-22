@@ -3,7 +3,73 @@ abstract type AbstractLayer{N} end
 _validate_layer_parameters(::AbstractLayer) = nothing
 
 Base.ndims(::AbstractLayer{N}) where {N} = N
+Base.size(layer::AbstractLayer) = Base.tail(size(getfield(layer, :par)))
 Base.size(layer::AbstractLayer, d::Int) = size(layer)[d]
+Base.length(layer::AbstractLayer) = length(getfield(layer, :par)) ÷ size(getfield(layer, :par), 1)
+
+"""
+    @declare_layer Layer (θ = zeros, γ = ones)
+
+Declares a layer type `Layer` whose named parameters are the rows of a shared `par` array,
+in the given order, with the given default initializers. Generates the struct (with `par`
+size validation and a `_validate_layer_parameters` hook in the inner constructor), the
+`Layer(par)`, keyword, `Layer(T, sz)`, and `Layer(sz)` constructors, `Base.propertynames`,
+the `Base.getproperty` accessors returning views into `par`, and the `_construct_like`
+trait used by generic functions such as `anneal`.
+"""
+macro declare_layer(Layer, params)
+    Layer isa Symbol || error("expected a layer name, got $Layer")
+    Meta.isexpr(params, :tuple) && !isempty(params.args) || error("expected a (name = init, ...) tuple of parameters, got $params")
+    names = Symbol[]
+    inits = Any[]
+    for p in params.args
+        Meta.isexpr(p, :(=), 2) && p.args[1] isa Symbol || error("expected name = init, got $p")
+        push!(names, p.args[1])
+        push!(inits, p.args[2])
+    end
+    nparams = length(names)
+
+    getproperty_body = :(return getfield(layer, name))
+    for i in nparams:-1:1
+        value = if nparams == 1
+            # dropdims instead of a view; see https://github.com/JuliaGPU/CUDA.jl/issues/1957
+            :(return dropdims(getfield(layer, :par); dims = 1))
+        else
+            :(return @view getfield(layer, :par)[$i, ..])
+        end
+        getproperty_body = Expr(i == 1 ? :if : :elseif, :(name === $(QuoteNode(names[i]))), value, getproperty_body)
+    end
+
+    defaults = [Expr(:kw, name, :($init(T, sz))) for (name, init) in zip(names, inits)]
+
+    return esc(
+        quote
+            Base.@__doc__ struct $Layer{N, A} <: AbstractLayer{N}
+                par::A
+                function $Layer{N, A}(par::A) where {N, A <: AbstractArray}
+                    @assert size(par, 1) == $nparams
+                    @assert ndims(par) == N + 1
+                    layer = new(par)
+                    _validate_layer_parameters(layer)
+                    return layer
+                end
+            end
+
+            $Layer(par::AbstractArray) = $Layer{ndims(par) - 1, typeof(par)}(par)
+            $Layer(; $(names...)) = $Layer(vstack(($(names...),)))
+            $Layer(::Type{T}, sz::Dims) where {T} = $Layer(; $(defaults...))
+            $Layer(sz::Dims) = $Layer(Float64, sz)
+
+            _construct_like(::$Layer, par::AbstractArray) = $Layer(par)
+
+            Base.propertynames(::$Layer) = ($(QuoteNode.(names)...),)
+
+            function Base.getproperty(layer::$Layer, name::Symbol)
+                $getproperty_body
+            end
+        end
+    )
+end
 
 """
     flatten(layer, x)
@@ -48,6 +114,22 @@ function cgf(layer::AbstractLayer, inputs = 0)
         _Γ = sum(Γ; dims = 1:ndims(layer))
         return reshape(_Γ, size(inputs)[(ndims(layer) + 1):end])
     end
+end
+
+"""
+    std_from_inputs(layer, inputs = 0)
+
+Standard deviation of unit activations from inputs.
+"""
+std_from_inputs(layer::AbstractLayer, inputs = 0) = sqrt.(var_from_inputs(layer, inputs))
+
+"""
+    meanvar_from_inputs(layer, inputs = 0)
+
+Mean and variance of unit activations from inputs.
+"""
+function meanvar_from_inputs(layer::AbstractLayer, inputs = 0)
+    return (mean_from_inputs(layer, inputs), var_from_inputs(layer, inputs))
 end
 
 """

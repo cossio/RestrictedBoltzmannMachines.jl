@@ -5,48 +5,7 @@ Parametric ReLU layer, with shared scale and asymmetry ratio. Every value of
 `η` must be finite and lie strictly inside `(-1, 1)`. For unconstrained learned
 asymmetry, use `xReLU` or the fixed-scale `nsReLU` instead.
 """
-struct pReLU{N, A} <: AbstractLayer{N}
-    par::A
-    function pReLU{N, A}(par::A) where {N, A <: AbstractArray}
-        @assert size(par, 1) == 4 # θ, γ, Δ, η
-        @assert ndims(par) == N + 1
-        layer = new(par)
-        _validate_layer_parameters(layer)
-        return layer
-    end
-end
-
-pReLU(par::AbstractArray) = pReLU{ndims(par) - 1, typeof(par)}(par)
-
-function pReLU(; θ, γ, Δ, η)
-    par = vstack((θ, γ, Δ, η))
-    return pReLU(par)
-end
-
-function pReLU(::Type{T}, sz::Dims) where {T}
-    θ = zeros(T, sz)
-    γ = ones(T, sz)
-    Δ = zeros(T, sz)
-    η = zeros(T, sz)
-    return pReLU(; θ, γ, Δ, η)
-end
-
-pReLU(sz::Dims) = pReLU(Float64, sz)
-Base.propertynames(::pReLU) = (:θ, :γ, :Δ, :η)
-
-function Base.getproperty(layer::pReLU, name::Symbol)
-    if name === :θ
-        return @view getfield(layer, :par)[1, ..]
-    elseif name === :γ
-        return @view getfield(layer, :par)[2, ..]
-    elseif name === :Δ
-        return @view getfield(layer, :par)[3, ..]
-    elseif name === :η
-        return @view getfield(layer, :par)[4, ..]
-    else
-        return getfield(layer, name)
-    end
-end
+@declare_layer pReLU (θ = zeros, γ = ones, Δ = zeros, η = zeros)
 
 _valid_prelu_eta(η) = η isa Real && isfinite(η) && -1 < η < 1
 
@@ -70,22 +29,9 @@ var_from_inputs(layer::pReLU, inputs = 0) = var_from_inputs(dReLU(layer), inputs
 meanvar_from_inputs(layer::pReLU, inputs = 0) = meanvar_from_inputs(dReLU(layer), inputs)
 mode_from_inputs(layer::pReLU, inputs = 0) = mode_from_inputs(dReLU(layer), inputs)
 mean_abs_from_inputs(layer::pReLU, inputs = 0) = mean_abs_from_inputs(dReLU(layer), inputs)
-std_from_inputs(layer::pReLU, inputs = 0) = sqrt.(var_from_inputs(layer, inputs))
 
 function ∂cgfs(layer::pReLU, inputs = 0)
-    drelu = dReLU(layer)
-
-    lp = ReLU(; θ = drelu.θp, γ = drelu.γp)
-    ln = ReLU(; θ = -drelu.θn, γ = drelu.γn)
-
-    Γp = cgfs(lp, inputs)
-    Γn = cgfs(ln, -inputs)
-    Γ = logaddexp.(Γp, Γn)
-
-    pp = exp.(Γp - Γ)
-    pn = exp.(Γn - Γ)
-    μp, νp = meanvar_from_inputs(lp, inputs)
-    μn, νn = meanvar_from_inputs(ln, -inputs)
+    (; pp, pn, μp, μn, νp, νn) = _drelu_mixture_moments(dReLU(layer), inputs)
     μ2p = @. (νp + μp^2) / 2
     μ2n = @. (νn + μn^2) / 2
 
