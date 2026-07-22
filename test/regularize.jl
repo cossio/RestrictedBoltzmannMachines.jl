@@ -2,7 +2,6 @@ import Zygote
 using EllipsisNotation: (..)
 using Random: bitrand
 using RestrictedBoltzmannMachines: ∂free_energy
-using RestrictedBoltzmannMachines: ∂regularize
 using RestrictedBoltzmannMachines: ∂regularize_fields
 using RestrictedBoltzmannMachines: ∂regularize!
 using RestrictedBoltzmannMachines: Binary
@@ -35,24 +34,6 @@ using Test: @test, @testset
 
     @test only(gs).visible.par ≈ ∂.visible
     @test only(gs).hidden.par ≈ ∂.hidden
-    @test only(gs).w ≈ ∂.w
-end
-
-@testset "∂regularize" begin
-    rbm = BinaryRBM(randn(3, 5), randn(3, 2), randn(3, 5, 3, 2))
-
-    l2_fields = rand()
-    l1_weights = rand()
-    l2_weights = rand()
-    l2l1_weights = rand()
-
-    gs = Zygote.gradient(rbm) do rbm
-        regularization_penalty(rbm; l2_fields, l1_weights, l2_weights, l2l1_weights)
-    end
-
-    ∂ = ∂regularize(rbm; l2_fields, l1_weights, l2_weights, l2l1_weights)
-    @test only(gs).visible.par ≈ ∂.visible
-    @test isnothing(only(gs).hidden) && iszero(∂.hidden)
     @test only(gs).w ≈ ∂.w
 end
 

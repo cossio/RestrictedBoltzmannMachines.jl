@@ -42,22 +42,3 @@ function metropolis!(v::AbstractArray, rbm::RBM; β::Real = 1)
     end
     return v
 end
-
-"""
-    cold_metropolis(rbm, v; steps = 1)
-
-Samples the `rbm` at zero temperature, starting from configuration `v`.
-"""
-function cold_metropolis(rbm::RBM, v::AbstractArray; steps::Int = 1)
-    @assert size(v)[1:ndims(rbm.visible)] == size(rbm.visible)
-    for _ in 1:steps
-        v = oftype(v, cold_metropolis_once(rbm, v))
-    end
-    return v
-end
-
-function cold_metropolis_once(rbm::RBM, v::AbstractArray)
-    @assert size(v)[1:ndims(rbm.visible)] == size(rbm.visible)
-    h = mean_h_from_v(rbm, v)
-    return mode_v_from_h(rbm, h)
-end

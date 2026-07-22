@@ -40,27 +40,6 @@ end
 
 _weighted_term(a, w) = iszero(w) ? zero(a) * w : a * w
 
-@doc raw"""
-    wsum(A; wts = nothing, dims = :)
-
-Weighted sum of `A` along dimensions `dims`, weighted by `wts`.
-
-```math
-\frac{\sum_i A_i w_i}
-```
-"""
-function wsum(A::AbstractArray; wts::Union{AbstractArray, Nothing} = nothing, dims = :)
-    if isnothing(wts)
-        return sum(A; dims)
-    else
-        # multiply the normalized weight sum in before the scale, so the raw
-        # sum of weights is never materialized (it can overflow even when the
-        # weighted sum itself is finite)
-        scale = 1.0 * float(maximum(wts))
-        return wmean(A; wts, dims) .* (mean(wts ./ scale) * length(wts)) .* scale
-    end
-end
-
 """
     generate_sequences(n, A = 0:1)
 
@@ -69,14 +48,6 @@ Retruns an iterator over all sequences of length `n` out of the alphabet `A`.
 function generate_sequences(n::Int, A = 0:1)
     return (collect(seq) for seq in Iterators.product(ntuple(_ -> A, n)...))
 end
-
-"""
-    broadlike(A, B, ...)
-
-Broadcasts `A` into the size of `A .+ B .+ ...` (without actually doing a sum).
-"""
-broadlike(A, B...) = first_argument.(A, B...)
-first_argument(x, y...) = x
 
 # convert eltype before matrix multiply, to make sure we hit BLAS
 convert_eltype(::Type{T}, A::AbstractArray) where {T} = convert(AbstractArray{T}, A)
@@ -91,31 +62,6 @@ reshape_maybe(x::Number, ::Tuple{}) = x
 reshape_maybe(x::AbstractArray, ::Tuple{}) = only(x)
 reshape_maybe(x::AbstractArray, sz::Dims) = reshape(x, sz)
 reshape_maybe(x::Union{Number, AbstractArray}, sz::Int...) = reshape(x, sz)
-
-sizedims(A::AbstractArray, dims::Int...) = sizedims(A, dims)
-sizedims(A::AbstractArray, dims::Tuple{Vararg{Int}}) = map(d -> size(A, d), dims)
-sizedims(A::AbstractArray, ::Colon) = size(A)
-
-"""
-    moving_average(A, m)
-
-Moving average of `A` with window size `m`.
-"""
-function moving_average(A::AbstractArray, m::Int)
-    out = similar(A)
-    R = CartesianIndices(A)
-    Ifirst, Ilast = first(R), last(R)
-    I1 = m ÷ 2 * oneunit(Ifirst)
-    for I in R
-        n, s = 0, zero(eltype(out))
-        for J in max(Ifirst, I - I1):min(Ilast, I + I1)
-            s += A[J]
-            n += 1
-        end
-        out[I] = s / n
-    end
-    return out
-end
 
 """
     vstack(x)

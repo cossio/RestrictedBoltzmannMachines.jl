@@ -46,31 +46,8 @@ function ∂regularize_fields!(∂::AbstractArray, layer::dReLU; l2_fields::Real
     return ∂
 end
 
-function ∂regularize(
-        rbm::RBM;
-        l2_fields::Real = 0, # L2 regularization of visible unit fields
-        kw... # weights penalties
-    )
-    visible = ∂regularize_fields(rbm.visible; l2_fields)
-    w = ∂regularize_weights(rbm; kw...)
-    return ∂RBM(visible, zero(rbm.hidden.par), w)
-end
-
 ∂regularize_fields(layer::AbstractLayer; l2_fields::Real = 0) =
     ∂regularize_fields!(zero(layer.par), layer; l2_fields)
-
-function ∂regularize_weights(
-        rbm::RBM;
-        l1_weights::Real = 0, # L1 regularization of weights
-        l2_weights::Real = 0, # L2 regularization of weights
-        l2l1_weights::Real = 0 # L2/L1 regularziation of weights (10.7554/eLife.39397, Eq. 8)
-    )
-    dims = ntuple(identity, ndims(rbm.visible))
-    ∂l2l1 = l2l1_weights * sign.(rbm.w) .* mean(abs, rbm.w; dims)
-    ∂l1 = l1_weights * sign.(rbm.w)
-    ∂l2 = l2_weights * rbm.w
-    return ∂l2l1 + ∂l1 + ∂l2
-end
 
 function regularization_penalty(rbm::RBM; l1_weights::Real = 0, l2_weights::Real = 0, l2l1_weights::Real = 0, l2_fields::Real = 0)
     dims = ntuple(identity, ndims(rbm.visible))

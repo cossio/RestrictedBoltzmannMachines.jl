@@ -5,7 +5,7 @@ import LinearAlgebra
 using Adapt: Adapt, adapt
 using EllipsisNotation: (..)
 using FillArrays: Falses, Zeros, Ones
-using LinearAlgebra: Diagonal, dot, I, logdet
+using LinearAlgebra: Diagonal, dot, logdet
 using LogExpFunctions: log1pexp, logaddexp, logistic, logsubexp, logsumexp, softmax
 using Optimisers: AbstractRule, Adam, setup, update!
 using Random: AbstractRNG, default_rng, rand!, randexp, randn!, randperm
@@ -14,7 +14,6 @@ using Statistics: mean
 
 include("util/util.jl")
 include("util/onehot.jl")
-include("util/linalg.jl")
 include("util/truncated_normal.jl")
 
 include("layers/abstractlayer.jl")
