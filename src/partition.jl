@@ -10,8 +10,8 @@ precision matrix (with Gaussian precisions `abs.(γ)`) is positive definite.
 Non-normalizable models with a singular or indefinite joint precision return
 `Inf`.
 
-If your RBM has a smaller hidden layer, mirroring the layers of the `rbm` first
-(see [`mirror`](@ref)).
+If your RBM has a smaller hidden layer, consider mirroring the layers of the
+`rbm` first (see [`mirror`](@ref)).
 """
 function log_partition(rbm::RBM)
     v = ChainRulesCore.ignore_derivatives() do
@@ -42,10 +42,6 @@ function iterate_states(layer::Spin)
     return map(x -> reshape(x, size(layer)..., 1), itr)
 end
 
-function iterate_states(::Potts)
-    error("not implemented")
-end
-
 """
     collect_states(layer)
 
@@ -56,7 +52,7 @@ Only defined for discrete layers.
     Use only for small layers.
     For large layers, the exponential number of states will not fit in memory.
 """
-function collect_states(layer::Union{Binary, Spin, Potts})
+function collect_states(layer::Union{Binary, Spin})
     return reduce(iterate_states(layer)) do x, y
         cat(x, y; dims = ndims(layer) + 1)
     end

@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- Removed the `iterate_states(::Potts)` stub (which only threw
+  `error("not implemented")`) and narrowed `collect_states` to
+  `Union{Binary, Spin}`; Potts enumeration was never implemented and the old
+  signature was misleading
+  ([#173](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/173)).
+- Internal simplifications with no behavior change: the non-mutating
+  `∂regularize_fields` now delegates to `∂regularize_fields!` generically,
+  data-driven `initialize!` for `Gaussian`/`xReLU`/`pReLU`/`dReLU` shares one
+  Gaussian moment-matching helper, `zerosum`/`zerosum!`/`zerosum_weights` share
+  one Potts/PottsGumbel code path, and the HDF5 `save_rbm` methods share a
+  common body ([#173](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/173)).
+
 ## 5.8.1
 
 - Fixed `log_pseudolikelihood(...; exact=true)` for `StandardizedRBM` and

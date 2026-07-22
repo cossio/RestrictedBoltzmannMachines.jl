@@ -56,40 +56,8 @@ function ∂regularize(
     return ∂RBM(visible, zero(rbm.hidden.par), w)
 end
 
-function ∂regularize_fields(layer::Union{Binary, Spin, Potts}; l2_fields::Real = 0)
-    ∂θ = l2_fields * layer.θ
-    return vstack((∂θ,))
-end
-
-function ∂regularize_fields(layer::Union{Gaussian, ReLU}; l2_fields::Real = 0)
-    ∂θ = l2_fields * layer.θ
-    ∂γ = zero(layer.γ)
-    return vstack((∂θ, ∂γ))
-end
-
-function ∂regularize_fields(layer::dReLU; l2_fields::Real = 0)
-    ∂θp = l2_fields * layer.θp
-    ∂θn = l2_fields * layer.θn
-    ∂γn = zero(layer.γn)
-    ∂γp = zero(layer.γp)
-    return vstack((∂θp, ∂θn, ∂γp, ∂γn))
-end
-
-function ∂regularize_fields(layer::pReLU; l2_fields::Real = 0)
-    ∂θ = l2_fields * layer.θ
-    ∂γ = zero(layer.γ)
-    ∂Δ = zero(layer.Δ)
-    ∂η = zero(layer.η)
-    return vstack((∂θ, ∂γ, ∂Δ, ∂η))
-end
-
-function ∂regularize_fields(layer::xReLU; l2_fields::Real = 0)
-    ∂θ = l2_fields * layer.θ
-    ∂γ = zero(layer.γ)
-    ∂Δ = zero(layer.Δ)
-    ∂ξ = zero(layer.ξ)
-    return vstack((∂θ, ∂γ, ∂Δ, ∂ξ))
-end
+∂regularize_fields(layer::AbstractLayer; l2_fields::Real = 0) =
+    ∂regularize_fields!(zero(layer.par), layer; l2_fields)
 
 function ∂regularize_weights(
         rbm::RBM;

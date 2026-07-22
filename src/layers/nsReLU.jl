@@ -70,11 +70,4 @@ function initialize!(layer::nsReLU)
     return layer
 end
 
-function ∂regularize_fields(layer::nsReLU; l2_fields::Real = 0)
-    ∂θ = l2_fields * layer.θ
-    ∂Δ = zero(layer.Δ)
-    ∂ξ = zero(layer.ξ)
-    return vstack((∂θ, ∂Δ, ∂ξ))
-end
-
 shift_fields(l::nsReLU, a::AbstractArray) = nsReLU(; θ = l.θ .+ a, l.Δ, l.ξ)
