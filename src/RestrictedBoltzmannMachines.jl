@@ -58,6 +58,7 @@ include("metropolis.jl")
 
 include("standardized.jl")
 include("centered.jl")
+include("offset_rbms.jl")
 
 include("adapt.jl")
 

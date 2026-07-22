@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- Fixed `free_energy_h(::CenteredRBM, h)`, which previously fell through to the
+  plain `RBM` method and omitted the visible-offset correction term, making it
+  inconsistent with `free_energy` and with `free_energy(mirror(rbm), h)`. It now
+  includes the correction, matching the `StandardizedRBM` behavior
+  ([#170](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/170)).
+- `∂free_energy_v`, `∂free_energy_h`, and `regularization_penalty` now also
+  accept `CenteredRBM` (they previously raised a `MethodError`), and
+  `∂regularize!` for `CenteredRBM` accepts the `regularize_unstandardized`
+  keyword with the same meaning as for `StandardizedRBM`
+  ([#170](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/170)).
+- `sample_v_from_v` and `sample_h_from_h` for `CenteredRBM` now assert that the
+  configuration size matches the layer size, like the other RBM types.
+- Refactor: collapsed duplicated `RBM` / `CenteredRBM` / `StandardizedRBM`
+  method definitions into shared generic implementations (no behavior change
+  beyond the items above)
+  ([#170](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/170)).
+
 ## 5.8.1
 
 - Fixed `log_pseudolikelihood(...; exact=true)` for `StandardizedRBM` and

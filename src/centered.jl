@@ -79,86 +79,7 @@ function RBM(rbm::CenteredRBM)
     return RBM(rbm.visible, rbm.hidden, rbm.w)
 end
 
-function energy(rbm::CenteredRBM, v::AbstractArray, h::AbstractArray)
-    Ev = energy(rbm.visible, v)
-    Eh = energy(rbm.hidden, h)
-    Ew = interaction_energy(rbm, v, h)
-    return Ev .+ Eh .+ Ew
-end
-
-function interaction_energy(centered_rbm::CenteredRBM, v::AbstractArray, h::AbstractArray)
-    centered_v = v .- centered_rbm.offset_v
-    centered_h = h .- centered_rbm.offset_h
-    return interaction_energy(RBM(centered_rbm), centered_v, centered_h)
-end
-
-function inputs_h_from_v(centered_rbm::CenteredRBM, v::AbstractArray)
-    centered_v = v .- centered_rbm.offset_v
-    return inputs_h_from_v(RBM(centered_rbm), centered_v)
-end
-
-function inputs_v_from_h(centered_rbm::CenteredRBM, h::AbstractArray)
-    centered_h = h .- centered_rbm.offset_h
-    return inputs_v_from_h(RBM(centered_rbm), centered_h)
-end
-
-function free_energy(rbm::CenteredRBM, v::AbstractArray)
-    E = energy(rbm.visible, v)
-    inputs = inputs_h_from_v(rbm, v)
-    F = -cgf(rbm.hidden, inputs)
-    ΔE = energy(Binary(; θ = rbm.offset_h), inputs)
-    return E + F - ΔE
-end
-
-function mean_h_from_v(rbm::CenteredRBM, v::AbstractArray)
-    inputs = inputs_h_from_v(rbm, v)
-    return mean_from_inputs(rbm.hidden, inputs)
-end
-
-function mean_v_from_h(rbm::CenteredRBM, h::AbstractArray)
-    inputs = inputs_v_from_h(rbm, h)
-    return mean_from_inputs(rbm.visible, inputs)
-end
-
-function ∂free_energy(
-        rbm::CenteredRBM, v::AbstractArray;
-        wts = nothing, moments = moments_from_samples(rbm.visible, v; wts)
-    )
-    inputs = inputs_h_from_v(rbm, v)
-    ∂v = ∂energy_from_moments(rbm.visible, moments)
-
-    ∂Γ = ∂cgfs(rbm.hidden, inputs)
-    h = grad2ave(rbm.hidden, ∂Γ)
-
-    dims = (ndims(rbm.hidden.par) + 1):ndims(∂Γ)
-    ∂h = reshape(wmean(-∂Γ; wts, dims), size(rbm.hidden.par))
-
-    ∂w = ∂interaction_energy(rbm, v, h; wts)
-    return ∂RBM(∂v, ∂h, ∂w)
-end
-
-function ∂interaction_energy(rbm::CenteredRBM, v::AbstractArray, h::AbstractArray; wts = nothing)
-    centered_v = v .- rbm.offset_v
-    centered_h = h .- rbm.offset_h
-    ∂w = ∂interaction_energy(RBM(rbm), centered_v, centered_h; wts)
-    return ∂w
-end
-
-function log_pseudolikelihood(rbm::CenteredRBM, v::AbstractArray; kwargs...)
-    return log_pseudolikelihood(uncenter(rbm), v; kwargs...)
-end
-
-function mirror(rbm::CenteredRBM)
-    perm = ntuple(Val(ndims(rbm.w))) do i
-        if i ≤ ndims(rbm.hidden)
-            i + ndims(rbm.visible)
-        else
-            i - ndims(rbm.hidden)
-        end
-    end
-    w = permutedims(rbm.w, perm)
-    return CenteredRBM(rbm.hidden, rbm.visible, w, rbm.offset_h, rbm.offset_v)
-end
+mirror(rbm::CenteredRBM) = CenteredRBM(mirror(RBM(rbm)), rbm.offset_h, rbm.offset_v)
 
 
 @doc raw"""
@@ -298,43 +219,6 @@ function zerosum(rbm::CenteredRBM)
 end
 
 """
-    zerosum!(rbm::CenteredRBM)
-
-In-place version of `zerosum(rbm)`. Offsets are not modified.
-"""
-function zerosum!(rbm::CenteredRBM)
-    if rbm.visible isa Union{Potts, PottsGumbel}
-        ωv = mean(rbm.w; dims = 1)
-        rbm.w .-= ωv
-        zerosum!(rbm.visible.θ; dims = 1)
-        # Compensate hidden fields. Unlike a plain RBM, the interaction involves
-        # v - offset_v, so the color-sum of the visible offsets enters the shift.
-        vdims = ntuple(identity, ndims(rbm.visible))
-        Ov = sum(rbm.offset_v; dims = 1)
-        shift_fields!(rbm.hidden, reshape(sum(ωv .* (1 .- Ov); dims = vdims), size(rbm.hidden)))
-    end
-    if rbm.hidden isa Union{Potts, PottsGumbel}
-        ωh = mean(rbm.w; dims = ndims(rbm.visible) + 1)
-        rbm.w .-= ωh
-        zerosum!(rbm.hidden.θ; dims = 1)
-        hdims = ntuple(d -> d + ndims(rbm.visible), ndims(rbm.hidden))
-        Oh = reshape(sum(rbm.offset_h; dims = 1), map(one, size(rbm.visible))..., 1, size(rbm.hidden)[2:end]...)
-        shift_fields!(rbm.visible, reshape(sum(ωh .* (1 .- Oh); dims = hdims), size(rbm.visible)))
-    end
-    return rbm
-end
-
-"""
-    zerosum!(∂, rbm::CenteredRBM)
-
-Projects the gradient so that it doesn't modify the zerosum gauge of the equivalent
-uncentered `RBM` (see [`uncenter`](@ref)), with offsets held fixed. Since uncentering
-leaves the weights unchanged, the gauge conditions on the centered parameters coincide
-with the plain `RBM` ones.
-"""
-zerosum!(∂::∂RBM, rbm::CenteredRBM) = zerosum!(∂, RBM(rbm))
-
-"""
     rescale_hidden!(rbm::CenteredRBM, λ::AbstractArray)
 
 Scales parameters such that hidden unit activations are divided by `λ`, preserving
@@ -352,91 +236,12 @@ function rescale_hidden!(rbm::CenteredRBM, λ::AbstractArray)
     return false
 end
 
-function rescale_weights!(rbm::CenteredRBM)
-    λ = _inv_or_one.(weight_norms(rbm))
-    return rescale_hidden!(rbm, λ)
-end
-
 weight_norms(rbm::CenteredRBM) = weight_norms(RBM(rbm))
 
 function initialize!(rbm::CenteredRBM, data::AbstractArray; ϵ::Real = 1.0e-6)
     initialize!(RBM(rbm), data; ϵ)
     center_from_data!(rbm, data)
     return rbm
-end
-
-function ∂regularize!(
-        ∂::∂RBM, rbm::CenteredRBM;
-        l2_fields::Real = 0,
-        l1_weights::Real = 0,
-        l2_weights::Real = 0,
-        l2l1_weights::Real = 0,
-        zerosum::Bool = false # whether to zerosum gradients
-    )
-    urbm = uncenter(rbm)
-    offset_h = reshape(rbm.offset_h, map(one, size(rbm.offset_v))..., size(rbm.offset_h)...)
-
-    if !iszero(l2_fields)
-        visible_reg = ∂regularize_fields(urbm.visible; l2_fields)
-        ∂.visible .+= visible_reg
-        ∂regularize_add_visible_offset!(∂, visible_reg, offset_h, rbm.visible)
-    end
-    if !iszero(l1_weights)
-        ∂.w .+= l1_weights * sign.(urbm.w)
-    end
-    if !iszero(l2_weights)
-        ∂.w .+= l2_weights * urbm.w
-    end
-    if !iszero(l2l1_weights)
-        dims = ntuple(identity, ndims(rbm.visible))
-        ∂.w .+= l2l1_weights * sign.(urbm.w) .* mean(abs, urbm.w; dims)
-    end
-    zerosum && zerosum!(∂, rbm)
-    return ∂
-end
-
-function ∂regularize_add_visible_offset!(∂::∂RBM, visible_regularization::AbstractArray, offset_h::AbstractArray, ::dReLU)
-    return ∂.w .-= (visible_regularization[1, ..] + visible_regularization[2, ..]) .* offset_h
-end
-
-function ∂regularize_add_visible_offset!(∂::∂RBM, visible_regularization::AbstractArray, offset_h::AbstractArray, ::Union{Binary, Spin, Potts, PottsGumbel, Gaussian, ReLU, xReLU, pReLU, nsReLU})
-    return ∂.w .-= visible_regularization[1, ..] .* offset_h
-end
-
-function sample_h_from_v(rbm::CenteredRBM, v::AbstractArray)
-    inputs = inputs_h_from_v(rbm, v)
-    return sample_from_inputs(rbm.hidden, inputs)
-end
-
-function sample_v_from_h(rbm::CenteredRBM, h::AbstractArray)
-    inputs = inputs_v_from_h(rbm, h)
-    return sample_from_inputs(rbm.visible, inputs)
-end
-
-function sample_v_from_v(rbm::CenteredRBM, v::AbstractArray; steps::Int = 1)
-    for _ in 1:steps
-        v = oftype(v, sample_v_from_v_once(rbm, v))
-    end
-    return v
-end
-
-function sample_h_from_h(rbm::CenteredRBM, h::AbstractArray; steps::Int = 1)
-    for _ in 1:steps
-        h = oftype(h, sample_h_from_h_once(rbm, h))
-    end
-    return h
-end
-
-function sample_v_from_v_once(rbm::CenteredRBM, v::AbstractArray)
-    h = sample_h_from_v(rbm, v)
-    v = sample_v_from_h(rbm, h)
-    return v
-end
-
-function sample_h_from_h_once(rbm::CenteredRBM, h::AbstractArray)
-    v = sample_v_from_h(rbm, h)
-    h = sample_h_from_v(rbm, v)
-    return h
 end
 
 function pcd!(
