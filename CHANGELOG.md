@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- Removed the internal, non-exported substitution-matrix reference
+  implementation of the pseudolikelihood from the package
+  (`substitution_matrix_sites`, `substitution_matrix_exhaustive`, their
+  `_2states` helpers, and the generic `log_pseudolikelihood_sites` /
+  `log_pseudolikelihood_exact` methods). These functions were unreachable
+  through normal dispatch — every supported visible layer has a specialized
+  fast path that shadows them — and only served as test oracles. They now live
+  in a test-only module, `test/pseudolikelihood_reference.jl`. Code that
+  imported them by name must be updated
+  ([#172](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/172)).
+
 ## 5.8.1
 
 - Fixed `log_pseudolikelihood(...; exact=true)` for `StandardizedRBM` and
