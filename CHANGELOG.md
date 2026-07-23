@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+- **Breaking**: Unbiased Contrastive Divergence has moved to a separate package,
+  [ucdRBMs.jl](https://github.com/cossio/ucdRBMs.jl). `ucd!`, `unbiased_sample`,
+  `unbiased_estimator`, and `UnbiasedSample` are no longer part of this package;
+  add `ucdRBMs` and replace `using RestrictedBoltzmannMachines: ucd!` with
+  `using ucdRBMs: ucd!`. Behavior is unchanged, and the algorithm continues to
+  build on this package's training loop.
+
 - **Breaking**: the trainers `pcd!` (plain, centered, and standardized) and
   `ucd!` now all invoke their `callback` with the same keywords,
   `(; rbm, optim, state, ps, iter, vd, wd, ∂)`, plus `vm` for the PCD trainers

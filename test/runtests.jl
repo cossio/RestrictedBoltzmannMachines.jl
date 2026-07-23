@@ -49,9 +49,6 @@ end
 module pcd_tests
     include("pcd.jl")
 end
-module ucd_tests
-    include("ucd.jl")
-end
 module zero_weight_training_tests
     include("zero_weight_training.jl")
 end

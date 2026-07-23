@@ -3,7 +3,7 @@ using Random: seed!
 import Optimisers
 import RestrictedBoltzmannMachines as RBMs
 using RestrictedBoltzmannMachines: RBM, Binary, Gaussian, BinaryRBM,
-    CenteredRBM, StandardizedRBM, center, standardize, pcd!, ucd!
+    CenteredRBM, StandardizedRBM, center, standardize, pcd!
 
 struct CountingDescent{T, R} <: Optimisers.AbstractRule
     eta::T
@@ -157,56 +157,6 @@ end
     check_pcd_filter_equivalence(kind, seed)
 end
 
-@testset "zero-weight UCD matches filtering" begin
-    data, wts = weighted_data()
-    positive = findall(!iszero, wts)
-    filtered_data = data[:, positive]
-    filtered_wts = wts[positive]
-
-    mixed_rbm = base_rbm()
-    filtered_rbm = deepcopy(mixed_rbm)
-    mixed_calls = Ref(0)
-    filtered_calls = Ref(0)
-    mixed_log = callback_log()
-    filtered_log = callback_log()
-    mixed_chain_stats = Tuple{Float64, Float64}[]
-    filtered_chain_stats = Tuple{Float64, Float64}[]
-    mixed_callback = (; meeting_steps, discarded, kwargs...) -> begin
-        mixed_log.callback(; kwargs...)
-        push!(mixed_chain_stats, (meeting_steps, discarded))
-        return nothing
-    end
-    filtered_callback = (; meeting_steps, discarded, kwargs...) -> begin
-        filtered_log.callback(; kwargs...)
-        push!(filtered_chain_stats, (meeting_steps, discarded))
-        return nothing
-    end
-
-    seed!(104)
-    ucd!(
-        mixed_rbm, data;
-        wts, batchsize = 2, iters = 2, nchains = 1,
-        min_steps = 1, max_steps = 64, max_resamples = 100,
-        optim = CountingDescent(0.01, mixed_calls),
-        callback = mixed_callback, shuffle = false, zerosum = false, rescale = false,
-    )
-    seed!(104)
-    ucd!(
-        filtered_rbm, filtered_data;
-        wts = filtered_wts, batchsize = 2, iters = 2, nchains = 1,
-        min_steps = 1, max_steps = 64, max_resamples = 100,
-        optim = CountingDescent(0.01, filtered_calls),
-        callback = filtered_callback, shuffle = false, zerosum = false, rescale = false,
-    )
-
-    @test mixed_log.iterations == filtered_log.iterations == 1:2
-    @test all(wd -> all(w -> w > 0, wd), mixed_log.weights)
-    @test mixed_calls[] == filtered_calls[] == 3 * 2
-    @test mixed_chain_stats == filtered_chain_stats
-    @test model_state(mixed_rbm) == model_state(filtered_rbm)
-    @test all_finite(mixed_rbm)
-end
-
 @testset "invalid training weights" begin
     data = zeros(2, 2)
     for (bad_wts, err) in (
@@ -265,54 +215,6 @@ end
 
     @test model_state(extreme_rbm) == model_state(unit_rbm)
     @test extreme_vm == unit_vm
-    @test extreme_log.weights == [[extreme_weight], [extreme_weight]]
-    @test unit_log.weights == [[1.0], [1.0]]
-    @test all_finite(extreme_rbm)
-end
-
-@testset "finite extreme $weight_type weights are scale-stable (UCD)" for
-    (weight_type, extreme_weight) in [
-        ("Float64", floatmax(Float64)),
-        ("UInt128", typemax(UInt128)),
-    ]
-    data = [
-        NaN 0.0 1.0
-        NaN 1.0 0.0
-    ]
-    extreme_wts = [zero(extreme_weight), extreme_weight, extreme_weight]
-    unit_wts = [0.0, 1.0, 1.0]
-    extreme_rbm = base_rbm()
-    unit_rbm = base_rbm()
-    extreme_log = callback_log()
-    unit_log = callback_log()
-    common = (;
-        batchsize = 1,
-        iters = 2,
-        nchains = 1,
-        min_steps = 1,
-        max_steps = 64,
-        max_resamples = 100,
-        shuffle = false,
-        zerosum = false,
-        rescale = false,
-    )
-
-    seed!(112)
-    ucd!(
-        extreme_rbm, data;
-        common..., wts = extreme_wts,
-        optim = CountingDescent(0.01, Ref(0)),
-        callback = extreme_log.callback,
-    )
-    seed!(112)
-    ucd!(
-        unit_rbm, data;
-        common..., wts = unit_wts,
-        optim = CountingDescent(0.01, Ref(0)),
-        callback = unit_log.callback,
-    )
-
-    @test model_state(extreme_rbm) == model_state(unit_rbm)
     @test extreme_log.weights == [[extreme_weight], [extreme_weight]]
     @test unit_log.weights == [[1.0], [1.0]]
     @test all_finite(extreme_rbm)
@@ -407,24 +309,6 @@ end
         ("standardized", Val(:standardized)),
     ]
     check_all_zero_pcd(kind)
-end
-
-@testset "all-zero weights fail before mutation (UCD)" begin
-    data = [0.0 1.0; 1.0 0.0]
-    rbm = base_rbm()
-    before = model_state(rbm)
-    updates = Ref(0)
-    callbacks = Ref(0)
-
-    @test_throws ArgumentError ucd!(
-        rbm, data;
-        wts = zeros(2), batchsize = 2, iters = 1, nchains = 1,
-        optim = CountingDescent(0.01, updates),
-        callback = (; kwargs...) -> (callbacks[] += 1),
-    )
-    @test model_state(rbm) == before
-    @test iszero(updates[])
-    @test iszero(callbacks[])
 end
 
 function train_sparse_pcd!(::Val{:plain}, rbm, data, wts, vm, optim, callback)
@@ -527,48 +411,3 @@ end
     @test default_calls[] == 3
 end
 
-@testset "fewer positive samples than batchsize complete (UCD)" begin
-    data = [
-        NaN NaN NaN NaN 1.0
-        NaN NaN NaN NaN 0.0
-    ]
-    wts = [0.0, 0.0, 0.0, 0.0, 1.0]
-    rbm = base_rbm()
-    calls = Ref(0)
-    log = callback_log()
-
-    seed!(105)
-    ucd!(
-        rbm, data;
-        wts, batchsize = 4, iters = 1, nchains = 1,
-        min_steps = 1, max_steps = 64, max_resamples = 100,
-        optim = CountingDescent(0.01, calls),
-        callback = log.callback, shuffle = false, zerosum = false, rescale = false,
-    )
-
-    @test log.iterations == [1]
-    @test length(only(log.weights)) == 1
-    @test all(w -> w > 0, only(log.weights))
-    @test calls[] == 3
-    @test all_finite(rbm)
-
-    default_rbm = base_rbm()
-    explicit_rbm = deepcopy(default_rbm)
-    common = (;
-        wts,
-        batchsize = 4,
-        iters = 1,
-        min_steps = 1,
-        max_steps = 64,
-        max_resamples = 100,
-        shuffle = false,
-        zerosum = false,
-        rescale = false,
-    )
-    # the default number of chains is the requested batchsize
-    seed!(108)
-    ucd!(default_rbm, data; common...)
-    seed!(108)
-    ucd!(explicit_rbm, data; common..., nchains = 4)
-    @test model_state(default_rbm) == model_state(explicit_rbm)
-end

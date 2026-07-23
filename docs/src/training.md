@@ -7,8 +7,10 @@ CurrentModule = RestrictedBoltzmannMachines
 This page describes how model training works in this package, focusing on:
 
 - [`pcd!`](@ref) for plain `RBM`,
-- specialized [`pcd!`](@ref) for `CenteredRBM` and `StandardizedRBM` (stdRBM),
-- [`ucd!`](@ref) for binary-binary RBMs.
+- specialized [`pcd!`](@ref) for `CenteredRBM` and `StandardizedRBM` (stdRBM).
+
+Unbiased Contrastive Divergence (`ucd!`) for binary-binary RBMs lives in a
+separate package, [ucdRBMs.jl](https://github.com/cossio/ucdRBMs.jl).
 
 See also the [MNIST example](@ref MNIST) for an end-to-end runnable script.
 
@@ -19,13 +21,13 @@ The usual training workflow is:
 1. Build an RBM (`BinaryRBM`, `GaussianRBM`, `PottsRBM`, ...).
 2. Prepare data with shape `(size(rbm.visible)..., nsamples)`.
 3. Call [`initialize!`](@ref) (for plain RBMs) or `standardize(...)` if using stdRBM.
-4. Train with [`pcd!`](@ref), or [`ucd!`](@ref) for a binary-binary RBM.
+4. Train with [`pcd!`](@ref).
 5. Monitor training with [`log_pseudolikelihood`](@ref), [`reconstruction_error`](@ref), or a callback.
 
 ## Weighted data
 
-Plain, centered, and standardized [`pcd!`](@ref), as well as [`ucd!`](@ref),
-accept optional per-sample weights through `wts`. Weights must be finite, real,
+Plain, centered, and standardized [`pcd!`](@ref) accept optional per-sample
+weights through `wts`. Weights must be finite, real,
 and nonnegative, and at least one weight must be positive.
 
 Observations with zero weight are excluded before data moments and mini-batches
