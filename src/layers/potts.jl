@@ -9,41 +9,25 @@ The number of classes is the size of the first dimension.
     Sampling from `Potts` layers is not GPU-friendly. For GPU usage,
     use [`PottsGumbel`](@ref) instead, which uses the Gumbel-softmax trick.
 """
-struct Potts{N, A} <: AbstractLayer{N}
-    par::A
-    function Potts{N, A}(par::A) where {N, A <: AbstractArray}
-        @assert size(par, 1) == 1 # θ
-        @assert ndims(par) == N + 1
-        return new(par)
-    end
-end
+@declare_layer Potts (θ = zeros,)
 
-Potts(par::AbstractArray) = Potts{ndims(par) - 1, typeof(par)}(par)
+# The statistics are shared with PottsGumbel, which differs from Potts only in how it
+# samples (see pottsgumbel.jl).
+cgfs(layer::Union{Potts, PottsGumbel}, inputs = 0) = logsumexp(layer.θ .+ inputs; dims = 1)
+mean_from_inputs(layer::Union{Potts, PottsGumbel}, inputs = 0) = softmax(layer.θ .+ inputs; dims = 1)
+mean_abs_from_inputs(layer::Union{Potts, PottsGumbel}, inputs = 0) = mean_from_inputs(layer, inputs)
 
-function Potts(; θ)
-    par = vstack((θ,))
-    return Potts(par)
-end
-
-Potts(::Type{T}, sz::Dims) where {T} = Potts(; θ = zeros(T, sz))
-Potts(sz::Dims) = Potts(Float64, sz)
-
-cgfs(layer::Potts, inputs = 0) = logsumexp(layer.θ .+ inputs; dims = 1)
-mean_from_inputs(layer::Potts, inputs = 0) = softmax(layer.θ .+ inputs; dims = 1)
-mean_abs_from_inputs(layer::Potts, inputs = 0) = mean_from_inputs(layer, inputs)
-std_from_inputs(layer::Potts, inputs = 0) = sqrt.(var_from_inputs(layer, inputs))
-
-function mode_from_inputs(layer::Potts, inputs = 0)
+function mode_from_inputs(layer::Union{Potts, PottsGumbel}, inputs = 0)
     θ = layer.θ .+ inputs
     return θ .== maximum(θ; dims = 1)
 end
 
-function var_from_inputs(layer::Potts, inputs = 0)
+function var_from_inputs(layer::Union{Potts, PottsGumbel}, inputs = 0)
     μ = mean_from_inputs(layer, inputs)
     return μ .* (1 .- μ)
 end
 
-function meanvar_from_inputs(layer::Potts, inputs = 0)
+function meanvar_from_inputs(layer::Union{Potts, PottsGumbel}, inputs = 0)
     μ = mean_from_inputs(layer, inputs)
     ν = μ .* (1 .- μ)
     return μ, ν

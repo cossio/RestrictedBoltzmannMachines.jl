@@ -10,30 +10,12 @@ E = -\sum_i \theta_i s_i
 
 where each spin ``s_i`` takes values ``\pm 1``.
 """
-struct Spin{N, A} <: AbstractLayer{N}
-    par::A
-    function Spin{N, A}(par::A) where {N, A <: AbstractArray}
-        @assert size(par, 1) == 1 # θ
-        @assert ndims(par) == N + 1
-        return new(par)
-    end
-end
-
-Spin(par::AbstractArray) = Spin{ndims(par) - 1, typeof(par)}(par)
-
-function Spin(; θ)
-    par = vstack((θ,))
-    return Spin(par)
-end
-
-Spin(::Type{T}, sz::Dims) where {T} = Spin(; θ = zeros(T, sz))
-Spin(sz::Dims) = Spin(Float64, sz)
+@declare_layer Spin (θ = zeros,)
 
 cgfs(layer::Spin, inputs = 0) = spin_cfg.(layer.θ .+ inputs)
 mode_from_inputs(layer::Spin, inputs = 0) = ifelse.(layer.θ .+ inputs .> 0, Int8(1), Int8(-1))
 mean_from_inputs(layer::Spin, inputs = 0) = tanh.(layer.θ .+ inputs)
 mean_abs_from_inputs(layer::Spin, _ = 0) = Ones{Int8}(size(layer))
-std_from_inputs(layer::Spin, inputs = 0) = sqrt.(var_from_inputs(layer, inputs))
 
 function var_from_inputs(layer::Spin, inputs = 0)
     μ = mean_from_inputs(layer, inputs)

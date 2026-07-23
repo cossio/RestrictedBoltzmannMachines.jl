@@ -111,62 +111,10 @@ function anneal(rbm0::RBM, rbm1::RBM; β::Real)
     return RBM(vis, hid, w)
 end
 
-function anneal(init::Binary, final::Binary; β::Real)
-    θ = (1 - β) * init.θ + β * final.θ
-    return Binary(; θ)
-end
-
-function anneal(init::Spin, final::Spin; β::Real)
-    θ = (1 - β) * init.θ + β * final.θ
-    return Spin(; θ)
-end
-
-function anneal(init::Potts, final::Potts; β::Real)
-    θ = (1 - β) * init.θ + β * final.θ
-    return Potts(; θ)
-end
-
-function anneal(init::Gaussian, final::Gaussian; β::Real)
-    θ = (1 - β) * init.θ + β * final.θ
-    γ = (1 - β) * init.γ + β * final.γ
-    return Gaussian(; θ, γ)
-end
-
-function anneal(init::ReLU, final::ReLU; β::Real)
-    θ = (1 - β) * init.θ + β * final.θ
-    γ = (1 - β) * init.γ + β * final.γ
-    return ReLU(; θ, γ)
-end
-
-function anneal(init::dReLU, final::dReLU; β::Real)
-    θp = (1 - β) * init.θp + β * final.θp
-    θn = (1 - β) * init.θn + β * final.θn
-    γp = (1 - β) * init.γp + β * final.γp
-    γn = (1 - β) * init.γn + β * final.γn
-    return dReLU(; θp, θn, γp, γn)
-end
-
-function anneal(init::pReLU, final::pReLU; β::Real)
-    θ = (1 - β) * init.θ + β * final.θ
-    γ = (1 - β) * init.γ + β * final.γ
-    Δ = (1 - β) * init.Δ + β * final.Δ
-    η = (1 - β) * init.η + β * final.η
-    return pReLU(; θ, γ, Δ, η)
-end
-
-function anneal(init::xReLU, final::xReLU; β::Real)
-    θ = (1 - β) * init.θ + β * final.θ
-    γ = (1 - β) * init.γ + β * final.γ
-    Δ = (1 - β) * init.Δ + β * final.Δ
-    ξ = (1 - β) * init.ξ + β * final.ξ
-    return xReLU(; θ, γ, Δ, ξ)
-end
-
-function anneal(init::nsReLU, final::nsReLU; β::Real)
-    θ = (1 - β) * init.θ + β * final.θ
-    Δ = (1 - β) * init.Δ + β * final.Δ
-    ξ = (1 - β) * init.ξ + β * final.ξ
-    return nsReLU(; θ, Δ, ξ)
+# Since every named layer parameter is a row of `par`, all layers anneal the same way.
+function anneal(init::AbstractLayer, final::AbstractLayer; β::Real)
+    @assert nameof(typeof(init)) === nameof(typeof(final))
+    return _construct_like(init, (1 - β) * init.par + β * final.par)
 end
 
 anneal_zero(init::AbstractLayer, rbm::RBM) = RBM(init, anneal_zero(rbm.hidden), Zeros(rbm.w))
@@ -174,6 +122,7 @@ anneal_zero(init::AbstractLayer, rbm::RBM) = RBM(init, anneal_zero(rbm.hidden), 
 anneal_zero(l::Binary) = Binary(; θ = zero(l.θ))
 anneal_zero(l::Spin) = Spin(; θ = zero(l.θ))
 anneal_zero(l::Potts) = Potts(; θ = zero(l.θ))
+anneal_zero(l::PottsGumbel) = PottsGumbel(; θ = zero(l.θ))
 anneal_zero(l::Gaussian) = Gaussian(; θ = zero(l.θ), l.γ)
 anneal_zero(l::ReLU) = ReLU(; θ = zero(l.θ), l.γ)
 anneal_zero(l::dReLU) = dReLU(; θp = zero(l.θp), θn = zero(l.θn), l.γp, l.γn)
