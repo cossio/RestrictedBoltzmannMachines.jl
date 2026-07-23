@@ -1,7 +1,7 @@
 import Random
 import Zygote
 using Base: tail
-using Test: @test, @testset, @inferred
+using Test: @test, @test_throws, @testset, @inferred
 using Statistics: mean, var, cov
 using Random: bitrand, rand!, randn!
 using LogExpFunctions: logistic
@@ -43,6 +43,8 @@ _layers = (
     for (d, n) in enumerate(sz)
         @test (@inferred size(layer, d)) == n
     end
+    @test (@inferred size(layer, length(sz) + 1)) == 1 # trailing dims are 1, as for arrays
+    @test_throws ArgumentError size(layer, 0)
 
     @test (@inferred length(layer)) == prod(sz)
     @test (@inferred ndims(layer)) == length(sz)
