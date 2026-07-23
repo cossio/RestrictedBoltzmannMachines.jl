@@ -4,18 +4,20 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
-- Removed internal helpers that had no callers left in the package (they were
-  importable and tested, but unused by `src/` and `ext/`):
+- **Breaking**: Removed internal helpers that had no callers left in the
+  package (they were unused by `src/` and `ext/`, but importable, tested, and
+  rendered in the API reference docs, so removing them is breaking):
   `block_matrix_logdet` and `block_matrix_invert` (the whole
   `src/util/linalg.jl` file), `moving_average`, `wsum`, `broadlike` and
   `first_argument`, `sizedims`, `cold_metropolis` and `cold_metropolis_once`,
   and the non-mutating `∂regularize` and `∂regularize_weights` (use
   `∂regularize!` instead)
   ([#173](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/173)).
-- Removed the `iterate_states(::Potts)` stub (which only threw
+- **Breaking**: Removed the `iterate_states(::Potts)` stub (which only threw
   `error("not implemented")`) and narrowed `collect_states` to
   `Union{Binary, Spin}`; Potts enumeration was never implemented and the old
-  signature was misleading
+  signature was misleading (calls with a Potts layer now throw `MethodError`
+  instead of `ErrorException`)
   ([#173](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/173)).
 - Internal simplifications with no behavior change: the non-mutating
   `∂regularize_fields` now delegates to `∂regularize_fields!` generically,
