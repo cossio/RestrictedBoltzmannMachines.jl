@@ -26,6 +26,7 @@ using RestrictedBoltzmannMachines: GaussianRBM
 using RestrictedBoltzmannMachines: hidden_cgf
 using RestrictedBoltzmannMachines: HopfieldRBM
 using RestrictedBoltzmannMachines: inputs_h_from_v
+using RestrictedBoltzmannMachines: join_batch_size
 using RestrictedBoltzmannMachines: inputs_v_from_h
 using RestrictedBoltzmannMachines: interaction_energy
 using RestrictedBoltzmannMachines: log_likelihood
@@ -153,6 +154,15 @@ end
     h = bitrand(2, 3, 3)
     @test_throws Any batch_size(rbm, v, h)
     @test_throws Any energy(rbm, v, h)
+end
+
+@testset "join_batch_size" begin
+    @test join_batch_size((3, 5), (3, 5)) == (3, 5)
+    @test join_batch_size((1, 5), (3, 5)) == (3, 5)
+    @test join_batch_size((3, 1), (3, 5)) == (3, 5)
+    @test join_batch_size((3,), (3, 7)) == (3, 7)
+    @test join_batch_size((3, 7), (3,)) == (3, 7)
+    @test_throws AssertionError join_batch_size((2, 5), (3, 5))
 end
 
 @testset "sample_v_from_v and sample_h_from_h on binary RBM" begin

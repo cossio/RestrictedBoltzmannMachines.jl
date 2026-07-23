@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+- Fixed `free_energy_h(::CenteredRBM, h)`, which previously fell through to the
+  plain `RBM` method and omitted the visible-offset correction term, making it
+  inconsistent with `free_energy` and with `free_energy(mirror(rbm), h)`. It now
+  includes the correction, matching the `StandardizedRBM` behavior
+  ([#170](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/170)).
+- `∂free_energy_v`, `∂free_energy_h`, and `regularization_penalty` now also
+  accept `CenteredRBM` (they previously raised a `MethodError`), and
+  `∂regularize!` for `CenteredRBM` accepts the `regularize_unstandardized`
+  keyword with the same meaning as for `StandardizedRBM`
+  ([#170](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/170)).
+- `sample_v_from_v` and `sample_h_from_h` for `CenteredRBM` now assert that the
+  configuration size matches the layer size, like the other RBM types.
 - Internal refactor of `src/layers/` reducing per-layer boilerplate and duplicated
   math by ~360 lines, with no changes to the public API or behavior
   ([#171](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/171)):
