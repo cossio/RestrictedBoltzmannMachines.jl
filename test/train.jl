@@ -247,4 +247,3 @@ end
     @test norm(mean(urbm.visible.θ; dims = 1)) < 1.0e-10
     @test norm(mean(urbm.w; dims = 1)) < 1.0e-10
 end
-

@@ -410,4 +410,3 @@ end
     @test fantasy_sizes == [4]
     @test default_calls[] == 3
 end
-
