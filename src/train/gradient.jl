@@ -23,7 +23,7 @@ Gradient of `free_energy(rbm, v)` with respect to model parameters.
 If `v` consists of multiple samples (batches), then an average is taken.
 """
 function ∂free_energy(
-        rbm::RBM, v::AbstractArray; wts = nothing,
+        rbm, v::AbstractArray; wts = nothing,
         moments = moments_from_samples(rbm.visible, v; wts)
     )
     inputs = inputs_h_from_v(rbm, v)
@@ -35,10 +35,10 @@ function ∂free_energy(
     return ∂RBM(∂v, ∂h, ∂w)
 end
 
-∂free_energy_v(rbm::RBM, v::AbstractArray; kwargs...) = ∂free_energy(rbm, v; kwargs...)
+∂free_energy_v(rbm, v::AbstractArray; kwargs...) = ∂free_energy(rbm, v; kwargs...)
 
 function ∂free_energy_h(
-        rbm::RBM, h::AbstractArray; wts = nothing,
+        rbm, h::AbstractArray; wts = nothing,
         moments = moments_from_samples(rbm.hidden, h; wts)
     )
     inputs = inputs_v_from_h(rbm, h)

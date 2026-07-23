@@ -3,8 +3,10 @@ using Random: bitrand
 using Statistics: mean, std
 using LogExpFunctions: logsumexp
 using RestrictedBoltzmannMachines: RBM, Binary, Gaussian, Spin, Potts, PottsGumbel, free_energy,
-    substitution_matrix_exhaustive, log_pseudolikelihood, log_pseudolikelihood_sites,
-    substitution_matrix_sites, log_pseudolikelihood_exact, onehot_encode
+    log_pseudolikelihood, log_pseudolikelihood_sites, log_pseudolikelihood_exact, onehot_encode
+
+include("pseudolikelihood_reference.jl")
+import .PseudolikelihoodReference as PLRef
 
 @testset "binary pseudolikelihood" begin
     n = (3, 2)
@@ -22,7 +24,7 @@ using RestrictedBoltzmannMachines: RBM, Binary, Gaussian, Spin, Potts, PottsGumb
         v_[i, :] .= x
         ΔE[k, i, :] .= free_energy(rbm, v_) - E
     end
-    @test ΔE ≈ substitution_matrix_exhaustive(rbm, v)
+    @test ΔE ≈ PLRef.substitution_matrix_exhaustive(rbm, v)
     lpl = -logsumexp(-ΔE; dims = 1)
     @assert size(lpl) == (1, n..., B)
     @test log_pseudolikelihood(rbm, v; exact = true) ≈ vec(mean(lpl; dims = (1, 2, 3)))
@@ -37,7 +39,7 @@ using RestrictedBoltzmannMachines: RBM, Binary, Gaussian, Spin, Potts, PottsGumb
         end
         ΔE[k, :] .= free_energy(rbm, v_) - E
     end
-    @test ΔE ≈ substitution_matrix_sites(rbm, v, sites)
+    @test ΔE ≈ PLRef.substitution_matrix_sites(rbm, v, sites)
     lpl = -logsumexp(-ΔE; dims = 1)
     @test log_pseudolikelihood_sites(rbm, v, sites) ≈ vec(lpl)
 end
@@ -58,7 +60,7 @@ end
         v_[i, :] .= x
         ΔE[k, i, :] .= free_energy(rbm, v_) - E
     end
-    @test ΔE ≈ substitution_matrix_exhaustive(rbm, v)
+    @test ΔE ≈ PLRef.substitution_matrix_exhaustive(rbm, v)
     lpl = -logsumexp(-ΔE; dims = 1)
     @assert size(lpl) == (1, n..., B)
     @test log_pseudolikelihood(rbm, v; exact = true) ≈ vec(mean(lpl; dims = (1, 2, 3)))
@@ -72,7 +74,7 @@ end
         end
         ΔE[k, :] .= free_energy(rbm, v_) - E
     end
-    @test ΔE ≈ substitution_matrix_sites(rbm, v, sites)
+    @test ΔE ≈ PLRef.substitution_matrix_sites(rbm, v, sites)
     lpl = -logsumexp(-ΔE; dims = 1)
     @test log_pseudolikelihood_sites(rbm, v, sites) ≈ vec(lpl)
 end
@@ -98,7 +100,7 @@ end
         v_[x, i, :] .= true
         ΔE[x, i, :] .= free_energy(rbm, v_) - E
     end
-    @test ΔE ≈ substitution_matrix_exhaustive(rbm, v)
+    @test ΔE ≈ PLRef.substitution_matrix_exhaustive(rbm, v)
     lpl = -logsumexp(-ΔE; dims = 1)
     @assert size(lpl) == (1, n..., B)
     @test log_pseudolikelihood(rbm, v; exact = true) ≈ vec(mean(lpl; dims = (1, 2, 3)))
@@ -113,14 +115,14 @@ end
         end
         ΔE[x, :] .= free_energy(rbm, v_) - E
     end
-    @test ΔE ≈ substitution_matrix_sites(rbm, v, sites)
+    @test ΔE ≈ PLRef.substitution_matrix_sites(rbm, v, sites)
     lpl = -logsumexp(-ΔE; dims = 1)
     @test log_pseudolikelihood_sites(rbm, v, sites) ≈ vec(lpl)
 end
 
-# The specialized fast paths for Binary/Spin/Potts must agree with the generic
+# The specialized fast paths for Binary/Spin/Potts must agree with the
 # reference implementation based on substitution matrices.
-@testset "generic fallback vs fast path ($vis, $hid)" for
+@testset "reference vs fast path ($vis, $hid)" for
     vis in (:Binary, :Spin, :Potts), hid in (:Gaussian, :Binary)
     q = 3
     n = (3, 2)
@@ -140,15 +142,11 @@ end
     end
     sites = [rand(CartesianIndices(n)) for _ in 1:B]
 
-    lpl_sites_generic = invoke(
-        log_pseudolikelihood_sites,
-        Tuple{RBM, AbstractArray, AbstractArray{<:CartesianIndex}},
-        rbm, v, sites
-    )
-    @test lpl_sites_generic ≈ log_pseudolikelihood_sites(rbm, v, sites)
+    lpl_sites_reference = PLRef.log_pseudolikelihood_sites(rbm, v, sites)
+    @test lpl_sites_reference ≈ log_pseudolikelihood_sites(rbm, v, sites)
 
-    lpl_exact_generic = invoke(log_pseudolikelihood_exact, Tuple{RBM, AbstractArray}, rbm, v)
-    @test lpl_exact_generic ≈ log_pseudolikelihood_exact(rbm, v)
+    lpl_exact_reference = PLRef.log_pseudolikelihood_exact(rbm, v)
+    @test lpl_exact_reference ≈ log_pseudolikelihood_exact(rbm, v)
 end
 
 @testset "Gaussian-hidden exact fast paths" begin
@@ -172,9 +170,7 @@ end
     for (visible, v) in cases
         w = randn(T, size(visible)..., m...) / sqrt(T(length(visible)))
         rbm = RBM(visible, hidden, w)
-        reference = invoke(
-            log_pseudolikelihood_exact, Tuple{RBM, AbstractArray}, rbm, v
-        )
+        reference = PLRef.log_pseudolikelihood_exact(rbm, v)
         result = log_pseudolikelihood_exact(rbm, v)
         @test size(result) == batch
         @test eltype(result) == T
@@ -191,9 +187,7 @@ end
     )
     v_dense = rand(T, q, n..., batch...)
     v_dense ./= sum(v_dense; dims = 1)
-    reference = invoke(
-        log_pseudolikelihood_exact, Tuple{RBM, AbstractArray}, rbm, v_dense
-    )
+    reference = PLRef.log_pseudolikelihood_exact(rbm, v_dense)
     @test log_pseudolikelihood_exact(rbm, v_dense) ≈
         reference rtol = 5.0e-4 atol = 5.0e-5
 
@@ -204,12 +198,7 @@ end
         randn(T, n..., m...) / sqrt(T(prod(n))),
     )
     result = log_pseudolikelihood_exact(rbm_unbatched, v_unbatched)
-    reference = invoke(
-        log_pseudolikelihood_exact,
-        Tuple{RBM, AbstractArray},
-        rbm_unbatched,
-        v_unbatched,
-    )
+    reference = PLRef.log_pseudolikelihood_exact(rbm_unbatched, v_unbatched)
     @test size(result) == ()
     @test only(result) ≈ only(reference) rtol = 5.0e-4 atol = 5.0e-5
 
@@ -262,9 +251,7 @@ end
     )
     for (visible_mixed, v, w) in mixed_cases
         rbm_mixed = RBM(visible_mixed, hidden_mixed, w)
-        reference = invoke(
-            log_pseudolikelihood_exact, Tuple{RBM, AbstractArray}, rbm_mixed, v
-        )
+        reference = PLRef.log_pseudolikelihood_exact(rbm_mixed, v)
         result = log_pseudolikelihood_exact(rbm_mixed, v)
         @test eltype(result) == Float64
         @test result ≈ reference rtol = 0 atol = 1.0e-8
@@ -318,7 +305,7 @@ end
     @test F0 isa Number
 
     site = fill(rand(CartesianIndices(n))) # 0-dimensional array of sites
-    ΔE = substitution_matrix_sites(rbm, v, site)
+    ΔE = PLRef.substitution_matrix_sites(rbm, v, site)
     @test size(ΔE) == (2,)
     for (k, x) in enumerate((false, true))
         v_ = copy(v)
@@ -326,7 +313,7 @@ end
         @test ΔE[k] ≈ free_energy(rbm, v_) - F0
     end
 
-    ΔE = substitution_matrix_exhaustive(rbm, v)
+    ΔE = PLRef.substitution_matrix_exhaustive(rbm, v)
     @test size(ΔE) == (2, n...)
     for (k, x) in enumerate((false, true)), i in CartesianIndices(n)
         v_ = copy(v)
@@ -346,8 +333,8 @@ end
     v = onehot_encode(rand(1:q, n..., B), 1:q)
     sites = [rand(CartesianIndices(n)) for _ in 1:B]
 
-    @test substitution_matrix_sites(rbm_gumbel, v, sites) ≈ substitution_matrix_sites(rbm_potts, v, sites)
-    @test substitution_matrix_exhaustive(rbm_gumbel, v) ≈ substitution_matrix_exhaustive(rbm_potts, v)
+    @test PLRef.substitution_matrix_sites(rbm_gumbel, v, sites) ≈ PLRef.substitution_matrix_sites(rbm_potts, v, sites)
+    @test PLRef.substitution_matrix_exhaustive(rbm_gumbel, v) ≈ PLRef.substitution_matrix_exhaustive(rbm_potts, v)
     @test log_pseudolikelihood_sites(rbm_gumbel, v, sites) ≈ log_pseudolikelihood_sites(rbm_potts, v, sites)
     @test log_pseudolikelihood(rbm_gumbel, v; exact = true) ≈ log_pseudolikelihood(rbm_potts, v; exact = true)
 end
