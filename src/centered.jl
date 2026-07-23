@@ -247,20 +247,12 @@ end
 function pcd!(
         rbm::CenteredRBM,
         data::AbstractArray;
-
         batchsize::Int = 1,
-        iters::Int = 1,
-
-        optim::AbstractRule = Adam(), # a rule from Optimisers
-        steps::Int = 1, # Monte-Carlo steps to update persistent chains
-
-        # data point weights
-        wts::Union{AbstractVector, Nothing} = nothing,
-
-        # init fantasy chains
-        vm = nothing,
-
-        moments = moments_from_samples(rbm.visible, data; wts),
+        iters::Int = 1, # number of gradient updates
+        wts::Union{AbstractVector, Nothing} = nothing, # data weights
+        steps::Int = 1, # MC steps to update fantasy chains
+        optim::AbstractRule = Adam(), # optimizer rule
+        moments = moments_from_samples(rbm.visible, data; wts), # sufficient statistics for visible layer
 
         # damping to update hidden statistics
         hidden_offset_damping::Real = 1 // 100,
@@ -275,62 +267,39 @@ function pcd!(
         zerosum::Bool = true, # zerosum gauge for Potts layers
         rescale::Bool = true, # normalize weights to unit norm (for continuous hidden units only)
 
-        callback = Returns(nothing)
+        callback = Returns(nothing), # called for every batch
+
+        # init fantasy chains
+        vm = nothing,
+
+        shuffle::Bool = true,
+
+        # parameters to optimize
+        ps = nothing,
+        state = nothing,
     )
-    @assert size(data) == (size(rbm.visible)..., size(data)[end])
-    isnothing(wts) || @assert size(data)[end] == length(wts)
     _validate_layer_parameters(rbm)
-    isnothing(vm) &&
-        (
-        vm = sample_from_inputs(
-            rbm.visible, Falses(size(rbm.visible)..., batchsize)
-        )
-    )
-
-    data, wts, normalization, batchsize = _prepare_training_data(data, wts; batchsize)
-
-    # initial centering from data
-    center_from_data!(rbm, data; wts)
-
-    # gauge constraints
-    zerosum && zerosum!(rbm)
-    rescale && rescale_weights!(rbm)
-
-    # define parameters for Optimiser
-    ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w)
-    state = setup(optim, ps)
-
-    for (iter, (vd, wd)) in zip(1:iters, infinite_minibatches(data, wts; batchsize))
-        batch_weight = _batch_weight(wd, normalization)
-
-        # update fantasy chains
-        vm .= sample_v_from_v(rbm, vm; steps)
-
-        # compute gradient
-        ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
-        ∂m = ∂free_energy(rbm, vm)
-        ∂ = ∂d - ∂m
-
-        ∂ *= batch_weight
-
-        # weight decay
-        ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum)
-
-        # feed gradient to Optimiser rule
-        gs = (; visible = ∂.visible, hidden = ∂.hidden, w = ∂.w)
-        state, ps = update!(state, ps, gs)
-        _validate_layer_parameters(rbm)
-
-        # centering
-        offset_h_new = grad2ave(rbm.hidden, -∂d.hidden) # <h>_d from minibatch
-        offset_h = (1 - hidden_offset_damping) * rbm.offset_h + hidden_offset_damping * offset_h_new
-        center_hidden!(rbm, offset_h)
-
-        # gauge constraints
+    isnothing(vm) && (vm = _default_fantasy_chains(rbm, batchsize))
+    reset_gauge! = () -> begin
         zerosum && zerosum!(rbm)
         rescale && rescale_weights!(rbm)
-
-        callback(; rbm, optim, iter, vm, vd, wd)
+        return nothing
     end
-    return state, ps
+    return _train!(
+        rbm, data;
+        batchsize, iters, wts, moments, optim, ps, state, shuffle,
+        l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum, callback,
+        setup! = (data, wts) -> begin
+            center_from_data!(rbm, data; wts) # initial centering from data
+            reset_gauge!()
+        end,
+        negative_phase = vd -> _pcd_negative_phase(rbm, vm, steps),
+        post_update! = (vd, wd, ∂d) -> begin
+            # damped update of the hidden offsets towards <h>_d from the minibatch
+            offset_h_new = grad2ave(rbm.hidden, -∂d.hidden)
+            offset_h = (1 - hidden_offset_damping) * rbm.offset_h + hidden_offset_damping * offset_h_new
+            center_hidden!(rbm, offset_h)
+            reset_gauge!()
+        end,
+    )
 end

@@ -70,3 +70,13 @@ end
     rbm, data = ucd_retry_fixture()
     @test ucd!(rbm, data; iters = 1, batchsize = 4, nchains = 1, min_steps = 1, max_steps = 1, max_resamples = 1) isa Tuple
 end
+
+@testset "ucd! unified callback keywords" begin
+    seed!(5)
+    rbm, data = ucd_retry_fixture()
+    seen = Ref{Any}(nothing)
+    state, ps = ucd!(rbm, data; iters = 2, batchsize = 4, callback = (; kwargs...) -> (seen[] = kwargs))
+    @test issubset((:rbm, :optim, :state, :ps, :iter, :vd, :wd, :∂, :meeting_steps, :discarded), keys(seen[]))
+    @test seen[][:rbm] === rbm
+    @test seen[][:ps] === ps
+end

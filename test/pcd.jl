@@ -33,3 +33,14 @@ end
     @test all(isfinite, rbm.hidden.par)
     @test all(isfinite, rbm.w)
 end
+
+@testset "pcd! unified callback keywords" begin
+    data = bitrand(2, 32)
+    rbm = BinaryRBM(2, 3)
+    seen = Ref{Any}(nothing)
+    state, ps = pcd!(rbm, data; iters = 2, batchsize = 8, callback = (; kwargs...) -> (seen[] = kwargs))
+    @test issubset((:rbm, :optim, :state, :ps, :iter, :vd, :wd, :∂, :vm), keys(seen[]))
+    @test seen[][:rbm] === rbm
+    @test seen[][:ps] === ps
+    @test seen[][:state] == state
+end
