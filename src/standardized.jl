@@ -41,151 +41,9 @@ RBM(rbm::StandardizedRBM) = RBM(rbm.visible, rbm.hidden, rbm.w)
 standardize_v(rbm::StandardizedRBM, v::AbstractArray) = (v .- rbm.offset_v) ./ rbm.scale_v
 standardize_h(rbm::StandardizedRBM, h::AbstractArray) = (h .- rbm.offset_h) ./ rbm.scale_h
 
-function interaction_energy(rbm::StandardizedRBM, v::AbstractArray, h::AbstractArray)
-    std_v = standardize_v(rbm, v)
-    std_h = standardize_h(rbm, h)
-    return interaction_energy(RBM(rbm), std_v, std_h)
-end
-
-function inputs_h_from_v(rbm::StandardizedRBM, v::AbstractArray)
-    std_v = standardize_v(rbm, v)
-    inputs = inputs_h_from_v(RBM(rbm), std_v)
-    return inputs ./ rbm.scale_h
-end
-
-function inputs_v_from_h(rbm::StandardizedRBM, h::AbstractArray)
-    std_h = standardize_h(rbm, h)
-    inputs = inputs_v_from_h(RBM(rbm), std_h)
-    return inputs ./ rbm.scale_v
-end
-
 function mirror(rbm::StandardizedRBM)
     _rbm = mirror(RBM(rbm))
     return StandardizedRBM(_rbm, rbm.offset_h, rbm.offset_v, rbm.scale_h, rbm.scale_v)
-end
-
-function free_energy(rbm::StandardizedRBM, v::AbstractArray)
-    E = energy(rbm.visible, v)
-    inputs = inputs_h_from_v(rbm, v)
-    F = -cgf(rbm.hidden, inputs)
-    ΔE = energy(Binary(; θ = rbm.offset_h), inputs)
-    return E + F - ΔE
-end
-
-function free_energy_h(rbm::StandardizedRBM, h::AbstractArray)
-    E = energy(rbm.hidden, h)
-    inputs = inputs_v_from_h(rbm, h)
-    F = -cgf(rbm.visible, inputs)
-    ΔE = energy(Binary(; θ = rbm.offset_v), inputs)
-    return E + F - ΔE
-end
-
-function ∂free_energy(
-        rbm::StandardizedRBM, v::AbstractArray;
-        wts = nothing, moments = moments_from_samples(rbm.visible, v; wts)
-    )
-    inputs = inputs_h_from_v(rbm, v)
-    ∂v = ∂energy_from_moments(rbm.visible, moments)
-    ∂Γ = ∂cgfs(rbm.hidden, inputs)
-    h = grad2ave(rbm.hidden, ∂Γ)
-
-    ∂h = reshape(wmean(-∂Γ; wts, dims = (ndims(rbm.hidden.par) + 1):ndims(∂Γ)), size(rbm.hidden.par))
-    ∂w = ∂interaction_energy(rbm, v, h; wts)
-
-    return ∂RBM(∂v, ∂h, ∂w)
-end
-
-function ∂free_energy_v(rbm::StandardizedRBM, v::AbstractArray; kwargs...)
-    return ∂free_energy(rbm, v; kwargs...)
-end
-
-function ∂free_energy_h(
-        rbm::StandardizedRBM, h::AbstractArray;
-        wts = nothing, moments = moments_from_samples(rbm.hidden, h; wts)
-    )
-    inputs = inputs_v_from_h(rbm, h)
-    ∂h = ∂energy_from_moments(rbm.hidden, moments)
-    ∂Γ = ∂cgfs(rbm.visible, inputs)
-    v = grad2ave(rbm.visible, ∂Γ)
-
-    ∂v = reshape(wmean(-∂Γ; wts, dims = (ndims(rbm.visible.par) + 1):ndims(∂Γ)), size(rbm.visible.par))
-    ∂w = ∂interaction_energy(rbm, v, h; wts)
-
-    return ∂RBM(∂v, ∂h, ∂w)
-end
-
-function ∂interaction_energy(
-        rbm::StandardizedRBM, v::AbstractArray, h::AbstractArray; wts = nothing
-    )
-    std_v = standardize_v(rbm, v)
-    std_h = standardize_h(rbm, h)
-    ∂w = ∂interaction_energy(RBM(rbm), std_v, std_h; wts)
-    return ∂w
-end
-
-function log_pseudolikelihood(rbm::StandardizedRBM, v::AbstractArray; kwargs...)
-    return log_pseudolikelihood(unstandardize(rbm), v; kwargs...)
-end
-
-function ∂regularize!(
-        ∂::∂RBM, std_rbm::StandardizedRBM;
-        l2_fields::Real = 0,
-        l1_weights::Real = 0,
-        l2_weights::Real = 0,
-        l2l1_weights::Real = 0,
-        regularize_unstandardized::Bool = true,
-        zerosum::Bool = false # whether to zerosum gradients
-    )
-    if regularize_unstandardized
-        # regularization applies the unstandardized parameters
-        rbm = unstandardize(std_rbm)
-
-        offset_h = reshape(std_rbm.offset_h, map(one, size(std_rbm.scale_v))..., size(std_rbm.scale_h)...)
-        scale_v = reshape(std_rbm.scale_v, size(std_rbm.scale_v)..., map(one, size(std_rbm.scale_h))...)
-        scale_h = reshape(std_rbm.scale_h, map(one, size(std_rbm.scale_v))..., size(std_rbm.scale_h)...)
-        scale_w = scale_v .* scale_h
-
-        if !iszero(l2_fields)
-            visible_reg = ∂regularize_fields(rbm.visible; l2_fields)
-            ∂.visible .+= visible_reg
-            ∂regularize_add_visible_offset!(∂, visible_reg, offset_h, scale_w, std_rbm.visible)
-        end
-        if !iszero(l1_weights)
-            ∂.w .+= l1_weights * sign.(rbm.w) ./ scale_w
-        end
-        if !iszero(l2_weights)
-            ∂.w .+= l2_weights * rbm.w ./ scale_w
-        end
-        if !iszero(l2l1_weights)
-            dims = ntuple(identity, ndims(std_rbm.visible))
-            ∂.w .+= l2l1_weights * sign.(rbm.w) .* mean(abs, rbm.w; dims) ./ scale_w
-        end
-    else
-        # regularization applies directly to standardized parameters
-        ∂regularize!(∂, RBM(std_rbm); l2_fields, l1_weights, l2_weights, l2l1_weights)
-    end
-    zerosum && zerosum!(∂, std_rbm)
-    return ∂
-end
-
-function ∂regularize_add_visible_offset!(∂::∂RBM, visible_regularization::AbstractArray, offset_h::AbstractArray, scale_w::AbstractArray, ::dReLU)
-    return ∂.w .-= (visible_regularization[1, ..] + visible_regularization[2, ..]) .* offset_h ./ scale_w
-end
-
-function ∂regularize_add_visible_offset!(∂::∂RBM, visible_regularization::AbstractArray, offset_h::AbstractArray, scale_w::AbstractArray, ::Union{Binary, Spin, Potts, PottsGumbel, Gaussian, ReLU, xReLU, pReLU, nsReLU})
-    return ∂.w .-= visible_regularization[1, ..] .* offset_h ./ scale_w
-end
-
-function regularization_penalty(
-        std_rbm::StandardizedRBM; regularize_unstandardized::Bool = true,
-        l1_weights::Real = 0, l2_weights::Real = 0, l2l1_weights::Real = 0, l2_fields::Real = 0,
-    )
-    if regularize_unstandardized
-        rbm = unstandardize(std_rbm)
-        return regularization_penalty(rbm; l1_weights, l2_weights, l2l1_weights, l2_fields)
-    else
-        return regularization_penalty(RBM(std_rbm); l1_weights, l2_weights, l2l1_weights, l2_fields)
-    end
 end
 
 function rescale_hidden_activations!(rbm::StandardizedRBM)
@@ -213,64 +71,6 @@ function zerosum(rbm::StandardizedRBM)
     has_potts_layers(rbm) || return rbm
     plain = zerosum(unstandardize(rbm))
     return standardize(plain, rbm.offset_v, rbm.offset_h, rbm.scale_v, rbm.scale_h)
-end
-
-"""
-    zerosum!(rbm::StandardizedRBM)
-
-In-place version of `zerosum(rbm)`. Offsets and scales are not modified.
-"""
-function zerosum!(rbm::StandardizedRBM)
-    if rbm.visible isa Union{Potts, PottsGumbel}
-        # Gauge move on the unstandardized weights w̃ = w / (scale_v ⊗ scale_h):
-        # subtract their mean over visible colors (scale_h cancels out of the w update).
-        ξ = mean(rbm.w ./ rbm.scale_v; dims = 1)
-        rbm.w .-= ξ .* rbm.scale_v
-        zerosum!(rbm.visible.θ; dims = 1)
-        # Compensate hidden fields. Unlike a plain RBM, the interaction involves
-        # v - offset_v, so the color-sum of the visible offsets enters the shift.
-        vdims = ntuple(identity, ndims(rbm.visible))
-        Ov = sum(rbm.offset_v; dims = 1)
-        Δθh = reshape(sum(ξ .* (1 .- Ov); dims = vdims), size(rbm.hidden)) ./ rbm.scale_h
-        shift_fields!(rbm.hidden, Δθh)
-    end
-    if rbm.hidden isa Union{Potts, PottsGumbel}
-        scale_h = reshape(rbm.scale_h, map(one, size(rbm.visible))..., size(rbm.hidden)...)
-        ζ = mean(rbm.w ./ scale_h; dims = ndims(rbm.visible) + 1)
-        rbm.w .-= ζ .* scale_h
-        zerosum!(rbm.hidden.θ; dims = 1)
-        hdims = ntuple(d -> d + ndims(rbm.visible), ndims(rbm.hidden))
-        Oh = reshape(sum(rbm.offset_h; dims = 1), map(one, size(rbm.visible))..., 1, size(rbm.hidden)[2:end]...)
-        Δθv = reshape(sum(ζ .* (1 .- Oh); dims = hdims), size(rbm.visible)) ./ rbm.scale_v
-        shift_fields!(rbm.visible, Δθv)
-    end
-    return rbm
-end
-
-"""
-    zerosum!(∂, rbm::StandardizedRBM)
-
-Projects the gradient so that it doesn't modify the zerosum gauge of the equivalent
-unstandardized `RBM` (see [`unstandardize`](@ref)), with offsets and scales held fixed.
-
-As in `zerosum!(rbm::StandardizedRBM)`, the gauge condition applies to the
-unstandardized parameters: for the weights it reads `sum(w ./ scale_v; dims = 1) == 0`
-over Potts colors (and similarly for hidden Potts with `scale_h`), so the gradient
-component removed here is the corresponding gauge direction `ξ .* scale_v`.
-"""
-function zerosum!(∂::∂RBM, rbm::StandardizedRBM)
-    if rbm.visible isa Union{Potts, PottsGumbel}
-        zerosum!(∂.visible; dims = 2) # dim 1 of `par` is the (singleton) parameter type
-        ξ = mean(∂.w ./ rbm.scale_v; dims = 1)
-        ∂.w .-= ξ .* rbm.scale_v
-    end
-    if rbm.hidden isa Union{Potts, PottsGumbel}
-        zerosum!(∂.hidden; dims = 2)
-        scale_h = reshape(rbm.scale_h, map(one, size(rbm.visible))..., size(rbm.hidden)...)
-        ζ = mean(∂.w ./ scale_h; dims = ndims(rbm.visible) + 1)
-        ∂.w .-= ζ .* scale_h
-    end
-    return ∂
 end
 
 """
@@ -415,11 +215,7 @@ function standardize_hidden_from_v!(rbm::StandardizedRBM, v::AbstractArray; wts 
     return standardize_hidden_from_inputs!(rbm, inputs; damping, wts, ϵ)
 end
 
-function unstandardized_weights(rbm::StandardizedRBM)
-    cv = reshape(rbm.scale_v, (size(rbm.visible)..., map(one, size(rbm.hidden))...))
-    ch = reshape(rbm.scale_h, (map(one, size(rbm.visible))..., size(rbm.hidden)...))
-    return rbm.w ./ (cv .* ch)
-end
+unstandardized_weights(rbm::StandardizedRBM) = rbm.w ./ _scale_w(rbm)
 
 function potts_to_gumbel(rbm::StandardizedRBM)
     visible = potts_to_gumbel(rbm.visible)
@@ -562,21 +358,6 @@ function log_partition(rbm::StandardizedRBM)
         collect_states(rbm.visible)
     end
     return logsumexp(-free_energy(rbm, v))
-end
-
-"""
-    rescale_weights!(rbm::StandardizedRBM)
-
-Rescale weights so that the unstandardized weights have norm 1, by re-scaling hidden units.
-This assumes the hidden units have a scale parameter, otherwise it does nothing.
-Hidden units whose incoming unstandardized weights have zero norm are left unchanged.
-Note that the standardized weights are invariant under such rescaling of hidden unit activities,
-and therefore cannot be constrained to have unit norm. So the only sensible choice is to
-rescale the unstandardized weights to have unit norm, as we do here.
-"""
-function rescale_weights!(rbm::StandardizedRBM)
-    λ = _inv_or_one.(weight_norms(rbm))
-    return rescale_hidden!(rbm, λ)
 end
 
 """

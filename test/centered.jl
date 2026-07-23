@@ -141,6 +141,41 @@ end
     @test ∂.w ≈ only(gs).w
 end
 
+using RestrictedBoltzmannMachines: free_energy_h, free_energy_v, ∂free_energy_h, ∂free_energy_v
+
+@testset "free_energy_h of CenteredRBM" begin
+    centered_rbm = CenteredBinaryRBM(randn(3), randn(2), randn(3, 2), randn(3), randn(2))
+    rbm = uncenter(centered_rbm)
+    ΔE = interaction_energy(rbm, centered_rbm.offset_v, centered_rbm.offset_h)::Number
+    h = bitrand(size(centered_rbm.hidden)..., 100)
+    # consistent with the equivalent uncentered RBM, up to the constant energy shift
+    @test @inferred(free_energy_h(centered_rbm, h)) ≈ free_energy_h(rbm, h) .+ ΔE
+    # consistent with marginalizing the mirrored model
+    @test free_energy_h(centered_rbm, h) ≈ free_energy(mirror(centered_rbm), h)
+    # exact marginalization over visible states
+    h1 = bitrand(size(centered_rbm.hidden)...)
+    vs = ([a, b, c] for a in 0:1, b in 0:1, c in 0:1)
+    F = -log(sum(exp(-energy(centered_rbm, v, h1)) for v in vs))
+    @test free_energy_h(centered_rbm, h1) ≈ F
+end
+
+@testset "∂free_energy_v / ∂free_energy_h of CenteredRBM" begin
+    rbm = CenteredBinaryRBM(randn(3), randn(2), randn(3, 2), randn(3), randn(2))
+    v = bitrand(size(rbm.visible)..., 10)
+    h = bitrand(size(rbm.hidden)..., 10)
+
+    @test free_energy_v(rbm, v) == free_energy(rbm, v)
+    @test ∂free_energy_v(rbm, v) == ∂free_energy(rbm, v)
+
+    gs_h = gradient(rbm) do rbm
+        mean(free_energy_h(rbm, h))
+    end
+    ∂h = ∂free_energy_h(rbm, h)
+    @test ∂h.visible ≈ only(gs_h).visible.par
+    @test ∂h.hidden ≈ only(gs_h).hidden.par
+    @test ∂h.w ≈ only(gs_h).w
+end
+
 @testset "mirror" begin
     rbm = CenteredBinaryRBM(
         randn(5, 2), randn(7, 4, 3), randn(5, 2, 7, 4, 3), randn(5, 2), randn(7, 4, 3)
@@ -369,6 +404,17 @@ end
     @test only(gs).visible.par ≈ ∂.visible
     @test only(gs).hidden.par ≈ ∂.hidden
     @test only(gs).w ≈ ∂.w
+end
+
+using RestrictedBoltzmannMachines: RBM, regularization_penalty
+
+@testset "regularization_penalty of CenteredRBM" begin
+    rbm = CenteredBinaryRBM(randn(3), randn(2), randn(3, 2), randn(3), randn(2))
+    l2_fields, l1_weights, l2_weights, l2l1_weights = rand(4)
+    @test regularization_penalty(rbm; l2_fields, l1_weights, l2_weights, l2l1_weights) ≈
+        regularization_penalty(uncenter(rbm); l2_fields, l1_weights, l2_weights, l2l1_weights)
+    @test regularization_penalty(rbm; regularize_unstandardized = false, l2_fields, l1_weights, l2_weights, l2l1_weights) ≈
+        regularization_penalty(RBM(rbm); l2_fields, l1_weights, l2_weights, l2l1_weights)
 end
 
 using RestrictedBoltzmannMachines: log_pseudolikelihood

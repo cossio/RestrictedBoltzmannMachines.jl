@@ -21,9 +21,11 @@ _inv_or_one(x) = iszero(x) ? one(x) : inv(x)
 
 For continuous hidden units with a scale parameter, scales parameters such that the weights
 attached to each hidden unit have norm 1. Hidden units whose incoming weights have zero
-norm are left unchanged.
+norm are left unchanged. For a `StandardizedRBM` the *unstandardized* weights are
+normalized (see [`weight_norms`](@ref)): the standardized weights are invariant under
+rescaling of hidden unit activities, so they cannot be constrained to have unit norm.
 """
-function rescale_weights!(rbm::RBM)
+function rescale_weights!(rbm)
     λ = _inv_or_one.(weight_norms(rbm))
     return rescale_hidden!(rbm, λ)
 end
