@@ -1,4 +1,4 @@
-#= Shared training loop for `pcd!` and `ucd!`.
+#= Shared training loop for the `pcd!` trainers (plain, centered, and standardized).
 
 The public trainers share the same skeleton: validate, prepare the data, set up the
 optimizer, then repeatedly draw a minibatch, estimate the positive/negative phase
@@ -9,8 +9,8 @@ wrapper supplies as closures.
 
 Every trainer invokes its callback with the same keywords,
 `(; rbm, optim, state, ps, iter, vd, wd, ∂)`, plus the extras returned by its
-negative phase (`vm` for the PCD trainers; `meeting_steps` and `discarded` for
-`ucd!`). Callbacks should slurp unused keywords with a trailing `_...`.
+negative phase (`vm` for the PCD trainers). Callbacks should slurp unused keywords
+with a trailing `_...`.
 
 Gauge constraints are reset as `zerosum!` first, then rescaling: rescaling multiplies
 the weights attached to each hidden unit by a scalar (or, for `StandardizedRBM`,

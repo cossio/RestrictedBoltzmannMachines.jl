@@ -10,12 +10,11 @@ All notable changes to this project will be documented in this file. The format 
   add `ucdRBMs` and replace `using RestrictedBoltzmannMachines: ucd!` with
   `using ucdRBMs: ucd!`. Behavior is unchanged.
 
-- **Breaking**: the trainers `pcd!` (plain, centered, and standardized) and
-  `ucd!` now all invoke their `callback` with the same keywords,
-  `(; rbm, optim, state, ps, iter, vd, wd, ∂)`, plus `vm` for the PCD trainers
-  and `meeting_steps`/`discarded` for `ucd!`. Previously each trainer passed a
-  different subset. Callbacks that spell out the exact keyword list must be
-  updated; more robustly, slurp unused keywords with a trailing `_...`
+- **Breaking**: the `pcd!` trainers (plain, centered, and standardized) now all
+  invoke their `callback` with the same keywords,
+  `(; rbm, optim, state, ps, iter, vd, wd, ∂, vm)`. Previously each trainer
+  passed a different subset. Callbacks that spell out the exact keyword list
+  must be updated; more robustly, slurp unused keywords with a trailing `_...`
   ([#170](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/170)).
 - `pcd!(::CenteredRBM)` now accepts the `shuffle`, `ps`, and `state` keywords,
   like the other trainers. Defaults preserve the previous behavior (minibatches
