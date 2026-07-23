@@ -27,7 +27,8 @@ parameters with an `Optimisers.jl` rule.
 - `zerosum::Bool=true`: enforce zero-sum gauge on Potts layers.
 - `rescale::Bool=true`: rescale weights (mainly useful for continuous hidden units).
 - `callback=Returns(nothing)`: called after every update as
-  `callback(; rbm, optim, state, iter, vm, vd, wd)`.
+  `callback(; rbm, optim, state, ps, iter, vd, wd, ∂, vm)`. Slurp unused
+  keywords with a trailing `_...`.
 - `vm=nothing`: initial fantasy particles. By default, these are sampled after
   validating the model's pReLU parameters.
 - `shuffle::Bool=true`: whether to reshuffle samples between epochs.
@@ -69,52 +70,19 @@ function pcd!(
         ps = nothing,
         state = nothing,
     )
-    @assert size(data) == (size(rbm.visible)..., size(data)[end])
-    @assert isnothing(wts) || size(data)[end] == length(wts)
     _validate_layer_parameters(rbm)
-    isnothing(vm) &&
-        (
-        vm = sample_from_inputs(
-            rbm.visible, Falses(size(rbm.visible)..., batchsize)
-        )
-    )
-    isnothing(ps) &&
-        (ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w))
-    isnothing(state) && (state = setup(optim, ps))
-
-    data, wts, normalization, batchsize = _prepare_training_data(data, wts; batchsize)
-
-    # gauge constraints
-    zerosum && zerosum!(rbm)
-    rescale && rescale_weights!(rbm)
-
-    for (iter, (vd, wd)) in zip(1:iters, infinite_minibatches(data, wts; batchsize, shuffle))
-        batch_weight = _batch_weight(wd, normalization)
-
-        # update fantasy chains
-        vm .= sample_v_from_v(rbm, vm; steps)
-
-        # compute gradient
-        ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
-        ∂m = ∂free_energy(rbm, vm)
-        ∂ = ∂d - ∂m
-
-        # correct weighted minibatch bias
-        ∂ *= batch_weight
-
-        # weight decay
-        ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum)
-
-        # feed gradient to Optimiser rule
-        gs = (; visible = ∂.visible, hidden = ∂.hidden, w = ∂.w)
-        state, ps = update!(state, ps, gs)
-        _validate_layer_parameters(rbm)
-
-        # reset gauge
-        rescale && rescale_weights!(rbm)
+    isnothing(vm) && (vm = _default_fantasy_chains(rbm, batchsize))
+    reset_gauge! = () -> begin
         zerosum && zerosum!(rbm)
-
-        callback(; rbm, optim, state, iter, vm, vd, wd)
+        rescale && rescale_weights!(rbm)
+        return nothing
     end
-    return state, ps
+    return _train!(
+        rbm, data;
+        batchsize, iters, wts, moments, optim, ps, state, shuffle,
+        l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum, callback,
+        setup! = (data, wts) -> reset_gauge!(),
+        negative_phase = vd -> _pcd_negative_phase(rbm, vm, steps),
+        post_update! = (vd, wd, ∂d) -> reset_gauge!(),
+    )
 end

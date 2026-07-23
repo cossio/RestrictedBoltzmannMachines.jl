@@ -190,57 +190,49 @@ function ucd!(
         rescale::Bool = true,
         callback = Returns(nothing),
         shuffle::Bool = true,
-        ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w),
-        state = setup(optim, ps),
+        ps = nothing,
+        state = nothing,
     )
-    @assert size(data) == (size(rbm.visible)..., size(data)[end])
-    @assert isnothing(wts) || size(data)[end] == length(wts)
     @assert max_resamples ≥ 0
     @assert nchains > 0
-
-    data, wts, normalization, batchsize = _prepare_training_data(data, wts; batchsize)
-
-    zerosum && zerosum!(rbm)
-    rescale && rescale_weights!(rbm)
-
-    for (iter, (vd, wd)) in zip(1:iters, infinite_minibatches(data, wts; batchsize, shuffle))
-        batch_weight = _batch_weight(wd, normalization)
-        ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
-
-        ∂m = _zero_gradient(rbm)
-        meeting_steps = 0
-        discarded = 0
-        nbatch = size(vd, ndims(vd))
-        for chain in 1:nchains
-            v0 = copy(vd[.., rand(1:nbatch)])
-            sample = unbiased_sample(rbm, v0; min_steps, max_steps, max_tries)
-            discarded_chain = sample.discarded
-            resamples = 0
-            while !sample.met && resamples < max_resamples
-                sample = unbiased_sample(rbm, v0; min_steps, max_steps, max_tries)
-                discarded_chain += sample.discarded
-                resamples += 1
-            end
-            sample.met || throw(ArgumentError("coupled chains did not meet during ucd! after 1 initial attempt + $max_resamples resamples; increase max_steps or max_resamples"))
-            ∂m += unbiased_estimator(v -> ∂free_energy(rbm, v), sample; burnin = min_steps)
-            meeting_steps += length(sample.vchist)
-            discarded += discarded_chain
-        end
-        ∂m /= nchains
-
-        ∂ = ∂d - ∂m
-
-        ∂ *= batch_weight
-
-        ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum)
-
-        gs = (; visible = ∂.visible, hidden = ∂.hidden, w = ∂.w)
-        state, ps = update!(state, ps, gs)
-
-        rescale && rescale_weights!(rbm)
+    reset_gauge! = () -> begin
         zerosum && zerosum!(rbm)
-
-        callback(; rbm, optim, state, iter, vd, wd, meeting_steps = meeting_steps / nchains, discarded = discarded / nchains)
+        rescale && rescale_weights!(rbm)
+        return nothing
     end
-    return state, ps
+    return _train!(
+        rbm, data;
+        batchsize, iters, wts, moments, optim, ps, state, shuffle,
+        l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum, callback,
+        setup! = (data, wts) -> reset_gauge!(),
+        negative_phase = vd -> _ucd_negative_phase(rbm, vd; nchains, min_steps, max_steps, max_tries, max_resamples),
+        post_update! = (vd, wd, ∂d) -> reset_gauge!(),
+    )
+end
+
+function _ucd_negative_phase(
+        rbm, vd::AbstractArray;
+        nchains::Int, min_steps::Int, max_steps::Int, max_tries::Int, max_resamples::Int,
+    )
+    ∂m = _zero_gradient(rbm)
+    meeting_steps = 0
+    discarded = 0
+    nbatch = size(vd, ndims(vd))
+    for chain in 1:nchains
+        v0 = copy(vd[.., rand(1:nbatch)])
+        sample = unbiased_sample(rbm, v0; min_steps, max_steps, max_tries)
+        discarded_chain = sample.discarded
+        resamples = 0
+        while !sample.met && resamples < max_resamples
+            sample = unbiased_sample(rbm, v0; min_steps, max_steps, max_tries)
+            discarded_chain += sample.discarded
+            resamples += 1
+        end
+        sample.met || throw(ArgumentError("coupled chains did not meet during ucd! after 1 initial attempt + $max_resamples resamples; increase max_steps or max_resamples"))
+        ∂m += unbiased_estimator(v -> ∂free_energy(rbm, v), sample; burnin = min_steps)
+        meeting_steps += length(sample.vchist)
+        discarded += discarded_chain
+    end
+    ∂m /= nchains
+    return ∂m, (; meeting_steps = meeting_steps / nchains, discarded = discarded / nchains)
 end

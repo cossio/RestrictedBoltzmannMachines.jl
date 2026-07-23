@@ -592,3 +592,26 @@ must be rescaled together with the activations for p(v) to be preserved. =#
     @test F2 ≈ F0 .+ mean(F2 - F0) # constant shift
     @test softmax(-F2) ≈ softmax(-F0)
 end
+
+using RestrictedBoltzmannMachines: sample_v_from_h
+
+@testset "centered pcd! accepts shuffle, ps, state, and unified callback keywords" begin
+    data = bitrand(2, 32)
+    rbm = center(BinaryRBM(2, 3))
+    seen = Ref{Any}(nothing)
+    state, ps = pcd!(
+        rbm, data;
+        iters = 2, batchsize = 8, shuffle = false,
+        callback = (; kwargs...) -> (seen[] = kwargs),
+    )
+    @test issubset((:rbm, :optim, :state, :ps, :iter, :vd, :wd, :∂, :vm), keys(seen[]))
+    @test seen[][:rbm] === rbm
+    @test seen[][:ps] === ps
+
+    # training can be continued from the returned optimizer state and parameters
+    state2, ps2 = pcd!(rbm, data; iters = 2, batchsize = 8, ps, state)
+    @test ps2 === ps
+    @test all(isfinite, rbm.visible.par)
+    @test all(isfinite, rbm.hidden.par)
+    @test all(isfinite, rbm.w)
+end

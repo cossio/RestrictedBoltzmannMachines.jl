@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+- **Breaking**: the trainers `pcd!` (plain, centered, and standardized) and
+  `ucd!` now all invoke their `callback` with the same keywords,
+  `(; rbm, optim, state, ps, iter, vd, wd, ∂)`, plus `vm` for the PCD trainers
+  and `meeting_steps`/`discarded` for `ucd!`. Previously each trainer passed a
+  different subset. Callbacks that spell out the exact keyword list must be
+  updated; more robustly, slurp unused keywords with a trailing `_...`
+  ([#170](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/170)).
+- `pcd!(::CenteredRBM)` now accepts the `shuffle`, `ps`, and `state` keywords,
+  like the other trainers. Defaults preserve the previous behavior (minibatches
+  were already shuffled)
+  ([#170](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/170)).
+- All trainers now reset gauge constraints in the same order: `zerosum!` first,
+  then rescaling. Since rescaling hidden units preserves the zero-sum gauge
+  while `zerosum!` perturbs weight norms, both constraints now hold exactly
+  after every update. For `StandardizedRBM` the two orders are mathematically
+  equivalent, so its (most tested) trajectory is unchanged; for the plain-`RBM`
+  trainers the weights are now exactly unit-norm after each update instead of
+  approximately; `pcd!(::CenteredRBM)` already used this order
+  ([#170](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/170)).
 - Fixed `free_energy_h(::CenteredRBM, h)`, which previously fell through to the
   plain `RBM` method and omitted the visible-offset correction term, making it
   inconsistent with `free_energy` and with `free_energy(mirror(rbm), h)`. It now

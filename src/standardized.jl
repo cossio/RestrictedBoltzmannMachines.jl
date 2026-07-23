@@ -271,58 +271,26 @@ function pcd!(
         # called for every gradient update
         callback = Returns(nothing)
     )
-    @assert size(data) == (size(rbm.visible)..., size(data)[end])
-    @assert isnothing(wts) || size(data)[end] == length(wts)
     @assert 0 ≤ damping ≤ 1
     _validate_layer_parameters(rbm)
-    isnothing(vm) &&
-        (
-        vm = sample_from_inputs(
-            rbm.visible, Falses(size(rbm.visible)..., batchsize)
-        )
+    isnothing(vm) && (vm = _default_fantasy_chains(rbm, batchsize))
+    return _train!(
+        rbm, data;
+        batchsize, iters, wts, moments, optim, ps, state, shuffle,
+        l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum, callback,
+        regularize = (; regularize_unstandardized),
+        setup! = (data, wts) -> begin
+            standardize_visible_from_data!(rbm, data; wts, ϵ = ϵv)
+            zerosum && zerosum!(rbm)
+        end,
+        negative_phase = vd -> _pcd_negative_phase(rbm, vm, steps),
+        post_update! = (vd, wd, ∂d) -> begin
+            # update standardization
+            standardize_hidden_from_v!(rbm, vd; wts = wd, damping, ϵ = ϵh)
+            zerosum && zerosum!(rbm)
+            rescale_hidden && rescale_hidden_activations!(rbm)
+        end,
     )
-    isnothing(ps) &&
-        (ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w))
-    isnothing(state) && (state = setup(optim, ps))
-
-    data, wts, normalization, batchsize = _prepare_training_data(data, wts; batchsize)
-
-    standardize_visible_from_data!(rbm, data; wts, ϵ = ϵv)
-    zerosum && zerosum!(rbm)
-
-    minibatches = infinite_minibatches(data, wts; batchsize, shuffle)
-    for (iter, (vd, wd)) in zip(1:iters, minibatches)
-        batch_weight = _batch_weight(wd, normalization)
-
-        # update fantasy chains
-        vm .= sample_v_from_v(rbm, vm; steps)
-
-        # compute gradient
-        ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
-        ∂m = ∂free_energy(rbm, vm)
-        ∂ = ∂d - ∂m
-
-        # correct weighted minibatch bias
-        ∂ *= batch_weight
-
-        # weight decay
-        ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, regularize_unstandardized, zerosum)
-
-        # feed gradient to Optimiser rule
-        gs = (; visible = ∂.visible, hidden = ∂.hidden, w = ∂.w)
-        state, ps = update!(state, ps, gs)
-        _validate_layer_parameters(rbm)
-
-        # update standardization
-        standardize_hidden_from_v!(rbm, vd; wts = wd, damping, ϵ = ϵh)
-
-        rescale_hidden && rescale_hidden_activations!(rbm)
-        zerosum && zerosum!(rbm)
-
-        callback(; rbm, optim, state, ps, iter, vm, vd, wd, ∂)
-    end
-
-    return state, ps
 end
 
 function BinaryStandardizedRBM(
