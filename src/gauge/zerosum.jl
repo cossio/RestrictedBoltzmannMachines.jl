@@ -13,7 +13,11 @@ doesn't have `Potts` layers, does nothing.
 """
 function zerosum(rbm::RBM)
     has_potts_layers(rbm) || return rbm
-    return zerosum!(deepcopy(rbm))
+    # copy into mutable arrays so lazy/read-only backends (e.g. Zeros weights
+    # from anneal_zero) still work with the in-place implementation
+    visible = _construct_like(rbm.visible, _mutable_copy(rbm.visible.par))
+    hidden = _construct_like(rbm.hidden, _mutable_copy(rbm.hidden.par))
+    return zerosum!(RBM(visible, hidden, _mutable_copy(rbm.w)))
 end
 
 """

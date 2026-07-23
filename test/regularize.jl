@@ -80,6 +80,15 @@ end
     @test iszero(∂[2:4, ..]) # ∂γ, ∂Δ, ∂ξ
 end
 
+using FillArrays: Ones
+
+@testset "∂regularize_fields with immutable layer parameters" begin
+    # layers backed by lazy/read-only arrays must still get a mutable gradient buffer
+    layer = Binary(Ones(1, 5))
+    ∂ = ∂regularize_fields(layer; l2_fields = 0.5)
+    @test ∂ ≈ fill(0.5, 1, 5)
+end
+
 using RestrictedBoltzmannMachines: RBM, Potts, sample_from_inputs, zerosum!
 
 @testset "∂regularize! zerosum keyword" begin

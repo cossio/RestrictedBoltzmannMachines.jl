@@ -82,4 +82,8 @@ vwiden(x::AbstractArray) = reshape(x, 1, size(x)...)
 
 zeros_like(A::AbstractArray) = zeros_like(A, size(A))
 zeros_like(A::AbstractArray, size) = zero(similar(A, size))
+
+# mutable copy preserving the array backend (e.g. CuArray), materializing
+# immutable/lazy arrays such as FillArrays.Zeros
+_mutable_copy(A::AbstractArray) = copyto!(similar(A), A)
 ones_like(A::AbstractArray, size) = one.(similar(A, size))

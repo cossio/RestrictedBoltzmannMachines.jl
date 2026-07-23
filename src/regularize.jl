@@ -46,8 +46,9 @@ function ∂regularize_fields!(∂::AbstractArray, layer::dReLU; l2_fields::Real
     return ∂
 end
 
+# zeros_like (not zero) so immutable layer parameter arrays get a mutable buffer
 ∂regularize_fields(layer::AbstractLayer; l2_fields::Real = 0) =
-    ∂regularize_fields!(zero(layer.par), layer; l2_fields)
+    ∂regularize_fields!(zeros_like(layer.par), layer; l2_fields)
 
 function regularization_penalty(rbm::RBM; l1_weights::Real = 0, l2_weights::Real = 0, l2l1_weights::Real = 0, l2_fields::Real = 0)
     dims = ntuple(identity, ndims(rbm.visible))

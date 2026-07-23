@@ -708,3 +708,21 @@ end
     @test crbm!.hidden.par ≈ crbm1.hidden.par
     @test free_energy(crbm!, v) ≈ F1
 end
+
+using FillArrays: Zeros
+
+@testset "zerosum with immutable (lazy) weights" begin
+    # anneal_zero builds RBMs with Zeros weights; the non-mutating zerosum must
+    # copy into mutable arrays instead of writing into the lazy backend
+    N = (3, 2)
+    M = (2,)
+    rbm = RBM(Potts(; θ = randn(N...)), Binary(; θ = randn(M...)), Zeros(N..., M...))
+    rbm1 = zerosum(rbm)
+    @test rbm1.w ≈ zeros(N..., M...)
+    @test norm(mean(rbm1.visible.θ; dims = 1)) < 1.0e-13
+    # matches zerosum! on a materialized copy
+    rbm2 = zerosum!(RBM(deepcopy(rbm.visible), deepcopy(rbm.hidden), collect(rbm.w)))
+    @test rbm1.visible.θ ≈ rbm2.visible.θ
+    @test rbm1.hidden.θ ≈ rbm2.hidden.θ
+    @test rbm1.w ≈ rbm2.w
+end
