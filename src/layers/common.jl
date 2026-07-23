@@ -1,18 +1,4 @@
-Base.size(layer::Union{Binary, Spin, Potts, PottsGumbel, Gaussian, ReLU, pReLU, xReLU, nsReLU}) = size(layer.θ)
-Base.length(layer::Union{Binary, Spin, Potts, PottsGumbel, Gaussian, ReLU, pReLU, xReLU, nsReLU}) = length(layer.θ)
-
 const _FieldLayers = Union{Binary, Spin, Potts, PottsGumbel}
-
-Base.propertynames(::_FieldLayers) = (:θ,)
-
-function Base.getproperty(layer::_FieldLayers, name::Symbol)
-    if name === :θ
-        #return @view getfield(layer, :par)[1, ..] # https://github.com/JuliaGPU/CUDA.jl/issues/1957
-        return dropdims(getfield(layer, :par); dims = 1)
-    else
-        return getfield(layer, name)
-    end
-end
 
 """
     energies(layer, x)
@@ -58,7 +44,7 @@ end
 Number of possible states of units in discrete layers.
 """
 colors(layer::Union{Spin, Binary}) = 2
-colors(layer::Potts) = size(layer, 1)
+colors(layer::Union{Potts, PottsGumbel}) = size(layer, 1)
 
 """
     sitedims(layer)
@@ -67,7 +53,7 @@ Number of dimensions of layer, with special handling of Potts layer,
 for which the first dimension doesn't count as a site dimension.
 """
 sitedims(layer::AbstractLayer) = ndims(layer)
-sitedims(layer::Potts) = ndims(layer) - 1
+sitedims(layer::Union{Potts, PottsGumbel}) = ndims(layer) - 1
 
 """
     sitesize(layer)
@@ -76,7 +62,10 @@ Size of layer, with special handling of Potts layer,
 for which the first dimension doesn't count as a site dimension.
 """
 sitesize(layer::AbstractLayer) = size(layer)
-sitesize(layer::Potts) = size(layer)[2:end]
+sitesize(layer::Union{Potts, PottsGumbel}) = size(layer)[2:end]
+
+PottsGumbel(layer::Potts) = PottsGumbel(layer.par)
+Potts(layer::PottsGumbel) = Potts(layer.par)
 
 function pReLU(layer::dReLU)
     γ = @. 2abs(layer.γp) * abs(layer.γn) / (abs(layer.γp) + abs(layer.γn))
@@ -128,25 +117,7 @@ dReLU(layer::Gaussian) = dReLU(; θp = layer.θ, θn = layer.θ, γp = layer.γ,
 pReLU(layer::Gaussian) = pReLU(dReLU(layer))
 xReLU(layer::Gaussian) = xReLU(dReLU(layer))
 
-#dReLU(layer::ReLU) = dReLU(layer.θ, zero(layer.θ), layer.γ, inf.(layer.γ))
-
-# function pReLU(layer::ReLU)
-#     θ = layer.θ
-#     γ = 2layer.γ
-#     η = one.(layer.γ)
-#     Δ = zero.(layer.θ)
-#     return pReLU(θ, γ, Δ, η)
-# end
-
-# function xReLU(layer::ReLU)
-#     θ = layer.θ
-#     γ = 2layer.γ
-#     ξ = inf.(layer.γ)
-#     Δ = zero.(layer.θ)
-#     return xReLU(θ, γ, Δ, ξ)
-# end
-
-function moments_from_samples(layer::Union{pReLU, xReLU, nsReLU}, data::AbstractArray; wts = nothing)
+function moments_from_samples(layer::Union{dReLU, pReLU, xReLU, nsReLU}, data::AbstractArray; wts = nothing)
     xp = max.(data, 0)
     xn = min.(data, 0)
     xp1 = batchmean(layer, xp; wts)
