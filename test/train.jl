@@ -13,7 +13,7 @@ using Random: seed!
 using LogExpFunctions: softmax
 using Optimisers: Adam, Descent
 using RestrictedBoltzmannMachines: RBM, BinaryRBM, Binary, Spin, Potts, Gaussian,
-    pcd!, ucd!, initialize!, free_energy, log_likelihood, log_partition,
+    pcd!, initialize!, free_energy, log_likelihood, log_partition,
     collect_states, mean_h_from_v, generate_sequences, onehot_encode,
     center, standardize, unstandardize, weight_norms
 
@@ -246,16 +246,4 @@ end
     urbm = unstandardize(rbm)
     @test norm(mean(urbm.visible.θ; dims = 1)) < 1.0e-10
     @test norm(mean(urbm.w; dims = 1)) < 1.0e-10
-end
-
-@testset "ucd moment matching" begin
-    seed!(67)
-    data = binary_dataset()
-    rbm = BinaryRBM(3, 3)
-    initialize!(rbm, data)
-    ucd!(rbm, data; batchsize = 32, iters = 2000, nchains = 4, max_steps = 32, optim = Adam(2.0e-3))
-    gaps = moment_gaps(rbm, data)
-    @test gaps.v < 0.1
-    @test gaps.h < 0.1
-    @test gaps.vh < 0.1
 end
