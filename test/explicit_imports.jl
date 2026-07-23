@@ -14,6 +14,7 @@ end
     # marked public by their owners on Julia 1.11+, where the ignore is empty.
     public_imports_without_legacy_metadata =
         VERSION < v"1.11" ? (:default_rng, :setup, :update!) : ()
+    public_accesses_without_legacy_metadata = VERSION < v"1.11" ? (:tail,) : ()
     ExplicitImports.test_explicit_imports(
         RBMs;
         all_explicit_imports_are_public =
@@ -21,8 +22,12 @@ end
         # Adapt documents @adapt_structure for package integration but does not
         # mark the macro public. Base documents @__doc__ as the way for macros
         # to attach docstrings to their expansions, but does not mark it public.
-        all_qualified_accesses_are_public =
-            (ignore = (Symbol("@adapt_structure"), Symbol("@__doc__")),),
+        all_qualified_accesses_are_public = (
+            ignore = (
+                Symbol("@adapt_structure"), Symbol("@__doc__"),
+                public_accesses_without_legacy_metadata...,
+            ),
+        ),
     )
 
     # The CUDA fixture uses a non-CUDA UUID so unrelated CUDA extensions do not
