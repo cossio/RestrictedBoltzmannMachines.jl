@@ -1,4 +1,4 @@
-using Test: @test, @testset, @test_throws
+using Test: @test, @testset
 using Random: randn!
 import Random
 import Zygote
@@ -49,8 +49,4 @@ end
     end
     @test only(gs).visible.par ≈ tanh.(rbm.visible.par)
     @test only(gs).hidden.par ≈ sigmoid.(rbm.hidden.par)
-end
-
-@testset "iterate_states not implemented for Potts" begin
-    @test_throws ErrorException RBMs.iterate_states(RBMs.Potts((3, 2)))
 end

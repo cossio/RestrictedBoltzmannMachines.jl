@@ -27,10 +27,8 @@ _binary_sample_from_logits(logits::AbstractArray, u::AbstractArray) = binary_ran
 
 _binary_logprob(logits::AbstractArray, x::AbstractArray) = sum(x .* logits .- log1pexp.(logits))
 
-_zeros_like(x::AbstractArray) = fill!(similar(x), zero(eltype(x)))
-
 function _zero_gradient(rbm::RBM)
-    return ∂RBM(_zeros_like(rbm.visible.par), _zeros_like(rbm.hidden.par), _zeros_like(rbm.w))
+    return ∂RBM(zeros_like(rbm.visible.par), zeros_like(rbm.hidden.par), zeros_like(rbm.w))
 end
 
 function _maximal_coupling_step(

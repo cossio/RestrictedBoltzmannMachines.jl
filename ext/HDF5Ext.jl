@@ -44,58 +44,43 @@ end
 Save an RBM to an HDF5 file at `path`. If `overwrite` is `false` (the default),
 an error is thrown if the file already exists.
 """
-function RestrictedBoltzmannMachines.save_rbm(path::AbstractString, rbm::RBM; overwrite::Bool = false)
+function RestrictedBoltzmannMachines.save_rbm(
+        path::AbstractString, rbm::Union{RBM, StandardizedRBM, CenteredRBM}; overwrite::Bool = false
+    )
     if !overwrite && isfile(path)
         error("File already exists: $path")
     end
     h5open(path, "w") do file
         write(file, FILE_FORMAT_HEADER, string(FILE_FORMAT_VERSION))
-        write(file, "rbm_type", "RBM")
+        write(file, "rbm_type", rbm_type(rbm))
         write(file, "weights", rbm.w)
         write(file, "visible_par", rbm.visible.par)
         write(file, "hidden_par", rbm.hidden.par)
         write(file, "visible_type", layer_type(rbm.visible))
         write(file, "hidden_type", layer_type(rbm.hidden))
+        save_extras(file, rbm)
     end
     return path
 end
 
-function RestrictedBoltzmannMachines.save_rbm(path::AbstractString, rbm::StandardizedRBM; overwrite::Bool = false)
-    if !overwrite && isfile(path)
-        error("File already exists: $path")
-    end
-    h5open(path, "w") do file
-        write(file, FILE_FORMAT_HEADER, string(FILE_FORMAT_VERSION))
-        write(file, "rbm_type", "StandardizedRBM")
-        write(file, "weights", rbm.w)
-        write(file, "visible_par", rbm.visible.par)
-        write(file, "hidden_par", rbm.hidden.par)
-        write(file, "visible_type", layer_type(rbm.visible))
-        write(file, "hidden_type", layer_type(rbm.hidden))
-        write(file, "offset_v", rbm.offset_v)
-        write(file, "offset_h", rbm.offset_h)
-        write(file, "scale_v", rbm.scale_v)
-        write(file, "scale_h", rbm.scale_h)
-    end
-    return path
+rbm_type(::RBM) = "RBM"
+rbm_type(::StandardizedRBM) = "StandardizedRBM"
+rbm_type(::CenteredRBM) = "CenteredRBM"
+
+save_extras(file, ::RBM) = nothing
+
+function save_extras(file, rbm::StandardizedRBM)
+    write(file, "offset_v", rbm.offset_v)
+    write(file, "offset_h", rbm.offset_h)
+    write(file, "scale_v", rbm.scale_v)
+    write(file, "scale_h", rbm.scale_h)
+    return nothing
 end
 
-function RestrictedBoltzmannMachines.save_rbm(path::AbstractString, rbm::CenteredRBM; overwrite::Bool = false)
-    if !overwrite && isfile(path)
-        error("File already exists: $path")
-    end
-    h5open(path, "w") do file
-        write(file, FILE_FORMAT_HEADER, string(FILE_FORMAT_VERSION))
-        write(file, "rbm_type", "CenteredRBM")
-        write(file, "weights", rbm.w)
-        write(file, "visible_par", rbm.visible.par)
-        write(file, "hidden_par", rbm.hidden.par)
-        write(file, "visible_type", layer_type(rbm.visible))
-        write(file, "hidden_type", layer_type(rbm.hidden))
-        write(file, "offset_v", rbm.offset_v)
-        write(file, "offset_h", rbm.offset_h)
-    end
-    return path
+function save_extras(file, rbm::CenteredRBM)
+    write(file, "offset_v", rbm.offset_v)
+    write(file, "offset_h", rbm.offset_h)
+    return nothing
 end
 
 layer_type(::Binary) = "Binary"

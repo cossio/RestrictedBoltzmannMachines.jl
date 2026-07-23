@@ -56,46 +56,38 @@ function initialize!(layer::Union{Potts, PottsGumbel}, data::AbstractArray; ϵ::
     return layer # does not do zerosum!
 end
 
-function initialize!(layer::Gaussian, data::AbstractArray; ϵ::Real = 1.0e-6, wts = nothing)
+# Gaussian moment-matching of `θ` and `γ`, shared by the layers initialized as Gaussians.
+function _initialize_gaussian_moments!(θ::AbstractArray, γ::AbstractArray, layer::AbstractLayer, data::AbstractArray; ϵ::Real, wts)
     @assert size(layer) == size(data)[1:ndims(layer)]
     @assert 0 < ϵ < 1 / 2
     μ = batchmean(layer, data; wts)
     ν = batchmean(layer, (data .- μ) .^ 2; wts)
-    layer.γ .= inv.(ν .+ ϵ)
-    layer.θ .= μ .* layer.γ
+    γ .= inv.(ν .+ ϵ)
+    θ .= μ .* γ
     return layer
 end
 
+function initialize!(layer::Gaussian, data::AbstractArray; ϵ::Real = 1.0e-6, wts = nothing)
+    return _initialize_gaussian_moments!(layer.θ, layer.γ, layer, data; ϵ, wts)
+end
+
 function initialize!(layer::xReLU, data::AbstractArray; ϵ::Real = 1.0e-6, wts = nothing)
-    @assert size(layer) == size(data)[1:ndims(layer)]
-    @assert 0 < ϵ < 1 / 2
-    μ = batchmean(layer, data; wts)
-    ν = batchmean(layer, (data .- μ) .^ 2; wts)
-    layer.γ .= inv.(ν .+ ϵ)
-    layer.θ .= μ .* layer.γ
+    _initialize_gaussian_moments!(layer.θ, layer.γ, layer, data; ϵ, wts)
     layer.Δ .= layer.ξ .= 0
     return layer
 end
 
 function initialize!(layer::pReLU, data::AbstractArray; ϵ::Real = 1.0e-6, wts = nothing)
-    @assert size(layer) == size(data)[1:ndims(layer)]
-    @assert 0 < ϵ < 1 / 2
-    μ = batchmean(layer, data; wts)
-    ν = batchmean(layer, (data .- μ) .^ 2; wts)
-    layer.γ .= inv.(ν .+ ϵ)
-    layer.θ .= μ .* layer.γ
+    _initialize_gaussian_moments!(layer.θ, layer.γ, layer, data; ϵ, wts)
     layer.Δ .= layer.η .= 0
     return layer
 end
 
 function initialize!(layer::dReLU, data::AbstractArray; ϵ::Real = 1.0e-6, wts = nothing)
-    @assert size(layer) == size(data)[1:ndims(layer)]
-    @assert 0 < ϵ < 1 / 2
-    μ = batchmean(layer, data; wts)
-    ν = batchmean(layer, (data .- μ) .^ 2; wts)
-    # initilize as Gaussian
-    layer.γp .= layer.γn .= inv.(ν .+ ϵ)
-    layer.θp .= layer.θn .= μ .* layer.γp
+    # initialize as Gaussian
+    _initialize_gaussian_moments!(layer.θp, layer.γp, layer, data; ϵ, wts)
+    layer.θn .= layer.θp
+    layer.γn .= layer.γp
     return layer
 end
 

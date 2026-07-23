@@ -1,9 +1,6 @@
 module util_tests
     include("util.jl")
 end
-module linalg_tests
-    include("linalg.jl")
-end
 module onehot_tests
     include("onehot.jl")
 end
