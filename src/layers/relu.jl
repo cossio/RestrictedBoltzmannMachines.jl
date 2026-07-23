@@ -3,40 +3,7 @@
 
 Layer with ReLU units, with location parameters `θ` and scale parameters `γ`.
 """
-struct ReLU{N, A} <: AbstractLayer{N}
-    par::A
-    function ReLU{N, A}(par::A) where {N, A <: AbstractArray}
-        @assert size(par, 1) == 2 # θ, γ
-        @assert ndims(par) == N + 1
-        return new(par)
-    end
-end
-
-ReLU(par::AbstractArray) = ReLU{ndims(par) - 1, typeof(par)}(par)
-
-function ReLU(; θ, γ)
-    par = vstack((θ, γ))
-    return ReLU(par)
-end
-
-function ReLU(::Type{T}, sz::Dims) where {T}
-    θ = zeros(T, sz)
-    γ = ones(T, sz)
-    return ReLU(; θ, γ)
-end
-
-ReLU(sz::Dims) = ReLU(Float64, sz)
-Base.propertynames(::ReLU) = (:θ, :γ)
-
-function Base.getproperty(layer::ReLU, name::Symbol)
-    if name === :θ
-        return @view getfield(layer, :par)[1, ..]
-    elseif name === :γ
-        return @view getfield(layer, :par)[2, ..]
-    else
-        return getfield(layer, name)
-    end
-end
+@declare_layer ReLU (θ = zeros, γ = ones)
 
 function energies(layer::ReLU, x::AbstractArray)
     @assert size(layer) == size(x)[1:ndims(layer)]
@@ -47,7 +14,6 @@ cgfs(layer::ReLU, inputs = 0) = relu_cfg.(layer.θ .+ inputs, layer.γ)
 sample_from_inputs(layer::ReLU, inputs = 0) = relu_rand.(layer.θ .+ inputs, layer.γ)
 mode_from_inputs(layer::ReLU, inputs = 0) = max.((layer.θ .+ inputs) ./ abs.(layer.γ), 0)
 mean_abs_from_inputs(layer::ReLU, inputs = 0) = mean_from_inputs(layer, inputs)
-std_from_inputs(layer::ReLU, inputs = 0) = sqrt.(var_from_inputs(layer, inputs))
 
 function mean_from_inputs(layer::ReLU, inputs = 0)
     g = Gaussian(layer.par)

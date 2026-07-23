@@ -3,46 +3,7 @@
 
 Extended ReLU layer, like pReLU but with unbounded asymmetry parameter.
 """
-struct xReLU{N, A} <: AbstractLayer{N}
-    par::A
-    function xReLU{N, A}(par::A) where {N, A <: AbstractArray}
-        @assert size(par, 1) == 4 # θ, γ, Δ, ξ
-        @assert ndims(par) == N + 1
-        return new(par)
-    end
-end
-
-xReLU(par::AbstractArray) = xReLU{ndims(par) - 1, typeof(par)}(par)
-
-function xReLU(; θ, γ, Δ, ξ)
-    par = vstack((θ, γ, Δ, ξ))
-    return xReLU(par)
-end
-
-function xReLU(::Type{T}, sz::Dims) where {T}
-    θ = zeros(T, sz)
-    γ = ones(T, sz)
-    Δ = zeros(T, sz)
-    ξ = zeros(T, sz)
-    return xReLU(; θ, γ, Δ, ξ)
-end
-
-xReLU(sz::Dims) = xReLU(Float64, sz)
-Base.propertynames(::xReLU) = (:θ, :γ, :Δ, :ξ)
-
-function Base.getproperty(layer::xReLU, name::Symbol)
-    if name === :θ
-        return @view getfield(layer, :par)[1, ..]
-    elseif name === :γ
-        return @view getfield(layer, :par)[2, ..]
-    elseif name === :Δ
-        return @view getfield(layer, :par)[3, ..]
-    elseif name === :ξ
-        return @view getfield(layer, :par)[4, ..]
-    else
-        return getfield(layer, name)
-    end
-end
+@declare_layer xReLU (θ = zeros, γ = ones, Δ = zeros, ξ = zeros)
 
 energies(layer::xReLU, x::AbstractArray) = energies(dReLU(layer), x)
 cgfs(layer::xReLU, inputs = 0) = cgfs(dReLU(layer), inputs)
@@ -51,23 +12,10 @@ mode_from_inputs(layer::xReLU, inputs = 0) = mode_from_inputs(dReLU(layer), inpu
 mean_from_inputs(layer::xReLU, inputs = 0) = mean_from_inputs(dReLU(layer), inputs)
 var_from_inputs(layer::xReLU, inputs = 0) = var_from_inputs(dReLU(layer), inputs)
 meanvar_from_inputs(layer::xReLU, inputs = 0) = meanvar_from_inputs(dReLU(layer), inputs)
-std_from_inputs(layer::xReLU, inputs = 0) = sqrt.(var_from_inputs(layer, inputs))
 mean_abs_from_inputs(layer::xReLU, inputs = 0) = mean_abs_from_inputs(dReLU(layer), inputs)
 
 function ∂cgfs(layer::xReLU, inputs = 0)
-    drelu = dReLU(layer)
-
-    lp = ReLU(; θ = drelu.θp, γ = drelu.γp)
-    ln = ReLU(; θ = -drelu.θn, γ = drelu.γn)
-
-    Γp = cgfs(lp, inputs)
-    Γn = cgfs(ln, -inputs)
-    Γ = logaddexp.(Γp, Γn)
-
-    pp = exp.(Γp - Γ)
-    pn = exp.(Γn - Γ)
-    μp, νp = meanvar_from_inputs(lp, inputs)
-    μn, νn = meanvar_from_inputs(ln, -inputs)
+    (; pp, pn, μp, μn, νp, νn) = _drelu_mixture_moments(dReLU(layer), inputs)
     μ2p = @. νp + μp^2
     μ2n = @. νn + μn^2
 

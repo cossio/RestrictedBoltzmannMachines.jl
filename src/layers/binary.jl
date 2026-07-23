@@ -3,24 +3,7 @@
 
 Layer with binary units, with external fields `θ`.
 """
-struct Binary{N, A} <: AbstractLayer{N}
-    par::A
-    function Binary{N, A}(par::A) where {N, A <: AbstractArray}
-        @assert size(par, 1) == 1 # θ
-        @assert ndims(par) == N + 1
-        return new(par)
-    end
-end
-
-Binary(par::AbstractArray) = Binary{ndims(par) - 1, typeof(par)}(par)
-
-function Binary(; θ)
-    par = vstack((θ,))
-    return Binary(par)
-end
-
-Binary(::Type{T}, sz::Dims) where {T} = Binary(; θ = zeros(T, sz))
-Binary(sz::Dims) = Binary(Float64, sz)
+@declare_layer Binary (θ = zeros,)
 
 cgfs(layer::Binary, inputs = 0) = log1pexp.(layer.θ .+ inputs)
 mode_from_inputs(layer::Binary, inputs = 0) = layer.θ .+ inputs .> 0
