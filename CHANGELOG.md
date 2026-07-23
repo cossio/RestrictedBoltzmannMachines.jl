@@ -8,8 +8,7 @@ All notable changes to this project will be documented in this file. The format 
   [ucdRBMs.jl](https://github.com/cossio/ucdRBMs.jl). `ucd!`, `unbiased_sample`,
   `unbiased_estimator`, and `UnbiasedSample` are no longer part of this package;
   add `ucdRBMs` and replace `using RestrictedBoltzmannMachines: ucd!` with
-  `using ucdRBMs: ucd!`. Behavior is unchanged, and the algorithm continues to
-  build on this package's training loop.
+  `using ucdRBMs: ucd!`. Behavior is unchanged.
 
 - **Breaking**: the trainers `pcd!` (plain, centered, and standardized) and
   `ucd!` now all invoke their `callback` with the same keywords,
