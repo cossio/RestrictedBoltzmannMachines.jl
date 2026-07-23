@@ -4,7 +4,11 @@ _validate_layer_parameters(::AbstractLayer) = nothing
 
 Base.ndims(::AbstractLayer{N}) where {N} = N
 Base.size(layer::AbstractLayer) = Base.tail(size(getfield(layer, :par)))
-Base.size(layer::AbstractLayer, d::Int) = size(layer)[d]
+# As for arrays, trailing dimensions are 1, while d < 1 is an error.
+function Base.size(layer::AbstractLayer, d::Int)
+    d ≥ 1 || throw(ArgumentError("dimension must be ≥ 1, got $d"))
+    return size(getfield(layer, :par), d + 1)
+end
 Base.length(layer::AbstractLayer) = length(getfield(layer, :par)) ÷ size(getfield(layer, :par), 1)
 
 """
