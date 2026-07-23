@@ -16,10 +16,6 @@ All notable changes to this project will be documented in this file. The format 
   ([#170](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/170)).
 - `sample_v_from_v` and `sample_h_from_h` for `CenteredRBM` now assert that the
   configuration size matches the layer size, like the other RBM types.
-- Refactor: collapsed duplicated `RBM` / `CenteredRBM` / `StandardizedRBM`
-  method definitions into shared generic implementations (no behavior change
-  beyond the items above)
-  ([#170](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/170)).
 - Internal refactor of `src/layers/` reducing per-layer boilerplate and duplicated
   math by ~360 lines, with no changes to the public API or behavior
   ([#171](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/171)):
