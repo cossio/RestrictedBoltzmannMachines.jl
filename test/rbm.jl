@@ -12,7 +12,7 @@ using RestrictedBoltzmannMachines: ∂free_energy
 using RestrictedBoltzmannMachines: ∂free_energy_h
 using RestrictedBoltzmannMachines: ∂free_energy_v
 using RestrictedBoltzmannMachines: ∂interaction_energy
-using RestrictedBoltzmannMachines: batchsize
+using RestrictedBoltzmannMachines: batch_size
 using RestrictedBoltzmannMachines: batchmean
 using RestrictedBoltzmannMachines: Binary
 using RestrictedBoltzmannMachines: BinaryRBM
@@ -26,7 +26,7 @@ using RestrictedBoltzmannMachines: GaussianRBM
 using RestrictedBoltzmannMachines: hidden_cgf
 using RestrictedBoltzmannMachines: HopfieldRBM
 using RestrictedBoltzmannMachines: inputs_h_from_v
-using RestrictedBoltzmannMachines: join_batchsize
+using RestrictedBoltzmannMachines: join_batch_size
 using RestrictedBoltzmannMachines: inputs_v_from_h
 using RestrictedBoltzmannMachines: interaction_energy
 using RestrictedBoltzmannMachines: log_likelihood
@@ -73,8 +73,8 @@ using Zygote: gradient
     v = bitrand(n..., Bv...)
     h = bitrand(m..., Bh...)
 
-    @test batchsize(rbm.visible, v) == Bv
-    @test batchsize(rbm.hidden, h) == Bh
+    @test batch_size(rbm.visible, v) == Bv
+    @test batch_size(rbm.hidden, h) == Bh
 
     @test size(inputs_h_from_v(rbm, v)) == (size(rbm.hidden)..., Bv...)
     @test size(inputs_v_from_h(rbm, h)) == (size(rbm.visible)..., Bh...)
@@ -122,47 +122,47 @@ end
 
     v = bitrand(3, 1, 2)
     h = bitrand(2, 3, 1)
-    @test size(energy(rbm, v, h)) == @inferred(batchsize(rbm, v, h)) == (3, 2)
+    @test size(energy(rbm, v, h)) == @inferred(batch_size(rbm, v, h)) == (3, 2)
     @test energy(rbm, v, h) ≈ [energy(rbm, v[:, 1, j], h[:, i, 1]) for i in 1:3, j in 1:2]
 
     v = bitrand(3, 1, 2)
     h = bitrand(2, 3)
-    @test size(energy(rbm, v, h)) == @inferred(batchsize(rbm, v, h)) == (3, 2)
+    @test size(energy(rbm, v, h)) == @inferred(batch_size(rbm, v, h)) == (3, 2)
     @test energy(rbm, v, h) ≈ [energy(rbm, v[:, 1, j], h[:, i]) for i in 1:3, j in 1:2]
 
     v = bitrand(3, 1)
     h = bitrand(2, 3, 2)
-    @test size(energy(rbm, v, h)) == @inferred(batchsize(rbm, v, h)) == (3, 2)
+    @test size(energy(rbm, v, h)) == @inferred(batch_size(rbm, v, h)) == (3, 2)
     @test energy(rbm, v, h) ≈ [energy(rbm, v[:, 1], h[:, i, j]) for i in 1:3, j in 1:2]
 
     v = bitrand(3, 1, 2)
     h = bitrand(2, 3, 2)
-    @test size(energy(rbm, v, h)) == @inferred(batchsize(rbm, v, h)) == (3, 2)
+    @test size(energy(rbm, v, h)) == @inferred(batch_size(rbm, v, h)) == (3, 2)
     @test energy(rbm, v, h) ≈ [energy(rbm, v[:, 1, j], h[:, i, j]) for i in 1:3, j in 1:2]
 
     v = bitrand(3, 3, 1)
     h = bitrand(2, 3, 2)
-    @test size(energy(rbm, v, h)) == @inferred(batchsize(rbm, v, h)) == (3, 2)
+    @test size(energy(rbm, v, h)) == @inferred(batch_size(rbm, v, h)) == (3, 2)
     @test energy(rbm, v, h) ≈ [energy(rbm, v[:, i, 1], h[:, i, j]) for i in 1:3, j in 1:2]
 
     v = bitrand(3, 2, 2)
     h = bitrand(2, 3, 1)
-    @test_throws Any batchsize(rbm, v, h)
+    @test_throws Any batch_size(rbm, v, h)
     @test_throws Any energy(rbm, v, h)
 
     v = bitrand(3, 1, 2)
     h = bitrand(2, 3, 3)
-    @test_throws Any batchsize(rbm, v, h)
+    @test_throws Any batch_size(rbm, v, h)
     @test_throws Any energy(rbm, v, h)
 end
 
-@testset "join_batchsize" begin
-    @test join_batchsize((3, 5), (3, 5)) == (3, 5)
-    @test join_batchsize((1, 5), (3, 5)) == (3, 5)
-    @test join_batchsize((3, 1), (3, 5)) == (3, 5)
-    @test join_batchsize((3,), (3, 7)) == (3, 7)
-    @test join_batchsize((3, 7), (3,)) == (3, 7)
-    @test_throws AssertionError join_batchsize((2, 5), (3, 5))
+@testset "join_batch_size" begin
+    @test join_batch_size((3, 5), (3, 5)) == (3, 5)
+    @test join_batch_size((1, 5), (3, 5)) == (3, 5)
+    @test join_batch_size((3, 1), (3, 5)) == (3, 5)
+    @test join_batch_size((3,), (3, 7)) == (3, 7)
+    @test join_batch_size((3, 7), (3,)) == (3, 7)
+    @test_throws AssertionError join_batch_size((2, 5), (3, 5))
 end
 
 @testset "sample_v_from_v and sample_h_from_h on binary RBM" begin

@@ -37,7 +37,7 @@ function inputs_h_from_v(rbm, v)
     wflat = flat_w(rbm)
     vflat = with_eltype_of(wflat, flat_v(rbm, v))
     iflat = wflat' * vflat
-    return reshape(iflat, size(rbm.hidden)..., batchsize(rbm.visible, v)...)
+    return reshape(iflat, size(rbm.hidden)..., batch_size(rbm.visible, v)...)
 end
 
 """
@@ -49,7 +49,7 @@ function inputs_v_from_h(rbm, h)
     wflat = flat_w(rbm)
     hflat = with_eltype_of(wflat, flat_h(rbm, h))
     iflat = wflat * hflat
-    return reshape(iflat, size(rbm.visible)..., batchsize(rbm.hidden, h)...)
+    return reshape(iflat, size(rbm.visible)..., batch_size(rbm.hidden, h)...)
 end
 
 """
@@ -99,7 +99,7 @@ end
 Weight mediated interaction energy.
 """
 function interaction_energy(rbm, v, h)
-    bsz = batchsize(rbm, v, h)
+    bsz = batch_size(rbm, v, h)
     if ndims(rbm.visible) == ndims(v) && ndims(rbm.hidden) == ndims(h)
         # Both v and h are single samples: use full matrix multiply
         w_flat = flat_w(rbm)
@@ -251,23 +251,23 @@ function mode_h_from_v(rbm, v)
 end
 
 """
-    batchsize(rbm, v, h)
+    batch_size(rbm, v, h)
 
 Returns the batch size if `energy(rbm, v, h)` were computed.
 """
-function batchsize(rbm, v, h)
-    v_bsz = batchsize(rbm.visible, v)
-    h_bsz = batchsize(rbm.hidden, h)
+function batch_size(rbm, v, h)
+    v_bsz = batch_size(rbm.visible, v)
+    h_bsz = batch_size(rbm.hidden, h)
     if isempty(v_bsz)
         return h_bsz
     elseif isempty(h_bsz)
         return v_bsz
     else
-        return join_batchsize(v_bsz, h_bsz)
+        return join_batch_size(v_bsz, h_bsz)
     end
 end
 
-function join_batchsize(bsz_1::Tuple{Int, Vararg{Int}}, bsz_2::Tuple{Int, Vararg{Int}})
+function join_batch_size(bsz_1::Tuple{Int, Vararg{Int}}, bsz_2::Tuple{Int, Vararg{Int}})
     if length(bsz_1) > length(bsz_2)
         D = length(bsz_2)
         sz2 = bsz_1[(D + 1):end]
@@ -295,7 +295,7 @@ function reconstruction_error(rbm, v; steps = 1)
     if ndims(v) == ndims(rbm.visible)
         return only(ϵ)
     else
-        return reshape(ϵ, batchsize(rbm.visible, v))
+        return reshape(ϵ, batch_size(rbm.visible, v))
     end
 end
 

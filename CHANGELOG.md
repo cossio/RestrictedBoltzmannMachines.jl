@@ -12,9 +12,6 @@ All notable changes to this project will be documented in this file. The format 
   breaking release, including internal helpers, the layer-implementation
   contract, the gradient (`∂`) interface, and some documented but not-yet-frozen
   functions (for example `reconstruction_error` and `rescale_weights!`).
-- **Breaking**: renamed `batch_size` to `batchsize`, matching the `batchmean` /
-  `batchvar` / `batchstd` / `batchcov` family and the `batchsize` training
-  keyword. Update `using RestrictedBoltzmannMachines: batch_size` accordingly.
 - **Breaking**: dropped the `DiffRules` dependency (unused) and raised the lower
   bounds of several dependencies: `Optimisers` to 0.4, `CUDA` to 5, `HDF5` to
   0.17.

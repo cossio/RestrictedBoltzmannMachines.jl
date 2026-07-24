@@ -8,7 +8,7 @@ using EllipsisNotation: (..)
 using LogExpFunctions: logsumexp
 using Statistics: mean
 using RestrictedBoltzmannMachines: RBM, Binary, Spin, Potts, PottsGumbel,
-    batchsize, colors, free_energy, sitedims, sitesize
+    batch_size, colors, free_energy, sitedims, sitesize
 
 _with_leading_dims(x::Number, n::Int) = x
 _with_leading_dims(x::AbstractArray, n::Int) = reshape(x, ntuple(Returns(1), n)..., size(x)...)
@@ -24,12 +24,12 @@ function log_pseudolikelihood_sites(
         rbm::RBM, v::AbstractArray, sites::AbstractArray{<:CartesianIndex}
     )
     @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
-    @assert size(sites) == batchsize(rbm.visible, v)
+    @assert size(sites) == batch_size(rbm.visible, v)
     ΔE = substitution_matrix_sites(rbm, v, sites)
-    @assert size(ΔE) == (colors(rbm.visible), batchsize(rbm.visible, v)...)
+    @assert size(ΔE) == (colors(rbm.visible), batch_size(rbm.visible, v)...)
     lPL = -logsumexp(-ΔE; dims = 1)
-    @assert size(lPL) == (1, batchsize(rbm.visible, v)...)
-    return reshape(lPL, batchsize(rbm.visible, v))
+    @assert size(lPL) == (1, batch_size(rbm.visible, v)...)
+    return reshape(lPL, batch_size(rbm.visible, v))
 end
 
 """
@@ -42,12 +42,12 @@ function log_pseudolikelihood_exact(rbm::RBM, v::AbstractArray)
     @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
     ΔE = substitution_matrix_exhaustive(rbm, v)
     @assert size(ΔE) == (
-        colors(rbm.visible), sitesize(rbm.visible)..., batchsize(rbm.visible, v)...,
+        colors(rbm.visible), sitesize(rbm.visible)..., batch_size(rbm.visible, v)...,
     )
     lPLsites = -logsumexp(-ΔE; dims = 1)
-    @assert size(lPLsites) == (1, sitesize(rbm.visible)..., batchsize(rbm.visible, v)...)
+    @assert size(lPLsites) == (1, sitesize(rbm.visible)..., batch_size(rbm.visible, v)...)
     lPL = mean(lPLsites; dims = 2:(sitedims(rbm.visible) + 1))
-    return reshape(lPL, batchsize(rbm.visible, v))
+    return reshape(lPL, batch_size(rbm.visible, v))
 end
 
 """
@@ -68,7 +68,7 @@ function _substitution_matrix_sites_2states(
         rbm::RBM, v::AbstractArray, sites::AbstractArray{<:CartesianIndex}, states::Tuple
     )
     @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
-    @assert size(sites) == batchsize(rbm.visible, v)
+    @assert size(sites) == batch_size(rbm.visible, v)
     F0 = free_energy(rbm, v)
     idx = [CartesianIndex(i, b) for (b, i) in pairs(sites)]
     E_ = similar(rbm.w, eltype(F0), (2, size(sites)...))
@@ -96,7 +96,7 @@ function substitution_matrix_sites(
         rbm::RBM{<:Potts}, v::AbstractArray, sites::AbstractArray{<:CartesianIndex}
     )
     @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
-    @assert size(sites) == batchsize(rbm.visible, v)
+    @assert size(sites) == batch_size(rbm.visible, v)
     q = colors(rbm.visible)
     F0 = free_energy(rbm, v)
     idx = [CartesianIndex(c, i, b) for c in 1:q, (b, i) in pairs(sites)]
@@ -139,7 +139,7 @@ function substitution_matrix_exhaustive end
 
 function _substitution_matrix_exhaustive_2states(rbm::RBM, v::AbstractArray, states::Tuple)
     @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
-    batch_indices = CartesianIndices(batchsize(rbm.visible, v))
+    batch_indices = CartesianIndices(batch_size(rbm.visible, v))
     F0 = free_energy(rbm, v)
     E_ = similar(rbm.w, eltype(F0), (2, size(v)...))
     for i in CartesianIndices(size(rbm.visible))
@@ -162,7 +162,7 @@ end
 
 function substitution_matrix_exhaustive(rbm::RBM{<:Potts}, v::AbstractArray)
     @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
-    batch_indices = CartesianIndices(batchsize(rbm.visible, v))
+    batch_indices = CartesianIndices(batch_size(rbm.visible, v))
     F0 = free_energy(rbm, v)
     E_ = similar(rbm.w, eltype(F0), size(v))
     for i in CartesianIndices(sitesize(rbm.visible))

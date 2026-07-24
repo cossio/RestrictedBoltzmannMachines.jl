@@ -147,11 +147,11 @@ function batchdims(layer::AbstractLayer, x::AbstractArray)
 end
 
 """
-    batchsize(layer, x)
+    batch_size(layer, x)
 
 Batch sizes of `x`, with respect to `layer`.
 """
-function batchsize(layer::AbstractLayer, x::AbstractArray)
+function batch_size(layer::AbstractLayer, x::AbstractArray)
     @assert size(layer) == size(x)[1:ndims(layer)]
     return size(x)[batchdims(layer, x)]
 end
@@ -208,7 +208,7 @@ function batchcov(
     if isnothing(wts)
         C = ξ * ξ' / size(ξ, 2)
     else
-        @assert size(wts) == batchsize(layer, x)
+        @assert size(wts) == batch_size(layer, x)
         w = Diagonal(vec(wts))
         C = ξ * w * ξ' / sum(w)
     end

@@ -8,7 +8,7 @@ using LogExpFunctions: logistic
 using EllipsisNotation: (..)
 using QuadGK: quadgk
 using RestrictedBoltzmannMachines: RBM, Binary, Spin, Potts, Gaussian, ReLU, dReLU, xReLU, pReLU, nsReLU,
-    flatten, batchsize, batchmean, batchvar, batchcov, drelu_energy,
+    flatten, batch_size, batchmean, batchvar, batchcov, drelu_energy,
     mean_from_inputs, var_from_inputs, meanvar_from_inputs, batchdims, gauss_energy, relu_energy,
     std_from_inputs, mean_abs_from_inputs, sample_from_inputs, mode_from_inputs,
     energy, cgf, free_energy, cgfs, energies, ∂cgf, vstack, ∂energy, ∂free_energy, binary_rand,
@@ -48,7 +48,7 @@ _layers = (
 
     @test (@inferred length(layer)) == prod(sz)
     @test (@inferred ndims(layer)) == length(sz)
-    @test (@inferred batchsize(layer, rand(sz...))) == ()
+    @test (@inferred batch_size(layer, rand(sz...))) == ()
     @test (@inferred energy(layer, rand(sz...))) isa Number
     @test (@inferred cgf(layer)) isa Number
     @test (@inferred cgf(layer, rand(sz...))) isa Number
@@ -68,7 +68,7 @@ _layers = (
 
     for B in ((), (2,), (1, 2))
         x = rand(sz..., B...)
-        @test (@inferred batchsize(layer, x)) == (B...,)
+        @test (@inferred batch_size(layer, x)) == (B...,)
         @test (@inferred batchdims(layer, x)) == (length(sz) + 1):ndims(x)
         @test size(@inferred energy(layer, x)) == (B...,)
         @test size(@inferred cgf(layer, x)) == (B...,)

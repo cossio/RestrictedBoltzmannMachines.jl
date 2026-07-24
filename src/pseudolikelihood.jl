@@ -25,7 +25,7 @@ close to the exact value of the pseudolikelihood.
 """
 function log_pseudolikelihood_stoch(rbm::RBM, v::AbstractArray)
     @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
-    batch_sz = batchsize(rbm.visible, v)
+    batch_sz = batch_size(rbm.visible, v)
     sites = reshape(
         [
             rand(CartesianIndices(sitesize(rbm.visible)))
@@ -62,7 +62,7 @@ _on_device(template::AbstractArray, x::AbstractArray) =
     copyto!(similar(template, eltype(x), size(x)), x)
 
 function _pseudolikelihood_context(rbm::RBM, v::AbstractArray)
-    batch_sz = batchsize(rbm.visible, v)
+    batch_sz = batch_size(rbm.visible, v)
     B = prod(batch_sz)
     vB = reshape(v, size(rbm.visible)..., B)
     inputs = inputs_h_from_v(rbm, vB)
@@ -78,7 +78,7 @@ function _log_pseudolikelihood_sites_2states(
         rbm::RBM, v::AbstractArray, sites::AbstractArray{<:CartesianIndex}, flip::Integer
     )
     @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
-    @assert size(sites) == batchsize(rbm.visible, v)
+    @assert size(sites) == batch_size(rbm.visible, v)
     batch_sz, B, vB, Iflat, Γ0 = _pseudolikelihood_context(rbm, v)
     site_linear = LinearIndices(size(rbm.visible))
     j = _on_device(Iflat, [site_linear[i] for i in reshape(sites, B)])
@@ -107,7 +107,7 @@ function log_pseudolikelihood_sites(
         rbm::RBM{<:Potts}, v::AbstractArray, sites::AbstractArray{<:CartesianIndex}
     )
     @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
-    @assert size(sites) == batchsize(rbm.visible, v)
+    @assert size(sites) == batch_size(rbm.visible, v)
     batch_sz, B, vB, Iflat, Γ0 = _pseudolikelihood_context(rbm, v)
     q = colors(rbm.visible)
     site_linear = LinearIndices(sitesize(rbm.visible))
@@ -140,7 +140,7 @@ end
 function _gaussian_hidden_pseudolikelihood_context(
         rbm::RBM{<:AbstractLayer, <:Gaussian}, v::AbstractArray
     )
-    batch_sz = batchsize(rbm.visible, v)
+    batch_sz = batch_size(rbm.visible, v)
     B = prod(batch_sz)
     vflat = reshape(v, length(rbm.visible), B)
 
