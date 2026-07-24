@@ -60,8 +60,7 @@ found is a Nit, lead the summary with "No blocking issues."
 - Anything CI already enforces: the test suite (`ci.yml`) and the
   agent-docs linter (`.github/scripts/lint_agent_docs.py`).
 - Formatting and code style preferences.
-- Generated files: `Manifest.toml`, built documentation output, and
-  anything under `notebooks/`.
+- Generated files: `Manifest.toml` and built documentation output.
 - Missing CHANGELOG.md entries for CI, workflow, or repo-tooling changes —
   the changelog records only user-facing package changes.
 
