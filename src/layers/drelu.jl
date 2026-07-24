@@ -99,8 +99,8 @@ function drelu_energy(θp::T, θn::T, γp::S, γn::S, x::Real) where {T <: Real,
 end
 
 function drelu_cgf(θp::Real, θn::Real, γp::Real, γn::Real)
-    Γp = relu_cfg(θp, γp)
-    Γn = relu_cfg(-θn, γn)
+    Γp = relu_cgf(θp, γp)
+    Γn = relu_cgf(-θn, γn)
     return logaddexp(Γp, Γn)
 end
 
@@ -109,8 +109,8 @@ function drelu_rand(θp::Real, θn::Real, γp::Real, γn::Real)
 end
 
 function drelu_rand(θp::T, θn::T, γp::S, γn::S) where {T <: Real, S <: Real}
-    Γp = relu_cfg(θp, γp)
-    Γn = relu_cfg(-θn, γn)
+    Γp = relu_cgf(θp, γp)
+    Γn = relu_cgf(-θn, γn)
     Γ = logaddexp(Γp, Γn)
     if randexp(typeof(Γ)) ≥ Γ - Γp
         return relu_rand(θp, γp)

@@ -469,7 +469,7 @@ end
 end
 
 using RestrictedBoltzmannMachines: colors, sitedims, sitesize,
-    binary_var, binary_std, spin_cfg, spin_rand, relu_cfg, relu_rand, gauss_cfg, drelu_cgf
+    binary_var, binary_std, spin_cgf, spin_rand, relu_cgf, relu_rand, gauss_cgf, drelu_cgf
 
 @testset "mode_from_inputs exact values for discrete layers" begin
     N = (3, 4)
@@ -527,14 +527,14 @@ end
 
 @testset "scalar layer kernels" begin
     for θ in -2:0.5:2
-        @test spin_cfg(θ) ≈ log(2cosh(θ))
+        @test spin_cgf(θ) ≈ log(2cosh(θ))
         @test binary_var(θ) ≈ logistic(θ) * logistic(-θ)
         @test binary_std(θ) ≈ sqrt(binary_var(θ))
         # sign of γ is ignored by the Gaussian-family kernels
-        @test gauss_cfg(θ, 2.0) == gauss_cfg(θ, -2.0)
+        @test gauss_cgf(θ, 2.0) == gauss_cgf(θ, -2.0)
         # log of the Gaussian partition function: θ²/(2γ) + log(2π/γ)/2
-        @test gauss_cfg(θ, 2.0) ≈ θ^2 / 4 + log(π) / 2
-        @test relu_cfg(θ, 2.0) == relu_cfg(θ, -2.0)
+        @test gauss_cgf(θ, 2.0) ≈ θ^2 / 4 + log(π) / 2
+        @test relu_cgf(θ, 2.0) == relu_cgf(θ, -2.0)
     end
 
     # spin_rand samples ±1 with the right probability (uniform grid over u)
@@ -570,5 +570,5 @@ end
     @test mean_from_inputs(drelu) ≈ mean_from_inputs(relu) rtol = 1.0e-4
     @test var_from_inputs(drelu) ≈ var_from_inputs(relu) rtol = 1.0e-4
     @test mean_abs_from_inputs(drelu) ≈ mean_abs_from_inputs(relu) rtol = 1.0e-4
-    @test cgfs(drelu) ≈ cgfs(relu) .+ log1p.(exp.(relu_cfg.(0, 1.0e10) .- cgfs(relu))) rtol = 1.0e-6
+    @test cgfs(drelu) ≈ cgfs(relu) .+ log1p.(exp.(relu_cgf.(0, 1.0e10) .- cgfs(relu))) rtol = 1.0e-6
 end

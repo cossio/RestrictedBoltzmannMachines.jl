@@ -8,8 +8,8 @@ Gaussian layer, with location parameters `θ` and scale parameters `γ`.
 energies(layer::Gaussian, x::AbstractArray) = gauss_energy.(layer.θ, layer.γ, x)
 gauss_energy(θ::Real, γ::Real, x::Real) = (abs(γ) * x / 2 - θ) * x
 
-cgfs(layer::Gaussian, inputs = 0) = gauss_cfg.(layer.θ .+ inputs, layer.γ)
-gauss_cfg(θ::Real, γ::Real) = θ^2 / abs(2γ) - log(abs(γ) / π / 2) / 2
+cgfs(layer::Gaussian, inputs = 0) = gauss_cgf.(layer.θ .+ inputs, layer.γ)
+gauss_cgf(θ::Real, γ::Real) = θ^2 / abs(2γ) - log(abs(γ) / π / 2) / 2
 
 function sample_from_inputs(layer::Gaussian, inputs = 0)
     μ = mean_from_inputs(layer, inputs)

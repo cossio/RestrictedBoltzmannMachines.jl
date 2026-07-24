@@ -10,7 +10,7 @@ function energies(layer::ReLU, x::AbstractArray)
     return relu_energy.(layer.θ, layer.γ, x)
 end
 
-cgfs(layer::ReLU, inputs = 0) = relu_cfg.(layer.θ .+ inputs, layer.γ)
+cgfs(layer::ReLU, inputs = 0) = relu_cgf.(layer.θ .+ inputs, layer.γ)
 sample_from_inputs(layer::ReLU, inputs = 0) = relu_rand.(layer.θ .+ inputs, layer.γ)
 mode_from_inputs(layer::ReLU, inputs = 0) = max.((layer.θ .+ inputs) ./ abs.(layer.γ), 0)
 mean_abs_from_inputs(layer::ReLU, inputs = 0) = mean_from_inputs(layer, inputs)
@@ -58,7 +58,7 @@ function relu_energy(θ::Real, γ::Real, x::Real)
     return x < 0 ? inf(E) : E
 end
 
-function relu_cfg(θ::Real, γ::Real)
+function relu_cgf(θ::Real, γ::Real)
     abs_γ = abs(γ)
     return logerfcx(-θ / √(2abs_γ)) - log(2abs_γ / π) / 2
 end

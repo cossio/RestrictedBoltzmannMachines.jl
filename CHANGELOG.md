@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+- **Breaking**: the minimum supported Julia version is now 1.11 (was 1.10). This
+  enables `public` declarations that mark the supported API explicitly.
+- The supported public API is now declared with `public` (the package still
+  exports nothing). Only names marked `public` carry the compatibility
+  guarantee; everything else remains accessible but may change without a
+  breaking release, including internal helpers, the layer-implementation
+  contract, the gradient (`∂`) interface, and some documented but not-yet-frozen
+  functions (for example `reconstruction_error` and `rescale_weights!`).
+- **Breaking**: dropped the `DiffRules` dependency (unused) and raised the lower
+  bounds of several dependencies: `Optimisers` to 0.4, `CUDA` to 5, `HDF5` to
+  0.17.
+
 - **Breaking**: Unbiased Contrastive Divergence has moved to a separate package,
   [ucdRBMs.jl](https://github.com/cossio/ucdRBMs.jl). `ucd!`, `unbiased_sample`,
   `unbiased_estimator`, and `UnbiasedSample` are no longer part of this package;
