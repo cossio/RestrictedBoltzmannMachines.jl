@@ -66,12 +66,6 @@ function gpu end
 function save_rbm end
 function load_rbm end
 
-#= Supported public API. The package exports nothing (use
-`import RestrictedBoltzmannMachines as RBMs` or `using ...: name`); `public`
-marks the names that are stable API without bringing them into scope. Names not
-listed here — internal helpers, the layer-implementation contract, the gradient
-(`∂`) interface — are implementation details and may change without a breaking
-release. =#
 public RBM, CenteredRBM, StandardizedRBM
 public Binary, Spin, Potts, Gaussian, ReLU, dReLU, pReLU, xReLU, nsReLU, PottsGumbel
 public BinaryRBM, SpinRBM, GaussianRBM, HopfieldRBM,
