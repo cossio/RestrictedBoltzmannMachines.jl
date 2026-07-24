@@ -6,6 +6,10 @@ All notable changes to this project will be documented in this file. The format 
 
 - **Breaking**: the minimum supported Julia version is now 1.11 (was 1.10). This
   enables `public` declarations that mark the supported API explicitly.
+- The supported public API is now declared with `public` (the package still
+  exports nothing). Names not marked `public` — internal helpers, the
+  layer-implementation contract, and the gradient (`∂`) interface — are
+  implementation details and may change without a breaking release.
 - **Breaking**: renamed `batch_size` to `batchsize`, matching the `batchmean` /
   `batchvar` / `batchstd` / `batchcov` family and the `batchsize` training
   keyword. Update `using RestrictedBoltzmannMachines: batch_size` accordingly.
