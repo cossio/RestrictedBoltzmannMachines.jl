@@ -51,7 +51,7 @@ function ∂free_energy_h(
 end
 
 function ∂interaction_energy(rbm::RBM, v::AbstractArray, h::AbstractArray; wts = nothing)
-    bsz = batch_size(rbm, v, h)
+    bsz = batchsize(rbm, v, h)
     if ndims(rbm.visible) == ndims(v) && ndims(rbm.hidden) == ndims(h)
         wts::Nothing
         vflat = with_eltype_of(rbm.w, vec(v))

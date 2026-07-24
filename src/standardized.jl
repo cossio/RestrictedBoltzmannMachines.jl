@@ -1,3 +1,19 @@
+@doc raw"""
+    StandardizedRBM{V,H,W,Ov,Oh,Sv,Sh}
+
+RBM with standardized layer activations. Like [`CenteredRBM`](@ref) it subtracts the
+offsets `offset_v`, `offset_h` from the visible and hidden activations entering the
+interaction, and additionally divides them by the scales `scale_v`, `scale_h`. The
+energy is
+
+```math
+E(v,h) = E_v(v) + E_h(h) - \sum_{i\mu} w_{i\mu}
+    \frac{v_i - \lambda_i}{\sigma_i} \frac{h_\mu - \lambda_\mu}{\sigma_\mu}
+```
+
+where ``\lambda`` are the offsets and ``\sigma`` the scales. A `CenteredRBM` is the
+special case with unit scales. See <http://jmlr.org/papers/v17/14-237.html>.
+"""
 struct StandardizedRBM{V, H, W, Ov, Oh, Sv, Sh}
     visible::V
     hidden::H
@@ -20,6 +36,14 @@ struct StandardizedRBM{V, H, W, Ov, Oh, Sv, Sh}
     end
 end
 
+"""
+    StandardizedRBM(rbm, offset_v, offset_h, scale_v, scale_h)
+
+Creates a standardized RBM, with offsets `offset_v`, `offset_h` and scales `scale_v`,
+`scale_h`. The resulting model is *not* equivalent to the original `rbm`, unless the
+offsets are zero and the scales are one. To construct an equivalent model instead, use
+[`standardize`](@ref).
+"""
 function StandardizedRBM(
         rbm::RBM,
         offset_v::AbstractArray, offset_h::AbstractArray,
@@ -28,6 +52,12 @@ function StandardizedRBM(
     return StandardizedRBM(rbm.visible, rbm.hidden, rbm.w, offset_v, offset_h, scale_v, scale_h)
 end
 
+"""
+    StandardizedRBM(rbm)
+
+Creates a standardized RBM from `rbm`, with offsets initialized to zero and scales to
+one (so the constructed model is equivalent to `rbm`).
+"""
 function StandardizedRBM(rbm::RBM)
     offset_v = zeros_like(rbm.w, size(rbm.visible))
     offset_h = zeros_like(rbm.w, size(rbm.hidden))
@@ -94,6 +124,17 @@ Note: this does not enforce zerosum gauge; call `zerosum(unstandardize(rbm))` if
 unstandardize(rbm::StandardizedRBM) = RBM(standardize(rbm))
 unstandardize(rbm::RBM) = rbm
 
+@doc raw"""
+    standardize(rbm, offset_v = 0, offset_h = 0, scale_v = 1, scale_h = 1)
+
+Constructs a `StandardizedRBM` equivalent to the given `rbm` (a plain `RBM` or another
+`StandardizedRBM`), with the given offsets and scales. The energies assigned by the two
+models differ by a constant amount, so the modeled distribution is unchanged.
+
+This is the inverse operation of [`unstandardize`](@ref). To construct a
+`StandardizedRBM` that simply adopts these offsets and scales *without* preserving the
+distribution, call `StandardizedRBM(rbm, offset_v, offset_h, scale_v, scale_h)` instead.
+"""
 standardize(rbm::RBM) = StandardizedRBM(rbm)
 function standardize(rbm::StandardizedRBM)
     offset_v = Zeros(rbm.offset_v)
@@ -157,6 +198,13 @@ standardize_hidden(rbm::StandardizedRBM) = standardize_hidden(rbm, zero(rbm.offs
 standardize_visible(rbm::RBM) = standardize(rbm)
 standardize_hidden(rbm::RBM) = standardize(rbm)
 
+"""
+    standardize!(rbm::StandardizedRBM, offset_v, offset_h, scale_v, scale_h)
+
+Transforms the offsets and scales of `rbm` in place. The transformed model is equivalent
+to the original one (energies differ by a constant). In-place analogue of
+[`standardize`](@ref).
+"""
 function standardize!(rbm::StandardizedRBM, offset_v::AbstractArray, offset_h::AbstractArray, scale_v::AbstractArray, scale_h::AbstractArray)
     @assert size(rbm.visible) == size(offset_v) == size(scale_v)
     @assert size(rbm.hidden) == size(offset_h) == size(scale_h)
@@ -293,6 +341,13 @@ function pcd!(
     )
 end
 
+"""
+    BinaryStandardizedRBM(a, b, w, offset_v, offset_h, scale_v, scale_h)
+    BinaryStandardizedRBM(a, b, w)
+
+Construct a standardized RBM with `Binary` visible and hidden layers. With the short
+form the offsets are zero and the scales one (equivalent to the plain `BinaryRBM`).
+"""
 function BinaryStandardizedRBM(
         a::AbstractArray, b::AbstractArray, w::AbstractArray,
         offset_v::AbstractArray, offset_h::AbstractArray,
@@ -307,6 +362,13 @@ function BinaryStandardizedRBM(a::AbstractArray, b::AbstractArray, w::AbstractAr
     return standardize(rbm)
 end
 
+"""
+    SpinStandardizedRBM(a, b, w, offset_v, offset_h, scale_v, scale_h)
+    SpinStandardizedRBM(a, b, w)
+
+Construct a standardized RBM with `Spin` visible and hidden layers. With the short form
+the offsets are zero and the scales one (equivalent to the plain `SpinRBM`).
+"""
 function SpinStandardizedRBM(
         a::AbstractArray, b::AbstractArray, w::AbstractArray,
         offset_v::AbstractArray, offset_h::AbstractArray,

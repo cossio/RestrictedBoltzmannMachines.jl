@@ -17,7 +17,7 @@ function energy(layer::_FieldLayers, x::AbstractArray)
     else
         xconv = with_eltype_of(layer.θ, x)
         Eflat = -vec(layer.θ)' * flatten(layer, xconv)
-        return reshape(Eflat, batch_size(layer, x))
+        return reshape(Eflat, batchsize(layer, x))
     end
 end
 
