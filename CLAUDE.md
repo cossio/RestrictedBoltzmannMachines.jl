@@ -19,18 +19,6 @@ CUDA.jl, and HDF5 persistence. It requires Julia 1.10 or later.
   subsystems or affects public behavior.
 - Load the package with
   `julia --project=. -e 'import RestrictedBoltzmannMachines as RBMs'`.
-- Common commands:
-
-  ```bash
-  # Run all tests
-  julia --project=. -e 'using Pkg; Pkg.test()'
-
-  # Run one test file with test-only dependencies
-  julia --project=test test/pcd.jl
-
-  # Start a package REPL, then import the package
-  julia --project=.
-  ```
 
 ## Workspace and environment
 
@@ -71,8 +59,6 @@ CUDA.jl, and HDF5 persistence. It requires Julia 1.10 or later.
   distinction while allowing trailing batch dimensions. Thus a Potts layer
   with spatial shape `N...` has size `(Q, N...)`, while `par` has shape
   `(1, Q, N...)`.
-- Layer types include `Binary`, `Spin`, `Potts`, `Gaussian`, `ReLU`, `dReLU`,
-  `pReLU`, `xReLU`, `nsReLU`, and `PottsGumbel`.
 - `RBM{V,H,W}` stores the `visible` layer, `hidden` layer, and weights `w`.
   `CenteredRBM` adds offset parameters; `StandardizedRBM` adds offsets and
   scales.
@@ -81,32 +67,6 @@ CUDA.jl, and HDF5 persistence. It requires Julia 1.10 or later.
   `ext/HDF5Ext.jl` as compatibility-sensitive.
 - Literate sources live in `docs/src/literate/`. Generated Markdown there is a
   transient build artifact removed by `docs/make.jl`.
-
-## Module organization
-
-- `src/layers/` contains layer definitions. `abstractlayer.jl` defines the
-  interface, individual files implement layer types, and `common.jl` contains
-  shared utilities.
-- `src/rbms/` contains convenience constructors such as `BinaryRBM` and
-  `HopfieldRBM`.
-- `src/train/` contains training code: persistent contrastive divergence in
-  `pcd.jl`, data-driven initialization in `initialization.jl`, and gradients in
-  `gradient.jl`.
-- `src/gauge/` contains gauge transformations, including `zerosum.jl`,
-  `rescale_hidden.jl`, and `shift_fields.jl`.
-- `src/util/` contains linear-algebra helpers, one-hot encoding, and truncated
-  normal sampling.
-- `ext/` contains the CUDA and HDF5 package extensions.
-
-## Key functions
-
-- Training: `pcd!` and `initialize!`.
-- Sampling: `sample_v_from_h`, `sample_h_from_v`, `sample_v_from_v`, and
-  `metropolis`.
-- Evaluation: `free_energy`, `energy`, `log_pseudolikelihood`,
-  `log_partition`, and `reconstruction_error`.
-- Partition-function estimation: `aise` (annealed importance sampling) and
-  `raise` (reverse AIS).
 
 ## GitHub operations
 
