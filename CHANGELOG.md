@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## 6.0.0
 
 - **Breaking**: the minimum supported Julia version is now 1.11 (was 1.10). This
   enables `public` declarations that mark the supported API explicitly.
