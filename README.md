@@ -99,6 +99,8 @@ Layers and RBMs also implement the [Adapt.jl](https://github.com/JuliaGPU/Adapt.
 
 See this [Google Colab notebook](https://colab.research.google.com/drive/1lfY5t6m-j8n19EXHLnV-lRBBfJ_jLk8y?usp=sharing) for a full GPU training example.
 
+The [executed Binary–nsReLU MNIST notebook](https://drive.google.com/file/d/13dmCDwYiLQBflkreJogAD-5_aWhYPhov/view?usp=sharing) shows a long GPU training run, equilibrated samples, and first-, second-, and third-order moment-matching diagnostics.
+
 ## Centered and Standardized RBMs
 
 **CenteredRBM** introduces offset parameters that track mean unit activities, improving training stability ([Melchior et al., 2016](https://jmlr.org/papers/v17/14-237.html); [Montavon & Müller, 2012](#references)):
