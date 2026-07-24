@@ -72,7 +72,6 @@ public BinaryRBM, SpinRBM, GaussianRBM, HopfieldRBM,
     CenteredBinaryRBM, BinaryStandardizedRBM, SpinStandardizedRBM
 public pcd!, initialize!
 public log_pseudolikelihood, log_partition, log_likelihood, aise, raise
-public logmeanexp, logstdexp, logvarexp
 public energy, free_energy, interaction_energy
 public sample_v_from_h, sample_h_from_v, sample_v_from_v, sample_h_from_h
 public mean_h_from_v, mean_v_from_h, var_h_from_v, var_v_from_h, mode_h_from_v, mode_v_from_h
