@@ -81,9 +81,9 @@ public log_pseudolikelihood, log_partition, log_likelihood, aise, raise
 public energy, free_energy, interaction_energy
 public sample_v_from_h, sample_h_from_v, sample_v_from_v, sample_h_from_h
 public mean_h_from_v, mean_v_from_h, var_h_from_v, var_v_from_h, mode_h_from_v, mode_v_from_h
-public inputs_h_from_v, inputs_v_from_h, reconstruction_error
+public inputs_h_from_v, inputs_v_from_h
 public metropolis, metropolis!, cold_metropolis
 public center, center!, uncenter, standardize, standardize!, unstandardize
-public mirror, zerosum, zerosum!, rescale_weights!, rescale_hidden!
+public mirror, zerosum, zerosum!
 
 end # module
