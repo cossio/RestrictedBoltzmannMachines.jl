@@ -143,6 +143,15 @@ Full documentation with API reference and worked examples (MNIST, Metropolis sam
 - [AdvRBMs.jl](https://github.com/cossio/AdvRBMs.jl) — Adversarially constrained RBMs
 - [StackedTempering.jl](https://github.com/2024stacktemperingrbm/StackedTempering.jl) — Stacked tempering for RBMs
 
+## Publications using this package
+
+- [Cross-individual translation of spontaneous zebrafish brain activity through a shared latent representation](https://www.pnas.org/doi/abs/10.1073/pnas.2529064123) — *PNAS* (2026)
+- [Designing molecular RNA switches with Restricted Boltzmann machines](https://www.nature.com/articles/s41467-025-66265-y) — *Nature Communications* 16, 11223 (2025)
+- [Generative Modeling of RNA Sequence Families with Restricted Boltzmann Machines](https://link.springer.com/protocol/10.1007/978-1-0716-4079-1_11) — *Methods in Molecular Biology* 2847, 163–175 (2025)
+- [Replica symmetry breaking and clustering phase transitions in undersampled restricted Boltzmann machines](https://hal.science/hal-04447899/) — HAL preprint (2024)
+- [Accelerated Sampling with Stacked Restricted Boltzmann Machines](https://openreview.net/forum?id=kXNJ48Hvw1) — ICLR (2024)
+- [Disentangling Representations in Restricted Boltzmann Machines without Adversaries](https://journals.aps.org/prx/abstract/10.1103/PhysRevX.13.021003) — *Physical Review X* 13, 021003 (2023)
+
 ## Citation
 
 If you use this package in a publication, please cite:
