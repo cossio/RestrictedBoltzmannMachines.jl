@@ -131,7 +131,7 @@ subsequent AIS runs without biasing them.
 """
 function adaptive_betas(
         rbm0::RBM, rbm1::RBM, v::AbstractArray;
-        target::Real = 0.99, max_betas::Int = 10_000, min_increment::Real = 1e-6, steps::Int = 1
+        target::Real = 0.99, max_betas::Int = 10_000, min_increment::Real = 1.0e-6, steps::Int = 1
     )
     @assert 0 < target < 1
     @assert 0 < min_increment < 1
