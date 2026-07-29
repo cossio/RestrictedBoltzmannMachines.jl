@@ -1,11 +1,11 @@
-using Test: @test, @testset, @inferred
+using Test: @test, @testset, @inferred, @test_logs
 using Statistics: mean, std, var
 using Random: randn!, bitrand
 using LogExpFunctions: logsumexp
 using RestrictedBoltzmannMachines: RBM, BinaryRBM, Binary, Spin, Potts, Gaussian, ReLU, dReLU,
     xReLU, pReLU, nsReLU,
     energy, free_energy, sample_from_inputs, sample_v_from_v,
-    anneal, anneal_zero, ais, aise, raise, log_partition_zero_weight,
+    anneal, anneal_zero, ais, aise, raise, adaptive_betas, log_partition_zero_weight,
     logmeanexp, logvarexp, logstdexp, log_partition
 
 @testset "logmeanexp, logvarexp" begin
@@ -222,6 +222,58 @@ end
     v0 = sample_v_from_v(rbm0, randn(20, 10); steps = 1)
     R = ais(rbm0, rbm1, v0, nbetas = 10000)
     @test logmeanexp(R) ≈ lZ1 - lZ0 rtol = 0.1
+end
+
+@testset "ais steps" begin
+    rbm0 = BinaryRBM(randn(2), randn(1), zeros(2, 1))
+    rbm1 = BinaryRBM(randn(2), randn(1), randn(2, 1))
+    v0 = sample_v_from_v(rbm0, bitrand(2, 10000); steps = 1)
+    data = ais(rbm0, rbm1, v0; nbetas = 10, steps = 5)
+    @test logmeanexp(data) ≈ log_partition(rbm1) - log_partition(rbm0) rtol = 0.1
+    lZ = aise(rbm1; nbetas = 100, nsamples = 1000, steps = 3)
+    @test logmeanexp(lZ) ≈ log_partition(rbm1) rtol = 0.1
+end
+
+@testset "adaptive_betas" begin
+    rbm = BinaryRBM(randn(3), randn(2), randn(3, 2))
+    βs = adaptive_betas(rbm; nsamples = 100, target = 0.9)
+    @test first(βs) == 0
+    @test last(βs) == 1
+    @test issorted(βs)
+    @test allunique(βs)
+    @test all(0 .≤ βs .≤ 1)
+
+    lZ = aise(rbm, βs; nsamples = 10000)
+    @test logmeanexp(lZ) ≈ log_partition(rbm) rtol = 0.1
+
+    # raise accepts the same (asymmetric) schedule
+    v = sample_v_from_v(rbm, bitrand(3, 10000); steps = 500)
+    lZr = raise(rbm, βs; v)
+    @test -logmeanexp(-lZr) ≈ log_partition(rbm) rtol = 0.1
+
+    # harder annealing paths get more intermediate temperatures
+    weak = BinaryRBM(zeros(3), zeros(2), randn(3, 2) / 10)
+    strong = BinaryRBM(zeros(3), zeros(2), 5 .+ randn(3, 2))
+    @test length(adaptive_betas(weak)) < length(adaptive_betas(strong))
+
+    # max_betas caps the schedule length (with a warning), keeping valid endpoints
+    βs = @test_logs (:warn, r"max_betas") adaptive_betas(strong; max_betas = 5)
+    @test length(βs) == 6
+    @test first(βs) == 0
+    @test last(βs) == 1
+    @test issorted(βs)
+end
+
+@testset "adaptive_betas gaussian" begin
+    rbm = RBM(
+        Gaussian(; θ = randn(5), γ = 1 .+ 5rand(5)),
+        Gaussian(; θ = randn(3), γ = 1 .+ rand(3)),
+        randn(5, 3) / 10
+    )
+    βs = adaptive_betas(rbm; nsamples = 100, target = 0.9)
+    @test first(βs) == 0 && last(βs) == 1 && issorted(βs)
+    lZ = aise(rbm, βs; nsamples = 1000)
+    @test logmeanexp(lZ) ≈ log_partition(rbm) rtol = 0.1
 end
 
 @testset "zero hidden units" begin

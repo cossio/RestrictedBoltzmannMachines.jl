@@ -21,7 +21,7 @@ import RestrictedBoltzmannMachines as RBMs
 using Statistics: mean, std, middle
 using ValueHistories: MVHistory
 using RestrictedBoltzmannMachines: Binary, BinaryRBM, initialize!, pcd!,
-    aise, raise, logmeanexp, logstdexp, sample_v_from_v
+    aise, raise, adaptive_betas, logmeanexp, logstdexp, sample_v_from_v
 
 # ## Training
 
@@ -111,3 +111,27 @@ Makie.xlims!(extrema(ndists)...)
 Makie.axislegend(ax, position = :rb)
 Makie.resize_to_layout!(fig)
 fig
+
+#=
+## Adaptive temperature schedule
+
+Instead of a uniform grid of inverse temperatures, `adaptive_betas` selects the schedule
+adaptively: a pilot population of chains is annealed from the reference distribution to
+the model, and each temperature step is chosen (by bisection) as the largest step whose
+incremental importance weights retain a target effective sample size. This concentrates
+temperatures where the annealing path is hard and spends none where it is easy, often
+matching the accuracy of a much longer uniform schedule.
+=#
+
+βs = @time adaptive_betas(rbm; init, nsamples = 100, target = 0.999)
+length(βs)
+
+# Run forward and reverse AIS re-using the adapted schedule.
+
+R_ada_f = @time aise(rbm, βs; nsamples, init)
+R_ada_r = @time raise(rbm, βs; init, v = v[:, :, rand(1:size(v, 3), nsamples)])
+nothing #hide
+
+# The sandwich obtained from the adapted schedule:
+
+logmeanexp(R_ada_f), -logmeanexp(-R_ada_r)

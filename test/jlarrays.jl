@@ -17,7 +17,8 @@ using RestrictedBoltzmannMachines: RBM, CenteredRBM, StandardizedRBM, ∂RBM, Bi
     inputs_h_from_v, inputs_v_from_h, mean_h_from_v, mean_v_from_h,
     sample_h_from_v, sample_v_from_h, sample_v_from_v, reconstruction_error,
     log_pseudolikelihood, log_pseudolikelihood_stoch,
-    initialize!, pcd!, ∂free_energy, zerosum!, rescale_weights!, weight_norms, aise, raise
+    initialize!, pcd!, ∂free_energy, zerosum!, rescale_weights!, weight_norms, aise, raise,
+    adaptive_betas
 
 JLArrays.allowscalar(false)
 
@@ -417,5 +418,10 @@ end
     @test all(isfinite, adapt(Array, R))
     jl_v = JLArray(float(bitrand(N..., 4)))
     R = raise(jl_rbm; nbetas = 20, v = jl_v)
+    @test all(isfinite, adapt(Array, R))
+
+    βs = adaptive_betas(jl_rbm; nsamples = 4, target = 0.5)
+    @test first(βs) == 0 && last(βs) == 1 && issorted(βs)
+    R = aise(jl_rbm, βs; nsamples = 4)
     @test all(isfinite, adapt(Array, R))
 end
