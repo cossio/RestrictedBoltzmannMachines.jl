@@ -34,7 +34,7 @@ an unbiased estimator of `Z1/Z0`, the ratio of partition functions of `rbm1` and
 The annealing schedule is either given explicitly as `βs`, or as a uniform grid of
 `nbetas` temperatures. Alternatively, passing the `target` keyword (mutually exclusive
 with `nbetas`) adapts the temperatures dynamically during the run itself, as in
-[`ais_dynamic`](@ref), which then returns the named tuple `(; F, βs)` with the realized
+[`adaptive_ais`](@ref), which then returns the named tuple `(; F, βs)` with the realized
 schedule.
 
 !!! tip Use [`logmeanexp`](@ref)
@@ -68,11 +68,11 @@ function ais(
         return ais(rbm0, rbm1, v0, βs; steps)
     end
     isnothing(nbetas) || throw(ArgumentError("`nbetas` and `target` are mutually exclusive"))
-    return ais_dynamic(rbm0, rbm1, v0; target, max_betas, min_increment, steps)
+    return adaptive_ais(rbm0, rbm1, v0; target, max_betas, min_increment, steps)
 end
 
 """
-    ais_dynamic(rbm0, rbm1, v0; target, max_betas=10_000, min_increment=1e-6, steps=1)
+    adaptive_ais(rbm0, rbm1, v0; target, max_betas=10_000, min_increment=1e-6, steps=1)
 
 Annealed importance sampling from `rbm0` to `rbm1` (as in [`ais`](@ref)), adapting the
 inverse temperatures dynamically during the run: each next temperature is chosen (by
@@ -92,7 +92,7 @@ directly to `β = 1` (with a warning).
     independent pilot population with [`adaptive_betas`](@ref) and pass it to
     [`ais`](@ref) as `βs`.
 """
-function ais_dynamic(
+function adaptive_ais(
         rbm0::RBM, rbm1::RBM, v::AbstractArray;
         target::Real, max_betas::Int = 10_000, min_increment::Real = 1.0e-6, steps::Int = 1
     )
@@ -109,7 +109,7 @@ function ais_dynamic(
     while β < 1
         β = next_beta(rbm0, rbm1, v, vec(Fcur), β; target, min_increment)
         if β < 1 && length(βs) == max_betas - 1
-            @warn "ais_dynamic reached max_betas = $max_betas before β = 1; consider lowering `target` or raising `max_betas`"
+            @warn "adaptive_ais reached max_betas = $max_betas before β = 1; consider lowering `target` or raising `max_betas`"
             β = 1.0
         end
         push!(βs, β)
@@ -133,7 +133,7 @@ the single-site statistics of `rbm` (or the data).
 In the first form, the annealing schedule is a uniform grid of `nbetas` temperatures, or
 an explicitly given `βs` (e.g. from [`adaptive_betas`](@ref)). In the second form
 (`target` given, mutually exclusive with `nbetas`), the temperatures are adapted
-dynamically during the run, as in [`ais_dynamic`](@ref); this requires `nsamples ≥ 2`
+dynamically during the run, as in [`adaptive_ais`](@ref); this requires `nsamples ≥ 2`
 and returns the named tuple `(; F, βs)` with the realized schedule.
 
 !!! tip Use large `nbetas`
@@ -161,7 +161,7 @@ the reference), so the same schedule (e.g. from [`adaptive_betas`](@ref)) can be
 between `aise` and `raise`.
 
 If `target` is given (mutually exclusive with `nbetas`), the temperatures are adapted
-dynamically during the run, as in [`ais_dynamic`](@ref); this requires at least two
+dynamically during the run, as in [`adaptive_ais`](@ref); this requires at least two
 chains in `v` and returns the named tuple `(; F, βs)`, where the realized schedule `βs`
 is reported in the ascending `aise` convention.
 
@@ -191,7 +191,7 @@ function aise(
     isnothing(nbetas) || throw(ArgumentError("`nbetas` and `target` are mutually exclusive"))
     rbm0 = anneal_zero(init, rbm)
     v0 = sample_from_inputs(init, Falses(size(init)..., nsamples))
-    F, βs = ais_dynamic(rbm0, rbm, v0; target, max_betas, min_increment, steps)
+    F, βs = adaptive_ais(rbm0, rbm, v0; target, max_betas, min_increment, steps)
     return (; F = F .+ log_partition_zero_weight(rbm0), βs)
 end
 
@@ -206,7 +206,7 @@ function raise(
     end
     isnothing(nbetas) || throw(ArgumentError("`nbetas` and `target` are mutually exclusive"))
     rbm0 = anneal_zero(init, rbm)
-    F, γs = ais_dynamic(rbm, rbm0, v; target, max_betas, min_increment, steps)
+    F, γs = adaptive_ais(rbm, rbm0, v; target, max_betas, min_increment, steps)
     return (; F = log_partition_zero_weight(rbm0) .- F, βs = 1 .- reverse(γs))
 end
 
@@ -233,7 +233,7 @@ Returns a sorted vector of inverse temperatures, starting at 0 and ending at 1, 
 be passed as `βs` to [`ais`](@ref), [`aise`](@ref), or [`raise`](@ref). Since the
 schedule is adapted on a fresh pilot population, the returned `βs` can be used in
 subsequent AIS runs without biasing them. To instead adapt the temperatures dynamically
-within a single estimation run, see [`ais_dynamic`](@ref) (or the `target` keyword of
+within a single estimation run, see [`adaptive_ais`](@ref) (or the `target` keyword of
 [`aise`](@ref) and [`raise`](@ref)).
 """
 function adaptive_betas(

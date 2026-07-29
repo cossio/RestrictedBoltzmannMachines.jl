@@ -9,7 +9,7 @@ All notable changes to this project will be documented in this file. The format 
   `nbetas`) that selects each next inverse temperature on the fly, keeping the
   effective sample size of the incremental importance weights above `target`.
   In this mode they return `(; F, βs)` with the realized schedule. The
-  underlying routine is `ais_dynamic`.
+  underlying routine is `adaptive_ais`.
 - Added `adaptive_betas`, which computes such an adapted temperature schedule on
   an independent pilot population (yielding strictly unbiased subsequent runs).
   The resulting schedule can be passed as `βs` to `ais`, `aise`, and `raise`.

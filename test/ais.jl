@@ -5,7 +5,7 @@ using LogExpFunctions: logsumexp
 using RestrictedBoltzmannMachines: RBM, BinaryRBM, Binary, Spin, Potts, Gaussian, ReLU, dReLU,
     xReLU, pReLU, nsReLU,
     energy, free_energy, sample_from_inputs, sample_v_from_v,
-    anneal, anneal_zero, ais, aise, raise, ais_dynamic, adaptive_betas, log_partition_zero_weight,
+    anneal, anneal_zero, ais, aise, raise, adaptive_ais, adaptive_betas, log_partition_zero_weight,
     logmeanexp, logvarexp, logstdexp, log_partition
 
 @testset "logmeanexp, logvarexp" begin
@@ -265,11 +265,11 @@ end
     @test allunique(βs)
 end
 
-@testset "ais_dynamic" begin
+@testset "adaptive_ais" begin
     rbm0 = BinaryRBM(randn(2), randn(1), zeros(2, 1))
     rbm1 = BinaryRBM(randn(2), randn(1), randn(2, 1))
     v0 = sample_v_from_v(rbm0, bitrand(2, 10000); steps = 1)
-    F, βs = ais_dynamic(rbm0, rbm1, v0; target = 0.9)
+    F, βs = adaptive_ais(rbm0, rbm1, v0; target = 0.9)
     @test length(F) == 10000
     @test first(βs) == 0 && last(βs) == 1 && issorted(βs) && allunique(βs)
     @test logmeanexp(F) ≈ log_partition(rbm1) - log_partition(rbm0) rtol = 0.1
@@ -278,11 +278,11 @@ end
     R = ais(rbm0, rbm1, v0; target = 0.9)
     @test logmeanexp(R.F) ≈ log_partition(rbm1) - log_partition(rbm0) rtol = 0.1
     @test_throws ArgumentError ais(rbm0, rbm1, v0; nbetas = 10, target = 0.9)
-    @test_throws ArgumentError ais_dynamic(rbm0, rbm1, bitrand(2); target = 0.9)
+    @test_throws ArgumentError adaptive_ais(rbm0, rbm1, bitrand(2); target = 0.9)
 
     # max_betas forces the jump to β = 1 (with a warning), keeping the length capped
     strong = BinaryRBM(zeros(2), zeros(1), fill(10.0, 2, 1))
-    R = @test_logs (:warn, r"max_betas") match_mode = :any ais_dynamic(rbm0, strong, v0; target = 0.999, max_betas = 3)
+    R = @test_logs (:warn, r"max_betas") match_mode = :any adaptive_ais(rbm0, strong, v0; target = 0.999, max_betas = 3)
     @test length(R.βs) == 3
     @test first(R.βs) == 0 && last(R.βs) == 1 && issorted(R.βs)
 end
