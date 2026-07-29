@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+- Added dynamic temperature adaptation for annealed importance sampling: `ais`,
+  `aise`, and `raise` accept a new `target` keyword (mutually exclusive with
+  `nbetas`) that selects each next inverse temperature on the fly, keeping the
+  effective sample size of the incremental importance weights above `target`.
+  In this mode they return `(; F, βs)` with the realized schedule. The
+  underlying routine is `adaptive_ais`.
+- Added `adaptive_betas`, which computes such an adapted temperature schedule on
+  an independent pilot population (yielding strictly unbiased subsequent runs).
+  The resulting schedule can be passed as `βs` to `ais`, `aise`, and `raise`.
+- `ais`, `aise`, and `raise` accept a new `steps` keyword controlling the number
+  of Gibbs sweeps performed at each intermediate temperature (default 1, the
+  previous behavior).
+- `raise` now interprets a supplied `βs` schedule in the same convention as
+  `aise` (inverse temperatures of the target model, sorted from 0 to 1),
+  traversing it in reverse internally. Uniform schedules such as the default
+  `range(0, 1, nbetas)` are unaffected; asymmetric schedules (e.g. from
+  `adaptive_betas`) can now be shared between `aise` and `raise`.
+
 ## 6.0.0
 
 - **Breaking**: the minimum supported Julia version is now 1.11 (was 1.10). This

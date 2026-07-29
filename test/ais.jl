@@ -1,11 +1,11 @@
-using Test: @test, @testset, @inferred
+using Test: @test, @testset, @inferred, @test_logs, @test_throws
 using Statistics: mean, std, var
 using Random: randn!, bitrand
 using LogExpFunctions: logsumexp
 using RestrictedBoltzmannMachines: RBM, BinaryRBM, Binary, Spin, Potts, Gaussian, ReLU, dReLU,
     xReLU, pReLU, nsReLU,
     energy, free_energy, sample_from_inputs, sample_v_from_v,
-    anneal, anneal_zero, ais, aise, raise, log_partition_zero_weight,
+    anneal, anneal_zero, ais, aise, raise, adaptive_ais, adaptive_betas, log_partition_zero_weight,
     logmeanexp, logvarexp, logstdexp, log_partition
 
 @testset "logmeanexp, logvarexp" begin
@@ -222,6 +222,111 @@ end
     v0 = sample_v_from_v(rbm0, randn(20, 10); steps = 1)
     R = ais(rbm0, rbm1, v0, nbetas = 10000)
     @test logmeanexp(R) ≈ lZ1 - lZ0 rtol = 0.1
+end
+
+@testset "ais steps" begin
+    rbm0 = BinaryRBM(randn(2), randn(1), zeros(2, 1))
+    rbm1 = BinaryRBM(randn(2), randn(1), randn(2, 1))
+    v0 = sample_v_from_v(rbm0, bitrand(2, 10000); steps = 1)
+    data = ais(rbm0, rbm1, v0; nbetas = 10, steps = 5)
+    @test logmeanexp(data) ≈ log_partition(rbm1) - log_partition(rbm0) rtol = 0.1
+    lZ = aise(rbm1; nbetas = 100, nsamples = 1000, steps = 3)
+    @test logmeanexp(lZ) ≈ log_partition(rbm1) rtol = 0.1
+end
+
+@testset "adaptive_betas" begin
+    rbm = BinaryRBM(randn(3), randn(2), randn(3, 2))
+    βs = adaptive_betas(rbm; nsamples = 100, target = 0.9)
+    @test first(βs) == 0
+    @test last(βs) == 1
+    @test issorted(βs)
+    @test allunique(βs)
+    @test all(0 .≤ βs .≤ 1)
+
+    lZ = aise(rbm, βs; nsamples = 10000)
+    @test logmeanexp(lZ) ≈ log_partition(rbm) rtol = 0.1
+
+    # raise accepts the same (asymmetric) schedule
+    v = sample_v_from_v(rbm, bitrand(3, 10000); steps = 500)
+    lZr = raise(rbm, βs; v)
+    @test -logmeanexp(-lZr) ≈ log_partition(rbm) rtol = 0.1
+
+    # harder annealing paths get more intermediate temperatures
+    weak = BinaryRBM(zeros(3), zeros(2), randn(3, 2) / 10)
+    strong = BinaryRBM(zeros(3), zeros(2), 5 .+ randn(3, 2))
+    @test length(adaptive_betas(weak)) < length(adaptive_betas(strong))
+
+    # max_betas caps the schedule length (with a warning), keeping valid endpoints
+    βs = @test_logs (:warn, r"max_betas") adaptive_betas(strong; max_betas = 5)
+    @test length(βs) == 5
+    @test first(βs) == 0
+    @test last(βs) == 1
+    @test issorted(βs)
+    @test allunique(βs)
+end
+
+@testset "adaptive_ais" begin
+    rbm0 = BinaryRBM(randn(2), randn(1), zeros(2, 1))
+    rbm1 = BinaryRBM(randn(2), randn(1), randn(2, 1))
+    v0 = sample_v_from_v(rbm0, bitrand(2, 10000); steps = 1)
+    F, βs = adaptive_ais(rbm0, rbm1, v0; target = 0.9)
+    @test length(F) == 10000
+    @test first(βs) == 0 && last(βs) == 1 && issorted(βs) && allunique(βs)
+    @test logmeanexp(F) ≈ log_partition(rbm1) - log_partition(rbm0) rtol = 0.1
+
+    # keyword dispatch through ais
+    R = ais(rbm0, rbm1, v0; target = 0.9)
+    @test logmeanexp(R.F) ≈ log_partition(rbm1) - log_partition(rbm0) rtol = 0.1
+    @test_throws ArgumentError ais(rbm0, rbm1, v0; nbetas = 10, target = 0.9)
+    @test_throws ArgumentError adaptive_ais(rbm0, rbm1, bitrand(2); target = 0.9)
+
+    # max_betas forces the jump to β = 1 (with a warning), keeping the length capped
+    strong = BinaryRBM(zeros(2), zeros(1), fill(10.0, 2, 1))
+    R = @test_logs (:warn, r"max_betas") match_mode = :any adaptive_ais(rbm0, strong, v0; target = 0.999, max_betas = 3)
+    @test length(R.βs) == 3
+    @test first(R.βs) == 0 && last(R.βs) == 1 && issorted(R.βs)
+end
+
+@testset "aise/raise dynamic" begin
+    rbm = BinaryRBM(randn(3), randn(2), randn(3, 2))
+    lZ = log_partition(rbm)
+    R = aise(rbm; target = 0.9, nsamples = 10000)
+    @test length(R.F) == 10000
+    @test first(R.βs) == 0 && last(R.βs) == 1 && issorted(R.βs)
+    @test logmeanexp(R.F) ≈ lZ rtol = 0.1
+
+    v = sample_v_from_v(rbm, bitrand(3, 10000); steps = 500)
+    Rr = raise(rbm; target = 0.9, v)
+    @test length(Rr.F) == 10000
+    @test first(Rr.βs) == 0 && last(Rr.βs) == 1 && issorted(Rr.βs)
+    @test -logmeanexp(-Rr.F) ≈ lZ rtol = 0.1
+
+    @test_throws ArgumentError aise(rbm; nbetas = 10, target = 0.9)
+    @test_throws ArgumentError aise(rbm; target = 0.9, nsamples = 1)
+    @test_throws ArgumentError raise(rbm; nbetas = 10, target = 0.9, v)
+end
+
+@testset "tiny min_increment terminates" begin
+    # min_increment below floating-point resolution must not hang the bisection.
+    # Strong couplings guarantee the full jump fails the ESS criterion, so the
+    # bisection runs down to floating-point resolution.
+    rbm = BinaryRBM(zeros(3), zeros(2), fill(2.0, 3, 2))
+    βs = adaptive_betas(rbm; nsamples = 10, target = 0.9, min_increment = 1.0e-20)
+    @test first(βs) == 0 && last(βs) == 1 && issorted(βs)
+    R = aise(rbm; target = 0.9, nsamples = 10, min_increment = 1.0e-20)
+    @test first(R.βs) == 0 && last(R.βs) == 1 && issorted(R.βs)
+end
+
+@testset "adaptive_betas gaussian" begin
+    rbm = RBM(
+        Gaussian(; θ = randn(5), γ = 1 .+ 5rand(5)),
+        Gaussian(; θ = randn(3), γ = 1 .+ rand(3)),
+        randn(5, 3) / 10
+    )
+    βs = adaptive_betas(rbm; nsamples = 100, target = 0.9)
+    @test first(βs) == 0 && last(βs) == 1 && issorted(βs)
+    lZ = aise(rbm, βs; nsamples = 1000)
+    @test logmeanexp(lZ) ≈ log_partition(rbm) rtol = 0.1
 end
 
 @testset "zero hidden units" begin
