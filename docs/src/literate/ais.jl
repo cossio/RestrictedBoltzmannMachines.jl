@@ -113,14 +113,32 @@ Makie.resize_to_layout!(fig)
 fig
 
 #=
-## Adaptive temperature schedule
+## Adaptive temperature schedules
 
-Instead of a uniform grid of inverse temperatures, `adaptive_betas` selects the schedule
-adaptively: a pilot population of chains is annealed from the reference distribution to
-the model, and each temperature step is chosen (by bisection) as the largest step whose
+Instead of a uniform grid of inverse temperatures, the schedule can be adapted to the
+annealing path: each temperature step is chosen (by bisection) as the largest step whose
 incremental importance weights retain a target effective sample size. This concentrates
 temperatures where the annealing path is hard and spends none where it is easy, often
 matching the accuracy of a much longer uniform schedule.
+
+Passing the `target` keyword to `aise` or `raise` adapts the temperatures dynamically
+during the run itself. In this mode the estimators return `(; F, βs)`, with the realized
+schedule alongside the estimates.
+=#
+
+R_dyn_f = @time aise(rbm; target = 0.999, nsamples, init)
+R_dyn_r = @time raise(rbm; target = 0.999, init, v = v[:, :, rand(1:size(v, 3), nsamples)])
+length(R_dyn_f.βs), length(R_dyn_r.βs)
+
+# The sandwich obtained from the dynamically adapted runs:
+
+logmeanexp(R_dyn_f.F), -logmeanexp(-R_dyn_r.F)
+
+#=
+Dynamic adaptation uses the same chains for the schedule and the estimate, which
+introduces a small bias that vanishes with the number of chains. Alternatively,
+`adaptive_betas` computes the schedule on an independent pilot population, and the
+resulting fixed schedule can be re-used in strictly unbiased `aise`/`raise` runs.
 =#
 
 βs = @time adaptive_betas(rbm; init, nsamples = 100, target = 0.999)

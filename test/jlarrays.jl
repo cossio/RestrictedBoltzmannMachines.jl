@@ -424,4 +424,8 @@ end
     @test first(βs) == 0 && last(βs) == 1 && issorted(βs)
     R = aise(jl_rbm, βs; nsamples = 4)
     @test all(isfinite, adapt(Array, R))
+
+    R = aise(jl_rbm; target = 0.5, nsamples = 4)
+    @test first(R.βs) == 0 && last(R.βs) == 1 && issorted(R.βs)
+    @test all(isfinite, adapt(Array, R.F))
 end

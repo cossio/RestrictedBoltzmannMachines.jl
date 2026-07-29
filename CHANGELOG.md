@@ -4,11 +4,15 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
-- Added `adaptive_betas`, which adaptively selects an inverse temperature
-  schedule for annealed importance sampling by keeping the effective sample size
-  of the incremental importance weights above a target fraction on a pilot
-  population. The resulting schedule can be passed as `βs` to `ais`, `aise`, and
-  `raise`.
+- Added dynamic temperature adaptation for annealed importance sampling: `ais`,
+  `aise`, and `raise` accept a new `target` keyword (mutually exclusive with
+  `nbetas`) that selects each next inverse temperature on the fly, keeping the
+  effective sample size of the incremental importance weights above `target`.
+  In this mode they return `(; F, βs)` with the realized schedule. The
+  underlying routine is `ais_dynamic`.
+- Added `adaptive_betas`, which computes such an adapted temperature schedule on
+  an independent pilot population (yielding strictly unbiased subsequent runs).
+  The resulting schedule can be passed as `βs` to `ais`, `aise`, and `raise`.
 - `ais`, `aise`, and `raise` accept a new `steps` keyword controlling the number
   of Gibbs sweeps performed at each intermediate temperature (default 1, the
   previous behavior).

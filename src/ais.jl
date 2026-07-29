@@ -24,10 +24,18 @@ For a variant or RAISE: https://arxiv.org/abs/1511.02543
 
 """
     ais(rbm0, rbm1, v0, βs; steps=1)
+    ais(rbm0, rbm1, v0; nbetas=2, steps=1)
+    ais(rbm0, rbm1, v0; target, max_betas=10_000, min_increment=1e-6, steps=1)
 
 Provided `v0` is an equilibrated sample from `rbm0`, returns `F` such that `mean(exp.(F))` is
 an unbiased estimator of `Z1/Z0`, the ratio of partition functions of `rbm1` and `rbm0`.
 `steps` is the number of Gibbs sweeps performed at each intermediate temperature.
+
+The annealing schedule is either given explicitly as `βs`, or as a uniform grid of
+`nbetas` temperatures. Alternatively, passing the `target` keyword (mutually exclusive
+with `nbetas`) adapts the temperatures dynamically during the run itself, as in
+[`ais_dynamic`](@ref), which then returns the named tuple `(; F, βs)` with the realized
+schedule.
 
 !!! tip Use [`logmeanexp`](@ref)
     `logmeanexp(F)`, using the function `logmeanexp`[@ref] provided in this package,
@@ -50,24 +58,87 @@ function ais(rbm0::RBM, rbm1::RBM, v::AbstractArray, βs::AbstractVector; steps:
     return F
 end
 
-function ais(rbm0::RBM, rbm1::RBM, v0::AbstractArray; nbetas::Int = 2, steps::Int = 1)
-    βs = range(0, 1, nbetas)
-    return ais(rbm0, rbm1, v0, βs; steps)
+function ais(
+        rbm0::RBM, rbm1::RBM, v0::AbstractArray;
+        nbetas::Union{Int, Nothing} = nothing, target::Union{Real, Nothing} = nothing,
+        max_betas::Int = 10_000, min_increment::Real = 1.0e-6, steps::Int = 1
+    )
+    if isnothing(target)
+        βs = range(0, 1, something(nbetas, 2))
+        return ais(rbm0, rbm1, v0, βs; steps)
+    end
+    isnothing(nbetas) || throw(ArgumentError("`nbetas` and `target` are mutually exclusive"))
+    return ais_dynamic(rbm0, rbm1, v0; target, max_betas, min_increment, steps)
+end
+
+"""
+    ais_dynamic(rbm0, rbm1, v0; target, max_betas=10_000, min_increment=1e-6, steps=1)
+
+Annealed importance sampling from `rbm0` to `rbm1` (as in [`ais`](@ref)), adapting the
+inverse temperatures dynamically during the run: each next temperature is chosen (by
+bisection) as the largest step whose incremental importance weights retain a normalized
+effective sample size of at least `target` over the current chains. Requires at least
+two chains. Returns the named tuple `(; F, βs)`, where `F` are the importance sampling
+estimates as in [`ais`](@ref), and `βs` is the realized schedule.
+
+`min_increment` bounds the bisection tolerance and the smallest allowed temperature
+step. `max_betas` caps the schedule length: if the cap is reached, the annealing jumps
+directly to `β = 1` (with a warning).
+
+!!! note Adaptation bias
+    The temperatures are adapted on the same chains used for the estimate, which
+    introduces a small `O(1/nchains)` bias in `mean(exp.(F))` (vanishing as the number
+    of chains grows). For a strictly unbiased estimator, compute the schedule on an
+    independent pilot population with [`adaptive_betas`](@ref) and pass it to
+    [`ais`](@ref) as `βs`.
+"""
+function ais_dynamic(
+        rbm0::RBM, rbm1::RBM, v::AbstractArray;
+        target::Real, max_betas::Int = 10_000, min_increment::Real = 1.0e-6, steps::Int = 1
+    )
+    @assert 0 < target < 1
+    @assert 0 < min_increment < 1
+    @assert max_betas ≥ 2
+    if length(v) < 2 * length(rbm0.visible)
+        throw(ArgumentError("dynamic temperature adaptation requires at least 2 chains"))
+    end
+    β = 0.0
+    βs = [β]
+    Fcur = free_energy(rbm0, v) # free energies of the chains at the current temperature
+    F = zero(Fcur) # accumulated log importance weights
+    while β < 1
+        β = next_beta(rbm0, rbm1, v, vec(Fcur), β; target, min_increment)
+        if β < 1 && length(βs) == max_betas - 1
+            @warn "ais_dynamic reached max_betas = $max_betas before β = 1; consider lowering `target` or raising `max_betas`"
+            β = 1.0
+        end
+        push!(βs, β)
+        rbm = isone(β) ? rbm1 : anneal(rbm0, rbm1; β)
+        F += Fcur - free_energy(rbm, v)
+        if β < 1
+            v = sample_v_from_v(rbm, v; steps)
+            Fcur = free_energy(rbm, v)
+        end
+    end
+    return (; F, βs)
 end
 
 """
     aise(rbm, [βs]; [nbetas], init=rbm.visible, nsamples=1, steps=1)
+    aise(rbm; target, init=rbm.visible, nsamples, steps=1, max_betas=10_000, min_increment=1e-6)
 
 AIS estimator of the log-partition function of `rbm`. It is recommended to fit `init` to
 the single-site statistics of `rbm` (or the data).
 
+In the first form, the annealing schedule is a uniform grid of `nbetas` temperatures, or
+an explicitly given `βs` (e.g. from [`adaptive_betas`](@ref)). In the second form
+(`target` given, mutually exclusive with `nbetas`), the temperatures are adapted
+dynamically during the run, as in [`ais_dynamic`](@ref); this requires `nsamples ≥ 2`
+and returns the named tuple `(; F, βs)` with the realized schedule.
+
 !!! tip Use large `nbetas`
     For more accurate estimates, use larger `nbetas`. It is usually better to have
     large `nbetas` and small `nsamples`, rather than large `nsamples` and small `nbetas`.
-
-!!! tip Adaptive schedules
-    Instead of the default uniform grid of `nbetas` temperatures, an adapted schedule
-    computed by [`adaptive_betas`](@ref) can be passed as `βs`.
 """
 function aise(rbm::RBM, βs::AbstractVector{<:Real}; init::AbstractLayer = rbm.visible, nsamples::Int = 1, steps::Int = 1)
     rbm0 = anneal_zero(init, rbm)
@@ -78,6 +149,7 @@ end
 
 """
     raise(rbm::RBM, [βs]; [nbetas], v, init=rbm.visible, steps=1)
+    raise(rbm::RBM; target, v, init=rbm.visible, steps=1, max_betas=10_000, min_increment=1e-6)
 
 Reverse AIS estimator of the log-partition function of `rbm`.
 While `aise` tends to understimate the log of the partition function, `raise` tends to
@@ -87,6 +159,11 @@ overstimate it. `v` must be an equilibrated sample from `rbm`.
 `rbm`, sorted from 0 to 1. The annealing path traverses it in reverse (from `rbm` down to
 the reference), so the same schedule (e.g. from [`adaptive_betas`](@ref)) can be shared
 between `aise` and `raise`.
+
+If `target` is given (mutually exclusive with `nbetas`), the temperatures are adapted
+dynamically during the run, as in [`ais_dynamic`](@ref); this requires at least two
+chains in `v` and returns the named tuple `(; F, βs)`, where the realized schedule `βs`
+is reported in the ascending `aise` convention.
 
 !!! tip Use [`logmeanexp`](@ref)
     If `F = raise(...)`, then `-logmeanexp(-F)`, using the function `logmeanexp`[@ref]
@@ -102,8 +179,36 @@ function raise(rbm::RBM, βs::AbstractVector; v::AbstractArray, init::AbstractLa
     return log_partition_zero_weight(rbm0) .- F
 end
 
-aise(rbm::RBM; nbetas::Int = 10000, kw...) = aise(rbm, range(0, 1, nbetas); kw...)
-raise(rbm::RBM; nbetas::Int = 10000, kw...) = raise(rbm, range(0, 1, nbetas); kw...)
+function aise(
+        rbm::RBM;
+        nbetas::Union{Int, Nothing} = nothing, target::Union{Real, Nothing} = nothing,
+        init::AbstractLayer = rbm.visible, nsamples::Int = 1, steps::Int = 1,
+        max_betas::Int = 10_000, min_increment::Real = 1.0e-6
+    )
+    if isnothing(target)
+        return aise(rbm, range(0, 1, something(nbetas, 10_000)); init, nsamples, steps)
+    end
+    isnothing(nbetas) || throw(ArgumentError("`nbetas` and `target` are mutually exclusive"))
+    rbm0 = anneal_zero(init, rbm)
+    v0 = sample_from_inputs(init, Falses(size(init)..., nsamples))
+    F, βs = ais_dynamic(rbm0, rbm, v0; target, max_betas, min_increment, steps)
+    return (; F = F .+ log_partition_zero_weight(rbm0), βs)
+end
+
+function raise(
+        rbm::RBM;
+        nbetas::Union{Int, Nothing} = nothing, target::Union{Real, Nothing} = nothing,
+        v::AbstractArray, init::AbstractLayer = rbm.visible, steps::Int = 1,
+        max_betas::Int = 10_000, min_increment::Real = 1.0e-6
+    )
+    if isnothing(target)
+        return raise(rbm, range(0, 1, something(nbetas, 10_000)); v, init, steps)
+    end
+    isnothing(nbetas) || throw(ArgumentError("`nbetas` and `target` are mutually exclusive"))
+    rbm0 = anneal_zero(init, rbm)
+    F, γs = ais_dynamic(rbm, rbm0, v; target, max_betas, min_increment, steps)
+    return (; F = log_partition_zero_weight(rbm0) .- F, βs = 1 .- reverse(γs))
+end
 
 """
     adaptive_betas(rbm; init=rbm.visible, nsamples=100, target=0.99, max_betas=10_000, min_increment=1e-6, steps=1)
@@ -127,7 +232,9 @@ from `rbm0`, as in [`ais`](@ref).
 Returns a sorted vector of inverse temperatures, starting at 0 and ending at 1, which can
 be passed as `βs` to [`ais`](@ref), [`aise`](@ref), or [`raise`](@ref). Since the
 schedule is adapted on a fresh pilot population, the returned `βs` can be used in
-subsequent AIS runs without biasing them.
+subsequent AIS runs without biasing them. To instead adapt the temperatures dynamically
+within a single estimation run, see [`ais_dynamic`](@ref) (or the `target` keyword of
+[`aise`](@ref) and [`raise`](@ref)).
 """
 function adaptive_betas(
         rbm0::RBM, rbm1::RBM, v::AbstractArray;

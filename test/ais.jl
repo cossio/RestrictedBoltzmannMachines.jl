@@ -1,11 +1,11 @@
-using Test: @test, @testset, @inferred, @test_logs
+using Test: @test, @testset, @inferred, @test_logs, @test_throws
 using Statistics: mean, std, var
 using Random: randn!, bitrand
 using LogExpFunctions: logsumexp
 using RestrictedBoltzmannMachines: RBM, BinaryRBM, Binary, Spin, Potts, Gaussian, ReLU, dReLU,
     xReLU, pReLU, nsReLU,
     energy, free_energy, sample_from_inputs, sample_v_from_v,
-    anneal, anneal_zero, ais, aise, raise, adaptive_betas, log_partition_zero_weight,
+    anneal, anneal_zero, ais, aise, raise, ais_dynamic, adaptive_betas, log_partition_zero_weight,
     logmeanexp, logvarexp, logstdexp, log_partition
 
 @testset "logmeanexp, logvarexp" begin
@@ -263,6 +263,47 @@ end
     @test last(βs) == 1
     @test issorted(βs)
     @test allunique(βs)
+end
+
+@testset "ais_dynamic" begin
+    rbm0 = BinaryRBM(randn(2), randn(1), zeros(2, 1))
+    rbm1 = BinaryRBM(randn(2), randn(1), randn(2, 1))
+    v0 = sample_v_from_v(rbm0, bitrand(2, 10000); steps = 1)
+    F, βs = ais_dynamic(rbm0, rbm1, v0; target = 0.9)
+    @test length(F) == 10000
+    @test first(βs) == 0 && last(βs) == 1 && issorted(βs) && allunique(βs)
+    @test logmeanexp(F) ≈ log_partition(rbm1) - log_partition(rbm0) rtol = 0.1
+
+    # keyword dispatch through ais
+    R = ais(rbm0, rbm1, v0; target = 0.9)
+    @test logmeanexp(R.F) ≈ log_partition(rbm1) - log_partition(rbm0) rtol = 0.1
+    @test_throws ArgumentError ais(rbm0, rbm1, v0; nbetas = 10, target = 0.9)
+    @test_throws ArgumentError ais_dynamic(rbm0, rbm1, bitrand(2); target = 0.9)
+
+    # max_betas forces the jump to β = 1 (with a warning), keeping the length capped
+    strong = BinaryRBM(zeros(2), zeros(1), fill(10.0, 2, 1))
+    R = @test_logs (:warn, r"max_betas") match_mode = :any ais_dynamic(rbm0, strong, v0; target = 0.999, max_betas = 3)
+    @test length(R.βs) == 3
+    @test first(R.βs) == 0 && last(R.βs) == 1 && issorted(R.βs)
+end
+
+@testset "aise/raise dynamic" begin
+    rbm = BinaryRBM(randn(3), randn(2), randn(3, 2))
+    lZ = log_partition(rbm)
+    R = aise(rbm; target = 0.9, nsamples = 10000)
+    @test length(R.F) == 10000
+    @test first(R.βs) == 0 && last(R.βs) == 1 && issorted(R.βs)
+    @test logmeanexp(R.F) ≈ lZ rtol = 0.1
+
+    v = sample_v_from_v(rbm, bitrand(3, 10000); steps = 500)
+    Rr = raise(rbm; target = 0.9, v)
+    @test length(Rr.F) == 10000
+    @test first(Rr.βs) == 0 && last(Rr.βs) == 1 && issorted(Rr.βs)
+    @test -logmeanexp(-Rr.F) ≈ lZ rtol = 0.1
+
+    @test_throws ArgumentError aise(rbm; nbetas = 10, target = 0.9)
+    @test_throws ArgumentError aise(rbm; target = 0.9, nsamples = 1)
+    @test_throws ArgumentError raise(rbm; nbetas = 10, target = 0.9, v)
 end
 
 @testset "adaptive_betas gaussian" begin
