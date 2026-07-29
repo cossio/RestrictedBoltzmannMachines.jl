@@ -306,6 +306,15 @@ end
     @test_throws ArgumentError raise(rbm; nbetas = 10, target = 0.9, v)
 end
 
+@testset "tiny min_increment terminates" begin
+    # min_increment below floating-point resolution must not hang the bisection
+    rbm = BinaryRBM(randn(3), randn(2), randn(3, 2))
+    βs = adaptive_betas(rbm; nsamples = 10, target = 0.5, min_increment = 1.0e-20)
+    @test first(βs) == 0 && last(βs) == 1 && issorted(βs)
+    R = aise(rbm; target = 0.5, nsamples = 10, min_increment = 1.0e-20)
+    @test first(R.βs) == 0 && last(R.βs) == 1 && issorted(R.βs)
+end
+
 @testset "adaptive_betas gaussian" begin
     rbm = RBM(
         Gaussian(; θ = randn(5), γ = 1 .+ 5rand(5)),

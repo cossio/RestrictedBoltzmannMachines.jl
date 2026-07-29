@@ -286,13 +286,15 @@ function next_beta(
     lo, hi = β, 1.0
     while hi - lo > min_increment
         mid = (lo + hi) / 2
-        if ess(mid) ≥ target
+        if mid == lo || mid == hi # reached floating-point resolution
+            break
+        elseif ess(mid) ≥ target
             lo = mid
         else
             hi = mid
         end
     end
-    return min(max(lo, β + min_increment), 1.0) # always make progress
+    return min(max(lo, β + min_increment, nextfloat(float(β))), 1.0) # always make progress
 end
 
 #=
