@@ -307,11 +307,13 @@ end
 end
 
 @testset "tiny min_increment terminates" begin
-    # min_increment below floating-point resolution must not hang the bisection
-    rbm = BinaryRBM(randn(3), randn(2), randn(3, 2))
-    βs = adaptive_betas(rbm; nsamples = 10, target = 0.5, min_increment = 1.0e-20)
+    # min_increment below floating-point resolution must not hang the bisection.
+    # Strong couplings guarantee the full jump fails the ESS criterion, so the
+    # bisection runs down to floating-point resolution.
+    rbm = BinaryRBM(zeros(3), zeros(2), fill(2.0, 3, 2))
+    βs = adaptive_betas(rbm; nsamples = 10, target = 0.9, min_increment = 1.0e-20)
     @test first(βs) == 0 && last(βs) == 1 && issorted(βs)
-    R = aise(rbm; target = 0.5, nsamples = 10, min_increment = 1.0e-20)
+    R = aise(rbm; target = 0.9, nsamples = 10, min_increment = 1.0e-20)
     @test first(R.βs) == 0 && last(R.βs) == 1 && issorted(R.βs)
 end
 
