@@ -117,8 +117,8 @@ Starting from `β = 0`, a pilot population of Monte Carlo chains is annealed tow
 `β = 1`. Each next inverse temperature is chosen (by bisection) as the largest `β` whose
 incremental importance weights retain a normalized effective sample size of at least
 `target` over the pilot population. `min_increment` bounds the bisection tolerance and
-the smallest allowed temperature step, and `max_betas` caps the schedule length (a
-warning is emitted if the cap is reached).
+the smallest allowed temperature step, and `max_betas` caps the schedule length (if the
+cap is reached, the last temperature is replaced by 1 and a warning is emitted).
 
 In the first form, the reference model and the pilot population are constructed from
 `init` as in [`aise`](@ref). In the second form, `v0` must be an equilibrated sample
@@ -152,7 +152,7 @@ function adaptive_betas(
     end
     if last(βs) < 1
         @warn "adaptive_betas reached max_betas = $max_betas before β = 1; consider lowering `target` or raising `max_betas`"
-        push!(βs, 1.0)
+        βs[end] = 1.0
     end
     return βs
 end

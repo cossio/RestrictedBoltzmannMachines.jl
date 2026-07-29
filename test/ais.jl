@@ -258,10 +258,11 @@ end
 
     # max_betas caps the schedule length (with a warning), keeping valid endpoints
     βs = @test_logs (:warn, r"max_betas") adaptive_betas(strong; max_betas = 5)
-    @test length(βs) == 6
+    @test length(βs) == 5
     @test first(βs) == 0
     @test last(βs) == 1
     @test issorted(βs)
+    @test allunique(βs)
 end
 
 @testset "adaptive_betas gaussian" begin
