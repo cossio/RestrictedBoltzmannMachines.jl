@@ -26,7 +26,7 @@ Before anything else, analyze the changes and ask the user to choose the version
 
 1. **Release commit.** After the user explicitly chooses `X.Y.Z`, make a single commit titled `vX.Y.Z` that drops the `-DEV` suffix from `version` in Project.toml and renames the `## Unreleased` CHANGELOG section to `## X.Y.Z`. Land it on `master` (directly, or via a PR like [#123](https://github.com/cossio/RestrictedBoltzmannMachines.jl/pull/123)).
 
-2. **Trigger Registrator on the release commit.** Push the release commit, open that exact commit on GitHub (the merge commit if the release landed via PR), and post this comment directly on it:
+2. **Trigger Registrator on the release commit.** Push the release commit and identify its exact SHA (the merge commit if the release landed via PR). Registration is triggered by posting this comment directly on that commit:
 
    ```markdown
    @JuliaRegistrator register
@@ -38,7 +38,28 @@ Before anything else, analyze the changes and ask the user to choose the version
    - blah
    ```
 
-   Use the CHANGELOG entries for this version as the release notes. A commit comment pins registration to that commit, so no release branch or registration issue is needed. Post through the GitHub commit page or the commit-comments API (`gh api repos/cossio/RestrictedBoltzmannMachines.jl/commits/<sha>/comments -f body="..."`). Registrator replies on the commit with a link to the General registry PR; the notes flow into that PR and the GitHub release.
+   Use the CHANGELOG entries for this version as the release notes. A commit comment pins registration to that commit, so no release branch or registration issue is needed. Post the comment through the commit-comments API in one of two modes:
+
+   - **Post it yourself (preferred).** Run:
+
+     ```bash
+     gh api repos/cossio/RestrictedBoltzmannMachines.jl/commits/<sha>/comments -f body="$(cat <<'EOF'
+     @JuliaRegistrator register
+
+     Release notes:
+
+     ## Breaking changes
+
+     - blah
+     EOF
+     )"
+     ```
+
+     The quoted heredoc keeps quotes and backticks in the notes intact. Whether running the command or printing it for the user, emit every line flush-left: the indentation above is markdown list layout only — an indented `EOF` terminator never terminates the heredoc, and leading whitespace in the comment body can stop Registrator from recognizing the trigger. In a network-restricted sandbox `gh auth status` can look like an invalid token; retry with host/network access before concluding `gh` cannot post.
+
+   - **Print the command for the user.** If `gh` cannot post the comment for whatever reason (missing binary, authentication or permission failure, sandbox restrictions, or a managed session whose proxy intercepts direct `api.github.com` calls), print the complete ready-to-run command above — real commit SHA and full release notes filled in, no placeholders left — so the user can copy it and run it themselves. A command substitution such as `$(gh pr view <N> --json mergeCommit -q .mergeCommit.oid)` is a placeholder in disguise: when the release lands via a PR, wait for the merge, resolve the merge-commit SHA, and only then print the command. Then wait for the user to confirm the comment was posted before monitoring the registration.
+
+   Registrator replies on the commit with a link to the General registry PR; the notes flow into that PR and the GitHub release. Confirm the trigger worked by finding the new-version PR in [General](https://github.com/JuliaRegistries/General/pulls?q=RestrictedBoltzmannMachines) — the commit page can keep rendering a stale "0 comments" count after the comment posted, so it is not a reliable failure signal.
 
 3. **Monitor the registry PR until it merges.** AutoMerge normally merges it within ~15–30 minutes. Watch for AutoMerge failures (version-increment, compat, or project-file checks) and comments from registry maintainers. If changes are needed, commit the fixes to `master` while keeping Project.toml at `X.Y.Z`, then post a new Registrator comment on the corrected commit. Registrator updates the registration to that commit. If the GitHub tooling in the session cannot read the General repo directly, read the public registry PR page.
 
