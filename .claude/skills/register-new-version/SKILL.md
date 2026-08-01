@@ -11,16 +11,17 @@ During development the version in Project.toml carries a `-DEV` suffix (e.g. `5.
 
 Before anything else, analyze the changes and ask the user to choose the version. Never make the final version decision for the user.
 
-1. Review the actual changes since the last registered version — the `## Unreleased` CHANGELOG entries **and** the commit history/diff since the previous release tag (`git log vLAST..master`), since the CHANGELOG may be incomplete.
-2. Classify every change using [ColPrac's extension of SemVer for Julia packages](https://docs.sciml.ai/ColPrac/stable/#Guidance-on-Package-Releases):
+1. Review the actual changes since the last registered version — the `## Unreleased` CHANGELOG entries **and** the commit history and diff since the previous release tag (`git log vLAST..master`, `git diff vLAST..master`), since the CHANGELOG may be incomplete.
+2. Cross-check the diff against CHANGELOG.md. The CHANGELOG covers only user-facing changes (source, APIs, behavior, dependencies — not CI, workflows, or repository tooling), so every user-facing change in the diff should have an `## Unreleased` entry, and every entry should match what the code actually does. Report any mismatch and propose the CHANGELOG fixes to the user before proceeding — the release notes are built from these entries.
+3. Classify every change using [ColPrac's extension of SemVer for Julia packages](https://docs.sciml.ai/ColPrac/stable/#Guidance-on-Package-Releases):
    - **Post-1.0:** bump major for breaking changes, minor for non-breaking features, and patch for bug fixes.
    - **Pre-1.0:** bump minor for breaking changes and patch for every non-breaking feature or bug fix.
    - Treat all documented APIs as public, including unexported names documented for normal use. Introducing a deprecation is non-breaking; removing one is breaking.
    - Treat dependency or Julia compatibility changes as non-breaking features, unless a dependency API exposed through this package makes the user-facing change breaking. Treat a compatibility change made solely to fix a bug as a bug fix.
    - Treat a correction to clearly broken behavior as a bug fix even when behavior changes incompatibly. Do not classify internal implementation changes, replacing an exception with non-error behavior, unspecified exception types or messages, floating-point details, new exports or supertypes, or textual representations as breaking solely for that reason.
-3. Derive one suggested version from the highest bump required by the accumulated changes. Treat the `-DEV` version in Project.toml only as a hint — e.g. `5.6.1-DEV` may have accumulated features that suggest `5.7.0`.
-4. Present the suggestion with a brief explanation identifying the changes that drive the bump, then ask the user to confirm it or choose another version. Do not edit release files, commit, push, or trigger registration until the user explicitly chooses the final version.
-5. If the **user** proposes a number, still perform the same review rather than accepting it blindly. If it conflicts with ColPrac, push back once with a brief explanation and ask them to confirm or revise. The user's decision is always final, including for borderline classifications.
+4. Derive one suggested version from the highest bump required by the accumulated changes. Treat the `-DEV` version in Project.toml only as a hint — e.g. `5.6.1-DEV` may have accumulated features that suggest `5.7.0`.
+5. Present the result in two parts: first a succinct summary of the user-facing changes since the last release, then the suggested version with a brief explanation identifying the changes that drive the bump. When a classification is genuinely borderline, also name the alternative version it would imply. Ask the user to confirm the suggestion or choose another version. Do not edit release files, commit, push, or trigger registration until the user explicitly chooses the final version.
+6. If the **user** proposes a number, still perform the same review rather than accepting it blindly. If it conflicts with ColPrac, push back once with a brief explanation and ask them to confirm or revise. The user's decision is always final, including for borderline classifications.
 
 ## Procedure
 
