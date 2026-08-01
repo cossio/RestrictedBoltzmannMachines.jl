@@ -55,7 +55,7 @@ Before anything else, analyze the changes and ask the user to choose the version
      )"
      ```
 
-     The quoted heredoc keeps quotes and backticks in the notes intact. In a network-restricted sandbox `gh auth status` can look like an invalid token; retry with host/network access before concluding `gh` cannot post.
+     The quoted heredoc keeps quotes and backticks in the notes intact. Whether running the command or printing it for the user, emit every line flush-left: the indentation above is markdown list layout only — an indented `EOF` terminator never terminates the heredoc, and leading whitespace in the comment body can stop Registrator from recognizing the trigger. In a network-restricted sandbox `gh auth status` can look like an invalid token; retry with host/network access before concluding `gh` cannot post.
 
    - **Print the command for the user.** If `gh` cannot post the comment for whatever reason (missing binary, authentication or permission failure, sandbox restrictions), print the complete ready-to-run command above — real commit SHA and full release notes filled in, no placeholders left — so the user can copy it and run it themselves. Then wait for the user to confirm the comment was posted before monitoring the registration.
 
