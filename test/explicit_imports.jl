@@ -17,11 +17,6 @@ end
     public_accesses_without_legacy_metadata = VERSION < v"1.11" ? (:tail,) : ()
     ExplicitImports.test_explicit_imports(
         RBMs;
-        # logmeanexp, logstdexp, and logvarexp are imported from
-        # LogStatFunctions only so they stay accessible under the
-        # RestrictedBoltzmannMachines namespace; no src code calls them.
-        no_stale_explicit_imports =
-            (ignore = (:logmeanexp, :logstdexp, :logvarexp),),
         all_explicit_imports_are_public =
             (ignore = public_imports_without_legacy_metadata,),
         # Adapt documents @adapt_structure for package integration but does not

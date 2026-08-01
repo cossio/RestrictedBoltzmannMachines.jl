@@ -4,10 +4,11 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
-- `logmeanexp`, `logvarexp`, and `logstdexp` are now provided by the new
-  dependency [LogStatFunctions.jl](https://github.com/cossio/LogStatFunctions.jl)
-  instead of being defined in this package. They remain accessible under the
-  `RestrictedBoltzmannMachines` namespace and behave the same
+- Removed `logmeanexp`, `logvarexp`, and `logstdexp` (never public API). They
+  now live in
+  [LogStatFunctions.jl](https://github.com/cossio/LogStatFunctions.jl) with the
+  same behavior; replace `using RestrictedBoltzmannMachines: logmeanexp` with
+  `using LogStatFunctions: logmeanexp`
   ([#186](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/186)).
 
 ## 6.0.0
