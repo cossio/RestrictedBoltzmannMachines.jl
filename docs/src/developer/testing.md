@@ -35,6 +35,9 @@ changes), and a patch bump for bug fixes (including compatibility changes made
 solely to fix a bug). Treat documented unexported names as public API,
 corrections to clearly broken behavior as bug fixes, introducing deprecations
 as non-breaking, and removing deprecations as breaking. The release agent
+checks the diff since the last registered version for consistency with `CHANGELOG.md`
+(which covers only user-facing changes) and resolves any mismatches with the
+user first, then prints a succinct summary of the user-facing changes and
 suggests one version with a brief explanation, but the user always makes the
 final decision. Do not change release files or begin registration until the
 user explicitly chooses the version. Then:
