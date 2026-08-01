@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
-- Removed `logmeanexp`, `logvarexp`, and `logstdexp` (never public API). They
+- Removed `logmeanexp`, `logvarexp`, and `logstdexp` (not marked `public`). They
   now live in
   [LogStatFunctions.jl](https://github.com/cossio/LogStatFunctions.jl) with the
   same behavior; replace `using RestrictedBoltzmannMachines: logmeanexp` with
