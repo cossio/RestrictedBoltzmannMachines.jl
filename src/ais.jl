@@ -28,8 +28,9 @@ For a variant or RAISE: https://arxiv.org/abs/1511.02543
 Provided `v0` is an equilibrated sample from `rbm0`, returns `F` such that `mean(exp.(F))` is
 an unbiased estimator of `Z1/Z0`, the ratio of partition functions of `rbm1` and `rbm0`.
 
-!!! tip Use [`logmeanexp`](@ref)
-    `logmeanexp(F)`, using the function `logmeanexp`[@ref] provided in this package,
+!!! tip Use `logmeanexp`
+    `logmeanexp(F)`, using the function `logmeanexp` from
+    [LogStatFunctions.jl](https://github.com/cossio/LogStatFunctions.jl),
     tends to give a better approximation of `log(Z1) - log(Z0)` than `mean(F)`.
 """
 function ais(rbm0::RBM, rbm1::RBM, v::AbstractArray, βs::AbstractVector)
@@ -78,9 +79,10 @@ Reverse AIS estimator of the log-partition function of `rbm`.
 While `aise` tends to understimate the log of the partition function, `raise` tends to
 overstimate it. `v` must be an equilibrated sample from `rbm`.
 
-!!! tip Use [`logmeanexp`](@ref)
-    If `F = raise(...)`, then `-logmeanexp(-F)`, using the function `logmeanexp`[@ref]
-    provided in this package, tends to give a better approximation of `log(Z)` than `mean(F)`.
+!!! tip Use `logmeanexp`
+    If `F = raise(...)`, then `-logmeanexp(-F)`, using the function `logmeanexp` from
+    [LogStatFunctions.jl](https://github.com/cossio/LogStatFunctions.jl),
+    tends to give a better approximation of `log(Z)` than `mean(F)`.
 
 !!! tip Sandwiching the log-partition function
     If `Rf = aise(...)`, `Rr = raise(...)` are the AIS and reverse AIS estimators, we have the
@@ -136,42 +138,3 @@ anneal_zero(l::nsReLU) = nsReLU(; θ = zero(l.θ), Δ = zero(l.Δ), l.ξ)
 Log-partition function of a zero-weight version of `rbm`.
 """
 log_partition_zero_weight(rbm) = cgf(rbm.visible) + cgf(rbm.hidden)
-
-"""
-    logmeanexp(A; dims=:)
-
-Computes `log.(mean(exp.(A); dims))`, in a numerically stable way.
-"""
-function logmeanexp(A::AbstractArray; dims = :)
-    R = logsumexp(A; dims)
-    N = length(A) ÷ length(R)
-    return R .- log(N)
-end
-
-"""
-    logvarexp(A; dims=:)
-
-Computes `log.(var(exp.(A); dims))`, in a numerically stable way.
-"""
-function logvarexp(
-        A::AbstractArray; dims = :, corrected::Bool = true, logmean = logmeanexp(A; dims)
-    )
-    R = logsumexp(2logsubexp.(A, logmean); dims)
-    N = length(A) ÷ length(R)
-    if corrected
-        return R .- log(N - 1)
-    else
-        return R .- log(N)
-    end
-end
-
-"""
-    logstdexp(A; dims=:)
-
-Computes `log.(std(exp.(A); dims))`, in a numerically stable way.
-"""
-function logstdexp(
-        A::AbstractArray; dims = :, corrected::Bool = true, logmean = logmeanexp(A; dims)
-    )
-    return logvarexp(A; dims, corrected, logmean) / 2
-end
