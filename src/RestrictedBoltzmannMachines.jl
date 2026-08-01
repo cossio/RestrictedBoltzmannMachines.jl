@@ -6,7 +6,7 @@ using Adapt: Adapt, adapt
 using EllipsisNotation: (..)
 using FillArrays: Falses, Zeros, Ones
 using LinearAlgebra: Diagonal, dot, logdet
-using LogExpFunctions: log1pexp, logaddexp, logistic, logsubexp, logsumexp, softmax
+using LogExpFunctions: log1pexp, logaddexp, logistic, logsumexp, softmax
 using Optimisers: AbstractRule, Adam, setup, update!
 using Random: AbstractRNG, default_rng, rand!, randexp, randn!, randperm
 using SpecialFunctions: erf, erfcx, logerfcx

@@ -20,8 +20,9 @@ import CairoMakie
 import RestrictedBoltzmannMachines as RBMs
 using Statistics: mean, std, middle
 using ValueHistories: MVHistory
+using LogStatFunctions: logmeanexp, logstdexp
 using RestrictedBoltzmannMachines: Binary, BinaryRBM, initialize!, pcd!,
-    aise, raise, logmeanexp, logstdexp, sample_v_from_v
+    aise, raise, sample_v_from_v
 
 # ## Training
 

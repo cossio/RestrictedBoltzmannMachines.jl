@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+- Removed `logmeanexp`, `logvarexp`, and `logstdexp` (not marked `public`). They
+  now live in
+  [LogStatFunctions.jl](https://github.com/cossio/LogStatFunctions.jl) with the
+  same behavior; replace `using RestrictedBoltzmannMachines: logmeanexp` with
+  `using LogStatFunctions: logmeanexp`
+  ([#186](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/186)).
+
 ## 6.0.0
 
 - **Breaking**: the minimum supported Julia version is now 1.11 (was 1.10). This
