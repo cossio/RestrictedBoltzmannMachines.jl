@@ -11,7 +11,7 @@ During development the version in Project.toml carries a `-DEV` suffix (e.g. `5.
 
 Before anything else, analyze the changes and ask the user to choose the version. Never make the final version decision for the user.
 
-1. Review the actual changes since the last registered version — the `## Unreleased` CHANGELOG entries **and** the commit history and diff since the previous release tag (`git log vLAST..master`, `git diff vLAST..master`), since the CHANGELOG may be incomplete.
+1. Review the actual changes since the last registered version — the `## Unreleased` CHANGELOG entries **and** the commit history and diff since the previous release tag, which TagBot places at the last registered commit so the two reference points coincide (`git log vLAST..master`, `git diff vLAST..master`), since the CHANGELOG may be incomplete.
 2. Cross-check the diff against CHANGELOG.md. The CHANGELOG covers only user-facing changes (source, APIs, behavior, dependencies — not CI, workflows, or repository tooling), so every user-facing change in the diff should have an `## Unreleased` entry, and every entry should match what the code actually does. Report any mismatch and propose the CHANGELOG fixes to the user, then stop: do not propose a version or create the release commit until the fixes are approved by the user, applied, and the cross-check passes — or the user explicitly decides no change is needed. The release notes are built from these entries, so a known mismatch must never ride into a release.
 3. Classify every change using [ColPrac's extension of SemVer for Julia packages](https://docs.sciml.ai/ColPrac/stable/#Guidance-on-Package-Releases):
    - **Post-1.0:** bump major for breaking changes, minor for non-breaking features, and patch for bug fixes.
