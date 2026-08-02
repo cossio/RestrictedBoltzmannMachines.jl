@@ -64,7 +64,9 @@ user explicitly chooses the version. Then:
    `## Unreleased` section to `CHANGELOG.md`, so development commits never
    accumulate under a released version number. Default to the patch bump
    (e.g. `5.7.1-DEV` after releasing `5.7.0`); the number is only a hint,
-   re-derived from the accumulated changes at the next release.
+   re-derived from the accumulated changes at the next release. The cycle
+   has started only once the bump PR merges and `master` carries the `-DEV`
+   version.
 
 The canonical, more detailed version of this procedure lives in the shared
 `register-new-version` skill. It is available to Claude at
