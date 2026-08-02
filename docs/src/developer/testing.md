@@ -58,11 +58,15 @@ user explicitly chooses the version. Then:
 4. Once the registry PR merges, TagBot creates the `vX.Y.Z` tag at the
    registered commit and the GitHub release with the supplied notes
    automatically.
-5. Right after the release (registry PR merged, tag created), follow up with
-   a new PR that bumps `Project.toml` to the next `-DEV` version (e.g.
-   `5.7.1-DEV` after releasing `5.7.0`, or `5.8.0-DEV` if new features are
-   anticipated) and adds a fresh `## Unreleased` section to `CHANGELOG.md`,
-   so development commits never accumulate under a released version number.
+5. Right after the release (registry PR merged, tag created), open a
+   follow-up PR in the same run — the release is unfinished until it exists —
+   that bumps `Project.toml` to the next `-DEV` version and adds a fresh
+   `## Unreleased` section to `CHANGELOG.md`, so development commits never
+   accumulate under a released version number. Default to the patch bump
+   (e.g. `5.7.1-DEV` after releasing `5.7.0`); the number is only a hint,
+   re-derived from the accumulated changes at the next release. The cycle
+   has started only once the bump PR merges and `master` carries the `-DEV`
+   version.
 
 The canonical, more detailed version of this procedure lives in the shared
 `register-new-version` skill. It is available to Claude at
