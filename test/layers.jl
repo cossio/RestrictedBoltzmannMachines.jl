@@ -11,8 +11,9 @@ using RestrictedBoltzmannMachines: RBM, Binary, Spin, Potts, Gaussian, ReLU, dRe
     flatten, batch_size, batchmean, batchvar, batchcov, drelu_energy,
     mean_from_inputs, var_from_inputs, meanvar_from_inputs, batchdims, gauss_energy, relu_energy,
     std_from_inputs, mean_abs_from_inputs, sample_from_inputs, mode_from_inputs,
-    energy, cgf, free_energy, cgfs, energies, ∂cgf, vstack, ∂energy, ∂free_energy, binary_rand,
+    energy, cgf, free_energy, cgfs, energies, ∂cgf, ∂energy, ∂free_energy, binary_rand,
     total_meanvar_from_inputs, total_mean_from_inputs, total_var_from_inputs, sample_v_from_v
+using RestrictedBoltzmannMachines: moments_from_samples
 using RestrictedBoltzmannMachines: grad2ave
 using RestrictedBoltzmannMachines: grad2var
 
@@ -137,7 +138,7 @@ end
     gs = Zygote.gradient(layer) do layer
         sum(cgfs(layer))
     end
-    @test ∂cgf(layer) ≈ only(gs).par ≈ vstack((mean_from_inputs(layer),))
+    @test ∂cgf(layer) ≈ only(gs).par ≈ stack([mean_from_inputs(layer)]; dims = 1)
 end
 
 @testset "Binary" begin
@@ -159,7 +160,7 @@ end
         sum(cgfs(layer))
     end
     ∂ = ∂cgf(layer)
-    @test ∂ ≈ only(gs).par ≈ vstack((mean_from_inputs(layer),))
+    @test ∂ ≈ only(gs).par ≈ stack([mean_from_inputs(layer)]; dims = 1)
     @test grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
     @test grad2var(layer, ∂) ≈ var_from_inputs(layer)
 end
@@ -173,7 +174,7 @@ end
         sum(cgfs(layer))
     end
     ∂ = ∂cgf(layer)
-    @test ∂ ≈ only(gs).par ≈ vstack((mean_from_inputs(layer),))
+    @test ∂ ≈ only(gs).par ≈ stack([mean_from_inputs(layer)]; dims = 1)
     @test grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
     @test grad2var(layer, ∂) ≈ var_from_inputs(layer)
 end
@@ -192,7 +193,7 @@ end
         sum(cgfs(layer))
     end
     ∂ = ∂cgf(layer)
-    @test ∂ ≈ only(gs).par ≈ vstack((mean_from_inputs(layer),))
+    @test ∂ ≈ only(gs).par ≈ stack([mean_from_inputs(layer)]; dims = 1)
     @test grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
     @test grad2var(layer, ∂) ≈ var_from_inputs(layer)
 end
@@ -571,4 +572,16 @@ end
     @test var_from_inputs(drelu) ≈ var_from_inputs(relu) rtol = 1.0e-4
     @test mean_abs_from_inputs(drelu) ≈ mean_abs_from_inputs(relu) rtol = 1.0e-4
     @test cgfs(drelu) ≈ cgfs(relu) .+ log1p.(exp.(relu_cgf.(0, 1.0e10) .- cgfs(relu))) rtol = 1.0e-6
+end
+
+@testset "moments_from_samples infers for view data" begin
+    # for unbatched data, batchmean returns the input itself, so the stacked
+    # moments mix container types (view + Array); the result must stay inferable
+    layer = Gaussian((3, 2))
+    samples = randn(3, 2, 5)
+    v = @view samples[:, :, 1]
+    m = @inferred moments_from_samples(layer, v)
+    @test m ≈ vcat(reshape(v, 1, 3, 2), reshape(v .^ 2, 1, 3, 2))
+    @inferred moments_from_samples(ReLU((3, 2)), v)
+    @inferred moments_from_samples(layer, samples)
 end

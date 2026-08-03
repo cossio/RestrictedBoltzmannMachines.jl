@@ -31,7 +31,7 @@ end
 function ∂cgfs(layer::Gaussian, inputs = 0)
     ∂θ = @. (layer.θ .+ inputs) / abs(layer.γ)
     ∂γ = @. -inv(layer.γ) / 2 - sign(layer.γ) * ∂θ^2 / 2
-    return vstack((∂θ, ∂γ))
+    return stack([∂θ, ∂γ]; dims = 1)
 end
 
 function ∂energy_from_moments(layer::Gaussian, moments::AbstractArray)
@@ -40,11 +40,14 @@ function ∂energy_from_moments(layer::Gaussian, moments::AbstractArray)
     x2 = @view moments[2, ..]
     ∂θ = -x1
     ∂γ = @. sign(layer.γ) * x2 / 2
-    return vstack((∂θ, ∂γ))
+    return stack([∂θ, ∂γ]; dims = 1)
 end
 
 function moments_from_samples(layer::Gaussian, data::AbstractArray; wts = nothing)
     x1 = batchmean(layer, data; wts)
     x2 = batchmean(layer, data .^ 2; wts)
-    return vstack((x1, x2))
+    # vcat of reshapes rather than `stack`: for unbatched `data`, x1 can be a
+    # view (batchmean returns `data` itself) while x2 is an Array, and `stack`
+    # over mixed container types does not infer
+    return vcat(reshape(x1, 1, size(x1)...), reshape(x2, 1, size(x2)...))
 end

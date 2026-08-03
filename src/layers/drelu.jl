@@ -74,7 +74,7 @@ function ∂cgfs(layer::dReLU, inputs = 0)
     ∂θn = -pn .* μn
     ∂γp = -pp .* μ2p .* sign.(layer.γp)
     ∂γn = -pn .* μ2n .* sign.(layer.γn)
-    return vstack((∂θp, ∂θn, ∂γp, ∂γn))
+    return stack([∂θp, ∂θn, ∂γp, ∂γn]; dims = 1)
 end
 
 function ∂energy_from_moments(layer::dReLU, moments::AbstractArray)
@@ -83,7 +83,7 @@ function ∂energy_from_moments(layer::dReLU, moments::AbstractArray)
     ∂θn = -moments[2, ..]
     ∂γp = sign.(layer.γp) .* moments[3, ..] / 2
     ∂γn = sign.(layer.γn) .* moments[4, ..] / 2
-    return vstack((∂θp, ∂θn, ∂γp, ∂γn))
+    return stack([∂θp, ∂θn, ∂γp, ∂γn]; dims = 1)
 end
 
 function drelu_energy(θp::Real, θn::Real, γp::Real, γn::Real, x::Real)

@@ -32,7 +32,6 @@ using RestrictedBoltzmannMachines: sample_from_inputs
 using RestrictedBoltzmannMachines: sample_v_from_v
 using RestrictedBoltzmannMachines: std_from_inputs
 using RestrictedBoltzmannMachines: var_from_inputs
-using RestrictedBoltzmannMachines: vstack
 using Statistics: cov
 using Statistics: mean
 using Statistics: var
@@ -140,7 +139,7 @@ end
     gs = Zygote.gradient(layer) do layer
         sum(cgfs(layer))
     end
-    @test ∂cgf(layer) ≈ only(gs).par ≈ vstack((mean_from_inputs(layer),))
+    @test ∂cgf(layer) ≈ only(gs).par ≈ stack([mean_from_inputs(layer)]; dims = 1)
 end
 
 @testset "PottsGumbel" begin
@@ -157,7 +156,7 @@ end
         sum(cgfs(layer))
     end
     ∂ = ∂cgf(layer)
-    @test ∂ ≈ only(gs).par ≈ vstack((mean_from_inputs(layer),))
+    @test ∂ ≈ only(gs).par ≈ stack([mean_from_inputs(layer)]; dims = 1)
     @test grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
     # one-hot units are Bernoulli per color, so the variance follows from the mean
     @test grad2var(layer, ∂) ≈ var_from_inputs(layer)

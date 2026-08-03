@@ -59,23 +59,6 @@ reshape_maybe(x::AbstractArray, ::Tuple{}) = only(x)
 reshape_maybe(x::AbstractArray, sz::Dims) = reshape(x, sz)
 reshape_maybe(x::Union{Number, AbstractArray}, sz::Int...) = reshape(x, sz)
 
-"""
-    vstack(x)
-
-Stack arrays along a new dimension inserted on the left.
-"""
-function vstack(xs::Tuple)
-    ys = map(vwiden, xs)
-    return vcat(ys...)
-end
-
-"""
-    vwiden(x)
-
-Adds a singleton dimension on the left.
-"""
-vwiden(x::AbstractArray) = reshape(x, 1, size(x)...)
-
 zeros_like(A::AbstractArray) = zeros_like(A, size(A))
 zeros_like(A::AbstractArray, size) = zero(similar(A, size))
 
