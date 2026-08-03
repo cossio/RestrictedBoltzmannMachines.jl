@@ -13,6 +13,7 @@ using RestrictedBoltzmannMachines: RBM, Binary, Spin, Potts, Gaussian, ReLU, dRe
     std_from_inputs, mean_abs_from_inputs, sample_from_inputs, mode_from_inputs,
     energy, cgf, free_energy, cgfs, energies, ∂cgf, ∂energy, ∂free_energy, binary_rand,
     total_meanvar_from_inputs, total_mean_from_inputs, total_var_from_inputs, sample_v_from_v
+using RestrictedBoltzmannMachines: moments_from_samples
 using RestrictedBoltzmannMachines: grad2ave
 using RestrictedBoltzmannMachines: grad2var
 
@@ -572,8 +573,6 @@ end
     @test mean_abs_from_inputs(drelu) ≈ mean_abs_from_inputs(relu) rtol = 1.0e-4
     @test cgfs(drelu) ≈ cgfs(relu) .+ log1p.(exp.(relu_cgf.(0, 1.0e10) .- cgfs(relu))) rtol = 1.0e-6
 end
-
-using RestrictedBoltzmannMachines: moments_from_samples
 
 @testset "moments_from_samples infers for view data" begin
     # for unbatched data, batchmean returns the input itself, so the stacked
