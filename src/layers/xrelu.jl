@@ -31,7 +31,7 @@ function ∂cgfs(layer::xReLU, inputs = 0)
             pn * (abs_γ / 2 * μ2n - layer.Δ * μn) / (1 - layer.ξ + abs(layer.ξ))^2
     )
 
-    return vstack((∂θ, ∂γ, ∂Δ, ∂ξ))
+    return stack([∂θ, ∂γ, ∂Δ, ∂ξ]; dims = 1)
 end
 
 function ∂energy_from_moments(layer::xReLU, moments::AbstractArray)
@@ -52,5 +52,5 @@ function ∂energy_from_moments(layer::xReLU, moments::AbstractArray)
             (abs(layer.γ) / 2 * xn2 + layer.Δ * xn1) / (1 - layer.ξ + abs(layer.ξ))^2
     )
 
-    return vstack((∂θ, ∂γ, ∂Δ, ∂ξ))
+    return stack([∂θ, ∂γ, ∂Δ, ∂ξ]; dims = 1)
 end

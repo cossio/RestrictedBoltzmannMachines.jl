@@ -23,19 +23,19 @@ end
 
 function ∂cgfs(layer::_FieldLayers, inputs = 0)
     ∂θ = mean_from_inputs(layer, inputs)
-    return vstack((∂θ,))
+    return stack([∂θ]; dims = 1)
 end
 
 function ∂energy_from_moments(layer::_FieldLayers, moments::AbstractArray)
     @assert size(layer.par) == size(moments)
     x1 = moments[1, ..]
     ∂θ = -x1
-    return vstack((∂θ,))
+    return stack([∂θ]; dims = 1)
 end
 
 function moments_from_samples(layer::_FieldLayers, data::AbstractArray; wts = nothing)
     x1 = batchmean(layer, data; wts)
-    return vstack((x1,))
+    return stack([x1]; dims = 1)
 end
 
 """
@@ -124,5 +124,5 @@ function moments_from_samples(layer::Union{dReLU, pReLU, xReLU, nsReLU}, data::A
     xn1 = batchmean(layer, xn; wts)
     xp2 = batchmean(layer, xp .^ 2; wts)
     xn2 = batchmean(layer, xn .^ 2; wts)
-    return vstack((xp1, xn1, xp2, xn2))
+    return stack([xp1, xn1, xp2, xn2]; dims = 1)
 end

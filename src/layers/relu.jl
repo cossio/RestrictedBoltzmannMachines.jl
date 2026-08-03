@@ -42,7 +42,7 @@ function ∂cgfs(layer::ReLU, inputs = 0)
     μ, ν = meanvar_from_inputs(layer, inputs)
     ∂θ = μ
     ∂γ = -sign.(layer.γ) .* (ν .+ μ .^ 2) / 2
-    return vstack((∂θ, ∂γ))
+    return stack([∂θ, ∂γ]; dims = 1)
 end
 
 function ∂energy_from_moments(layer::ReLU, moments::AbstractArray)
@@ -55,7 +55,7 @@ end
 
 function relu_energy(θ::Real, γ::Real, x::Real)
     E = gauss_energy(θ, γ, x)
-    return x < 0 ? inf(E) : E
+    return x < 0 ? oftype(E, Inf) : E
 end
 
 function relu_cgf(θ::Real, γ::Real)

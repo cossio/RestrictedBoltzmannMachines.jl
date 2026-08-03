@@ -42,14 +42,9 @@ end
 
 Accurate computation of sqrt(1 + (x/2)^2) + |x|/2.
 """
-sqrt1half(x::Real) = _sqrt1half(float(abs(x)))
-
-function _sqrt1half(x::Real)
-    if x > 2 / sqrt(eps(x))
-        return x
-    else
-        return sqrt(one(x) + (x / 2)^2) + x / 2
-    end
+function sqrt1half(x::Real)
+    h = abs(float(x)) / 2
+    return hypot(one(h), h) + h
 end
 
 """
@@ -71,7 +66,10 @@ randnt_half(μ::Real, σ::Real) = randnt_half(default_rng(), μ, σ)
 Mean of the standard normal distribution,
 truncated to the interval (a, +∞).
 """
-tnmean(a::Real) = sqrt(two(a) / π) / erfcx(a / √two(a))
+function tnmean(a::Real)
+    t = oftype(float(a), 2)
+    return sqrt(t / π) / erfcx(a / sqrt(t))
+end
 
 """
     tnvar(a)

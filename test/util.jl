@@ -3,24 +3,7 @@ import RestrictedBoltzmannMachines as RBMs
 using Test: @test, @testset, @inferred, @test_throws
 using Statistics: mean, var, cov
 using LinearAlgebra: dot
-using EllipsisNotation: (..)
-using RestrictedBoltzmannMachines: vstack, convert_eltype
-
-@testset "two" begin
-    @test RBMs.two(1) === RBMs.two(Int) === 2
-    @test RBMs.two(Int8(1)) === RBMs.two(Int8) === Int8(2)
-    @test RBMs.two(1.0f0) === RBMs.two(Float32) === 2.0f0
-    @test RBMs.two(1.0) === RBMs.two(Float64) === 2.0
-    @test_throws InexactError RBMs.two(Bool)
-    @inferred RBMs.two(1)
-end
-
-@testset "inf" begin
-    @test_throws InexactError RBMs.inf(1)
-    @test Inf === @inferred RBMs.inf(1.0)
-    @test Inf32 === @inferred RBMs.inf(1.0f0)
-    @inferred RBMs.inf(1.0)
-end
+using RestrictedBoltzmannMachines: convert_eltype
 
 @testset "generate_sequences" begin
     @test collect(RBMs.generate_sequences(2, 1:3)) == reshape(
@@ -70,15 +53,6 @@ end
 
     A = randn(2, 2)
     @test RBMs.reshape_maybe(A, 4) == reshape(A, 4)
-end
-
-@testset "vstack" begin
-    X = randn(3, 4)
-    Y = randn(3, 4)
-    Z = @inferred vstack((X, Y))
-    @test size(Z) == (2, 3, 4)
-    @test Z[1, ..] == X
-    @test Z[2, ..] == Y
 end
 
 @testset "convert_eltype" begin
