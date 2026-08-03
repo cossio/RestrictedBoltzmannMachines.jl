@@ -572,3 +572,17 @@ end
     @test mean_abs_from_inputs(drelu) ≈ mean_abs_from_inputs(relu) rtol = 1.0e-4
     @test cgfs(drelu) ≈ cgfs(relu) .+ log1p.(exp.(relu_cgf.(0, 1.0e10) .- cgfs(relu))) rtol = 1.0e-6
 end
+
+using RestrictedBoltzmannMachines: moments_from_samples
+
+@testset "moments_from_samples infers for view data" begin
+    # for unbatched data, batchmean returns the input itself, so the stacked
+    # moments mix container types (view + Array); the result must stay inferable
+    layer = Gaussian((3, 2))
+    samples = randn(3, 2, 5)
+    v = @view samples[:, :, 1]
+    m = @inferred moments_from_samples(layer, v)
+    @test m ≈ vcat(reshape(v, 1, 3, 2), reshape(v .^ 2, 1, 3, 2))
+    @inferred moments_from_samples(ReLU((3, 2)), v)
+    @inferred moments_from_samples(layer, samples)
+end
