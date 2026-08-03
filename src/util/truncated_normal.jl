@@ -43,8 +43,8 @@ end
 Accurate computation of sqrt(1 + (x/2)^2) + |x|/2.
 """
 function sqrt1half(x::Real)
-    h = abs(float(x)) / 2
-    return hypot(one(h), h) + h
+    h = x / 2
+    return hypot(one(h), h) + abs(h)
 end
 
 """
