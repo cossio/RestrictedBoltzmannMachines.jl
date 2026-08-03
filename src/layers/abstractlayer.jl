@@ -46,6 +46,13 @@ macro declare_layer(Layer, params)
 
     defaults = [Expr(:kw, name, :($init(T, sz))) for (name, init) in zip(names, inits)]
 
+    # Stack the parameters as rows of `par` via vcat of reshapes rather than
+    # `stack`: unlike `stack`, vcat stays inferable when the arguments mix
+    # container types (e.g. a view of `par` alongside a broadcast result) and
+    # has ChainRules rules, so Zygote can differentiate through layer
+    # conversions such as dReLU(::pReLU) that call this constructor.
+    rows = [:(reshape($name, 1, size($name)...)) for name in names]
+
     return esc(
         quote
             Base.@__doc__ struct $Layer{N, A} <: AbstractLayer{N}
@@ -60,7 +67,7 @@ macro declare_layer(Layer, params)
             end
 
             $Layer(par::AbstractArray) = $Layer{ndims(par) - 1, typeof(par)}(par)
-            $Layer(; $(names...)) = $Layer(vstack(($(names...),)))
+            $Layer(; $(names...)) = $Layer(vcat($(rows...)))
             $Layer(::Type{T}, sz::Dims) where {T} = $Layer(; $(defaults...))
             $Layer(sz::Dims) = $Layer(Float64, sz)
 

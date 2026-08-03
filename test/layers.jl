@@ -11,7 +11,7 @@ using RestrictedBoltzmannMachines: RBM, Binary, Spin, Potts, Gaussian, ReLU, dRe
     flatten, batch_size, batchmean, batchvar, batchcov, drelu_energy,
     mean_from_inputs, var_from_inputs, meanvar_from_inputs, batchdims, gauss_energy, relu_energy,
     std_from_inputs, mean_abs_from_inputs, sample_from_inputs, mode_from_inputs,
-    energy, cgf, free_energy, cgfs, energies, ∂cgf, vstack, ∂energy, ∂free_energy, binary_rand,
+    energy, cgf, free_energy, cgfs, energies, ∂cgf, ∂energy, ∂free_energy, binary_rand,
     total_meanvar_from_inputs, total_mean_from_inputs, total_var_from_inputs, sample_v_from_v
 using RestrictedBoltzmannMachines: grad2ave
 using RestrictedBoltzmannMachines: grad2var
@@ -137,7 +137,7 @@ end
     gs = Zygote.gradient(layer) do layer
         sum(cgfs(layer))
     end
-    @test ∂cgf(layer) ≈ only(gs).par ≈ vstack((mean_from_inputs(layer),))
+    @test ∂cgf(layer) ≈ only(gs).par ≈ stack([mean_from_inputs(layer)]; dims = 1)
 end
 
 @testset "Binary" begin
@@ -159,7 +159,7 @@ end
         sum(cgfs(layer))
     end
     ∂ = ∂cgf(layer)
-    @test ∂ ≈ only(gs).par ≈ vstack((mean_from_inputs(layer),))
+    @test ∂ ≈ only(gs).par ≈ stack([mean_from_inputs(layer)]; dims = 1)
     @test grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
     @test grad2var(layer, ∂) ≈ var_from_inputs(layer)
 end
@@ -173,7 +173,7 @@ end
         sum(cgfs(layer))
     end
     ∂ = ∂cgf(layer)
-    @test ∂ ≈ only(gs).par ≈ vstack((mean_from_inputs(layer),))
+    @test ∂ ≈ only(gs).par ≈ stack([mean_from_inputs(layer)]; dims = 1)
     @test grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
     @test grad2var(layer, ∂) ≈ var_from_inputs(layer)
 end
@@ -192,7 +192,7 @@ end
         sum(cgfs(layer))
     end
     ∂ = ∂cgf(layer)
-    @test ∂ ≈ only(gs).par ≈ vstack((mean_from_inputs(layer),))
+    @test ∂ ≈ only(gs).par ≈ stack([mean_from_inputs(layer)]; dims = 1)
     @test grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
     @test grad2var(layer, ∂) ≈ var_from_inputs(layer)
 end

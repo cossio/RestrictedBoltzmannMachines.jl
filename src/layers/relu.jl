@@ -42,7 +42,7 @@ function ∂cgfs(layer::ReLU, inputs = 0)
     μ, ν = meanvar_from_inputs(layer, inputs)
     ∂θ = μ
     ∂γ = -sign.(layer.γ) .* (ν .+ μ .^ 2) / 2
-    return vstack((∂θ, ∂γ))
+    return stack([∂θ, ∂γ]; dims = 1)
 end
 
 function ∂energy_from_moments(layer::ReLU, moments::AbstractArray)
