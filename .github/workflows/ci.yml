@@ -12,7 +12,6 @@ jobs:
       fail-fast: false
       matrix:
         version:
-          - '1.11'
           - '1'
         os:
           - ubuntu-latest
@@ -38,13 +37,13 @@ jobs:
           # Fork PRs can't access secrets, so their uploads stay best-effort.
           fail_ci_if_error: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
   downgrade:
-    name: Downgrade compat - Julia 1 - ubuntu-latest - x64
+    name: Downgrade compat - Julia min - ubuntu-latest - x64
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: julia-actions/setup-julia@fa02766e078afaaf09b14210362cee14137e6a32
         with:
-          version: '1'
+          version: 'min'
           arch: x64
       - uses: julia-actions/julia-downgrade-compat@2c401f8b47edbcafc2e1edbff8e71f33dce71822
         with:
