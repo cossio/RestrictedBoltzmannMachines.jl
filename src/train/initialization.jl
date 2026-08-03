@@ -34,7 +34,7 @@ function initialize!(layer::Binary, data::AbstractArray; ϵ::Real = 1.0e-6, wts 
     @assert 0 < ϵ < 1 / 2
     μ = batchmean(layer, data; wts)
     μϵ = clamp.(μ, ϵ, 1 - ϵ)
-    @. layer.θ = -log(1 / μϵ - 1)
+    layer.θ .= logit.(μϵ)
     return layer
 end
 

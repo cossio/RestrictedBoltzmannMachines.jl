@@ -50,3 +50,11 @@ end
     @test only(gs).visible.par ≈ tanh.(rbm.visible.par)
     @test only(gs).hidden.par ≈ sigmoid.(rbm.hidden.par)
 end
+
+@testset "collect_states of zero-sized layers" begin
+    # a zero-sized layer has exactly one (empty) state
+    for layer in (RBMs.Binary((0,)), RBMs.Spin((0,)))
+        states = RBMs.collect_states(layer)
+        @test size(states) == (0, 1)
+    end
+end

@@ -34,9 +34,6 @@ function sample_from_inputs(layer::Spin, inputs = 0)
     return spin_rand.(θ, u)
 end
 
-function spin_cgf(θ::Real)
-    abs_θ = abs(θ)
-    return abs_θ + log1pexp(-2abs_θ)
-end
+spin_cgf(θ::Real) = logaddexp(θ, -θ) # log(exp(θ) + exp(-θ))
 
 spin_rand(θ::Real, u::Real) = ifelse(u < logistic(2θ), Int8(1), Int8(-1))
