@@ -4,11 +4,6 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
-- **Breaking**: the minimum supported Julia version is now 1.12 (was 1.11). This
-  allows verifying the declared dependency lower bounds on the minimum supported
-  Julia version, which requires `Pkg.test` improvements introduced in Julia
-  1.12.
-
 ## 6.1.0
 
 - Removed `logmeanexp`, `logvarexp`, and `logstdexp` (not marked `public`). They
