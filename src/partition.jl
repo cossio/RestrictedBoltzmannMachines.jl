@@ -53,5 +53,8 @@ Only defined for discrete layers.
     For large layers, the exponential number of states will not fit in memory.
 """
 function collect_states(layer::Union{Binary, Spin})
-    return reshape(stack(iterate_states(layer)), size(layer)..., :)
+    states = iterate_states(layer)
+    # explicit state count rather than `:`, which a zero-sized layer would
+    # resolve to 0 and drop its single (empty) state
+    return reshape(stack(states), size(layer)..., length(states))
 end
