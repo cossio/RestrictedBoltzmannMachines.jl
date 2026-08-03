@@ -42,14 +42,9 @@ end
 
 Accurate computation of sqrt(1 + (x/2)^2) + |x|/2.
 """
-sqrt1half(x::Real) = _sqrt1half(float(abs(x)))
-
-function _sqrt1half(x::Real)
-    if x > 2 / sqrt(eps(x))
-        return x
-    else
-        return sqrt(one(x) + (x / 2)^2) + x / 2
-    end
+function sqrt1half(x::Real)
+    h = x / 2
+    return hypot(one(h), h) + abs(h)
 end
 
 """
