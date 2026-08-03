@@ -46,5 +46,8 @@ end
 function moments_from_samples(layer::Gaussian, data::AbstractArray; wts = nothing)
     x1 = batchmean(layer, data; wts)
     x2 = batchmean(layer, data .^ 2; wts)
-    return stack([x1, x2]; dims = 1)
+    # vcat of reshapes rather than `stack`: for unbatched `data`, x1 can be a
+    # view (batchmean returns `data` itself) while x2 is an Array, and `stack`
+    # over mixed container types does not infer
+    return vcat(reshape(x1, 1, size(x1)...), reshape(x2, 1, size(x2)...))
 end
