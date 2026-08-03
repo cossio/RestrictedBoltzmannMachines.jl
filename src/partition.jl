@@ -54,7 +54,5 @@ Only defined for discrete layers.
 """
 function collect_states(layer::Union{Binary, Spin})
     states = iterate_states(layer)
-    # explicit state count rather than `:`, which a zero-sized layer would
-    # resolve to 0 and drop its single (empty) state
     return reshape(stack(states), size(layer)..., length(states))
 end
