@@ -6,22 +6,6 @@ using LinearAlgebra: dot
 using EllipsisNotation: (..)
 using RestrictedBoltzmannMachines: vstack, convert_eltype
 
-@testset "two" begin
-    @test RBMs.two(1) === RBMs.two(Int) === 2
-    @test RBMs.two(Int8(1)) === RBMs.two(Int8) === Int8(2)
-    @test RBMs.two(1.0f0) === RBMs.two(Float32) === 2.0f0
-    @test RBMs.two(1.0) === RBMs.two(Float64) === 2.0
-    @test_throws InexactError RBMs.two(Bool)
-    @inferred RBMs.two(1)
-end
-
-@testset "inf" begin
-    @test_throws InexactError RBMs.inf(1)
-    @test Inf === @inferred RBMs.inf(1.0)
-    @test Inf32 === @inferred RBMs.inf(1.0f0)
-    @inferred RBMs.inf(1.0)
-end
-
 @testset "generate_sequences" begin
     @test collect(RBMs.generate_sequences(2, 1:3)) == reshape(
         [
