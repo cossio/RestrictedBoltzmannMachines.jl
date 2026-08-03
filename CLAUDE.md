@@ -7,11 +7,11 @@ This file provides guidance to coding agents working in this repository.
 RestrictedBoltzmannMachines.jl is a Julia package for training and inference
 with Restricted Boltzmann Machines (RBMs). It supports multiple layer types
 (Binary, Spin, Potts, Gaussian, and ReLU variants), GPU acceleration through
-CUDA.jl, and HDF5 persistence. It requires Julia 1.10 or later.
+CUDA.jl, and HDF5 persistence. It requires Julia 1.12 or later.
 
 ## Repository workflow
 
-- This is a Julia package supporting Julia 1.10 and later.
+- This is a Julia package supporting Julia 1.12 and later.
 - Run commands from the repository root. Use `--project=.` for the package,
   `--project=test` for standalone test files, and `--project=docs` for docs.
 - Run the narrowest relevant test file first, then
