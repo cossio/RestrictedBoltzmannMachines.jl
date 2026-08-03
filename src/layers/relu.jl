@@ -55,7 +55,7 @@ end
 
 function relu_energy(θ::Real, γ::Real, x::Real)
     E = gauss_energy(θ, γ, x)
-    return x < 0 ? inf(E) : E
+    return x < 0 ? oftype(E, Inf) : E
 end
 
 function relu_cgf(θ::Real, γ::Real)

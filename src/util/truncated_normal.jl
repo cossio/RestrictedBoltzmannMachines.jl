@@ -66,7 +66,10 @@ randnt_half(μ::Real, σ::Real) = randnt_half(default_rng(), μ, σ)
 Mean of the standard normal distribution,
 truncated to the interval (a, +∞).
 """
-tnmean(a::Real) = sqrt(two(a) / π) / erfcx(a / √two(a))
+function tnmean(a::Real)
+    two = oftype(a, 2)
+    return sqrt(two / π) / erfcx(a / sqrt(two))
+end
 
 """
     tnvar(a)

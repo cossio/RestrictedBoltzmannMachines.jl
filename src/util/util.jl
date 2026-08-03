@@ -1,7 +1,3 @@
-# convenience functions to get generic Inf and NaN
-inf(::Union{Type{T}, T}) where {T <: Number} = convert(T, Inf)
-two(::Union{Type{T}, T}) where {T <: Number} = convert(T, 2)
-
 @doc raw"""
     wmean(A; wts = nothing, dims = :)
 
