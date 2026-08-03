@@ -72,7 +72,7 @@ Mean of the standard normal distribution,
 truncated to the interval (a, +∞).
 """
 function tnmean(a::Real)
-    two = oftype(float(a), 2)
+    two = oftype(a, 2)
     return sqrt(two / π) / erfcx(a / sqrt(two))
 end
 
