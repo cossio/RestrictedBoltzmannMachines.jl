@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+- Layer conditional statistics are now organized around moments arrays. The new
+  `moments_from_inputs(layer, inputs)` returns per-configuration conditional
+  moments in the same layout as `moments_from_samples`, `∂energy_from_moments`
+  accepts trailing batch dimensions, and `∂cgfs` is derived generically as
+  `-∂energy_from_moments ∘ moments_from_inputs` (the cgf/energy conjugacy),
+  replacing the hand-written per-layer `∂cgfs` chain rules. `∂free_energy` now
+  computes both layer gradients through `∂energy_from_moments` — at the data
+  moments for one layer and at the conditional moments for the other. Computed
+  gradients are unchanged.
+- Removed `grad2ave` and `grad2var` (not marked `public`). Use
+  `mean_from_moments(layer, moments)` and `var_from_moments(layer, moments)` on
+  a moments array (e.g. from `moments_from_inputs`) instead. Unlike `grad2var`,
+  `var_from_moments` also supports `nsReLU`, whose variance is recoverable from
+  the second moments its dReLU-layout moments array carries.
+- The centered `pcd!` trainer updates the hidden offsets with
+  `center_hidden_from_data!` (which gained a `damping` keyword), estimating
+  `<h>` from the minibatch like the standardized trainer does, instead of
+  reading it off the free-energy gradient.
 - Fixed `log_pseudolikelihood(rbm, v; exact = true)` with `Potts` visible
   layers erroring on GPU arrays ("illegal conversion to a `Ptr`"): the per-site
   blocks fed to matrix products are now indexed copies instead of views, since

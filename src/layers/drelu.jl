@@ -33,7 +33,7 @@ A dReLU unit is a two-sided mixture of truncated Gaussians: a positive-side ReLU
 parameters (θp, γp) and a mirrored negative-side ReLU with parameters (-θn, γn).
 Returns the mixture weights `pp`, `pn` and the mean and variance `μp`, `νp`, `μn`, `νn`
 of each side (with the negative side mirrored to positive values). This is the shared
-preamble of the dReLU statistics, and of the pReLU / xReLU gradients.
+preamble of the dReLU statistics and conditional moments.
 =#
 function _drelu_mixture_moments(layer::dReLU, inputs)
     lp = ReLU(; θ = layer.θp, γ = layer.γp)
@@ -65,20 +65,17 @@ function mean_abs_from_inputs(layer::dReLU, inputs = 0)
     return pp .* μp + pn .* μn
 end
 
-function ∂cgfs(layer::dReLU, inputs = 0)
+function moments_from_inputs(layer::dReLU, inputs = 0)
     (; pp, pn, μp, μn, νp, νn) = _drelu_mixture_moments(layer, inputs)
-    μ2p = @. (νp + μp^2) / 2
-    μ2n = @. (νn + μn^2) / 2
-
-    ∂θp = +pp .* μp
-    ∂θn = -pn .* μn
-    ∂γp = -pp .* μ2p .* sign.(layer.γp)
-    ∂γn = -pn .* μ2n .* sign.(layer.γn)
-    return stack([∂θp, ∂θn, ∂γp, ∂γn]; dims = 1)
+    xp1 = @. pp * μp
+    xn1 = @. -pn * μn # the negative side is mirrored back to x = -y ≤ 0
+    xp2 = @. pp * (νp + μp^2)
+    xn2 = @. pn * (νn + μn^2)
+    return stack([xp1, xn1, xp2, xn2]; dims = 1)
 end
 
 function ∂energy_from_moments(layer::dReLU, moments::AbstractArray)
-    @assert size(layer.par) == size(moments)
+    @assert ntuple(d -> size(moments, d), ndims(layer.par)) == size(layer.par)
     ∂θp = -moments[1, ..]
     ∂θn = -moments[2, ..]
     ∂γp = sign.(layer.γp) .* moments[3, ..] / 2

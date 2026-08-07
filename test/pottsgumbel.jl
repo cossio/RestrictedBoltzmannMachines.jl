@@ -9,7 +9,6 @@ using Random: rand!
 using Random: randn!
 using RestrictedBoltzmannMachines: ∂cgf
 using RestrictedBoltzmannMachines: ∂energy
-using RestrictedBoltzmannMachines: ∂free_energy
 using RestrictedBoltzmannMachines: batchdims
 using RestrictedBoltzmannMachines: Binary
 using RestrictedBoltzmannMachines: binary_rand
@@ -19,8 +18,10 @@ using RestrictedBoltzmannMachines: energies
 using RestrictedBoltzmannMachines: energy
 using RestrictedBoltzmannMachines: free_energy
 using RestrictedBoltzmannMachines: gauss_energy
-using RestrictedBoltzmannMachines: grad2ave
-using RestrictedBoltzmannMachines: grad2var
+using RestrictedBoltzmannMachines: mean_from_moments
+using RestrictedBoltzmannMachines: moments_from_inputs
+using RestrictedBoltzmannMachines: moments_from_samples
+using RestrictedBoltzmannMachines: var_from_moments
 using RestrictedBoltzmannMachines: mean_abs_from_inputs
 using RestrictedBoltzmannMachines: mean_from_inputs
 using RestrictedBoltzmannMachines: meanvar_from_inputs
@@ -157,22 +158,23 @@ end
     end
     ∂ = ∂cgf(layer)
     @test ∂ ≈ only(gs).par ≈ stack([mean_from_inputs(layer)]; dims = 1)
-    @test grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
+    moments = moments_from_inputs(layer)
+    @test mean_from_moments(layer, moments) ≈ mean_from_inputs(layer)
     # one-hot units are Bernoulli per color, so the variance follows from the mean
-    @test grad2var(layer, ∂) ≈ var_from_inputs(layer)
-    @test grad2var(layer, ∂) ≈ grad2var(Potts(layer), ∂cgf(Potts(layer)))
+    @test var_from_moments(layer, moments) ≈ var_from_inputs(layer)
+    @test var_from_moments(layer, moments) ≈ var_from_moments(Potts(layer), moments_from_inputs(Potts(layer)))
 end
 
-@testset "grad2ave $Layer" for Layer in _layers
+@testset "mean_from_moments $Layer" for Layer in _layers
     layer = Layer((5,))
     rbm = RBM(layer, Binary(; θ = randn(3)), randn(5, 3))
     v = sample_v_from_v(rbm, randn(5, 100); steps = 100)
-    ∂ = ∂free_energy(rbm, v)
-    @test (@inferred grad2ave(rbm.visible, -∂.visible)) ≈ dropdims(mean(v; dims = 2); dims = 2)
+    moments = moments_from_samples(rbm.visible, v)
+    @test (@inferred mean_from_moments(rbm.visible, moments)) ≈ dropdims(mean(v; dims = 2); dims = 2)
 end
 
 using RestrictedBoltzmannMachines: Potts, PottsGumbel, anneal, anneal_zero,
-    initialize!, moments_from_samples, colors, sitedims, sitesize,
+    initialize!, colors, sitedims, sitesize,
     potts_to_gumbel, gumbel_to_potts, Spin, onehot_encode, onehot_decode
 
 @testset "Potts(PottsGumbel) and PottsGumbel(Potts) conversion" begin

@@ -11,11 +11,13 @@ using RestrictedBoltzmannMachines: RBM, Binary, Spin, Potts, Gaussian, ReLU, dRe
     flatten, batch_size, batchmean, batchvar, batchcov, drelu_energy,
     mean_from_inputs, var_from_inputs, meanvar_from_inputs, batchdims, gauss_energy, relu_energy,
     std_from_inputs, mean_abs_from_inputs, sample_from_inputs, mode_from_inputs,
-    energy, cgf, free_energy, cgfs, energies, ∂cgf, ∂energy, ∂free_energy, binary_rand,
+    energy, cgf, free_energy, cgfs, energies, ∂cgf, ∂energy, binary_rand,
     total_meanvar_from_inputs, total_mean_from_inputs, total_var_from_inputs, sample_v_from_v
 using RestrictedBoltzmannMachines: moments_from_samples
-using RestrictedBoltzmannMachines: grad2ave
-using RestrictedBoltzmannMachines: grad2var
+using RestrictedBoltzmannMachines: moments_from_inputs
+using RestrictedBoltzmannMachines: batchmean_moments
+using RestrictedBoltzmannMachines: mean_from_moments
+using RestrictedBoltzmannMachines: var_from_moments
 
 Random.seed!(2)
 
@@ -83,6 +85,10 @@ _layers = (
         μ, ν = meanvar_from_inputs(layer, x)
         @test μ ≈ mean_from_inputs(layer, x)
         @test ν ≈ var_from_inputs(layer, x)
+
+        moments = @inferred moments_from_inputs(layer, x)
+        @test mean_from_moments(layer, moments) ≈ μ
+        @test var_from_moments(layer, moments) ≈ ν
 
         if layer isa Potts
             @test size(@inferred cgfs(layer, x)) == (1, tail(size(x))...)
@@ -161,8 +167,9 @@ end
     end
     ∂ = ∂cgf(layer)
     @test ∂ ≈ only(gs).par ≈ stack([mean_from_inputs(layer)]; dims = 1)
-    @test grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
-    @test grad2var(layer, ∂) ≈ var_from_inputs(layer)
+    moments = moments_from_inputs(layer)
+    @test mean_from_moments(layer, moments) ≈ mean_from_inputs(layer)
+    @test var_from_moments(layer, moments) ≈ var_from_inputs(layer)
 end
 
 @testset "Spin" begin
@@ -175,8 +182,9 @@ end
     end
     ∂ = ∂cgf(layer)
     @test ∂ ≈ only(gs).par ≈ stack([mean_from_inputs(layer)]; dims = 1)
-    @test grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
-    @test grad2var(layer, ∂) ≈ var_from_inputs(layer)
+    moments = moments_from_inputs(layer)
+    @test mean_from_moments(layer, moments) ≈ mean_from_inputs(layer)
+    @test var_from_moments(layer, moments) ≈ var_from_inputs(layer)
 end
 
 @testset "Potts" begin
@@ -194,8 +202,9 @@ end
     end
     ∂ = ∂cgf(layer)
     @test ∂ ≈ only(gs).par ≈ stack([mean_from_inputs(layer)]; dims = 1)
-    @test grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
-    @test grad2var(layer, ∂) ≈ var_from_inputs(layer)
+    moments = moments_from_inputs(layer)
+    @test mean_from_moments(layer, moments) ≈ mean_from_inputs(layer)
+    @test var_from_moments(layer, moments) ≈ var_from_inputs(layer)
 end
 
 @testset "Gaussian" begin
@@ -225,8 +234,9 @@ end
     @test ∂ ≈ only(gs).par
     @test ∂[1, ..] ≈ μ
     @test ∂[2, ..] ≈ -sign.(layer.γ) .* μ2 / 2
-    @test grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
-    @test grad2var(layer, ∂) ≈ var_from_inputs(layer)
+    moments = moments_from_inputs(layer)
+    @test mean_from_moments(layer, moments) ≈ mean_from_inputs(layer)
+    @test var_from_moments(layer, moments) ≈ var_from_inputs(layer)
 end
 
 @testset "ReLU" begin
@@ -256,8 +266,9 @@ end
     @test ∂ ≈ only(gs).par
     @test ∂[1, ..] ≈ μ
     @test ∂[2, ..] ≈ -sign.(layer.γ) .* μ2 / 2
-    @test grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
-    @test grad2var(layer, ∂) ≈ var_from_inputs(layer)
+    moments = moments_from_inputs(layer)
+    @test mean_from_moments(layer, moments) ≈ mean_from_inputs(layer)
+    @test var_from_moments(layer, moments) ≈ var_from_inputs(layer)
 end
 
 @testset "pReLU / xReLU / dReLU convert" begin
@@ -377,19 +388,20 @@ end
     end
     ∂ = @inferred ∂cgf(layer)
     @test ∂ ≈ only(gs).par
-    @test grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
-    @test grad2var(layer, ∂) ≈ var_from_inputs(layer)
+    moments = moments_from_inputs(layer)
+    @test mean_from_moments(layer, moments) ≈ mean_from_inputs(layer)
+    @test var_from_moments(layer, moments) ≈ var_from_inputs(layer)
 
     # check law of total variance
     inputs = randn(size(layer)..., 1000)
-    ∂ = ∂cgf(layer, inputs)
     h_ave = mean_from_inputs(layer, inputs)
     h_var = var_from_inputs(layer, inputs)
     μ = batchmean(layer, h_ave)
     ν_int = batchmean(layer, h_var)
     ν_ext = batchvar(layer, h_ave; mean = μ)
     ν = ν_int + ν_ext # law of total variance
-    @test grad2ave(layer, ∂) ≈ μ
+    moments = batchmean_moments(layer, moments_from_inputs(layer, inputs))
+    @test mean_from_moments(layer, moments) ≈ μ
     μ1, ν1 = total_meanvar_from_inputs(layer, inputs)
     @test μ1 ≈ μ ≈ total_mean_from_inputs(layer, inputs)
     @test ν1 ≈ ν ≈ total_var_from_inputs(layer, inputs)
@@ -403,8 +415,9 @@ end
     end
     ∂ = ∂cgf(layer)
     @test ∂ ≈ only(gs).par
-    @test grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
-    @test grad2var(layer, ∂) ≈ var_from_inputs(layer)
+    moments = moments_from_inputs(layer)
+    @test mean_from_moments(layer, moments) ≈ mean_from_inputs(layer)
+    @test var_from_moments(layer, moments) ≈ var_from_inputs(layer)
 end
 
 @testset "xReLU" begin
@@ -415,16 +428,17 @@ end
     end
     ∂ = ∂cgf(layer)
     @test ∂ ≈ only(gs).par
-    @test grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
-    @test grad2var(layer, ∂) ≈ var_from_inputs(layer)
+    moments = moments_from_inputs(layer)
+    @test mean_from_moments(layer, moments) ≈ mean_from_inputs(layer)
+    @test var_from_moments(layer, moments) ≈ var_from_inputs(layer)
 end
 
-@testset "grad2ave $Layer" for Layer in _layers
+@testset "mean_from_moments $Layer" for Layer in _layers
     layer = Layer((5,))
     rbm = RBM(layer, Binary(; θ = randn(3)), randn(5, 3))
     v = sample_v_from_v(rbm, randn(5, 100); steps = 100)
-    ∂ = ∂free_energy(rbm, v)
-    @test (@inferred grad2ave(rbm.visible, -∂.visible)) ≈ dropdims(mean(v; dims = 2); dims = 2)
+    moments = moments_from_samples(rbm.visible, v)
+    @test (@inferred mean_from_moments(rbm.visible, moments)) ≈ dropdims(mean(v; dims = 2); dims = 2)
 end
 
 using RestrictedBoltzmannMachines: batchstd, drelu_rand, drelu_mode, PottsGumbel, nsReLU

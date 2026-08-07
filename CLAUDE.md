@@ -51,7 +51,10 @@ CUDA.jl, and HDF5 persistence. It requires Julia 1.12 or later.
   remaining dimensions are `size(layer)`, so `ndims(par) == N + 1`. Named
   properties such as `layer.θ` and `layer.γ` are views into `par`.
 - Each layer implements `energy`, `cgfs`, `sample_from_inputs`,
-  `mean_from_inputs`, `var_from_inputs`, and `mode_from_inputs`.
+  `mean_from_inputs`, `var_from_inputs`, and `mode_from_inputs`, plus the
+  moments interface: `moments_from_samples`, `moments_from_inputs`, and
+  `∂energy_from_moments`, which share one canonical moments-array layout
+  (first axis = moment index, then `size(layer)`, then batch dimensions).
 - Binary, Spin, and Potts layers have one parameter (`θ`); Gaussian layers have
   two (`θ` and `γ`); dReLU layers have four.
 - For Potts layers, the first layer dimension indexes classes and the remaining

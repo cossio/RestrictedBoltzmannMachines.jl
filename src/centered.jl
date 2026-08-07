@@ -189,9 +189,10 @@ function center_visible_from_data!(rbm::CenteredRBM, data::AbstractArray; wts = 
     return center_visible!(rbm, offset_v)
 end
 
-function center_hidden_from_data!(rbm::CenteredRBM, data::AbstractArray; wts = nothing)
+function center_hidden_from_data!(rbm::CenteredRBM, data::AbstractArray; wts = nothing, damping::Real = 1)
     h = mean_h_from_v(rbm, data)
-    offset_h = batchmean(rbm.hidden, h; wts)
+    offset_h_new = batchmean(rbm.hidden, h; wts)
+    offset_h = (1 - damping) .* rbm.offset_h .+ damping .* offset_h_new
     return center_hidden!(rbm, offset_h)
 end
 
@@ -296,9 +297,7 @@ function pcd!(
         negative_phase = vd -> _pcd_negative_phase(rbm, vm, steps),
         post_update! = (vd, wd, ∂d) -> begin
             # damped update of the hidden offsets towards <h>_d from the minibatch
-            offset_h_new = grad2ave(rbm.hidden, -∂d.hidden)
-            offset_h = (1 - hidden_offset_damping) * rbm.offset_h + hidden_offset_damping * offset_h_new
-            center_hidden!(rbm, offset_h)
+            center_hidden_from_data!(rbm, vd; wts = wd, damping = hidden_offset_damping)
             reset_gauge!()
         end,
     )

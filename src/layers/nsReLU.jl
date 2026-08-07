@@ -15,14 +15,8 @@ var_from_inputs(layer::nsReLU, inputs = 0) = var_from_inputs(xReLU(layer), input
 meanvar_from_inputs(layer::nsReLU, inputs = 0) = meanvar_from_inputs(xReLU(layer), inputs)
 mean_abs_from_inputs(layer::nsReLU, inputs = 0) = mean_abs_from_inputs(xReLU(layer), inputs)
 
-function ∂cgfs(layer::nsReLU, inputs = 0)
-    xrelu = xReLU(layer)
-    ∂ = ∂cgfs(xrelu, inputs)
-    return ∂[[1, 3, 4], ..] # skip γ
-end
-
 function ∂energy_from_moments(layer::nsReLU, moments::AbstractArray)
-    @assert size(moments) == (4, size(layer)...)
+    @assert ntuple(d -> size(moments, d), ndims(layer) + 1) == (4, size(layer)...)
     ∂ = ∂energy_from_moments(xReLU(layer), moments)
     return ∂[[1, 3, 4], ..] # skip γ
 end

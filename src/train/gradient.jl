@@ -27,10 +27,12 @@ function ∂free_energy(
         moments = moments_from_samples(rbm.visible, v; wts)
     )
     inputs = inputs_h_from_v(rbm, v)
+    h_moments = moments_from_inputs(rbm.hidden, inputs)
+    # both layer gradients are ∂energy_from_moments: at the data moments for the
+    # visible layer, at the conditional moments <.|v> for the hidden layer
     ∂v = ∂energy_from_moments(rbm.visible, moments)
-    ∂Γ = ∂cgfs(rbm.hidden, inputs)
-    h = grad2ave(rbm.hidden, ∂Γ)
-    ∂h = reshape(wmean(-∂Γ; wts, dims = (ndims(rbm.hidden.par) + 1):ndims(∂Γ)), size(rbm.hidden.par))
+    ∂h = ∂energy_from_moments(rbm.hidden, batchmean_moments(rbm.hidden, h_moments; wts))
+    h = mean_from_moments(rbm.hidden, h_moments)
     ∂w = ∂interaction_energy(rbm, v, h; wts)
     return ∂RBM(∂v, ∂h, ∂w)
 end
@@ -42,10 +44,10 @@ function ∂free_energy_h(
         moments = moments_from_samples(rbm.hidden, h; wts)
     )
     inputs = inputs_v_from_h(rbm, h)
-    ∂Γ = ∂cgfs(rbm.visible, inputs)
-    v = grad2ave(rbm.visible, ∂Γ)
-    ∂v = -reshape(wmean(∂Γ; wts, dims = (ndims(rbm.visible.par) + 1):ndims(∂Γ)), size(rbm.visible.par))
+    v_moments = moments_from_inputs(rbm.visible, inputs)
+    ∂v = ∂energy_from_moments(rbm.visible, batchmean_moments(rbm.visible, v_moments; wts))
     ∂h = ∂energy_from_moments(rbm.hidden, moments)
+    v = mean_from_moments(rbm.visible, v_moments)
     ∂w = ∂interaction_energy(rbm, v, h; wts)
     return ∂RBM(∂v, ∂h, ∂w)
 end

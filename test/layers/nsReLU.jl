@@ -4,9 +4,10 @@ using RestrictedBoltzmannMachines: ∂cgf, ∂regularize_fields
 using RestrictedBoltzmannMachines: cgfs
 using RestrictedBoltzmannMachines: dReLU
 using RestrictedBoltzmannMachines: energies
-using RestrictedBoltzmannMachines: grad2ave
-using RestrictedBoltzmannMachines: grad2var
 using RestrictedBoltzmannMachines: initialize!
+using RestrictedBoltzmannMachines: mean_from_moments
+using RestrictedBoltzmannMachines: moments_from_inputs
+using RestrictedBoltzmannMachines: var_from_moments
 using RestrictedBoltzmannMachines: batchmean
 using RestrictedBoltzmannMachines: mean_abs_from_inputs
 using RestrictedBoltzmannMachines: mean_from_inputs
@@ -54,7 +55,11 @@ end
     end
     ∂ = ∂cgf(layer)
     @test ∂ ≈ only(gs).par
-    @test grad2ave(layer, ∂) ≈ mean_from_inputs(layer)
+    moments = moments_from_inputs(layer)
+    @test mean_from_moments(layer, moments) ≈ mean_from_inputs(layer)
+    # the dReLU-layout moments carry second moments, so the variance is
+    # recoverable even though nsReLU has no scale parameter
+    @test var_from_moments(layer, moments) ≈ var_from_inputs(layer)
 end
 
 @testset "nsReLU constructors" begin
