@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+- Fixed `log_pseudolikelihood(rbm, v; exact = true)` with `Potts` visible
+  layers erroring on GPU arrays ("illegal conversion to a `Ptr`"): the per-site
+  blocks fed to matrix products are now indexed copies instead of views, since
+  strided views of GPU arrays dispatch `*` to BLAS.
+
 ## 6.1.0
 
 - Removed `logmeanexp`, `logvarexp`, and `logstdexp` (not marked `public`). They
