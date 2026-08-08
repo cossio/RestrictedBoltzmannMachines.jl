@@ -31,13 +31,16 @@ end
 # kernel than float-converted copies, breaking exact reproducibility.
 _asfloat(A::AbstractArray{<:AbstractFloat}) = A
 _asfloat(A::AbstractArray) = float.(A)
+# The default lazy uniform weights are exact ones already; keep them lazy (and
+# `Bool`) so they cannot promote the eltype of the reduction.
+_asfloat(A::Ones{Bool}) = A
 
 # `transpose`, not `dot`: the documented sum is `Σ Aᵢwᵢ`, without conjugation
 _wsum_all(A::AbstractArray, wts::AbstractArray) = transpose(_asfloat(vec(A))) * _asfloat(vec(wts))
 _wsum_trailing(A::AbstractMatrix, wts::AbstractVector) = _asfloat(A) * _asfloat(wts)
 # uniform `Ones` weights reduce as a plain sum (keeps the unweighted training
 # path free of weighted copies and eltype promotion)
-_wsum_trailing(A::AbstractMatrix, ::Ones{<:Real}) = sum(A; dims = 2)
+_wsum_trailing(A::AbstractMatrix, ::Ones{<:Real}) = sum(_asfloat(A); dims = 2)
 
 @doc raw"""
     wmean(A; wts = Ones{Bool}(size(A)))

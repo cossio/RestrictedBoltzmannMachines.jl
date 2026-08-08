@@ -61,9 +61,14 @@ function _prepare_training_data(
     return mean(wts), min(batchsize, length(wts))
 end
 
-# Real-valued lazy uniform weights are trivially valid; anything else
-# (including complex-valued `Ones`) goes through the elementwise checks.
-_validate_weights(wts::Ones{<:Real}) = wts
+# Nonempty real-valued lazy uniform weights are trivially valid; anything else
+# (including complex-valued `Ones`) goes through the elementwise checks. Empty
+# weights have no positive weight, whatever their type.
+function _validate_weights(wts::Ones{<:Real})
+    isempty(wts) &&
+        throw(ArgumentError("wts must contain at least one positive weight"))
+    return wts
+end
 
 function _validate_weights(wts::AbstractArray)
     all(w -> w isa Real && isfinite(w) && w ≥ 0, wts) ||

@@ -85,11 +85,20 @@ end
     # caller's responsibility
     @test isnan(RBMs.wmean([NaN, 2.0]; wts = [0.0, 1.0]))
 
-    # lazy uniform weights reduce like a plain mean, without promoting
+    # lazy uniform weights reduce like a plain mean, without promoting —
+    # on partial and full (default) reductions alike
     A = rand(Float32, 2, 5)
     @test RBMs.wmean(A; wts = Ones{Bool}(5)) ≈ vec(mean(A; dims = 2))
     @test RBMs.wmean(A; wts = Ones{Bool}(5)) isa Vector{Float32}
     @test RBMs.wmean(A) ≈ mean(A)
+    @test RBMs.wmean(A) isa Float32
+    @test RBMs.wmean(Float32[1, 2]) isa Float32
+
+    # integer data accumulates in float on the uniform fast path too,
+    # matching `mean` instead of wrapping like an integer `sum`
+    big_ints = [typemax(Int), typemax(Int)]
+    @test RBMs.wmean(big_ints) ≈ mean(big_ints) ≈ float(typemax(Int))
+    @test RBMs.wmean(reshape(big_ints, 1, 2); wts = Ones{Bool}(2)) ≈ [float(typemax(Int))]
 end
 
 @testset "training weight checks" begin
@@ -120,6 +129,11 @@ end
     # lazy uniform weights must still be real-valued to skip validation
     @test_throws ArgumentError RBMs._prepare_training_data(
         zeros(1, 2), Ones{ComplexF64}(2); batchsize = 1
+    )
+
+    # empty data defaults to empty lazy weights, which have no positive weight
+    @test_throws ArgumentError RBMs._prepare_training_data(
+        zeros(2, 0), Ones{Bool}(0); batchsize = 1
     )
 end
 
@@ -158,6 +172,11 @@ end
     @test_throws ArgumentError initialize!(base_rbm(), data; wts = [1.0, NaN, 1.0])
     # undersized weights are rejected instead of silently truncating the data
     @test_throws DimensionMismatch initialize!(base_rbm(), data; wts = [0.0, 1.0])
+    # empty data fails before mutating parameters to NaN
+    empty_rbm = base_rbm()
+    before = model_state(empty_rbm)
+    @test_throws ArgumentError initialize!(empty_rbm, zeros(2, 0))
+    @test model_state(empty_rbm) == before
 end
 
 @testset "∂free_energy with zero weights on finite samples" begin
