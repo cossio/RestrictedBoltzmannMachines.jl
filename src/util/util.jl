@@ -26,7 +26,7 @@ function wmean(A::AbstractArray; wts::Union{AbstractArray, Nothing} = nothing, d
         end
         w = reshape(wts, wsz)
     end
-    return sum(A .* w; dims) ./ sum(wts)
+    return mean(A .* w; dims) ./ mean(w)
 end
 
 """
