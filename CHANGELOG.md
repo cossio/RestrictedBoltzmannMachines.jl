@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- Minibatch iteration during training is now backed by
+  [MLUtils.jl](https://github.com/JuliaML/MLUtils.jl), which becomes a new
+  dependency: `infinite_minibatches` cycles an `MLUtils.DataLoader`, replacing
+  the hand-rolled iterator. The internal helpers `nobs`, `getobs`,
+  `shuffleobs`, and `InfiniteMinibatchIterator` are removed (none were marked
+  `public`). Training behavior is unchanged: an infinite stream of fixed-size
+  minibatches, reshuffled anew each epoch, dropping the trailing partial batch.
+
 ## 6.2.0
 
 - Layer conditional statistics are now organized around moments arrays. The new

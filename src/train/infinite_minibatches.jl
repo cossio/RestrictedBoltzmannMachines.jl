@@ -1,64 +1,29 @@
-function nobs(d::AbstractArray, ds::Union{AbstractArray, Nothing}...)
-    n = nobs(d)
-    ns = nobs(ds...)
-    @assert n == ns || isnothing(ns)
-    return n
-end
-
-nobs(::Nothing, ds::Union{AbstractArray, Nothing}...) = nobs(ds...)
-nobs(d::AbstractArray) = size(d, ndims(d))
-nobs(::Nothing) = nothing
-nobs() = nothing
-
-getobs(i, ds::Union{AbstractArray, Nothing}...) = map(ds) do d
-    isnothing(d) ? nothing : d[.., i]
-end
-
-function shuffleobs(ds::Union{AbstractArray, Nothing}...)
-    n = nobs(ds...)
-    if isnothing(n)
-        return ds
-    else
-        i = randperm(n)
-        return getobs(i, ds...)
-    end
-end
-
-struct InfiniteMinibatchIterator{T}
-    data::T
-    batchsize::Int
-    shuffle::Bool
-end
-
-function Base.iterate(iter::InfiniteMinibatchIterator)
-    iter.batchsize > 0 || throw(ArgumentError("batchsize must be positive"))
-    n = nobs(iter.data...)
-    if isnothing(n) || iter.batchsize > n
-        return nothing
-    else
-        if iter.shuffle
-            shuffled = shuffleobs(iter.data...)
-        else
-            shuffled = iter.data
-        end
-        return iterate(iter, (i = 1, shuffled))
-    end
-end
-
-function Base.iterate(iter::InfiniteMinibatchIterator, (i, shuffled))
-    if i + iter.batchsize - 1 > nobs(iter.data...)
-        return iterate(iter) # restart iteration
-    else
-        items = getobs(i:(i + iter.batchsize - 1), shuffled...)
-        return items, (i + iter.batchsize, shuffled)
-    end
-end
+#= Minibatch iteration is delegated to MLUtils.DataLoader. `Iterators.cycle`
+restarts the loader whenever an epoch is exhausted, and the loader reshuffles on
+each restart, so the stream is infinite with a fresh permutation per epoch.
+`partial = false` drops the trailing incomplete batch, so every minibatch holds
+exactly `batchsize` observations; in particular the stream is empty when
+`batchsize` exceeds the number of observations (DataLoader would instead clamp
+the batch size with a warning, so that case is guarded before the loader). =#
 
 function infinite_minibatches(
-        ds::Union{AbstractArray, Nothing}...; batchsize::Int, shuffle::Bool = true
+        data::AbstractArray, wts::AbstractVector; batchsize::Int, shuffle::Bool = true
     )
     batchsize > 0 || throw(ArgumentError("batchsize must be positive"))
-    return InfiniteMinibatchIterator(ds, batchsize, shuffle)
+    batchsize ≤ numobs((data, wts)) || return ()
+    return Iterators.cycle(DataLoader((data, wts); batchsize, shuffle, partial = false))
+end
+
+# MLUtils defines no observation semantics for `nothing` (and extending
+# `numobs`/`getobs` to `Nothing` would be type piracy), so the unweighted case
+# gets its own loader, normalized to yield `(vd, nothing)` like the weighted one.
+function infinite_minibatches(
+        data::AbstractArray, wts::Nothing; batchsize::Int, shuffle::Bool = true
+    )
+    batchsize > 0 || throw(ArgumentError("batchsize must be positive"))
+    batchsize ≤ numobs(data) || return ()
+    loader = DataLoader(data; batchsize, shuffle, partial = false)
+    return Iterators.map(vd -> (vd, wts), Iterators.cycle(loader))
 end
 
 function _prepare_training_data(
@@ -83,7 +48,7 @@ function _prepare_training_data(
         # GPUArrays do not generally support logical indexing. Transfer only
         # the mask used to build indices; indexing preserves the data backend.
         positive_indices = findall(adapt(Array, positive))
-        data, wts = getobs(positive_indices, data, wts)
+        data, wts = getobs((data, wts), positive_indices)
     end
 
     # Cache the overall weight scale and mean, so minibatch gradients can be
