@@ -311,6 +311,17 @@ moment, the next axes are `size(layer)`, and any trailing batch dimensions of
 function moments_from_inputs end
 
 """
+    batchmean_moments(layer, moments; wts = nothing)
+
+Average a per-configuration moments array (as returned by `moments_from_inputs`
+with batched inputs) over its batch dimensions, weighted by `wts`.
+"""
+function batchmean_moments(layer::AbstractLayer, moments::AbstractArray; wts = nothing)
+    m = wmean(moments; wts, dims = (ndims(layer) + 2):ndims(moments))
+    return reshape(m, ntuple(d -> size(moments, d), Val(ndims(layer) + 1)))
+end
+
+"""
     ∂cgfs(layer, inputs = 0)
 
 Gradient of `cgfs` with respect to the layer parameters, for each configuration of
