@@ -28,8 +28,12 @@ Returns the prepared `(data, wts)`. =#
 _initialization_data(::Nothing, layer::AbstractLayer, data::AbstractArray) =
     (data, uniform_weights(layer, data))
 function _initialization_data(wts::AbstractArray, layer::AbstractLayer, data::AbstractArray)
+    @assert size(wts) == batch_size(layer, data)
     wts = _normalize_weights(_validate_weights(wts))
-    return _drop_zero_weight_samples(data, wts, ndims(layer))
+    # Flatten the trailing batch dimensions, so zero-weight configurations are
+    # dropped uniformly regardless of the batch layout; the moment-matching
+    # reductions are invariant under this reshape.
+    return _filter_zero_weights(reshape(data, size(layer)..., :), vec(wts))
 end
 _initialization_data(::Nothing, data::AbstractArray) =
     (data, Ones{Bool}(size(data, ndims(data))))
@@ -37,13 +41,6 @@ function _initialization_data(wts::AbstractVector, data::AbstractArray)
     wts = _normalize_weights(_validate_weights(wts))
     return _filter_zero_weights(data, wts)
 end
-
-# Vector weights over a single trailing batch dimension are filtered like
-# training data; other weight shapes (multi-dimensional batches) are left as
-# they are.
-_drop_zero_weight_samples(data::AbstractArray, wts::AbstractVector, layerdims::Int) =
-    ndims(data) == layerdims + 1 ? _filter_zero_weights(data, wts) : (data, wts)
-_drop_zero_weight_samples(data::AbstractArray, wts::AbstractArray, ::Int) = (data, wts)
 
 function initialize!(
         rbm::RBM, data::AbstractArray;

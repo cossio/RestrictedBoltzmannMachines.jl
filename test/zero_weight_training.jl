@@ -368,6 +368,11 @@ end
     nan_layer = Binary((1,))
     initialize!(nan_layer, [NaN 1.0]; wts = [0.0, 1.0])
     @test all(isfinite, nan_layer.par)
+
+    # multi-dimensional batches are flattened and filtered the same way
+    grid_layer = Binary((1,))
+    initialize!(grid_layer, reshape([NaN, 1.0, 1.0, 1.0], 1, 2, 2); wts = [0.0 1.0; 1.0 1.0])
+    @test all(isfinite, grid_layer.par)
     nan_rbm = base_rbm()
     initialize!(nan_rbm, [NaN 1.0; NaN 0.0]; wts = [0.0, 1.0])
     @test all_finite(nan_rbm)
