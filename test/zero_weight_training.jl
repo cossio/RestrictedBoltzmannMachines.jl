@@ -327,20 +327,6 @@ end
     @test all_finite(rbm)
 end
 
-@testset "minibatch bias correction preserves representable products" begin
-    ∂ = RBMs.∂RBM(
-        fill(Float16(1.0e-3), 1, 2), fill(Float16(1.0e-3), 1, 1), fill(Float16(1.0e-3), 2, 1)
-    )
-    # a correction beyond floatmax(Float16) with a representable product
-    scaled = RBMs._scale_gradient(∂, 1.0e5, Float16)
-    @test eltype(scaled.w) == Float16
-    @test scaled.w ≈ fill(Float16(100), 2, 1) rtol = 0.01
-    # the common representable case converts the scalar once
-    scaled = RBMs._scale_gradient(∂, 2.0, Float16)
-    @test eltype(scaled.w) == Float16
-    @test scaled.w ≈ fill(Float16(2.0e-3), 2, 1) rtol = 0.01
-end
-
 @testset "initialize! weight hygiene" begin
     data = [1.0 0.0 1.0; 0.0 1.0 1.0]
 

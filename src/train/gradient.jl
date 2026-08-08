@@ -16,20 +16,6 @@ Base.:(/)(∂::∂RBM, λ::Real) = ∂RBM(∂.visible / λ, ∂.hidden / λ, ∂
 Base.:(==)(∂1::∂RBM, ∂2::∂RBM) = (∂1.visible == ∂2.visible) && (∂1.hidden == ∂2.hidden) && (∂1.w == ∂2.w)
 Base.hash(∂::∂RBM, h::UInt) = hash(∂.visible, hash(∂.hidden, hash(∂.w, h)))
 
-#= Scale a gradient by a wide scalar without promoting its arrays: the scalar
-is converted to the gradient eltype `T` up front when it is representable
-there (the common case, one conversion). Otherwise (e.g. Float16 gradients
-with a correction beyond `floatmax(Float16)`) each product is formed in the
-wide scalar type and converted back, so representable products stay exact
-instead of saturating. =#
-function _scale_gradient(∂::∂RBM, λ::Real, ::Type{T}) where {T}
-    if abs(λ) ≤ floatmax(T)
-        return ∂ * convert(T, λ)
-    else
-        return ∂RBM(T.(∂.visible .* λ), T.(∂.hidden .* λ), T.(∂.w .* λ))
-    end
-end
-
 """
     ∂free_energy(rbm, v)
 

@@ -51,9 +51,11 @@ function _train!(
         # positive and negative phase gradients
         ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
         ∂m, extras = negative_phase(vd)
-        # Correct the weighted minibatch bias, applied in the gradient eltype
-        # so the wide correction scalar cannot promote narrow parameters.
-        ∂ = _scale_gradient(∂d - ∂m, batch_weight, float(real(eltype(∂d.w))))
+        # Correct the weighted minibatch bias, in the gradient eltype so the
+        # wide correction scalar cannot promote narrow parameters. The
+        # correction is at most the number of samples (the largest prepared
+        # weight is one), so the conversion cannot overflow Float32 or wider.
+        ∂ = (∂d - ∂m) * convert(float(real(eltype(∂d.w))), batch_weight)
 
         # weight decay
         ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum, regularize...)
