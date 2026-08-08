@@ -122,8 +122,9 @@ function moments_from_samples(layer::Union{dReLU, pReLU, xReLU, nsReLU}, data::A
     xn = min.(data, false)
     xp1 = batchmean(layer, xp; wts)
     xn1 = batchmean(layer, xn; wts)
-    xp2 = batchmean(layer, xp .^ 2; wts)
-    xn2 = batchmean(layer, xn .^ 2; wts)
+    # square through float: narrow-integer samples would overflow in their own type
+    xp2 = batchmean(layer, abs2.(float.(xp)); wts)
+    xn2 = batchmean(layer, abs2.(float.(xn)); wts)
     return stack([xp1, xn1, xp2, xn2]; dims = 1)
 end
 
