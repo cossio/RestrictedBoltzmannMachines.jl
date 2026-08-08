@@ -53,8 +53,10 @@ function _train!(
         ∂m, extras = negative_phase(vd)
         # Correct the weighted minibatch bias. The correction is a Float64
         # scalar; convert it to the gradient eltype so it cannot promote
-        # narrow (e.g. Float32) parameters.
-        ∂ = (∂d - ∂m) * convert(float(real(eltype(∂d.w))), batch_weight)
+        # narrow (e.g. Float32) parameters, saturating at the largest finite
+        # value so extreme corrections cannot round to Inf in narrow types.
+        T = float(real(eltype(∂d.w)))
+        ∂ = (∂d - ∂m) * convert(T, min(batch_weight, floatmax(T)))
 
         # weight decay
         ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum, regularize...)

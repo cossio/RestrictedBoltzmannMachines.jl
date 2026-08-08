@@ -31,9 +31,9 @@ function wsum(A::AbstractArray, wts::AbstractArray; dims = :)
 end
 
 _wsum_all(A::AbstractArray, wts::AbstractArray) = dot(vec(A), vec(wts))
-_wsum_all(A::AbstractArray, ::Ones) = sum(A)
+_wsum_all(A::AbstractArray, ::Ones{<:Real}) = sum(A)
 _wsum_trailing(A::AbstractMatrix, wts::AbstractVector) = A * wts
-_wsum_trailing(A::AbstractMatrix, ::Ones) = sum(A; dims = 2)
+_wsum_trailing(A::AbstractMatrix, ::Ones{<:Real}) = sum(A; dims = 2)
 
 @doc raw"""
     wmean(A; wts = Ones{Bool}(...), dims = :)
@@ -59,7 +59,7 @@ _uniform_wts(A::AbstractArray, dims) = Ones{Bool}(ntuple(i -> size(A, dims[i]), 
 # reductions. Fold the weights into the smaller factor of a product to keep the
 # temporary small; lazy uniform `Ones` weights are a no-op.
 _scale_obs(A::AbstractMatrix, wts::AbstractVector) = A .* reshape(wts, 1, :)
-_scale_obs(A::AbstractMatrix, ::Ones) = A
+_scale_obs(A::AbstractMatrix, ::Ones{<:Real}) = A
 
 """
     generate_sequences(n, A = 0:1)

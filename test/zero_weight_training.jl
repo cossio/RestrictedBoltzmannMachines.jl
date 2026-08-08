@@ -5,7 +5,7 @@ using FillArrays: Ones
 import Optimisers
 import RestrictedBoltzmannMachines as RBMs
 using RestrictedBoltzmannMachines: RBM, Binary, Gaussian, BinaryRBM,
-    CenteredRBM, StandardizedRBM, center, standardize, pcd!
+    CenteredRBM, StandardizedRBM, center, standardize, pcd!, initialize!
 
 struct CountingDescent{T, R} <: Optimisers.AbstractRule
     eta::T
@@ -276,6 +276,48 @@ end
         @test prepared_wts == [1.0, 1.0]
         @test wts_mean == 1.0
     end
+
+    # positive weights whose ratio to the maximum underflows the weight
+    # eltype are dropped like zero weights, so no minibatch can end up with
+    # weights summing to zero
+    tiny = nextfloat(zero(Float16))
+    prepared_data, prepared_wts, _, _ = RBMs._prepare_training_data(
+        Float16[1 2], Float16[tiny, floatmax(Float16)]; batchsize = 1
+    )
+    @test prepared_wts == [1.0]
+    @test prepared_data == Float16[2;;]
+
+    # lazy uniform weights must still be real-valued to skip validation
+    @test_throws ArgumentError RBMs._prepare_training_data(
+        zeros(1, 2), Ones{ComplexF64}(2); batchsize = 1
+    )
+end
+
+@testset "initialize! weight hygiene" begin
+    data = [1.0 0.0 1.0; 0.0 1.0 1.0]
+
+    # explicit `wts = nothing` is still accepted, for the RBM and layer methods
+    rbm = base_rbm()
+    initialize!(rbm, data; wts = nothing)
+    @test all_finite(rbm)
+    layer = RBMs.Binary((2,))
+    initialize!(layer, data; wts = nothing)
+    @test all(isfinite, layer.par)
+
+    # extreme finite weights are normalized at the boundary and cannot
+    # overflow the moment-matching reductions
+    extreme_rbm = base_rbm()
+    unit_rbm = base_rbm()
+    seed!(303)
+    initialize!(extreme_rbm, data; wts = fill(floatmax(Float64), 3))
+    seed!(303)
+    initialize!(unit_rbm, data; wts = ones(3))
+    @test all_finite(extreme_rbm)
+    @test model_state(extreme_rbm) == model_state(unit_rbm)
+
+    # invalid weights fail loudly
+    @test_throws ArgumentError initialize!(base_rbm(), data; wts = [1.0, -1.0, 1.0])
+    @test_throws ArgumentError initialize!(base_rbm(), data; wts = [1.0, NaN, 1.0])
 end
 
 @testset "∂free_energy with zero weights on finite samples" begin
