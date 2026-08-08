@@ -6,6 +6,8 @@ Weighted mean of `A` along dimensions `dims`, weighted by `wts`.
 ```math
 \frac{\sum_i A_i w_i}{\sum_i w_i}
 ```
+
+Non-finite entries propagate to the result, even when their weight is zero.
 """
 function wmean(A::AbstractArray; wts::Union{AbstractArray, Nothing} = nothing, dims = :)
     if isnothing(wts)
@@ -24,17 +26,8 @@ function wmean(A::AbstractArray; wts::Union{AbstractArray, Nothing} = nothing, d
         end
         w = reshape(wts, wsz)
     end
-
-    # Accumulate weights normalized by the largest weight, in at least Float64
-    # precision (wider if the weights are wider, e.g. BigFloat), so that
-    # extreme finite weights cannot overflow the weighted sums (narrow float
-    # types like Float16 overflow even on moderately many samples). Zero
-    # weights annihilate their entries exactly, even non-finite ones.
-    wn = w ./ (1.0 * float(maximum(wts)))
-    return mean(_weighted_term.(A, wn); dims) ./ mean(wn)
+    return sum(A .* w; dims) ./ sum(wts)
 end
-
-_weighted_term(a, w) = iszero(w) ? zero(a) * w : a * w
 
 """
     generate_sequences(n, A = 0:1)

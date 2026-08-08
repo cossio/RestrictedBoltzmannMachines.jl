@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+- Simplified weighted means (`wmean` and everything built on it: `batchmean`,
+  `moments_from_samples`, `∂free_energy`, the standardization statistics, ...)
+  to the plain formula `sum(A .* wts) / sum(wts)`. Two special-cased behaviors
+  are removed: zero weights no longer mask non-finite samples (a `NaN` or `Inf`
+  entry now propagates to the result even when its weight is zero), and weights
+  are no longer rescaled internally, so extreme weights (near `floatmax`, or
+  needing wider-than-`Float64` accumulation) can now overflow. Weighted `pcd!`
+  training with ordinary weights is unaffected: zero-weight observations are
+  still excluded before mini-batches and data moments are formed, and the
+  default `moments` are now computed after that exclusion.
+
 ## 6.1.0
 
 - Removed `logmeanexp`, `logvarexp`, and `logstdexp` (not marked `public`). They

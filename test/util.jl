@@ -34,6 +34,9 @@ end
 
     wts = rand(2)
     @test sum(reshape(wts, 1, 1, 1, 2) .* A; dims = 4) ./ sum(wts) ≈ @inferred RBMs.wmean(A; dims = 4, wts)
+
+    # non-finite entries propagate, even when their weight is zero
+    @test isnan(RBMs.wmean([NaN, 2.0]; wts = [0.0, 1.0]))
 end
 
 @testset "reshape_maybe" begin

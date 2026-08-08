@@ -400,7 +400,7 @@ end
     @test all(isfinite, adapt(Array, jl_standardized_rbm.w))
     @test all(isfinite, adapt(Array, free_energy(jl_standardized_rbm, jl_standardized_data)))
 
-    wts = JLArray(vcat(zeros(256), fill(floatmax(Float64), 256)))
+    wts = JLArray(vcat(zeros(256), fill(2.0, 256)))
     pcd!(
         jl_rbm, jl_data;
         wts, iters = 2, batchsize = 32, steps = 0, shuffle = false,

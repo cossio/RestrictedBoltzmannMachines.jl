@@ -41,11 +41,14 @@ function _train!(
     isnothing(ps) && (ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w))
     isnothing(state) && (state = setup(optim, ps))
 
-    data, wts, normalization, batchsize = _prepare_training_data(data, wts; batchsize)
+    data, wts, wts_mean, batchsize = _prepare_training_data(data, wts; batchsize)
+    # Default moments are computed after zero-weight samples are excluded, so
+    # non-finite entries in ignored samples never reach the training path.
+    isnothing(moments) && (moments = moments_from_samples(rbm.visible, data; wts))
     setup!(data, wts)
 
     for (iter, (vd, wd)) in zip(1:iters, infinite_minibatches(data, wts; batchsize, shuffle))
-        batch_weight = _batch_weight(wd, normalization)
+        batch_weight = _batch_weight(wd, wts_mean)
 
         # positive and negative phase gradients
         ∂d = ∂free_energy(rbm, vd; wts = wd, moments)

@@ -18,8 +18,9 @@ parameters with an `Optimisers.jl` rule.
   must be positive.
 - `steps::Int=1`: Gibbs steps used to update persistent chains each iteration.
 - `optim::AbstractRule=Adam()`: optimizer rule from `Optimisers.jl`.
-- `moments=moments_from_samples(rbm.visible, data; wts)`: data moments used by
-  the positive phase (zero-weight samples contribute nothing).
+- `moments=nothing`: data moments used by the positive phase. By default they
+  are computed with `moments_from_samples` after zero-weight samples are
+  excluded.
 - `l2_fields::Real=0`: L2 regularization on visible fields.
 - `l1_weights::Real=0`: L1 regularization on interaction weights.
 - `l2_weights::Real=0`: L2 regularization on interaction weights.
@@ -47,7 +48,7 @@ function pcd!(
         wts::Union{AbstractVector, Nothing} = nothing, # data weights
         steps::Int = 1, # MC steps to update fantasy chains
         optim::AbstractRule = Adam(), # optimizer rule
-        moments = moments_from_samples(rbm.visible, data; wts), # sufficient statistics for visible layer
+        moments = nothing, # sufficient statistics for visible layer; computed after data preparation by default
 
         # regularization
         l2_fields::Real = 0, # visible fields L2 regularization

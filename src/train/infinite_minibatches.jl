@@ -86,19 +86,11 @@ function _prepare_training_data(
         data, wts = getobs(positive_indices, data, wts)
     end
 
-    # Cache the overall weight scale and mean, so minibatch gradients can be
-    # bias-corrected without overflowing on extreme finite weights.
-    scale = 1.0 * float(maximum(wts))
-    normalization = (; scale, mean = mean(wts ./ scale))
+    # Cache the mean training weight, so minibatch gradients can be bias-corrected.
+    wts_mean = mean(wts)
 
-    return data, wts, normalization, min(batchsize, npositive)
+    return data, wts, wts_mean, min(batchsize, npositive)
 end
 
 _batch_weight(::Nothing, ::Nothing) = 1
-
-# mean(wd) / mean(wts), overflow-safe: batch weights are a subset of the
-# training weights, so the global scale bounds them and its wide type
-# propagates through the broadcast.
-function _batch_weight(wd::AbstractVector, normalization::NamedTuple)
-    return mean(wd ./ normalization.scale) / normalization.mean
-end
+_batch_weight(wd::AbstractVector, wts_mean::Real) = mean(wd) / wts_mean

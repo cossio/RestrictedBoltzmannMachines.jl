@@ -252,7 +252,7 @@ function pcd!(
         wts::Union{AbstractVector, Nothing} = nothing, # data weights
         steps::Int = 1, # MC steps to update fantasy chains
         optim::AbstractRule = Adam(), # optimizer rule
-        moments = moments_from_samples(rbm.visible, data; wts), # sufficient statistics for visible layer
+        moments = nothing, # sufficient statistics for visible layer; computed after data preparation by default
 
         # damping to update hidden statistics
         hidden_offset_damping::Real = 1 // 100,
