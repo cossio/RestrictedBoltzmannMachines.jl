@@ -1,59 +1,49 @@
-using Test: @testset, @test, @test_throws, @inferred
-using EllipsisNotation: (..)
-using RestrictedBoltzmannMachines: nobs, getobs, shuffleobs, infinite_minibatches
+using Test: @testset, @test, @test_throws
+using RestrictedBoltzmannMachines: infinite_minibatches
 
-@testset "nobs" begin
-    @test isnothing(@inferred nobs(nothing))
-    @test @inferred(nobs(randn(3, 4, 5))) == 5
-    @test @inferred(nobs(nothing, randn(3, 4, 5))) == 5
-    @test @inferred(nobs(randn(3, 4, 5), nothing)) == 5
-    @test @inferred(nobs(randn(3, 4, 5), randn(2, 3, 5))) == 5
-    @test isnothing(@inferred nobs(nothing, nothing))
-    @test isnothing(@inferred nobs())
-end
-
-@testset "getobs" begin
-    X = randn(3, 4, 7, 5)
-    Y = randn(2, 3, 5)
-    @test @inferred(getobs(2, X, Y)) == (X[.., 2], Y[.., 2])
-    @test @inferred(getobs(1:2, X, Y)) == (X[.., 1:2], Y[.., 1:2])
-    @test @inferred(getobs(2, nothing, Y)) == (nothing, Y[.., 2])
-    @test @inferred(getobs(2, X, nothing)) == (X[.., 2], nothing)
-    @test @inferred(getobs(1:2, nothing, Y)) == (nothing, Y[.., 1:2])
-    @test @inferred(getobs(1:2, nothing, nothing)) == (nothing, nothing)
-end
-
-@testset "shuffleobs" begin
-    X, Y = shuffleobs(1:10, 1:10)
-    @test X == Y
-    @test sort(X) == sort(Y) == 1:10
-
-    X, Y = shuffleobs(1:10, nothing)
-    @test sort(X) == 1:10
-    @test isnothing(Y)
-
-    @test @inferred(shuffleobs(nothing, nothing)) == (nothing, nothing)
-end
-
-@testset "infinite_minibatches" begin
-    data = 1:10
+@testset "unweighted minibatches cycle with fixed batch size" begin
     track = Int[]
-    for (i, (x,)) in zip(1:24, infinite_minibatches(data; batchsize = 3, shuffle = false))
+    for (i, (x, w)) in zip(1:24, infinite_minibatches(1:10, nothing; batchsize = 3, shuffle = false))
         @test length(x) == 3
+        @test isnothing(w)
         append!(track, x)
     end
-    @test track == repeat(1:9, 8)
+    @test track == repeat(1:9, 8) # the partial batch [10] is dropped each epoch
 
-    data = 1:3
-    for (i, (x,)) in zip(1:24, infinite_minibatches(data; batchsize = 3, shuffle = false))
+    for (i, (x, w)) in zip(1:24, infinite_minibatches(1:3, nothing; batchsize = 3, shuffle = false))
         @test x == 1:3
+        @test isnothing(w)
     end
-
-    @test_throws ArgumentError infinite_minibatches(data; batchsize = 0, shuffle = false)
 end
 
-@testset "batchsize larger than the data" begin
-    data = randn(2, 5)
-    @test iterate(infinite_minibatches(data; batchsize = 6, shuffle = false)) === nothing
-    @test iterate(infinite_minibatches(nothing; batchsize = 1, shuffle = false)) === nothing
+@testset "weighted minibatches slice data and weights jointly" begin
+    data = reshape(1.0:20.0, 2, 10)
+    wts = collect(1:10)
+    batches = collect(Iterators.take(infinite_minibatches(data, wts; batchsize = 3, shuffle = false), 3))
+    @test [w for (x, w) in batches] == [1:3, 4:6, 7:9]
+    @test [x for (x, w) in batches] == [data[:, 1:3], data[:, 4:6], data[:, 7:9]]
+
+    # wts[i] == i, so each weight batch reveals the indices used for the data batch
+    for (x, w) in Iterators.take(infinite_minibatches(data, wts; batchsize = 2, shuffle = true), 20)
+        @test x == data[:, w]
+    end
+end
+
+@testset "shuffle draws a fresh permutation each epoch" begin
+    orders = Set{Vector{Int}}()
+    for (x, w) in Iterators.take(infinite_minibatches(1:10, collect(1:10); batchsize = 10, shuffle = true), 20)
+        @test sort(x) == 1:10
+        @test x == w
+        push!(orders, copy(x))
+    end
+    @test length(orders) > 1
+end
+
+@testset "batchsize edge cases" begin
+    @test_throws ArgumentError infinite_minibatches(1:3, nothing; batchsize = 0, shuffle = false)
+    @test_throws ArgumentError infinite_minibatches(1:3, collect(1:3); batchsize = 0, shuffle = false)
+
+    # batchsize larger than the data yields an empty stream
+    @test isnothing(iterate(infinite_minibatches(randn(2, 5), nothing; batchsize = 6, shuffle = false)))
+    @test isnothing(iterate(infinite_minibatches(randn(2, 5), rand(5); batchsize = 6, shuffle = false)))
 end
