@@ -89,8 +89,8 @@ for positive and negative values of ``x``:
 
 ```math
 U(x) = \begin{cases}
-\frac{\gamma^+}{2} x^2 + \theta^+ x & \text{if } x \geq 0 \\[4pt]
-\frac{\gamma^-}{2} x^2 + \theta^- x & \text{if } x < 0
+\frac{|\gamma^+|}{2} x^2 - \theta^+ x & \text{if } x \geq 0 \\[4pt]
+\frac{|\gamma^-|}{2} x^2 - \theta^- x & \text{if } x < 0
 \end{cases}
 ```
 
