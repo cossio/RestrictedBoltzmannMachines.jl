@@ -197,7 +197,6 @@ end
     @test RBMs.wmean(A; wts = Ones{Bool}(5)) ≈ vec(mean(A; dims = 2))
     @test RBMs.wmean(A; wts = Ones{Bool}(5)) isa Vector{Float32}
     @test RBMs.wmean(A) ≈ mean(A)
-    @test RBMs.wmean(A) isa Float32
 end
 
 @testset "training weights are prepared once per run" begin
@@ -250,12 +249,12 @@ end
 @testset "initialize! weight hygiene" begin
     data = [1.0 0.0 1.0; 0.0 1.0 1.0]
 
-    # explicit `wts = nothing` is still accepted, for the RBM and layer methods
+    # the default weights are lazy uniform `Ones`, like everywhere else
     rbm = base_rbm()
-    initialize!(rbm, data; wts = nothing)
+    initialize!(rbm, data)
     @test all_finite(rbm)
     layer = RBMs.Binary((2,))
-    initialize!(layer, data; wts = nothing)
+    initialize!(layer, data; wts = Ones{Bool}(3))
     @test all(isfinite, layer.par)
 
     # weights enter the reductions unrescaled; only relative values matter

@@ -13,10 +13,10 @@ parameters with an `Optimisers.jl` rule.
 # Keyword arguments
 - `batchsize::Int=1`: number of samples per update.
 - `iters::Int=1`: number of parameter updates.
-- `wts::Union{AbstractVector,Nothing}=nothing`: optional finite, nonnegative
-  per-sample weights. At least one weight must be positive, and zero-weight
-  samples are dropped. Without weights, training uses lazy uniform weights
-  (`FillArrays.Ones`); callbacks receive the minibatch weights as `wd`.
+- `wts::AbstractVector=Ones{Bool}(nsamples)`: finite, nonnegative per-sample
+  weights, lazy uniform weights by default. At least one weight must be
+  positive, and zero-weight samples are dropped. Callbacks receive the
+  minibatch weights as `wd`.
 - `steps::Int=1`: Gibbs steps used to update persistent chains each iteration.
 - `optim::AbstractRule=Adam()`: optimizer rule from `Optimisers.jl`.
 - `moments`: data moments used by the positive phase. Computed by default as
@@ -46,7 +46,7 @@ function pcd!(
         data::AbstractArray;
         batchsize::Int = 1,
         iters::Int = 1, # number of gradient updates
-        wts::Union{AbstractVector, Nothing} = nothing, # data weights
+        wts::AbstractVector = Ones{Bool}(size(data, ndims(data))), # data weights
         steps::Int = 1, # MC steps to update fantasy chains
         optim::AbstractRule = Adam(), # optimizer rule
         moments = missing, # sufficient statistics for visible layer, computed from prepared data by default

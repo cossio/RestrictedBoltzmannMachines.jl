@@ -19,13 +19,10 @@ function initialize!(rbm::RBM; ϵ::Real = 1.0e-6)
     return rbm
 end
 
-#= Public `initialize!` boundaries accept `wts = nothing` (lazy uniform
-weights) and apply the same hygiene as training to explicit weights:
-validation and dropping zero-weight samples (so non-finite data attached to
-them cannot poison the moment-matching reductions). Returns the prepared
-`(data, wts)`. =#
-_initialization_data(::Nothing, layer::AbstractLayer, data::AbstractArray) =
-    (data, uniform_weights(layer, data))
+#= `initialize!` boundaries default to lazy uniform weights and apply the
+same hygiene as training to the weights: validation and dropping zero-weight
+samples (so non-finite data attached to them cannot poison the
+moment-matching reductions). Returns the prepared `(data, wts)`. =#
 function _initialization_data(wts::AbstractArray, layer::AbstractLayer, data::AbstractArray)
     @assert size(wts) == batch_size(layer, data)
     wts = _validate_weights(wts)
@@ -34,8 +31,6 @@ function _initialization_data(wts::AbstractArray, layer::AbstractLayer, data::Ab
     # reductions are invariant under this reshape.
     return _filter_zero_weights(reshape(data, size(layer)..., :), vec(wts))
 end
-_initialization_data(::Nothing, data::AbstractArray) =
-    (data, Ones{Bool}(size(data, ndims(data))))
 function _initialization_data(wts::AbstractVector, data::AbstractArray)
     length(wts) == size(data, ndims(data)) ||
         throw(DimensionMismatch("length(wts) must equal the number of data samples"))
@@ -45,7 +40,7 @@ end
 
 function initialize!(
         rbm::RBM, data::AbstractArray;
-        ϵ::Real = 1.0e-6, wts::Union{AbstractVector, Nothing} = nothing
+        ϵ::Real = 1.0e-6, wts::AbstractVector = Ones{Bool}(size(data, ndims(data)))
     )
     @assert 0 < ϵ < 1 / 2
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
@@ -59,7 +54,7 @@ end
 
 function initialize!(
         layer::Binary, data::AbstractArray;
-        ϵ::Real = 1.0e-6, wts::Union{AbstractArray, Nothing} = nothing
+        ϵ::Real = 1.0e-6, wts::AbstractArray = uniform_weights(layer, data)
     )
     data, wts = _initialization_data(wts, layer, data)
     @assert size(layer) == size(data)[1:ndims(layer)]
@@ -72,7 +67,7 @@ end
 
 function initialize!(
         layer::Spin, data::AbstractArray;
-        ϵ::Real = 1.0e-6, wts::Union{AbstractArray, Nothing} = nothing
+        ϵ::Real = 1.0e-6, wts::AbstractArray = uniform_weights(layer, data)
     )
     data, wts = _initialization_data(wts, layer, data)
     @assert size(layer) == size(data)[1:ndims(layer)]
@@ -85,7 +80,7 @@ end
 
 function initialize!(
         layer::Union{Potts, PottsGumbel}, data::AbstractArray;
-        ϵ::Real = 1.0e-6, wts::Union{AbstractArray, Nothing} = nothing
+        ϵ::Real = 1.0e-6, wts::AbstractArray = uniform_weights(layer, data)
     )
     data, wts = _initialization_data(wts, layer, data)
     @assert size(layer) == size(data)[1:ndims(layer)]
@@ -109,7 +104,7 @@ end
 
 function initialize!(
         layer::Gaussian, data::AbstractArray;
-        ϵ::Real = 1.0e-6, wts::Union{AbstractArray, Nothing} = nothing
+        ϵ::Real = 1.0e-6, wts::AbstractArray = uniform_weights(layer, data)
     )
     data, wts = _initialization_data(wts, layer, data)
     return _initialize_gaussian_moments!(layer.θ, layer.γ, layer, data; ϵ, wts)
@@ -117,7 +112,7 @@ end
 
 function initialize!(
         layer::xReLU, data::AbstractArray;
-        ϵ::Real = 1.0e-6, wts::Union{AbstractArray, Nothing} = nothing
+        ϵ::Real = 1.0e-6, wts::AbstractArray = uniform_weights(layer, data)
     )
     data, wts = _initialization_data(wts, layer, data)
     _initialize_gaussian_moments!(layer.θ, layer.γ, layer, data; ϵ, wts)
@@ -127,7 +122,7 @@ end
 
 function initialize!(
         layer::pReLU, data::AbstractArray;
-        ϵ::Real = 1.0e-6, wts::Union{AbstractArray, Nothing} = nothing
+        ϵ::Real = 1.0e-6, wts::AbstractArray = uniform_weights(layer, data)
     )
     data, wts = _initialization_data(wts, layer, data)
     _initialize_gaussian_moments!(layer.θ, layer.γ, layer, data; ϵ, wts)
@@ -137,7 +132,7 @@ end
 
 function initialize!(
         layer::dReLU, data::AbstractArray;
-        ϵ::Real = 1.0e-6, wts::Union{AbstractArray, Nothing} = nothing
+        ϵ::Real = 1.0e-6, wts::AbstractArray = uniform_weights(layer, data)
     )
     data, wts = _initialization_data(wts, layer, data)
     # initialize as Gaussian
@@ -178,7 +173,7 @@ end
 
 function initialize!(
         layer::nsReLU, data::AbstractArray;
-        wts::Union{AbstractArray, Nothing} = nothing
+        wts::AbstractArray = uniform_weights(layer, data)
     )
     data, wts = _initialization_data(wts, layer, data)
     @assert size(layer) == size(data)[1:ndims(layer)]
@@ -200,7 +195,7 @@ Initializes `rbm.w` such that typical inputs to hidden units are λ.
 """
 function initialize_w!(
         rbm::RBM, data::AbstractArray;
-        λ::Real = 0.1, ϵ::Real = 1.0e-6, wts::Union{AbstractVector, Nothing} = nothing
+        λ::Real = 0.1, ϵ::Real = 1.0e-6, wts::AbstractVector = Ones{Bool}(size(data, ndims(data)))
     )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     data, wts = _initialization_data(wts, data)
@@ -208,7 +203,7 @@ function initialize_w!(
     x = reshape(data, length(rbm.visible), size(data)[end])
     # dividing `x` first floats the accumulator, so narrow integer data
     # (e.g. Int8 spins) cannot overflow the dot product
-    d = dot(_scale_obs(x, wts), x / sum(wts))
+    d = dot(x .* reshape(wts, 1, :), x / sum(wts))
     randn!(rbm.w)
     rbm.w .*= λ / √(d + ϵ)
     return rbm # does not impose zerosum

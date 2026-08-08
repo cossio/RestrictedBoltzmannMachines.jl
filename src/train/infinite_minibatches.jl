@@ -44,10 +44,6 @@ function infinite_minibatches(ds::AbstractArray...; batchsize::Int, shuffle::Boo
     return InfiniteMinibatchIterator(ds, batchsize, shuffle)
 end
 
-# Lazy uniform sample weights when the user gives none.
-_default_weights(wts::AbstractVector, ::AbstractArray) = wts
-_default_weights(::Nothing, data::AbstractArray) = Ones{Bool}(size(data, ndims(data)))
-
 #= Per-run weight hygiene: validate the weights and drop zero-weight samples,
 so the per-iteration kernels can reduce with plain matmuls (no `NaN * 0` from
 zero-weight samples). Weights are not rescaled: extreme finite weights (near

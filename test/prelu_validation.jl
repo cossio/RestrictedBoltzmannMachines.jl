@@ -2,6 +2,7 @@ import Optimisers
 using Optimisers: Descent
 using RestrictedBoltzmannMachines: Binary, RBM, center, cgfs, moments_from_inputs, pReLU,
     pcd!, standardize, xReLU, ∂energy_from_moments
+using FillArrays: Ones
 using Test: @test, @testset
 
 function check_prelu_error(f)
@@ -48,7 +49,7 @@ pcd_model(::Val{:standardized}) = standardize(boundary_rbm())
 
 function run_pcd!(
         ::Val{:plain}, rbm, data, vm;
-        iters::Int, callback, wts = nothing, optim = Descent(1.0e-3),
+        iters::Int, callback, wts = Ones{Bool}(size(data, ndims(data))), optim = Descent(1.0e-3),
     )
     return pcd!(
         rbm, data;
@@ -59,7 +60,7 @@ end
 
 function run_pcd!(
         ::Val{:centered}, rbm, data, vm;
-        iters::Int, callback, wts = nothing, optim = Descent(1.0e-3),
+        iters::Int, callback, wts = Ones{Bool}(size(data, ndims(data))), optim = Descent(1.0e-3),
     )
     return pcd!(
         rbm, data;
@@ -71,7 +72,7 @@ end
 
 function run_pcd!(
         ::Val{:standardized}, rbm, data, vm;
-        iters::Int, callback, wts = nothing, optim = Descent(1.0e-3),
+        iters::Int, callback, wts = Ones{Bool}(size(data, ndims(data))), optim = Descent(1.0e-3),
     )
     return pcd!(
         rbm, data;

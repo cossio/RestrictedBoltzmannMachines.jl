@@ -72,11 +72,10 @@ function ∂interaction_energy(
         ∂wflat = -vflat * hflat'
     else
         # Weighted batch average as a matmul, folding the weights into the
-        # (typically smaller) hidden factor; lazy uniform `Ones` weights scale
-        # nothing and cannot promote the eltype.
+        # (typically smaller) hidden factor.
         vflat = with_eltype_of(rbm.w, flatten(rbm.visible, v))
         hflat = with_eltype_of(rbm.w, flatten(rbm.hidden, h))
-        ∂wflat = -vflat * _scale_obs(hflat, vec(wts))' / sum(wts)
+        ∂wflat = -vflat * (hflat .* reshape(vec(wts), 1, :))' / sum(wts)
     end
     ∂w = reshape(∂wflat, size(rbm.w))
     return ∂w

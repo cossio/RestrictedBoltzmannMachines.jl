@@ -222,7 +222,7 @@ function batchcov(
     @assert size(wts) == batch_size(layer, x)
     # reshape into a matrix even for unbatched `x`, where `flatten` gives a vector
     ξ = reshape(flatten(layer, x .- mean), length(layer), :)
-    C = _scale_obs(ξ, vec(wts)) * ξ' / sum(wts)
+    C = (ξ .* reshape(vec(wts), 1, :)) * ξ' / sum(wts)
     return reshape(C, size(layer)..., size(layer)...)
 end
 

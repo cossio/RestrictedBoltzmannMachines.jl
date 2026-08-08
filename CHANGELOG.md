@@ -10,6 +10,9 @@ All notable changes to this project will be documented in this file. The format 
   so uniform weights reduce like plain means without allocating weight arrays
   or promoting eltypes (Float32 training stays Float32 end to end). Visible
   consequences:
+  - **Breaking**: `wts` must be an `AbstractVector` and defaults to lazy
+    uniform weights; `wts = nothing` is no longer accepted by `pcd!` and
+    `initialize!`.
   - `pcd!` callbacks receive lazy uniform `Ones` weight slices as `wd` for
     unweighted training (previously `nothing`); weighted training callbacks
     receive the minibatch weights as before.

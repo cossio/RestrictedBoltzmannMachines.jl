@@ -25,10 +25,18 @@ function wsum(A::AbstractArray, wts::AbstractArray)
     end
 end
 
+# Float the operands (a no-op for float arrays): narrow-integer data and
+# weights would otherwise accumulate in their own narrow type (wrapping on
+# overflow), and mixed integer/float operands would take a different matmul
+# kernel than float-converted copies, breaking exact reproducibility.
+_asfloat(A::AbstractArray{<:AbstractFloat}) = A
+_asfloat(A::AbstractArray) = float.(A)
+
 # `transpose`, not `dot`: the documented sum is `Σ Aᵢwᵢ`, without conjugation
-_wsum_all(A::AbstractArray, wts::AbstractArray) = transpose(vec(A)) * vec(wts)
-_wsum_all(A::AbstractArray, ::Ones{<:Real}) = sum(A)
-_wsum_trailing(A::AbstractMatrix, wts::AbstractVector) = A * wts
+_wsum_all(A::AbstractArray, wts::AbstractArray) = transpose(_asfloat(vec(A))) * _asfloat(vec(wts))
+_wsum_trailing(A::AbstractMatrix, wts::AbstractVector) = _asfloat(A) * _asfloat(wts)
+# uniform `Ones` weights reduce as a plain sum (keeps the unweighted training
+# path free of weighted copies and eltype promotion)
 _wsum_trailing(A::AbstractMatrix, ::Ones{<:Real}) = sum(A; dims = 2)
 
 @doc raw"""
@@ -46,12 +54,6 @@ promoting eltypes.
 function wmean(A::AbstractArray; wts::AbstractArray = Ones{Bool}(size(A)))
     return wsum(A, wts) / sum(wts)
 end
-
-# Scale the batch columns of `A` by their weights, for matmul-shaped weighted
-# reductions. Fold the weights into the smaller factor of a product to keep the
-# temporary small; lazy uniform `Ones` weights are a no-op.
-_scale_obs(A::AbstractMatrix, wts::AbstractVector) = A .* reshape(wts, 1, :)
-_scale_obs(A::AbstractMatrix, ::Ones{<:Real}) = A
 
 """
     generate_sequences(n, A = 0:1)

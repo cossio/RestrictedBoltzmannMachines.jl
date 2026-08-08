@@ -22,7 +22,7 @@ function _train!(
         rbm, data::AbstractArray;
         batchsize::Int,
         iters::Int,
-        wts::Union{AbstractVector, Nothing},
+        wts::AbstractVector,
         moments,
         optim::AbstractRule,
         ps, state,
@@ -40,7 +40,6 @@ function _train!(
     isnothing(ps) && (ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w))
     isnothing(state) && (state = setup(optim, ps))
 
-    wts = _default_weights(wts, data)
     data, wts, wts_mean, batchsize = _prepare_training_data(data, wts; batchsize)
     moments = _resolve_moments(moments, rbm.visible, data, wts)
     setup!(data, wts)
