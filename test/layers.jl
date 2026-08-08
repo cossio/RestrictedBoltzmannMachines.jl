@@ -600,3 +600,20 @@ end
     @inferred moments_from_samples(ReLU((3, 2)), v)
     @inferred moments_from_samples(layer, samples)
 end
+
+@testset "moments_from_samples with integer and Bool data" begin
+    # the clipping zero is Bool so that narrow samples keep their eltype, and the
+    # squares go through float so that extreme narrow integers cannot overflow;
+    # either way the moments must match those of the float-converted samples
+    int8 = reshape(Int8[127, -128, 12, -12, 3, 0], 3, 2)
+    for Layer in (dReLU, pReLU, xReLU, nsReLU)
+        layer = Layer((3, 2))
+        for data in (int8, repeat(int8, 1, 1, 5), bitrand(3, 2), bitrand(3, 2, 5))
+            @test moments_from_samples(layer, data) == moments_from_samples(layer, float.(data))
+        end
+        wts = rand(5)
+        batched = repeat(int8, 1, 1, 5)
+        @test moments_from_samples(layer, batched; wts) ==
+            moments_from_samples(layer, float.(batched); wts)
+    end
+end
