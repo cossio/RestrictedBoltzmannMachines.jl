@@ -25,12 +25,16 @@ function var_from_moments(::Union{dReLU, pReLU, xReLU, nsReLU}, moments::Abstrac
 end
 
 """
-    batchmean_moments(layer, moments; wts = nothing)
+    batchmean_moments(layer, moments; wts = Ones{Bool}(...))
 
 Average a per-configuration moments array (as returned by `moments_from_inputs`
-with batched inputs) over its batch dimensions, weighted by `wts`.
+with batched inputs) over its batch dimensions, weighted by `wts` (lazy uniform
+weights by default).
 """
-function batchmean_moments(layer::AbstractLayer, moments::AbstractArray; wts = nothing)
+function batchmean_moments(
+        layer::AbstractLayer, moments::AbstractArray;
+        wts::AbstractArray = _uniform_wts(moments, (ndims(layer) + 2):ndims(moments))
+    )
     m = wmean(moments; wts, dims = (ndims(layer) + 2):ndims(moments))
     return reshape(m, ntuple(d -> size(moments, d), Val(ndims(layer) + 1)))
 end

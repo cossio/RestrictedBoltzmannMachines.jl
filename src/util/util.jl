@@ -1,40 +1,66 @@
 @doc raw"""
-    wmean(A; wts = nothing, dims = :)
+    wsum(A, wts; dims = :)
+
+Weighted sum of `A` along dimensions `dims`, weighted by `wts`.
+
+```math
+\sum_i A_i w_i
+```
+
+`wts` has the shape of the reduced dimensions of `A` (of all of `A` for
+`dims = :`, returning a scalar). Reduced dimensions are kept as singletons,
+like `sum(A; dims)`.
+"""
+function wsum(A::AbstractArray, wts::AbstractArray; dims = :)
+    dims === (:) && return _wsum_all(A, wts)
+    rdims = Tuple(dims)
+    @assert size(wts) == ntuple(i -> size(A, rdims[i]), length(rdims))
+    kept = ndims(A) - length(rdims)
+    if rdims == ntuple(i -> kept + i, length(rdims))
+        # Trailing reduced dimensions are a matmul-shaped reduction, which
+        # never materializes a weighted copy of `A`.
+        S = _wsum_trailing(reshape(A, :, length(wts)), vec(wts))
+        return reshape(S, ntuple(d -> d ≤ kept ? size(A, d) : 1, ndims(A)))
+    else
+        # insert singleton dimensions in weights, corresponding to reduced dimensions of `A`
+        wsz = ntuple(ndims(A)) do i
+            i ∈ rdims ? size(A, i) : 1
+        end
+        return sum(A .* reshape(wts, wsz); dims)
+    end
+end
+
+# `transpose`, not `dot`: the documented sum is `Σ Aᵢwᵢ`, without conjugation
+_wsum_all(A::AbstractArray, wts::AbstractArray) = transpose(vec(A)) * vec(wts)
+_wsum_all(A::AbstractArray, ::Ones{<:Real}) = sum(A)
+_wsum_trailing(A::AbstractMatrix, wts::AbstractVector) = A * wts
+_wsum_trailing(A::AbstractMatrix, ::Ones{<:Real}) = sum(A; dims = 2)
+
+@doc raw"""
+    wmean(A; wts = Ones{Bool}(...), dims = :)
 
 Weighted mean of `A` along dimensions `dims`, weighted by `wts`.
 
 ```math
 \frac{\sum_i A_i w_i}{\sum_i w_i}
 ```
+
+`wts` defaults to lazy uniform weights (`FillArrays.Ones`), which reduce like
+an ordinary `mean` without allocating a weights array or promoting eltypes.
 """
-function wmean(A::AbstractArray; wts::Union{AbstractArray, Nothing} = nothing, dims = :)
-    if isnothing(wts)
-        # if no weights are given, fallback to unweighted mean
-        return mean(A; dims)
-    end
-
-    if dims === (:)
-        @assert size(wts) == size(A)
-        w = wts
-    else
-        @assert size(wts) == ntuple(d -> size(A, dims[d]), length(dims))
-        # insert singleton dimensions in weights, corresponding to reduced dimensions of `A`
-        wsz = ntuple(ndims(A)) do i
-            i ∈ dims ? size(A, i) : 1
-        end
-        w = reshape(wts, wsz)
-    end
-
-    # Accumulate weights normalized by the largest weight, in at least Float64
-    # precision (wider if the weights are wider, e.g. BigFloat), so that
-    # extreme finite weights cannot overflow the weighted sums (narrow float
-    # types like Float16 overflow even on moderately many samples). Zero
-    # weights annihilate their entries exactly, even non-finite ones.
-    wn = w ./ (1.0 * float(maximum(wts)))
-    return mean(_weighted_term.(A, wn); dims) ./ mean(wn)
+function wmean(A::AbstractArray; dims = :, wts::AbstractArray = _uniform_wts(A, dims))
+    return wsum(A, wts; dims) / sum(wts)
 end
 
-_weighted_term(a, w) = iszero(w) ? zero(a) * w : a * w
+# Lazy uniform weights matching the reduced dimensions `dims` of `A`.
+_uniform_wts(A::AbstractArray, ::Colon) = Ones{Bool}(size(A))
+_uniform_wts(A::AbstractArray, dims) = Ones{Bool}(ntuple(i -> size(A, dims[i]), length(dims)))
+
+# Scale the batch columns of `A` by their weights, for matmul-shaped weighted
+# reductions. Fold the weights into the smaller factor of a product to keep the
+# temporary small; lazy uniform `Ones` weights are a no-op.
+_scale_obs(A::AbstractMatrix, wts::AbstractVector) = A .* reshape(wts, 1, :)
+_scale_obs(A::AbstractMatrix, ::Ones{<:Real}) = A
 
 """
     generate_sequences(n, A = 0:1)

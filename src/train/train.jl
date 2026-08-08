@@ -36,21 +36,24 @@ function _train!(
         callback,
     )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
-    @assert isnothing(wts) || size(data)[end] == length(wts)
     _validate_layer_parameters(rbm)
     isnothing(ps) && (ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w))
     isnothing(state) && (state = setup(optim, ps))
 
-    data, wts, normalization, batchsize = _prepare_training_data(data, wts; batchsize)
+    wts = _default_weights(wts, data)
+    data, wts, wts_mean, batchsize = _prepare_training_data(data, wts; batchsize)
+    moments = _resolve_moments(moments, rbm.visible, data, wts)
     setup!(data, wts)
 
     for (iter, (vd, wd)) in zip(1:iters, infinite_minibatches(data, wts; batchsize, shuffle))
-        batch_weight = _batch_weight(wd, normalization)
+        batch_weight = _batch_weight(wd, wts_mean)
 
         # positive and negative phase gradients
         ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
         ∂m, extras = negative_phase(vd)
-        ∂ = (∂d - ∂m) * batch_weight # correct weighted minibatch bias
+        # Correct the weighted minibatch bias, applied in the gradient eltype
+        # so the wide correction scalar cannot promote narrow parameters.
+        ∂ = _scale_gradient(∂d - ∂m, batch_weight, float(real(eltype(∂d.w))))
 
         # weight decay
         ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum, regularize...)
@@ -66,6 +69,12 @@ function _train!(
     end
     return state, ps
 end
+
+# Default (`missing`) data moments are computed after `_prepare_training_data`,
+# so they see the same zero-weight filtering as the training loop and cannot be
+# poisoned by non-finite data attached to zero-weight samples.
+_resolve_moments(moments, layer, data, wts) = moments
+_resolve_moments(::Missing, layer, data, wts) = moments_from_samples(layer, data; wts)
 
 # default initialization of the persistent fantasy chains used by the PCD trainers
 function _default_fantasy_chains(rbm, batchsize::Int)

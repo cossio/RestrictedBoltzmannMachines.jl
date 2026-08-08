@@ -47,7 +47,10 @@ function ∂energy_from_moments(layer::ReLU, moments::AbstractArray)
     return ∂energy_from_moments(Gaussian(layer.par), moments)
 end
 
-function moments_from_samples(layer::ReLU, data::AbstractArray; wts = nothing)
+function moments_from_samples(
+        layer::ReLU, data::AbstractArray;
+        wts::AbstractArray = uniform_weights(layer, data)
+    )
     return moments_from_samples(Gaussian(layer.par), data; wts)
 end
 

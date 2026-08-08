@@ -16,6 +16,20 @@ Base.:(/)(∂::∂RBM, λ::Real) = ∂RBM(∂.visible / λ, ∂.hidden / λ, ∂
 Base.:(==)(∂1::∂RBM, ∂2::∂RBM) = (∂1.visible == ∂2.visible) && (∂1.hidden == ∂2.hidden) && (∂1.w == ∂2.w)
 Base.hash(∂::∂RBM, h::UInt) = hash(∂.visible, hash(∂.hidden, hash(∂.w, h)))
 
+#= Scale a gradient by a wide scalar without promoting its arrays: the scalar
+is converted to the gradient eltype `T` up front when it is representable
+there (the common case, one conversion). Otherwise (e.g. Float16 gradients
+with a correction beyond `floatmax(Float16)`) each product is formed in the
+wide scalar type and converted back, so representable products stay exact
+instead of saturating. =#
+function _scale_gradient(∂::∂RBM, λ::Real, ::Type{T}) where {T}
+    if abs(λ) ≤ floatmax(T)
+        return ∂ * convert(T, λ)
+    else
+        return ∂RBM(T.(∂.visible .* λ), T.(∂.hidden .* λ), T.(∂.w .* λ))
+    end
+end
+
 """
     ∂free_energy(rbm, v)
 
@@ -23,7 +37,7 @@ Gradient of `free_energy(rbm, v)` with respect to model parameters.
 If `v` consists of multiple samples (batches), then an average is taken.
 """
 function ∂free_energy(
-        rbm, v::AbstractArray; wts = nothing,
+        rbm, v::AbstractArray; wts::AbstractArray = uniform_weights(rbm.visible, v),
         moments = moments_from_samples(rbm.visible, v; wts)
     )
     inputs = inputs_h_from_v(rbm, v)
@@ -40,7 +54,7 @@ end
 ∂free_energy_v(rbm, v::AbstractArray; kwargs...) = ∂free_energy(rbm, v; kwargs...)
 
 function ∂free_energy_h(
-        rbm, h::AbstractArray; wts = nothing,
+        rbm, h::AbstractArray; wts::AbstractArray = uniform_weights(rbm.hidden, h),
         moments = moments_from_samples(rbm.hidden, h; wts)
     )
     inputs = inputs_v_from_h(rbm, h)
@@ -52,10 +66,13 @@ function ∂free_energy_h(
     return ∂RBM(∂v, ∂h, ∂w)
 end
 
-function ∂interaction_energy(rbm::RBM, v::AbstractArray, h::AbstractArray; wts = nothing)
+function ∂interaction_energy(
+        rbm::RBM, v::AbstractArray, h::AbstractArray;
+        wts::AbstractArray = Ones{Bool}(batch_size(rbm, v, h))
+    )
     bsz = batch_size(rbm, v, h)
+    @assert size(wts) == bsz
     if ndims(rbm.visible) == ndims(v) && ndims(rbm.hidden) == ndims(h)
-        wts::Nothing
         vflat = with_eltype_of(rbm.w, vec(v))
         hflat = with_eltype_of(rbm.w, vec(h))
         ∂wflat = -vflat * hflat'
@@ -68,20 +85,12 @@ function ∂interaction_energy(rbm::RBM, v::AbstractArray, h::AbstractArray; wts
         hflat = with_eltype_of(rbm.w, vec(h))
         ∂wflat = -vflat * hflat'
     else
+        # Weighted batch average as a matmul, folding the weights into the
+        # (typically smaller) hidden factor; lazy uniform `Ones` weights scale
+        # nothing and cannot promote the eltype.
         vflat = with_eltype_of(rbm.w, flatten(rbm.visible, v))
         hflat = with_eltype_of(rbm.w, flatten(rbm.hidden, h))
-        if isnothing(wts)
-            ∂wflat = -vflat * hflat' / size(vflat, 2)
-        else
-            @assert size(wts) == bsz
-            # Normalize like `wmean`, so extreme finite weights cannot
-            # overflow, and zero weights annihilate their samples exactly:
-            # both factors must be zeroed, else `NaN * 0` poisons the product.
-            wn = reshape(vec(wts) ./ (1.0 * float(maximum(wts))), 1, :)
-            vw = _weighted_term.(vflat, wn)
-            hz = ifelse.(iszero.(wn), zero.(hflat), hflat)
-            ∂wflat = -vw * hz' / sum(wn)
-        end
+        ∂wflat = -vflat * _scale_obs(hflat, vec(wts))' / sum(wts)
     end
     ∂w = reshape(∂wflat, size(rbm.w))
     return ∂w

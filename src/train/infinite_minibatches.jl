@@ -1,28 +1,14 @@
-function nobs(d::AbstractArray, ds::Union{AbstractArray, Nothing}...)
+function nobs(d::AbstractArray, ds::AbstractArray...)
     n = nobs(d)
-    ns = nobs(ds...)
-    @assert n == ns || isnothing(ns)
+    @assert all(d -> nobs(d) == n, ds)
     return n
 end
 
-nobs(::Nothing, ds::Union{AbstractArray, Nothing}...) = nobs(ds...)
 nobs(d::AbstractArray) = size(d, ndims(d))
-nobs(::Nothing) = nothing
-nobs() = nothing
 
-getobs(i, ds::Union{AbstractArray, Nothing}...) = map(ds) do d
-    isnothing(d) ? nothing : d[.., i]
-end
+getobs(i, ds::AbstractArray...) = map(d -> d[.., i], ds)
 
-function shuffleobs(ds::Union{AbstractArray, Nothing}...)
-    n = nobs(ds...)
-    if isnothing(n)
-        return ds
-    else
-        i = randperm(n)
-        return getobs(i, ds...)
-    end
-end
+shuffleobs(ds::AbstractArray...) = getobs(randperm(nobs(ds...)), ds...)
 
 struct InfiniteMinibatchIterator{T}
     data::T
@@ -32,8 +18,7 @@ end
 
 function Base.iterate(iter::InfiniteMinibatchIterator)
     iter.batchsize > 0 || throw(ArgumentError("batchsize must be positive"))
-    n = nobs(iter.data...)
-    if isnothing(n) || iter.batchsize > n
+    if iter.batchsize > nobs(iter.data...)
         return nothing
     else
         if iter.shuffle
@@ -54,51 +39,82 @@ function Base.iterate(iter::InfiniteMinibatchIterator, (i, shuffled))
     end
 end
 
-function infinite_minibatches(
-        ds::Union{AbstractArray, Nothing}...; batchsize::Int, shuffle::Bool = true
-    )
+function infinite_minibatches(ds::AbstractArray...; batchsize::Int, shuffle::Bool = true)
     batchsize > 0 || throw(ArgumentError("batchsize must be positive"))
     return InfiniteMinibatchIterator(ds, batchsize, shuffle)
 end
 
+# Lazy uniform sample weights when the user gives none.
+_default_weights(wts::AbstractVector, ::AbstractArray) = wts
+_default_weights(::Nothing, data::AbstractArray) = Ones{Bool}(size(data, ndims(data)))
+
+#= Per-run weight hygiene: validate the weights, normalize by the largest
+weight, and drop zero-weight samples, so the per-iteration kernels can reduce
+with plain matmuls (no per-iteration overflow armor, no `NaN * 0` from
+zero-weight samples). Filtering runs after normalization so relative weights
+that underflow `float(eltype(wts))` are dropped like exact zeros, instead of
+surviving into minibatches whose weights sum to zero. Lazy uniform `Ones`
+weights skip all of it by dispatch. Returns the prepared `(data, wts)`, the
+Float64 mean of the prepared weights (used to bias-correct minibatch
+gradients), and the batchsize clamped to the number of remaining samples. =#
 function _prepare_training_data(
         data::AbstractArray,
-        wts::Union{AbstractVector, Nothing};
+        wts::AbstractVector;
         batchsize::Int,
     )
     batchsize > 0 || throw(ArgumentError("batchsize must be positive"))
-    isnothing(wts) && return data, wts, nothing, batchsize
-
     length(wts) == size(data, ndims(data)) ||
         throw(DimensionMismatch("length(wts) must equal the number of data samples"))
+    wts = _normalize_weights(_validate_weights(wts))
+    data, wts = _filter_zero_weights(data, wts)
+    return data, wts, _mean_of_weights(wts), min(batchsize, length(wts))
+end
+
+# Real-valued lazy uniform weights are trivially valid; anything else
+# (including complex-valued `Ones`) goes through the elementwise checks.
+_validate_weights(wts::Ones{<:Real}) = wts
+
+function _validate_weights(wts::AbstractArray)
     all(w -> w isa Real && isfinite(w) && w ≥ 0, wts) ||
         throw(ArgumentError("wts must contain only finite, nonnegative real values"))
+    any(w -> !iszero(w), wts) ||
+        throw(ArgumentError("wts must contain at least one positive weight"))
+    return wts
+end
 
+# Normalizing by the largest weight bounds the prepared weights by one, so
+# extreme finite weights cannot overflow the training-loop reductions. The
+# division floats the weights, widened to at least Float32 so that narrow
+# eltypes (e.g. Float16) can neither overflow their own batch sums nor
+# underflow moderate weight ratios; Float32 and wider weights keep their
+# eltype (avoiding promotion of the arrays they later multiply), and uniform
+# `Ones` weights stay lazy. `float` of the value, not the eltype, so abstract
+# eltypes (e.g. `Any`) work too.
+_normalize_weights(wts::Ones{<:Real}) = wts
+function _normalize_weights(wts::AbstractArray)
+    scale = float(maximum(wts))
+    return wts ./ convert(promote_type(typeof(scale), Float32), scale)
+end
+
+_filter_zero_weights(data::AbstractArray, wts::Ones{<:Real}) = (data, wts)
+
+function _filter_zero_weights(data::AbstractArray, wts::AbstractVector)
     positive = map(w -> !iszero(w), wts)
     npositive = count(positive)
-    npositive > 0 ||
-        throw(ArgumentError("wts must contain at least one positive weight"))
+    npositive == length(wts) && return data, wts
 
-    if npositive < length(wts)
-        # GPUArrays do not generally support logical indexing. Transfer only
-        # the mask used to build indices; indexing preserves the data backend.
-        positive_indices = findall(adapt(Array, positive))
-        data, wts = getobs(positive_indices, data, wts)
-    end
-
-    # Cache the overall weight scale and mean, so minibatch gradients can be
-    # bias-corrected without overflowing on extreme finite weights.
-    scale = 1.0 * float(maximum(wts))
-    normalization = (; scale, mean = mean(wts ./ scale))
-
-    return data, wts, normalization, min(batchsize, npositive)
+    # GPUArrays do not generally support logical indexing. Transfer only
+    # the mask used to build indices; indexing preserves the data backend.
+    positive_indices = findall(adapt(Array, positive))
+    return getobs(positive_indices, data, wts)
 end
 
-_batch_weight(::Nothing, ::Nothing) = 1
+# Mean of prepared weights as a scalar in at least Float64 precision (wider if
+# the weights are wider, e.g. BigFloat, so representable weight ratios are not
+# truncated); it never touches the array eltypes.
+_mean_of_weights(wts::AbstractVector) =
+    sum(promote_type(Float64, float(eltype(wts))), wts) / length(wts)
 
-# mean(wd) / mean(wts), overflow-safe: batch weights are a subset of the
-# training weights, so the global scale bounds them and its wide type
-# propagates through the broadcast.
-function _batch_weight(wd::AbstractVector, normalization::NamedTuple)
-    return mean(wd ./ normalization.scale) / normalization.mean
-end
+# mean(wd) / mean(wts), the bias correction for a weighted minibatch, as a
+# wide scalar (applied in the gradient eltype at its use site).
+_batch_weight(wd::AbstractVector, wts_mean::Real) = _mean_of_weights(wd) / wts_mean

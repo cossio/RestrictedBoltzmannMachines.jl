@@ -4,6 +4,37 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+- Training and the statistics kernels now use a single weighted code path:
+  when no `wts` are given, lazy uniform weights (`FillArrays.Ones`) are used
+  instead of a separate unweighted path. Weighted reductions are matmul-shaped,
+  so uniform weights reduce like plain means without allocating weight arrays
+  or promoting eltypes (Float32 training stays Float32 end to end). Visible
+  consequences:
+  - `pcd!` callbacks receive the prepared minibatch weights as `wd`: a lazy
+    `Ones` slice for unweighted training (previously `nothing`), and the
+    normalized weights for weighted training (previously the raw weights).
+  - Weight hygiene happens once per training run: weights are validated,
+    normalized by their maximum in `float(eltype(wts))` (widened to at least
+    `Float32`, so narrow weights cannot overflow their own sums), and
+    zero-weight samples are dropped (including positive weights whose ratio
+    to the maximum underflows the widened eltype), replacing the
+    per-iteration Float64 normalization the kernels used to apply.
+    `initialize!` applies the same validation, normalization, and
+    zero-weight filtering to explicit weights. Internal helpers such as
+    `wmean` and `∂free_energy` are now plain weighted reductions: they no
+    longer guard against overflowing weight scales and no longer mask
+    non-finite data attached to zero-weight samples.
+  - Unweighted training with `batchsize` larger than the number of samples now
+    clamps the batchsize (as weighted training already did) instead of
+    silently performing zero iterations.
+  - The default `moments` of the `pcd!` trainers are computed after data
+    preparation, so invalid weights raise `ArgumentError` before any moments
+    are computed (complex weights previously surfaced as `MethodError`), and
+    non-finite data attached to zero-weight samples cannot poison the default
+    moments.
+  - `wsum(A, wts; dims)` is available again as the internal weighted-sum
+    kernel behind `wmean`.
+
 ## 6.2.0
 
 - Layer conditional statistics are now organized around moments arrays. The new
