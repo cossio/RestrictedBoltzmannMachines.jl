@@ -267,8 +267,9 @@ methods); generally they are the sufficient statistics of the layer
 distribution, which do not depend on the layer parameters, so they can be
 computed once from a dataset and reused as the parameters change (see `pcd!`).
 The first axis indexes the moment and the remaining axes are `size(layer)`
-(batch dimensions of `data` are averaged over), so the result has the same
-shape as `layer.par`.
+(batch dimensions of `data` are averaged over). The number of moments need
+not match the number of parameters (e.g. `nsReLU` uses the 4-slot dReLU
+layout while having 3 parameters).
 
 `moments_from_inputs` returns conditional moments in this same layout, and
 `∂energy_from_moments` consumes it.
