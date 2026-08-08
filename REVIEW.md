@@ -31,8 +31,9 @@ package compute wrong results or break users:
 - Layer parameter storage violations: parameters must live in the single
   `.par` array with named accessors as views; a layer type that stores
   parameters elsewhere breaks HDF5 persistence and gauge transformations.
-- Breaking changes to exported API or behavior not reflected in tests and
-  in the `## Unreleased` section of CHANGELOG.md.
+- Breaking changes to the public API (the `public` and `export`ed symbols)
+  or its behavior not reflected in tests and in the `## Unreleased` section
+  of CHANGELOG.md.
 - Security issues in changes to CI workflows.
 - Substantial avoidable complexity when a materially simpler design satisfies
   the current requirements. Identify the unnecessary structure and a concrete,
@@ -61,8 +62,10 @@ found is a Nit, lead the summary with "No blocking issues."
   agent-docs linter (`.github/scripts/lint_agent_docs.py`).
 - Formatting and code style preferences.
 - Generated files: `Manifest.toml` and built documentation output.
-- Missing CHANGELOG.md entries for CI, workflow, or repo-tooling changes —
-  the changelog records only user-facing package changes.
+- Missing CHANGELOG.md entries for changes with no user-facing effect —
+  CI, workflows, repo tooling, internal refactors, test-only changes. The
+  changelog records only what users observe: the `public`/`export`ed API,
+  its behavior, performance, dependencies, or supported Julia versions.
 
 ## Always check
 
@@ -71,8 +74,8 @@ found is a Nit, lead the summary with "No blocking issues."
   `mode_from_inputs`.
 - New tests do not require a physical GPU (GitHub CI has none); GPU
   compatibility belongs in `test/jlarrays.jl` via JLArrays.
-- Changes to exported functions keep docstrings and tests in sync with the
-  new behavior.
+- Changes to `public`/`export`ed functions keep docstrings and tests in
+  sync with the new behavior.
 - The version in Project.toml keeps its `-DEV` suffix outside of release
   PRs.
 

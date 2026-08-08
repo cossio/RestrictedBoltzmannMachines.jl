@@ -80,9 +80,16 @@ CUDA.jl, and HDF5 persistence. It requires Julia 1.12 or later.
 
 ## Changes and pull requests
 
-- Add `CHANGELOG.md` entries only for user-facing package changes to source,
-  APIs, behavior, or dependencies. Do not add entries for CI, workflows,
-  agent plumbing, or other repository tooling.
+- Add `CHANGELOG.md` entries only for user-facing changes: those a package
+  user would notice through the API defined by the `public` and `export`ed
+  symbols — names, signatures, behavior, results — or through other observable
+  effects such as performance, dependencies, or supported Julia versions. A
+  major internal overhaul may merit a brief entry when its effects reach
+  users. Judge by what a user observes, not by how much code changed:
+  touching `src/` does not by itself warrant an entry. Do not add entries for
+  internal refactors with unchanged observable behavior, test-only changes,
+  docs, formatting, CI, workflows, agent plumbing, or other repository
+  tooling.
 - PRs receive automated review comments from Codex Cloud and the default Claude
   App workflow in `.github/workflows/claude-code-review.yml`. Address each
   actionable finding or explain the disagreement in its thread, reply to every
