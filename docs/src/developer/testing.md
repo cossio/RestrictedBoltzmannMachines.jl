@@ -50,11 +50,12 @@ user explicitly chooses the version. Then:
    directly on it. Include a `Release notes:` section containing the CHANGELOG
    entries for this version in the same comment. The commit comment pins the
    registered SHA, so no release branch is needed. Registrator replies on the
-   commit with the General registry PR. Write the literal `@JuliaRegistrator`
-   mention only in this commit comment: the bot matches the trigger in any
-   issue or PR comment, even inside backticks, and replies with an error
-   there — release-PR descriptions should say "a Registrator comment on the
-   merge commit" instead.
+   commit with the General registry PR. Post the literal trigger phrase only
+   in this commit comment, never in other PR or issue text: the bot matches
+   it in any issue or PR comment, even inside backticks, and replies with an
+   error there, so release-PR descriptions should say "a Registrator comment
+   on the merge commit" instead. Repository files like this page may quote
+   the phrase; only posted comments reach the bot.
 3. Monitor the registration PR until it merges — AutoMerge usually takes
    ~15–30 minutes. If AutoMerge fails or a registry maintainer requests
    changes, commit the fixes to `master` while keeping `Project.toml` at
