@@ -38,6 +38,8 @@ end
 _initialization_data(::Nothing, data::AbstractArray) =
     (data, Ones{Bool}(size(data, ndims(data))))
 function _initialization_data(wts::AbstractVector, data::AbstractArray)
+    length(wts) == size(data, ndims(data)) ||
+        throw(DimensionMismatch("length(wts) must equal the number of data samples"))
     wts = _normalize_weights(_validate_weights(wts))
     return _filter_zero_weights(data, wts)
 end

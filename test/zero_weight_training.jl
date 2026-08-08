@@ -380,6 +380,8 @@ end
     # invalid weights fail loudly
     @test_throws ArgumentError initialize!(base_rbm(), data; wts = [1.0, -1.0, 1.0])
     @test_throws ArgumentError initialize!(base_rbm(), data; wts = [1.0, NaN, 1.0])
+    # undersized weights are rejected instead of silently truncating the data
+    @test_throws DimensionMismatch initialize!(base_rbm(), data; wts = [0.0, 1.0])
 end
 
 @testset "∂free_energy with zero weights on finite samples" begin
