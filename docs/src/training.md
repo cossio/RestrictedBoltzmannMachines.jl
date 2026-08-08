@@ -32,9 +32,10 @@ and nonnegative, and at least one weight must be positive.
 
 Observations are used exactly as given: zero-weight observations are not
 removed. They contribute zero to weighted averages, but they still occupy
-mini-batch slots and advance persistent chains. If you want zero-weight
-observations excluded, drop them (and their weights) before calling
-[`pcd!`](@ref).
+mini-batch slots and advance persistent chains. In particular, a mini-batch
+consisting entirely of zero-weight observations has zero total weight and
+produces a `NaN` update. If you want zero-weight observations excluded, drop
+them (and their weights) before calling [`pcd!`](@ref).
 
 The `iters` argument always counts completed parameter updates, and callbacks
 receive consecutive `iter` values from `1` through `iters`.
