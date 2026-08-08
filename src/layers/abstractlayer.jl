@@ -180,13 +180,8 @@ function batchmean(
         layer::AbstractLayer, x::AbstractArray; wts::AbstractArray = uniform_weights(layer, x)
     )
     @assert size(layer) == size(x)[1:ndims(layer)]
-    if ndims(layer) == ndims(x)
-        @assert length(wts) == 1
-        return x
-    else
-        μ = wmean(x; wts, dims = batchdims(layer, x))
-        return reshape(μ, size(layer))
-    end
+    @assert size(wts) == batch_size(layer, x)
+    return wmean(x; wts)
 end
 
 """
@@ -335,10 +330,10 @@ weights by default).
 """
 function batchmean_moments(
         layer::AbstractLayer, moments::AbstractArray;
-        wts::AbstractArray = _uniform_wts(moments, (ndims(layer) + 2):ndims(moments))
+        wts::AbstractArray = Ones{Bool}(size(moments)[(ndims(layer) + 2):end])
     )
-    m = wmean(moments; wts, dims = (ndims(layer) + 2):ndims(moments))
-    return reshape(m, ntuple(d -> size(moments, d), Val(ndims(layer) + 1)))
+    @assert ndims(wts) == ndims(moments) - ndims(layer) - 1
+    return wmean(moments; wts)
 end
 
 """
@@ -380,6 +375,6 @@ function ∂cgf(
         layer::AbstractLayer, inputs = 0; wts::AbstractArray = uniform_weights(layer, inputs)
     )
     ∂Fs = ∂cgfs(layer, inputs)
-    ∂F = wmean(∂Fs; wts, dims = (ndims(layer.par) + 1):ndims(∂Fs))
-    return reshape(∂F, size(layer.par))
+    @assert ndims(wts) == ndims(∂Fs) - ndims(layer.par)
+    return wmean(∂Fs; wts)
 end

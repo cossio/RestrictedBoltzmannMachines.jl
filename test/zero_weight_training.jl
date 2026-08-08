@@ -237,10 +237,10 @@ end
     # zero-weight samples before any kernel sees them)
     @test isnan(RBMs.wmean([NaN, 2.0]; wts = [0.0, 1.0]))
 
-    # the lazy uniform default reduces like a plain mean, without promoting
+    # lazy uniform weights reduce like a plain mean, without promoting
     A = rand(Float32, 2, 5)
-    @test RBMs.wmean(A; dims = 2) ≈ mean(A; dims = 2)
-    @test RBMs.wmean(A; dims = 2) isa Matrix{Float32}
+    @test RBMs.wmean(A; wts = Ones{Bool}(5)) ≈ vec(mean(A; dims = 2))
+    @test RBMs.wmean(A; wts = Ones{Bool}(5)) isa Vector{Float32}
     @test RBMs.wmean(A) ≈ mean(A)
     @test RBMs.wmean(A) isa Float32
 end

@@ -32,8 +32,9 @@ All notable changes to this project will be documented in this file. The format 
     are computed (complex weights previously surfaced as `MethodError`), and
     non-finite data attached to zero-weight samples cannot poison the default
     moments.
-  - `wsum(A, wts; dims)` is available again as the internal weighted-sum
-    kernel behind `wmean`.
+  - `wsum(A, wts)` is available again as the internal weighted-sum kernel
+    behind `wmean`; both reduce the trailing dimensions of `A`, inferred
+    from the shape of `wts`.
 
 ## 6.2.0
 

@@ -24,24 +24,29 @@ end
 
     A = randn(4, 3, 5, 2)
     @test mean(A) ≈ @inferred RBMs.wmean(A)
-    @test mean(A; dims = (2, 4)) ≈ @inferred RBMs.wmean(A; dims = (2, 4))
 
     wts = rand(size(A)...)
     @test sum(A .* wts) ./ sum(wts) ≈ @inferred RBMs.wmean(A; wts)
-    @test sum(A .* wts) ./ sum(wts) ≈ @inferred RBMs.wmean(A; wts, dims = :)
 
-    wts = rand(3, 2)
-    @test sum(reshape(wts, 1, 3, 1, 2) .* A; dims = (2, 4)) ./ sum(wts) ≈ @inferred RBMs.wmean(A; dims = (2, 4), wts)
+    # the reduced (trailing) dimensions are inferred from the shape of `wts`
+    wts = rand(5, 2)
+    @test dropdims(sum(reshape(wts, 1, 1, 5, 2) .* A; dims = (3, 4)); dims = (3, 4)) ./ sum(wts) ≈
+        @inferred RBMs.wmean(A; wts)
 
     wts = rand(2)
-    @test sum(reshape(wts, 1, 1, 1, 2) .* A; dims = 4) ./ sum(wts) ≈ @inferred RBMs.wmean(A; dims = 4, wts)
+    @test dropdims(sum(reshape(wts, 1, 1, 1, 2) .* A; dims = 4); dims = 4) ./ sum(wts) ≈
+        @inferred RBMs.wmean(A; wts)
+
+    # a vector spanning the last dimension reduces exactly that dimension
+    @test @inferred(RBMs.wmean(ones(2, 3); wts = Ones{Bool}(3))) == [1.0, 1.0]
 
     # weighted sums do not conjugate complex values
     @test RBMs.wmean(ComplexF64[1 + im]; wts = [1.0]) == 1 + im
 
-    # full reductions reject weights whose shape does not match `A`
-    @test_throws AssertionError RBMs.wmean(ones(2, 3); wts = Ones{Bool}(3))
+    # weights must match the trailing dimensions of `A`
+    @test_throws AssertionError RBMs.wmean(ones(2, 3); wts = ones(2))
     @test_throws AssertionError RBMs.wmean(ones(2, 3); wts = ones(3, 2))
+    @test_throws AssertionError RBMs.wmean(ones(2, 3); wts = ones(2, 3, 4))
 end
 
 @testset "reshape_maybe" begin
