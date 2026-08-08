@@ -1,7 +1,8 @@
 @doc raw"""
     pReLU(; θ, γ, Δ, η)
 
-Parametric ReLU layer, with shared scale and asymmetry ratio.
+A different parameterization of the `dReLU` layer, with shared scale and
+asymmetry ratio.
 The energy of a layer with units ``h_\mu`` is ``E = \sum_\mu U(h_\mu)``, with the
 unit potential:
 
