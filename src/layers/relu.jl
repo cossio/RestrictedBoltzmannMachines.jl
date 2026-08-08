@@ -1,7 +1,17 @@
-"""
+@doc raw"""
     ReLU(θ, γ)
 
 Layer with ReLU units, with location parameters `θ` and scale parameters `γ`.
+The energy of a layer with units ``h_\mu`` is ``E = \sum_\mu U(h_\mu)``, with the
+unit potential:
+
+```math
+U(h) = \frac{|\gamma|}{2} h^2 - \theta h \qquad (h \ge 0)
+```
+
+where ``\theta``, ``\gamma`` are the entries of `θ`, `γ` for the corresponding
+unit. Units are constrained to non-negative values (``U(h) = \infty`` for
+``h < 0``).
 """
 @declare_layer ReLU (θ = zeros, γ = ones)
 
@@ -47,6 +57,11 @@ function ∂energy_from_moments(layer::ReLU, moments::AbstractArray)
     return ∂energy_from_moments(Gaussian(layer.par), moments)
 end
 
+"""
+    moments_from_samples(layer::ReLU, data; wts = uniform_weights(layer, data))
+
+Two moment slots: `<x>` and `<x^2>` (same as `Gaussian`).
+"""
 function moments_from_samples(
         layer::ReLU, data::AbstractArray;
         wts::AbstractArray = uniform_weights(layer, data)

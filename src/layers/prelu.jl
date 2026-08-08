@@ -1,9 +1,25 @@
-"""
+@doc raw"""
     pReLU(; θ, γ, Δ, η)
 
-Parametric ReLU layer, with shared scale and asymmetry ratio. Every value of
-`η` must be finite and lie strictly inside `(-1, 1)`. For unconstrained learned
-asymmetry, use `xReLU` or the fixed-scale `nsReLU` instead.
+A different parameterization of the `dReLU` layer, with shared scale and
+asymmetry ratio.
+The energy of a layer with units ``h_\mu`` is ``E = \sum_\mu U(h_\mu)``, with the
+unit potential:
+
+```math
+U(h) = \begin{cases}
+    \frac{|\gamma|}{2(1+\eta)} h^2 - \left(\theta + \frac{\Delta}{1+\eta}\right) h & h \ge 0 \\[4pt]
+    \frac{|\gamma|}{2(1-\eta)} h^2 - \left(\theta - \frac{\Delta}{1-\eta}\right) h & h < 0
+\end{cases}
+```
+
+where ``\theta, \gamma, \Delta, \eta`` are the entries of `θ`, `γ`, `Δ`, `η` for
+the corresponding unit. This is the `dReLU` potential with
+``\theta^\pm = \theta \pm \Delta / (1 \pm \eta)`` and
+``\gamma^\pm = \gamma / (1 \pm \eta)``.
+
+Every value of `η` must be finite and lie strictly inside `(-1, 1)`. For
+unconstrained learned asymmetry, use `xReLU` or the fixed-scale `nsReLU` instead.
 """
 @declare_layer pReLU (θ = zeros, γ = ones, Δ = zeros, η = zeros)
 
