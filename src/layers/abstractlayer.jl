@@ -211,13 +211,17 @@ function batchcov(
         layer::AbstractLayer, x::AbstractArray; wts = nothing, mean = batchmean(layer, x; wts)
     )
     @assert size(layer) == size(x)[1:ndims(layer)] == size(mean)
-    ξ = flatten(layer, x .- mean)
+    centered = x .- mean
+    ξ = flatten(layer, centered)
     if isnothing(wts)
         C = ξ * ξ' / size(ξ, 2)
     else
-        @assert size(wts) == batch_size(layer, x)
-        w = Diagonal(vec(wts))
-        C = ξ * w * ξ' / sum(w)
+        @assert length(wts) == batch_size(layer, x)[end]
+        # broadcast the weights along the last (sample) dimension
+        w = reshape(wts, ntuple(d -> d < ndims(x) ? 1 : length(wts), ndims(x)))
+        ξw = flatten(layer, centered .* w)
+        nrep = size(ξ, 2) ÷ length(wts) # weights repeat over leading batch dims
+        C = ξ * ξw' / (nrep * sum(wts))
     end
     return reshape(C, size(layer)..., size(layer)...)
 end

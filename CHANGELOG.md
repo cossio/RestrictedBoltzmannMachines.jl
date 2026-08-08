@@ -13,7 +13,10 @@ All notable changes to this project will be documented in this file. The format 
   needing wider-than-`Float64` accumulation) can now overflow. Weighted `pcd!`
   training with ordinary weights is unaffected: zero-weight observations are
   still excluded before mini-batches and data moments are formed, and the
-  default `moments` are now computed after that exclusion.
+  default `moments` are now computed after that exclusion. In addition, data
+  weights (in `wmean`, `batchmean`, `batchcov`, `∂free_energy`, ...) must now
+  be a vector along the last (sample) dimension of the data; previously they
+  could be a multi-dimensional array spanning all reduced batch dimensions.
 
 ## 6.1.0
 

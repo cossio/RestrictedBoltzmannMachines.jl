@@ -66,14 +66,17 @@ function ∂interaction_energy(rbm::RBM, v::AbstractArray, h::AbstractArray; wts
         hflat = with_eltype_of(rbm.w, vec(h))
         ∂wflat = -vflat * hflat'
     else
-        vflat = with_eltype_of(rbm.w, flatten(rbm.visible, v))
         hflat = with_eltype_of(rbm.w, flatten(rbm.hidden, h))
         if isnothing(wts)
-            ∂wflat = -vflat * hflat' / size(vflat, 2)
+            vflat = with_eltype_of(rbm.w, flatten(rbm.visible, v))
+            ∂wflat = -vflat * hflat' / size(hflat, 2)
         else
-            @assert size(wts) == bsz
-            wflat = reshape(with_eltype_of(rbm.w, vec(wts)), 1, :)
-            ∂wflat = -(vflat .* wflat) * hflat' / sum(wflat)
+            @assert length(wts) == bsz[end]
+            # broadcast the weights along the last (sample) dimension
+            w = reshape(wts, ntuple(d -> d < ndims(v) ? 1 : length(wts), ndims(v)))
+            vflat = with_eltype_of(rbm.w, flatten(rbm.visible, v .* w))
+            nrep = size(hflat, 2) ÷ length(wts) # weights repeat over leading batch dims
+            ∂wflat = -vflat * hflat' / (nrep * sum(wts))
         end
     end
     ∂w = reshape(∂wflat, size(rbm.w))

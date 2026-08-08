@@ -7,26 +7,20 @@ Weighted mean of `A` along dimensions `dims`, weighted by `wts`.
 \frac{\sum_i A_i w_i}{\sum_i w_i}
 ```
 
-Non-finite entries propagate to the result, even when their weight is zero.
+The weights are a vector along the last (sample) dimension of `A`, which must
+be included in the reduced dimensions. Non-finite entries propagate to the
+result, even when their weight is zero.
 """
-function wmean(A::AbstractArray; wts::Union{AbstractArray, Nothing} = nothing, dims = :)
+function wmean(A::AbstractArray; wts::Union{AbstractVector, Nothing} = nothing, dims = :)
     if isnothing(wts)
         # if no weights are given, fallback to unweighted mean
         return mean(A; dims)
     end
-
-    if dims === (:)
-        @assert size(wts) == size(A)
-        w = wts
-    else
-        @assert size(wts) == ntuple(d -> size(A, dims[d]), length(dims))
-        # insert singleton dimensions in weights, corresponding to reduced dimensions of `A`
-        wsz = ntuple(ndims(A)) do i
-            i ∈ dims ? size(A, i) : 1
-        end
-        w = reshape(wts, wsz)
-    end
-    return mean(A .* w; dims) ./ mean(w)
+    @assert length(wts) == size(A, ndims(A))
+    @assert dims === (:) || ndims(A) ∈ dims
+    # broadcast the weights along the last (sample) dimension of `A`
+    w = reshape(wts, ntuple(d -> d < ndims(A) ? 1 : length(wts), ndims(A)))
+    return mean(A .* w; dims) ./ mean(wts)
 end
 
 """

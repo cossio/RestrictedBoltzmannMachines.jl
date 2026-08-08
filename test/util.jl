@@ -25,15 +25,13 @@ end
     @test mean(A) ≈ @inferred RBMs.wmean(A)
     @test mean(A; dims = (2, 4)) ≈ @inferred RBMs.wmean(A; dims = (2, 4))
 
-    wts = rand(size(A)...)
-    @test sum(A .* wts) ./ sum(wts) ≈ @inferred RBMs.wmean(A; wts)
-    @test sum(A .* wts) ./ sum(wts) ≈ @inferred RBMs.wmean(A; wts, dims = :)
-
-    wts = rand(3, 2)
-    @test sum(reshape(wts, 1, 3, 1, 2) .* A; dims = (2, 4)) ./ sum(wts) ≈ @inferred RBMs.wmean(A; dims = (2, 4), wts)
-
+    # weights are a vector along the last (sample) dimension
     wts = rand(2)
-    @test sum(reshape(wts, 1, 1, 1, 2) .* A; dims = 4) ./ sum(wts) ≈ @inferred RBMs.wmean(A; dims = 4, wts)
+    w = reshape(wts, 1, 1, 1, 2)
+    @test sum(A .* w) / (4 * 3 * 5 * sum(wts)) ≈ @inferred RBMs.wmean(A; wts)
+    @test sum(A .* w) / (4 * 3 * 5 * sum(wts)) ≈ @inferred RBMs.wmean(A; wts, dims = :)
+    @test sum(A .* w; dims = (2, 4)) ./ (3 * sum(wts)) ≈ @inferred RBMs.wmean(A; dims = (2, 4), wts)
+    @test sum(A .* w; dims = 4) ./ sum(wts) ≈ @inferred RBMs.wmean(A; dims = 4, wts)
 
     # non-finite entries propagate, even when their weight is zero
     @test isnan(RBMs.wmean([NaN, 2.0]; wts = [0.0, 1.0]))
