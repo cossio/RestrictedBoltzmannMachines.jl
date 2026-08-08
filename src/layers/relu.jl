@@ -22,7 +22,7 @@ end
 
 cgfs(layer::ReLU, inputs = 0) = relu_cgf.(layer.θ .+ inputs, layer.γ)
 sample_from_inputs(layer::ReLU, inputs = 0) = relu_rand.(layer.θ .+ inputs, layer.γ)
-mode_from_inputs(layer::ReLU, inputs = 0) = max.((layer.θ .+ inputs) ./ abs.(layer.γ), 0)
+mode_from_inputs(layer::ReLU, inputs = 0) = max.((layer.θ .+ inputs) ./ abs.(layer.γ), false)
 mean_abs_from_inputs(layer::ReLU, inputs = 0) = mean_from_inputs(layer, inputs)
 
 function mean_from_inputs(layer::ReLU, inputs = 0)

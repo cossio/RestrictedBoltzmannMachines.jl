@@ -98,8 +98,8 @@ function xReLU(layer::dReLU)
 end
 
 function dReLU(layer::xReLU)
-    ξp = @. (1 + abs(layer.ξ)) / (1 + max(2layer.ξ, 0))
-    ξn = @. (1 + abs(layer.ξ)) / (1 - min(2layer.ξ, 0))
+    ξp = @. (1 + abs(layer.ξ)) / (1 + max(2layer.ξ, false))
+    ξn = @. (1 + abs(layer.ξ)) / (1 - min(2layer.ξ, false))
     γp = @. layer.γ * ξp
     γn = @. layer.γ * ξn
     θp = @. layer.θ + layer.Δ * ξp
