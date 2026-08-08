@@ -322,6 +322,22 @@ function batchmean_moments(layer::AbstractLayer, moments::AbstractArray; wts = n
 end
 
 """
+    mean_from_moments(layer, moments)
+
+Mean unit activations `<x>` from a moments array (see `moments_from_samples`
+for the layout). Batch dimensions of `moments` are preserved.
+"""
+function mean_from_moments end
+
+"""
+    var_from_moments(layer, moments)
+
+Variance of unit activations from a moments array (see `moments_from_samples`
+for the layout). Batch dimensions of `moments` are preserved.
+"""
+function var_from_moments end
+
+"""
     ∂cgfs(layer, inputs = 0)
 
 Gradient of `cgfs` with respect to the layer parameters, for each configuration of
