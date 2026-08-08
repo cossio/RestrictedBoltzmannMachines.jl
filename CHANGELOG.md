@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+- Documented the moments interface: `moments_from_samples` and
+  `∂energy_from_moments` gained generic docstrings in `abstractlayer.jl`
+  (alongside the existing `moments_from_inputs` one) stating the shared
+  moments-array layout and the meaning of each moment slot per layer family.
+
 ## 6.2.0
 
 - Layer conditional statistics are now organized around moments arrays. The new

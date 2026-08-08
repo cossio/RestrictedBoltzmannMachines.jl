@@ -259,6 +259,38 @@ function total_meanvar_from_inputs(layer::AbstractLayer, inputs = 0; wts = nothi
 end
 
 """
+    moments_from_samples(layer, data; wts = nothing)
+
+Empirical moments of `data`: batch averages (weighted by `wts`) of the layer's
+sufficient statistics. The first axis indexes the moment and the remaining axes
+are `size(layer)` (batch dimensions of `data` are averaged over), so the result
+has the same shape as `layer.par`. The moment slots for each layer family are:
+
+- `Binary`, `Spin`, `Potts`, `PottsGumbel`: `<x>`.
+- `Gaussian`, `ReLU`: `<x>`, `<x^2>`.
+- `dReLU`, `pReLU`, `xReLU`, `nsReLU` (shared dReLU layout): `<xp>`, `<xn>`,
+  `<xp^2>`, `<xn^2>`, where `xp = max(x, 0)` and `xn = min(x, 0)`.
+
+`moments_from_inputs` returns conditional moments in this same layout, and
+`∂energy_from_moments` consumes it. Since the sufficient statistics do not
+depend on the layer parameters, the result can be computed once from a dataset
+and reused as the parameters change (see `pcd!`).
+"""
+function moments_from_samples end
+
+"""
+    ∂energy_from_moments(layer, moments)
+
+Derivative of the layer's mean energy with respect to its parameters, evaluated
+at a moments array (see `moments_from_samples` for the layout). The first axis
+of the result indexes the parameter, as in `layer.par`, and trailing batch
+dimensions of `moments` are preserved. Since the energy is linear in the
+sufficient statistics, this is a linear map of `moments`, with coefficients
+that may depend on the current parameters.
+"""
+function ∂energy_from_moments end
+
+"""
     ∂energy(layer, data; wts = nothing)
 
 Derivative of average energy of `data` with respect to `layer` parameters.
