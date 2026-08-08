@@ -33,7 +33,10 @@ function ∂energy_from_moments(layer::_FieldLayers, moments::AbstractArray)
     return stack([∂θ]; dims = 1)
 end
 
-function moments_from_samples(layer::_FieldLayers, data::AbstractArray; wts = nothing)
+function moments_from_samples(
+        layer::_FieldLayers, data::AbstractArray;
+        wts::AbstractArray = uniform_weights(layer, data)
+    )
     x1 = batchmean(layer, data; wts)
     return stack([x1]; dims = 1)
 end
@@ -117,7 +120,10 @@ dReLU(layer::Gaussian) = dReLU(; θp = layer.θ, θn = layer.θ, γp = layer.γ,
 pReLU(layer::Gaussian) = pReLU(dReLU(layer))
 xReLU(layer::Gaussian) = xReLU(dReLU(layer))
 
-function moments_from_samples(layer::Union{dReLU, pReLU, xReLU, nsReLU}, data::AbstractArray; wts = nothing)
+function moments_from_samples(
+        layer::Union{dReLU, pReLU, xReLU, nsReLU}, data::AbstractArray;
+        wts::AbstractArray = uniform_weights(layer, data)
+    )
     xp = max.(data, 0)
     xn = min.(data, 0)
     xp1 = batchmean(layer, xp; wts)

@@ -14,12 +14,16 @@ parameters with an `Optimisers.jl` rule.
 - `batchsize::Int=1`: number of samples per update.
 - `iters::Int=1`: number of parameter updates.
 - `wts::Union{AbstractVector,Nothing}=nothing`: optional finite, nonnegative
-  per-sample weights. Zero-weight samples are ignored, and at least one weight
-  must be positive.
+  per-sample weights. Zero-weight samples are dropped, at least one weight
+  must be positive, and the remaining weights are normalized once by their
+  maximum (in `float(eltype(wts))`). Without weights, training uses lazy
+  uniform weights (`FillArrays.Ones`); callbacks always receive the prepared
+  weights of the minibatch as `wd`.
 - `steps::Int=1`: Gibbs steps used to update persistent chains each iteration.
 - `optim::AbstractRule=Adam()`: optimizer rule from `Optimisers.jl`.
-- `moments=moments_from_samples(rbm.visible, data; wts)`: data moments used by
-  the positive phase (zero-weight samples contribute nothing).
+- `moments`: data moments used by the positive phase. Computed by default as
+  `moments_from_samples(rbm.visible, data; wts)` after the data preparation
+  above (zero-weight samples contribute nothing).
 - `l2_fields::Real=0`: L2 regularization on visible fields.
 - `l1_weights::Real=0`: L1 regularization on interaction weights.
 - `l2_weights::Real=0`: L2 regularization on interaction weights.
@@ -47,7 +51,7 @@ function pcd!(
         wts::Union{AbstractVector, Nothing} = nothing, # data weights
         steps::Int = 1, # MC steps to update fantasy chains
         optim::AbstractRule = Adam(), # optimizer rule
-        moments = moments_from_samples(rbm.visible, data; wts), # sufficient statistics for visible layer
+        moments = missing, # sufficient statistics for visible layer, computed from prepared data by default
 
         # regularization
         l2_fields::Real = 0, # visible fields L2 regularization

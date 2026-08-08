@@ -184,19 +184,28 @@ function center_hidden!(rbm::CenteredRBM, offset_h::AbstractArray)
     return rbm
 end
 
-function center_visible_from_data!(rbm::CenteredRBM, data::AbstractArray; wts = nothing)
+function center_visible_from_data!(
+        rbm::CenteredRBM, data::AbstractArray;
+        wts::AbstractArray = uniform_weights(rbm.visible, data)
+    )
     offset_v = batchmean(rbm.visible, data; wts)
     return center_visible!(rbm, offset_v)
 end
 
-function center_hidden_from_data!(rbm::CenteredRBM, data::AbstractArray; wts = nothing, damping::Real = 1)
+function center_hidden_from_data!(
+        rbm::CenteredRBM, data::AbstractArray;
+        wts::AbstractArray = uniform_weights(rbm.visible, data), damping::Real = 1
+    )
     h = mean_h_from_v(rbm, data)
     offset_h_new = batchmean(rbm.hidden, h; wts)
     offset_h = (1 - damping) .* rbm.offset_h .+ damping .* offset_h_new
     return center_hidden!(rbm, offset_h)
 end
 
-function center_from_data!(rbm::CenteredRBM, data::AbstractArray; wts = nothing)
+function center_from_data!(
+        rbm::CenteredRBM, data::AbstractArray;
+        wts::AbstractArray = uniform_weights(rbm.visible, data)
+    )
     center_visible_from_data!(rbm, data; wts)
     center_hidden_from_data!(rbm, data; wts)
     return rbm
@@ -253,7 +262,7 @@ function pcd!(
         wts::Union{AbstractVector, Nothing} = nothing, # data weights
         steps::Int = 1, # MC steps to update fantasy chains
         optim::AbstractRule = Adam(), # optimizer rule
-        moments = moments_from_samples(rbm.visible, data; wts), # sufficient statistics for visible layer
+        moments = missing, # sufficient statistics for visible layer, computed from prepared data by default
 
         # damping to update hidden statistics
         hidden_offset_damping::Real = 1 // 100,

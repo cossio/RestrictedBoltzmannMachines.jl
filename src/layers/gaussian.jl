@@ -43,7 +43,10 @@ function ∂energy_from_moments(layer::Gaussian, moments::AbstractArray)
     return stack([∂θ, ∂γ]; dims = 1)
 end
 
-function moments_from_samples(layer::Gaussian, data::AbstractArray; wts = nothing)
+function moments_from_samples(
+        layer::Gaussian, data::AbstractArray;
+        wts::AbstractArray = uniform_weights(layer, data)
+    )
     x1 = batchmean(layer, data; wts)
     x2 = batchmean(layer, data .^ 2; wts)
     # vcat of reshapes rather than `stack`: for unbatched `data`, x1 can be a

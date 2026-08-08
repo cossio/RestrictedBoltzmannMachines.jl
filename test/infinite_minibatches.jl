@@ -1,15 +1,13 @@
 using Test: @testset, @test, @test_throws, @inferred
 using EllipsisNotation: (..)
+using FillArrays: Ones
+import RestrictedBoltzmannMachines as RBMs
 using RestrictedBoltzmannMachines: nobs, getobs, shuffleobs, infinite_minibatches
 
 @testset "nobs" begin
-    @test isnothing(@inferred nobs(nothing))
     @test @inferred(nobs(randn(3, 4, 5))) == 5
-    @test @inferred(nobs(nothing, randn(3, 4, 5))) == 5
-    @test @inferred(nobs(randn(3, 4, 5), nothing)) == 5
     @test @inferred(nobs(randn(3, 4, 5), randn(2, 3, 5))) == 5
-    @test isnothing(@inferred nobs(nothing, nothing))
-    @test isnothing(@inferred nobs())
+    @test @inferred(nobs(randn(3, 4, 5), Ones{Bool}(5))) == 5
 end
 
 @testset "getobs" begin
@@ -17,22 +15,23 @@ end
     Y = randn(2, 3, 5)
     @test @inferred(getobs(2, X, Y)) == (X[.., 2], Y[.., 2])
     @test @inferred(getobs(1:2, X, Y)) == (X[.., 1:2], Y[.., 1:2])
-    @test @inferred(getobs(2, nothing, Y)) == (nothing, Y[.., 2])
-    @test @inferred(getobs(2, X, nothing)) == (X[.., 2], nothing)
-    @test @inferred(getobs(1:2, nothing, Y)) == (nothing, Y[.., 1:2])
-    @test @inferred(getobs(1:2, nothing, nothing)) == (nothing, nothing)
+
+    # lazy uniform weights stay lazy under minibatch slicing
+    w = Ones{Bool}(5)
+    _, wslice = @inferred getobs(1:2, X, w)
+    @test wslice isa Ones
+    @test wslice == Ones{Bool}(2)
 end
 
 @testset "shuffleobs" begin
-    X, Y = shuffleobs(1:10, 1:10)
+    X, Y = shuffleobs(collect(1:10), collect(1:10))
     @test X == Y
-    @test sort(X) == sort(Y) == 1:10
+    @test sort(X) == sort(Y) == collect(1:10)
 
-    X, Y = shuffleobs(1:10, nothing)
-    @test sort(X) == 1:10
-    @test isnothing(Y)
-
-    @test @inferred(shuffleobs(nothing, nothing)) == (nothing, nothing)
+    # lazy uniform weights stay lazy under shuffling
+    X, w = shuffleobs(collect(1:10), Ones{Bool}(10))
+    @test sort(X) == collect(1:10)
+    @test w isa Ones
 end
 
 @testset "infinite_minibatches" begin
@@ -52,8 +51,29 @@ end
     @test_throws ArgumentError infinite_minibatches(data; batchsize = 0, shuffle = false)
 end
 
+@testset "infinite_minibatches over (data, wts)" begin
+    data = randn(2, 10)
+    wts = Ones{Bool}(10)
+    for (i, (x, w)) in zip(1:7, infinite_minibatches(data, wts; batchsize = 4, shuffle = false))
+        @test size(x) == (2, 4)
+        @test w isa Ones
+        @test length(w) == 4
+    end
+
+    wts = collect(1.0:10.0)
+    for (i, (x, w)) in zip(1:7, infinite_minibatches(data, wts; batchsize = 4, shuffle = false))
+        @test size(x) == (2, 4)
+        @test w == wts[(1:4) .+ 4 * ((i - 1) % 2)]
+    end
+end
+
 @testset "batchsize larger than the data" begin
     data = randn(2, 5)
     @test iterate(infinite_minibatches(data; batchsize = 6, shuffle = false)) === nothing
-    @test iterate(infinite_minibatches(nothing; batchsize = 1, shuffle = false)) === nothing
+
+    # the training entry point clamps the batchsize instead, for any weights
+    for wts in (Ones{Bool}(5), rand(5))
+        _, _, _, batchsize = RBMs._prepare_training_data(data, wts; batchsize = 6)
+        @test batchsize == 5
+    end
 end

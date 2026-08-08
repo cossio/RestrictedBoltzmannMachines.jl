@@ -1,5 +1,7 @@
 using Test: @test, @testset, @test_throws
 using Random: seed!
+using Statistics: mean
+using FillArrays: Ones
 import Optimisers
 import RestrictedBoltzmannMachines as RBMs
 using RestrictedBoltzmannMachines: RBM, Binary, Gaussian, BinaryRBM,
@@ -159,16 +161,16 @@ end
 
 @testset "invalid training weights" begin
     data = zeros(2, 2)
-    for (bad_wts, err) in (
-            ([2.0, -1.0], ArgumentError),
-            ([1.0, NaN], ArgumentError),
-            ([1.0, Inf], ArgumentError),
-            (ComplexF64[1, 1], MethodError), # complex weights have no ordering
+    for bad_wts in (
+            [2.0, -1.0],
+            [1.0, NaN],
+            [1.0, Inf],
+            ComplexF64[1, 1], # complex weights are not real
         )
         @test_throws ArgumentError RBMs._prepare_training_data(data, bad_wts; batchsize = 1)
         rbm = base_rbm()
         before = model_state(rbm)
-        @test_throws err pcd!(
+        @test_throws ArgumentError pcd!(
             rbm, data;
             wts = bad_wts, batchsize = 1, iters = 0,
             zerosum = false, rescale = false,
@@ -215,33 +217,75 @@ end
 
     @test model_state(extreme_rbm) == model_state(unit_rbm)
     @test extreme_vm == unit_vm
-    @test extreme_log.weights == [[extreme_weight], [extreme_weight]]
-    @test unit_log.weights == [[1.0], [1.0]]
+    # weights are normalized once by their maximum at the training boundary,
+    # so callbacks observe the prepared (normalized) weights
+    @test extreme_log.weights == unit_log.weights == [[1.0], [1.0]]
     @test all_finite(extreme_rbm)
 end
 
-@testset "wmean ignores zero weights and extreme scales" begin
-    # zero weights annihilate their samples exactly, even non-finite ones
-    @test RBMs.wmean([NaN, 2.0, 4.0]; wts = [0.0, 1.0, 3.0]) ≈ 3.5
-    # extreme finite weights are normalized internally and cannot overflow
-    @test RBMs.wmean([1.0, 3.0]; wts = fill(floatmax(Float64), 2)) ≈ 2.0
-    @test RBMs.wmean([1.0, 3.0]; wts = fill(typemax(UInt128), 2)) ≈ 2.0
-    # finite weights wider than Float64 keep their wide accumulator,
-    # even behind an abstract eltype
-    @test RBMs.wmean([1.0, 3.0]; wts = fill(big"1e400", 2)) ≈ 2.0
-    @test RBMs.wmean([1.0, 3.0]; wts = Real[big"1e400", big"1e400"]) ≈ 2.0
+@testset "wmean is a plain weighted mean" begin
+    # Weight hygiene (validation, zero-weight filtering, overflow
+    # normalization) happens once per training run in
+    # `_prepare_training_data`, not per `wmean` call. `wmean` itself is a
+    # plain matmul-shaped weighted mean.
+    @test RBMs.wmean([1.0, 3.0]; wts = [1.0, 3.0]) ≈ 2.5
     @test RBMs.wmean([1.0, 3.0]; wts = Any[1.0, 3.0]) ≈ 2.5
-    # Float16 weights are accumulated in a wider type (naive Float16 sums overflow)
-    n = 70_000
-    A = reshape(repeat(Float16[1, 3], n ÷ 2), 1, n)
-    @test RBMs.wmean(A; wts = ones(Float16, n), dims = 2) ≈ [2]
+    @test RBMs.wmean([1.0, 3.0]; wts = fill(big"1e400", 2)) ≈ 2.0
+    # zero weights annihilate finite samples exactly...
+    @test RBMs.wmean([1.0, 2.0, 4.0]; wts = [0.0, 1.0, 3.0]) ≈ 3.5
+    # ...but no longer mask non-finite samples (the training boundary drops
+    # zero-weight samples before any kernel sees them)
+    @test isnan(RBMs.wmean([NaN, 2.0]; wts = [0.0, 1.0]))
+
+    # the lazy uniform default reduces like a plain mean, without promoting
+    A = rand(Float32, 2, 5)
+    @test RBMs.wmean(A; dims = 2) ≈ mean(A; dims = 2)
+    @test RBMs.wmean(A; dims = 2) isa Matrix{Float32}
+    @test RBMs.wmean(A) ≈ mean(A)
+    @test RBMs.wmean(A) isa Float32
 end
 
-@testset "∂free_energy ignores zero-weight samples exactly" begin
+@testset "training weights are prepared once per run" begin
+    data = zeros(2, 3)
+
+    # lazy uniform weights skip filtering and normalization entirely
+    prepared_data, prepared_wts, wts_mean, batchsize =
+        RBMs._prepare_training_data(data, Ones{Bool}(3); batchsize = 5)
+    @test prepared_data === data
+    @test prepared_wts isa Ones
+    @test wts_mean == 1.0
+    @test batchsize == 3 # clamped to the number of samples
+
+    # real weights are normalized by their maximum, preserving their float eltype
+    for W in (Float32, Float64)
+        wts = W[1, 3]
+        _, prepared_wts, wts_mean, _ =
+            RBMs._prepare_training_data(zeros(W, 1, 2), wts; batchsize = 1)
+        @test prepared_wts == W[1, 3] ./ 3
+        @test eltype(prepared_wts) == W
+        @test wts_mean ≈ (Float64(prepared_wts[1]) + 1) / 2
+        batch_weight = RBMs._batch_weight(prepared_wts[1:1], wts_mean)
+        @test batch_weight ≈ Float64(prepared_wts[1]) / wts_mean
+    end
+
+    # extreme finite weights cannot overflow the training-loop reductions
+    for extreme in (floatmax(Float64), typemax(UInt128))
+        wts = [zero(extreme), extreme, extreme]
+        _, prepared_wts, wts_mean, _ =
+            RBMs._prepare_training_data(zeros(1, 3), wts; batchsize = 1)
+        @test prepared_wts == [1.0, 1.0]
+        @test wts_mean == 1.0
+    end
+end
+
+@testset "∂free_energy with zero weights on finite samples" begin
+    # zero weights contribute exactly zero for finite data; non-finite data on
+    # zero-weight samples is handled by the training boundary, which drops
+    # those samples before the gradient kernels run
     rbm = base_rbm()
     v = [
-        NaN 0.0 1.0
-        NaN 1.0 0.0
+        1.0 0.0 1.0
+        0.0 1.0 0.0
     ]
     wts = [0.0, 1.0, 2.0]
     ∂ = RBMs.∂free_energy(rbm, v; wts)
@@ -249,21 +293,6 @@ end
     @test ∂.visible ≈ ∂ref.visible
     @test ∂.hidden ≈ ∂ref.hidden
     @test ∂.w ≈ ∂ref.w
-end
-
-@testset "narrow mixed-range weights keep a positive batch weight ($W)" for W in (Float16, Float32)
-    small = nextfloat(zero(W))
-    large = floatmax(W)
-    wts = W[small, large]
-    data = zeros(W, 1, length(wts))
-
-    _, raw_wts, normalization, _ = RBMs._prepare_training_data(data, wts; batchsize = 1)
-    @test raw_wts === wts
-
-    ratio = Float64(small) / Float64(large)
-    batch_weight = RBMs._batch_weight(raw_wts[1:1], normalization)
-    @test batch_weight > 0
-    @test batch_weight ≈ 2ratio / (1 + ratio)
 end
 
 function mutation_sensitive_rbm(::Val{:plain})

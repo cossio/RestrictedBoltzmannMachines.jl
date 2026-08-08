@@ -241,7 +241,10 @@ function standardize_hidden!(rbm::StandardizedRBM, offset_h::AbstractArray, scal
     return rbm
 end
 
-function standardize_visible_from_data!(rbm::StandardizedRBM, data::AbstractArray; wts = nothing, ϵ::Real = 0)
+function standardize_visible_from_data!(
+        rbm::StandardizedRBM, data::AbstractArray;
+        wts::AbstractArray = uniform_weights(rbm.visible, data), ϵ::Real = 0
+    )
     μ = batchmean(rbm.visible, data; wts)
     ν = batchvar(rbm.visible, data; wts, mean = μ)
     scale = sqrt.(ν .+ ϵ)
@@ -251,14 +254,20 @@ function standardize_visible_from_data!(rbm::StandardizedRBM, data::AbstractArra
     return standardize_visible!(rbm, μ, scale)
 end
 
-function standardize_hidden_from_inputs!(rbm::StandardizedRBM, inputs::AbstractArray; wts = nothing, damping::Real = 0, ϵ::Real = 0)
+function standardize_hidden_from_inputs!(
+        rbm::StandardizedRBM, inputs::AbstractArray;
+        wts::AbstractArray = uniform_weights(rbm.hidden, inputs), damping::Real = 0, ϵ::Real = 0
+    )
     μ, ν = total_meanvar_from_inputs(rbm.hidden, inputs; wts)
     offset_h = (1 - damping) .* rbm.offset_h + damping .* μ
     scale_h = sqrt.((1 - damping) .* rbm.scale_h .^ 2 + damping .* (ν .+ ϵ))
     return standardize_hidden!(rbm, offset_h, scale_h)
 end
 
-function standardize_hidden_from_v!(rbm::StandardizedRBM, v::AbstractArray; wts = nothing, damping::Real = 0, ϵ::Real = 0)
+function standardize_hidden_from_v!(
+        rbm::StandardizedRBM, v::AbstractArray;
+        wts::AbstractArray = uniform_weights(rbm.visible, v), damping::Real = 0, ϵ::Real = 0
+    )
     inputs = inputs_h_from_v(rbm, v)
     return standardize_hidden_from_inputs!(rbm, inputs; damping, wts, ϵ)
 end
@@ -290,7 +299,7 @@ function pcd!(
         steps::Int = 1,
         vm::Union{AbstractArray, Nothing} = nothing,
 
-        moments = moments_from_samples(rbm.visible, data; wts), # sufficient statistics for visible layer
+        moments = missing, # sufficient statistics for visible layer, computed from prepared data by default
 
         # regularization
         l2_fields::Real = 0, # visible fields L2 regularization
