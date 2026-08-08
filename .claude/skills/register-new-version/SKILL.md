@@ -27,6 +27,8 @@ Before anything else, analyze the changes and ask the user to choose the version
 
 1. **Release commit.** After the user explicitly chooses `X.Y.Z`, make a single commit titled `vX.Y.Z` that drops the `-DEV` suffix from `version` in Project.toml and renames the `## Unreleased` CHANGELOG section to `## X.Y.Z`. Land it on `master` (directly, or via a PR like [#123](https://github.com/cossio/RestrictedBoltzmannMachines.jl/pull/123)).
 
+   In text posted to GitHub, write the literal `@JuliaRegistrator register` trigger phrase only in the registration commit comment of step 2 — never in PR titles, descriptions, comments, reviews, or issue comments. Registrator listens to every issue and PR comment event and matches the trigger even inside backticks or code blocks, so a release-PR description that spells it out makes the bot reply with an error on the PR (as happened on [#208](https://github.com/cossio/RestrictedBoltzmannMachines.jl/pull/208)). Repository files such as this skill and the docs may quote the phrase freely — only posted comments reach the bot. When a PR description or comment needs to reference the next step, refer to the bot without the `@` — e.g. "After this merges, registration will be triggered by a Registrator comment on the merge commit."
+
 2. **Trigger Registrator on the release commit.** Push the release commit and identify its exact SHA (the merge commit if the release landed via PR). Registration is triggered by posting this comment directly on that commit:
 
    ```markdown
