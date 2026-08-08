@@ -12,7 +12,10 @@ Weighted sum of `A` along dimensions `dims`, weighted by `wts`.
 like `sum(A; dims)`.
 """
 function wsum(A::AbstractArray, wts::AbstractArray; dims = :)
-    dims === (:) && return _wsum_all(A, wts)
+    if dims === (:)
+        @assert size(wts) == size(A)
+        return _wsum_all(A, wts)
+    end
     rdims = Tuple(dims)
     @assert size(wts) == ntuple(i -> size(A, rdims[i]), length(rdims))
     kept = ndims(A) - length(rdims)

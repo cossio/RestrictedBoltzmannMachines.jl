@@ -3,6 +3,7 @@ import RestrictedBoltzmannMachines as RBMs
 using Test: @test, @testset, @inferred, @test_throws
 using Statistics: mean, var, cov
 using LinearAlgebra: dot
+using FillArrays: Ones
 using RestrictedBoltzmannMachines: convert_eltype
 
 @testset "generate_sequences" begin
@@ -37,6 +38,10 @@ end
 
     # weighted sums do not conjugate complex values
     @test RBMs.wmean(ComplexF64[1 + im]; wts = [1.0]) == 1 + im
+
+    # full reductions reject weights whose shape does not match `A`
+    @test_throws AssertionError RBMs.wmean(ones(2, 3); wts = Ones{Bool}(3))
+    @test_throws AssertionError RBMs.wmean(ones(2, 3); wts = ones(3, 2))
 end
 
 @testset "reshape_maybe" begin
