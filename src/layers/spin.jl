@@ -37,3 +37,5 @@ end
 spin_cgf(θ::Real) = logaddexp(θ, -θ) # log(exp(θ) + exp(-θ))
 
 spin_rand(θ::Real, u::Real) = ifelse(u < logistic(2θ), Int8(1), Int8(-1))
+
+var_from_moments(::Spin, moments::AbstractArray) = (1 .- moments[1, ..]) .* (1 .+ moments[1, ..])

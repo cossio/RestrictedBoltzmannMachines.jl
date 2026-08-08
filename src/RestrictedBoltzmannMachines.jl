@@ -28,7 +28,6 @@ include("layers/prelu.jl")
 include("layers/xrelu.jl")
 include("layers/nsReLU.jl")
 include("layers/common.jl")
-include("layers/moments.jl")
 
 include("rbm.jl")
 

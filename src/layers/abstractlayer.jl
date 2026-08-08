@@ -259,6 +259,35 @@ function total_meanvar_from_inputs(layer::AbstractLayer, inputs = 0; wts = nothi
 end
 
 """
+    moments_from_samples(layer, data; wts = nothing)
+
+Empirical moments of `data`, batch-averaged with weights `wts`. Each layer
+defines which moments it computes (see the docstrings of its specific
+methods); generally they are the sufficient statistics of the layer
+distribution, which do not depend on the layer parameters, so they can be
+computed once from a dataset and reused as the parameters change (see `pcd!`).
+The first axis indexes the moment and the remaining axes are `size(layer)`
+(batch dimensions of `data` are averaged over), so the result has the same
+shape as `layer.par`.
+
+`moments_from_inputs` returns conditional moments in this same layout, and
+`∂energy_from_moments` consumes it.
+"""
+function moments_from_samples end
+
+"""
+    ∂energy_from_moments(layer, moments)
+
+Derivative of the layer's mean energy with respect to its parameters, evaluated
+at a moments array (see `moments_from_samples` for the layout). The first axis
+of the result indexes the parameter, as in `layer.par`, and trailing batch
+dimensions of `moments` are preserved. Since the energy is linear in the
+sufficient statistics, this is a linear map of `moments`, with coefficients
+that may depend on the current parameters.
+"""
+function ∂energy_from_moments end
+
+"""
     ∂energy(layer, data; wts = nothing)
 
 Derivative of average energy of `data` with respect to `layer` parameters.
@@ -277,6 +306,33 @@ moment, the next axes are `size(layer)`, and any trailing batch dimensions of
 `inputs` are preserved (the moments are per-configuration, not batch-averaged).
 """
 function moments_from_inputs end
+
+"""
+    batchmean_moments(layer, moments; wts = nothing)
+
+Average a per-configuration moments array (as returned by `moments_from_inputs`
+with batched inputs) over its batch dimensions, weighted by `wts`.
+"""
+function batchmean_moments(layer::AbstractLayer, moments::AbstractArray; wts = nothing)
+    m = wmean(moments; wts, dims = (ndims(layer) + 2):ndims(moments))
+    return reshape(m, ntuple(d -> size(moments, d), Val(ndims(layer) + 1)))
+end
+
+"""
+    mean_from_moments(layer, moments)
+
+Mean unit activations `<x>` from a moments array (see `moments_from_samples`
+for the layout). Batch dimensions of `moments` are preserved.
+"""
+function mean_from_moments end
+
+"""
+    var_from_moments(layer, moments)
+
+Variance of unit activations from a moments array (see `moments_from_samples`
+for the layout). Batch dimensions of `moments` are preserved.
+"""
+function var_from_moments end
 
 """
     ∂cgfs(layer, inputs = 0)

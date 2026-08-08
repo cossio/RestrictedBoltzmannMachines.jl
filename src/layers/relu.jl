@@ -57,6 +57,11 @@ function ∂energy_from_moments(layer::ReLU, moments::AbstractArray)
     return ∂energy_from_moments(Gaussian(layer.par), moments)
 end
 
+"""
+    moments_from_samples(layer::ReLU, data; wts = nothing)
+
+Two moment slots: `<x>` and `<x^2>` (same as `Gaussian`).
+"""
 function moments_from_samples(layer::ReLU, data::AbstractArray; wts = nothing)
     return moments_from_samples(Gaussian(layer.par), data; wts)
 end
