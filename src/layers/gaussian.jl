@@ -52,6 +52,11 @@ function ∂energy_from_moments(layer::Gaussian, moments::AbstractArray)
     return stack([∂θ, ∂γ]; dims = 1)
 end
 
+"""
+    moments_from_samples(layer::Gaussian, data; wts = nothing)
+
+Two moment slots: `<x>` and `<x^2>`.
+"""
 function moments_from_samples(layer::Gaussian, data::AbstractArray; wts = nothing)
     x1 = batchmean(layer, data; wts)
     x2 = batchmean(layer, data .^ 2; wts)

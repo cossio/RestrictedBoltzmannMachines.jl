@@ -33,6 +33,11 @@ function ∂energy_from_moments(layer::_FieldLayers, moments::AbstractArray)
     return stack([∂θ]; dims = 1)
 end
 
+"""
+    moments_from_samples(layer::Union{Binary, Spin, Potts, PottsGumbel}, data; wts = nothing)
+
+One moment slot: `<x>`.
+"""
 function moments_from_samples(layer::_FieldLayers, data::AbstractArray; wts = nothing)
     x1 = batchmean(layer, data; wts)
     return stack([x1]; dims = 1)
@@ -117,6 +122,12 @@ dReLU(layer::Gaussian) = dReLU(; θp = layer.θ, θn = layer.θ, γp = layer.γ,
 pReLU(layer::Gaussian) = pReLU(dReLU(layer))
 xReLU(layer::Gaussian) = xReLU(dReLU(layer))
 
+"""
+    moments_from_samples(layer::Union{dReLU, pReLU, xReLU, nsReLU}, data; wts = nothing)
+
+Four moment slots: `<xp>`, `<xn>`, `<xp^2>`, `<xn^2>`, where `xp = max(x, 0)`
+and `xn = min(x, 0)`.
+"""
 function moments_from_samples(layer::Union{dReLU, pReLU, xReLU, nsReLU}, data::AbstractArray; wts = nothing)
     xp = max.(data, 0)
     xn = min.(data, 0)

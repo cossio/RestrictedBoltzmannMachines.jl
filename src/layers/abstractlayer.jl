@@ -264,12 +264,8 @@ end
 Empirical moments of `data`: batch averages (weighted by `wts`) of the layer's
 sufficient statistics. The first axis indexes the moment and the remaining axes
 are `size(layer)` (batch dimensions of `data` are averaged over), so the result
-has the same shape as `layer.par`. The moment slots for each layer family are:
-
-- `Binary`, `Spin`, `Potts`, `PottsGumbel`: `<x>`.
-- `Gaussian`, `ReLU`: `<x>`, `<x^2>`.
-- `dReLU`, `pReLU`, `xReLU`, `nsReLU` (shared dReLU layout): `<xp>`, `<xn>`,
-  `<xp^2>`, `<xn^2>`, where `xp = max(x, 0)` and `xn = min(x, 0)`.
+has the same shape as `layer.par`. The moment slots of each layer family are
+listed in the docstrings of its specific methods.
 
 `moments_from_inputs` returns conditional moments in this same layout, and
 `∂energy_from_moments` consumes it. Since the sufficient statistics do not
