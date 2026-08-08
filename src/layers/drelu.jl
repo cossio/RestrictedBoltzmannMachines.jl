@@ -1,7 +1,20 @@
-"""
+@doc raw"""
     dReLU(; θp, θn, γp, γn)
 
 Double ReLU layer, with separate parameters for positive and negative parts.
+The energy of a layer with units ``h_\mu`` is ``E = \sum_\mu U(h_\mu)``, with the
+unit potential:
+
+```math
+U(h) = \begin{cases}
+    \frac{|\gamma^+|}{2} h^2 - \theta^+ h & h \ge 0 \\[4pt]
+    \frac{|\gamma^-|}{2} h^2 - \theta^- h & h < 0
+\end{cases}
+```
+
+where ``\theta^+, \theta^-, \gamma^+, \gamma^-`` are the entries of
+`θp`, `θn`, `γp`, `γn` for the corresponding unit, and ``h`` takes values in
+``\mathbb{R}``.
 """
 @declare_layer dReLU (θp = zeros, θn = zeros, γp = ones, γn = ones)
 

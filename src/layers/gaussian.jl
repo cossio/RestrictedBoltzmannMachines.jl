@@ -1,7 +1,16 @@
-"""
+@doc raw"""
     Gaussian(θ, γ)
 
 Gaussian layer, with location parameters `θ` and scale parameters `γ`.
+The energy of a layer with units ``h_\mu`` is ``E = \sum_\mu U(h_\mu)``, with the
+unit potential:
+
+```math
+U(h) = \frac{|\gamma|}{2} h^2 - \theta h
+```
+
+where ``\theta``, ``\gamma`` are the entries of `θ`, `γ` for the corresponding
+unit, and ``h`` takes values in ``\mathbb{R}``.
 """
 @declare_layer Gaussian (θ = zeros, γ = ones)
 
