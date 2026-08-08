@@ -261,16 +261,17 @@ end
 """
     moments_from_samples(layer, data; wts = nothing)
 
-Empirical moments of `data`: batch averages (weighted by `wts`) of the layer's
-sufficient statistics. The first axis indexes the moment and the remaining axes
-are `size(layer)` (batch dimensions of `data` are averaged over), so the result
-has the same shape as `layer.par`. The moment slots of each layer family are
-listed in the docstrings of its specific methods.
+Empirical moments of `data`, batch-averaged with weights `wts`. Each layer
+defines which moments it computes (see the docstrings of its specific
+methods); generally they are the sufficient statistics of the layer
+distribution, which do not depend on the layer parameters, so they can be
+computed once from a dataset and reused as the parameters change (see `pcd!`).
+The first axis indexes the moment and the remaining axes are `size(layer)`
+(batch dimensions of `data` are averaged over), so the result has the same
+shape as `layer.par`.
 
 `moments_from_inputs` returns conditional moments in this same layout, and
-`∂energy_from_moments` consumes it. Since the sufficient statistics do not
-depend on the layer parameters, the result can be computed once from a dataset
-and reused as the parameters change (see `pcd!`).
+`∂energy_from_moments` consumes it.
 """
 function moments_from_samples end
 
