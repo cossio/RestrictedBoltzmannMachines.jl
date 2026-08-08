@@ -2,7 +2,7 @@ module RestrictedBoltzmannMachines
 
 import ChainRulesCore
 import LinearAlgebra
-using Adapt: Adapt, adapt
+using Adapt: Adapt
 using EllipsisNotation: (..)
 using FillArrays: Falses, Zeros, Ones
 using LinearAlgebra: Diagonal, dot, logdet

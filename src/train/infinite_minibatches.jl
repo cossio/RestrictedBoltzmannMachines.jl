@@ -44,14 +44,11 @@ function infinite_minibatches(ds::AbstractArray...; batchsize::Int, shuffle::Boo
     return InfiniteMinibatchIterator(ds, batchsize, shuffle)
 end
 
-#= Per-run weight hygiene: validate the weights and drop zero-weight samples,
-so the per-iteration kernels can reduce with plain matmuls (no `NaN * 0` from
-zero-weight samples). Weights are not rescaled: extreme finite weights (near
-`floatmax`, or needing wider-than-Float64 accumulation) can overflow the
-plain reductions, which is accepted. Lazy uniform `Ones` weights skip the
-hygiene by dispatch. Returns the prepared `(data, wts)`, the mean of the
-prepared weights (used to bias-correct minibatch gradients), and the
-batchsize clamped to the number of remaining samples. =#
+#= Per-run weight checks. Weights are used as given: they are not rescaled
+(extreme finite weights can overflow the plain reductions), and zero-weight
+observations are not removed — dropping them beforehand is the caller's
+responsibility. Returns the mean weight (used to bias-correct minibatch
+gradients) and the batchsize clamped to the number of samples. =#
 function _prepare_training_data(
         data::AbstractArray,
         wts::AbstractVector;
@@ -60,9 +57,8 @@ function _prepare_training_data(
     batchsize > 0 || throw(ArgumentError("batchsize must be positive"))
     length(wts) == size(data, ndims(data)) ||
         throw(DimensionMismatch("length(wts) must equal the number of data samples"))
-    wts = _validate_weights(wts)
-    data, wts = _filter_zero_weights(data, wts)
-    return data, wts, mean(wts), min(batchsize, length(wts))
+    _validate_weights(wts)
+    return mean(wts), min(batchsize, length(wts))
 end
 
 # Real-valued lazy uniform weights are trivially valid; anything else
@@ -75,19 +71,6 @@ function _validate_weights(wts::AbstractArray)
     any(w -> !iszero(w), wts) ||
         throw(ArgumentError("wts must contain at least one positive weight"))
     return wts
-end
-
-_filter_zero_weights(data::AbstractArray, wts::Ones{<:Real}) = (data, wts)
-
-function _filter_zero_weights(data::AbstractArray, wts::AbstractVector)
-    positive = map(w -> !iszero(w), wts)
-    npositive = count(positive)
-    npositive == length(wts) && return data, wts
-
-    # GPUArrays do not generally support logical indexing. Transfer only
-    # the mask used to build indices; indexing preserves the data backend.
-    positive_indices = findall(adapt(Array, positive))
-    return getobs(positive_indices, data, wts)
 end
 
 # mean(wd) / mean(wts), the bias correction for a weighted minibatch: a

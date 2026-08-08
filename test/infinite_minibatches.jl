@@ -73,7 +73,7 @@ end
 
     # the training entry point clamps the batchsize instead, for any weights
     for wts in (Ones{Bool}(5), rand(5))
-        _, _, _, batchsize = RBMs._prepare_training_data(data, wts; batchsize = 6)
+        _, batchsize = RBMs._prepare_training_data(data, wts; batchsize = 6)
         @test batchsize == 5
     end
 end

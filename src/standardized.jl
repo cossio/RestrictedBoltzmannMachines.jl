@@ -299,7 +299,7 @@ function pcd!(
         steps::Int = 1,
         vm::Union{AbstractArray, Nothing} = nothing,
 
-        moments = missing, # sufficient statistics for visible layer, computed from prepared data by default
+        moments = moments_from_samples(rbm.visible, data; wts), # sufficient statistics for visible layer
 
         # regularization
         l2_fields::Real = 0, # visible fields L2 regularization

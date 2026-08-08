@@ -40,8 +40,7 @@ function _train!(
     isnothing(ps) && (ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w))
     isnothing(state) && (state = setup(optim, ps))
 
-    data, wts, wts_mean, batchsize = _prepare_training_data(data, wts; batchsize)
-    moments = _resolve_moments(moments, rbm.visible, data, wts)
+    wts_mean, batchsize = _prepare_training_data(data, wts; batchsize)
     setup!(data, wts)
 
     for (iter, (vd, wd)) in zip(1:iters, infinite_minibatches(data, wts; batchsize, shuffle))
@@ -70,12 +69,6 @@ function _train!(
     end
     return state, ps
 end
-
-# Default (`missing`) data moments are computed after `_prepare_training_data`,
-# so they see the same zero-weight filtering as the training loop and cannot be
-# poisoned by non-finite data attached to zero-weight samples.
-_resolve_moments(moments, layer, data, wts) = moments
-_resolve_moments(::Missing, layer, data, wts) = moments_from_samples(layer, data; wts)
 
 # default initialization of the persistent fantasy chains used by the PCD trainers
 function _default_fantasy_chains(rbm, batchsize::Int)
