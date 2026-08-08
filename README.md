@@ -146,6 +146,7 @@ Full documentation with API reference and worked examples (MNIST, Metropolis sam
 ## Publications using this package
 
 - [Cross-individual translation of spontaneous zebrafish brain activity through a shared latent representation](https://www.pnas.org/doi/abs/10.1073/pnas.2529064123) — *PNAS* (2026)
+- [Design and experimental characterization of specificity-switching mutational paths of WW domains](https://elifesciences.org/reviewed-preprints/110491) - *eLife* (2026)
 - [Designing molecular RNA switches with Restricted Boltzmann machines](https://www.nature.com/articles/s41467-025-66265-y) — *Nature Communications* 16, 11223 (2025)
 - [Generative Modeling of RNA Sequence Families with Restricted Boltzmann Machines](https://link.springer.com/protocol/10.1007/978-1-0716-4079-1_11) — *Methods in Molecular Biology* 2847, 163–175 (2025)
 - [Replica symmetry breaking and clustering phase transitions in undersampled restricted Boltzmann machines](https://hal.science/hal-04447899/) — HAL preprint (2024)
