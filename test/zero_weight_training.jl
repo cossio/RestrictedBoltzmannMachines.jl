@@ -263,9 +263,9 @@ end
             RBMs._prepare_training_data(zeros(W, 1, 2), wts; batchsize = 1)
         @test prepared_wts == W[1, 3] ./ 3
         @test eltype(prepared_wts) == W
-        @test wts_mean ≈ (Float64(prepared_wts[1]) + 1) / 2
+        @test wts_mean ≈ (prepared_wts[1] + 1) / 2
         batch_weight = RBMs._batch_weight(prepared_wts[1:1], wts_mean)
-        @test batch_weight ≈ Float64(prepared_wts[1]) / wts_mean
+        @test batch_weight ≈ prepared_wts[1] / wts_mean
     end
 
     # extreme finite weights cannot overflow the training-loop reductions
@@ -302,8 +302,8 @@ end
     @test prepared_wts == [1.0f0]
     @test prepared_data == Float32[2;;]
 
-    # weights wider than Float64 keep their representable ratios in the
-    # minibatch bias correction
+    # the bias correction is computed in the weights' own precision, so
+    # BigFloat weight ratios survive
     big_wts = BigFloat[big"1e-400", big"1.0"]
     _, prepared_wts, wts_mean, _ = RBMs._prepare_training_data(
         zeros(1, 2), big_wts; batchsize = 1

@@ -52,9 +52,9 @@ function _train!(
         ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
         ∂m, extras = negative_phase(vd)
         # Correct the weighted minibatch bias, in the gradient eltype so the
-        # wide correction scalar cannot promote narrow parameters. The
-        # correction is at most the number of samples (the largest prepared
-        # weight is one), so the conversion cannot overflow Float32 or wider.
+        # correction scalar cannot promote narrow parameters. The correction
+        # is at most the number of samples (the largest prepared weight is
+        # one), so the conversion cannot overflow Float32 or wider.
         ∂ = (∂d - ∂m) * convert(float(real(eltype(∂d.w))), batch_weight)
 
         # weight decay

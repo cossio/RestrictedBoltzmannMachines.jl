@@ -55,8 +55,8 @@ zero-weight samples). Filtering runs after normalization so relative weights
 that underflow `float(eltype(wts))` are dropped like exact zeros, instead of
 surviving into minibatches whose weights sum to zero. Lazy uniform `Ones`
 weights skip all of it by dispatch. Returns the prepared `(data, wts)`, the
-Float64 mean of the prepared weights (used to bias-correct minibatch
-gradients), and the batchsize clamped to the number of remaining samples. =#
+mean of the prepared weights (used to bias-correct minibatch gradients), and
+the batchsize clamped to the number of remaining samples. =#
 function _prepare_training_data(
         data::AbstractArray,
         wts::AbstractVector;
@@ -67,7 +67,7 @@ function _prepare_training_data(
         throw(DimensionMismatch("length(wts) must equal the number of data samples"))
     wts = _normalize_weights(_validate_weights(wts))
     data, wts = _filter_zero_weights(data, wts)
-    return data, wts, _mean_of_weights(wts), min(batchsize, length(wts))
+    return data, wts, mean(wts), min(batchsize, length(wts))
 end
 
 # Real-valued lazy uniform weights are trivially valid; anything else
@@ -109,12 +109,7 @@ function _filter_zero_weights(data::AbstractArray, wts::AbstractVector)
     return getobs(positive_indices, data, wts)
 end
 
-# Mean of prepared weights as a scalar in at least Float64 precision (wider if
-# the weights are wider, e.g. BigFloat, so representable weight ratios are not
-# truncated); it never touches the array eltypes.
-_mean_of_weights(wts::AbstractVector) =
-    sum(promote_type(Float64, float(eltype(wts))), wts) / length(wts)
-
-# mean(wd) / mean(wts), the bias correction for a weighted minibatch, as a
-# wide scalar (applied in the gradient eltype at its use site).
-_batch_weight(wd::AbstractVector, wts_mean::Real) = _mean_of_weights(wd) / wts_mean
+# mean(wd) / mean(wts), the bias correction for a weighted minibatch: a
+# scalar in the weights' own precision, applied in the gradient eltype at its
+# use site.
+_batch_weight(wd::AbstractVector, wts_mean::Real) = mean(wd) / wts_mean
