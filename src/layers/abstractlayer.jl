@@ -269,6 +269,28 @@ function ∂energy(layer::AbstractLayer, data::AbstractArray; wts = nothing)
 end
 
 """
+    moments_from_inputs(layer, inputs = 0)
+
+Moments of the unit activations under the conditional distribution given `inputs`,
+in the same layout as `moments_from_samples`: the first axis indexes the
+moment, the next axes are `size(layer)`, and any trailing batch dimensions of
+`inputs` are preserved (the moments are per-configuration, not batch-averaged).
+"""
+function moments_from_inputs end
+
+"""
+    ∂cgfs(layer, inputs = 0)
+
+Gradient of `cgfs` with respect to the layer parameters, for each configuration of
+`inputs` (batch dimensions are preserved; the first axis indexes the parameter, as
+in `layer.par`). Since the cumulant generating function and the energy are conjugate,
+this is `-∂energy_from_moments` evaluated at the conditional moments given `inputs`.
+"""
+function ∂cgfs(layer::AbstractLayer, inputs = 0)
+    return -∂energy_from_moments(layer, moments_from_inputs(layer, inputs))
+end
+
+"""
     ∂cgf(layer, inputs = 0; wts = 1)
 
 Unit activation moments, conjugate to layer parameters.

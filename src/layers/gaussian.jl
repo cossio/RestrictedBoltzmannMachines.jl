@@ -28,14 +28,14 @@ function mean_abs_from_inputs(layer::Gaussian, inputs = 0)
     return @. √(2ν / π) * exp(-μ^2 / (2ν)) + μ * erf(μ / √(2ν))
 end
 
-function ∂cgfs(layer::Gaussian, inputs = 0)
-    ∂θ = @. (layer.θ .+ inputs) / abs(layer.γ)
-    ∂γ = @. -inv(layer.γ) / 2 - sign(layer.γ) * ∂θ^2 / 2
-    return stack([∂θ, ∂γ]; dims = 1)
+function moments_from_inputs(layer::Gaussian, inputs = 0)
+    x1 = mean_from_inputs(layer, inputs)
+    x2 = x1 .^ 2 .+ var_from_inputs(layer, inputs)
+    return stack([x1, x2]; dims = 1)
 end
 
 function ∂energy_from_moments(layer::Gaussian, moments::AbstractArray)
-    @assert size(layer.par) == size(moments)
+    @assert ntuple(d -> size(moments, d), ndims(layer.par)) == size(layer.par)
     x1 = @view moments[1, ..]
     x2 = @view moments[2, ..]
     ∂θ = -x1

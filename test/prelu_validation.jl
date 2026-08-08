@@ -1,6 +1,6 @@
 import Optimisers
 using Optimisers: Descent
-using RestrictedBoltzmannMachines: Binary, RBM, center, cgfs, grad2var, pReLU,
+using RestrictedBoltzmannMachines: Binary, RBM, center, cgfs, moments_from_inputs, pReLU,
     pcd!, standardize, xReLU, ∂energy_from_moments
 using Test: @test, @testset
 
@@ -132,7 +132,7 @@ end
     check_prelu_error(() -> cgfs(invalid))
     check_prelu_error(() -> ∂energy_from_moments(invalid, zeros(4, 1)))
     check_prelu_error(() -> xReLU(invalid))
-    check_prelu_error(() -> grad2var(invalid, zeros(4, 1)))
+    check_prelu_error(() -> moments_from_inputs(invalid))
 end
 
 @testset "pReLU η validation in PCD: $name" for name in (:plain, :centered, :standardized)

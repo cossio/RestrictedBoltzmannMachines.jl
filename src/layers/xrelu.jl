@@ -14,28 +14,8 @@ var_from_inputs(layer::xReLU, inputs = 0) = var_from_inputs(dReLU(layer), inputs
 meanvar_from_inputs(layer::xReLU, inputs = 0) = meanvar_from_inputs(dReLU(layer), inputs)
 mean_abs_from_inputs(layer::xReLU, inputs = 0) = mean_abs_from_inputs(dReLU(layer), inputs)
 
-function ∂cgfs(layer::xReLU, inputs = 0)
-    (; pp, pn, μp, μn, νp, νn) = _drelu_mixture_moments(dReLU(layer), inputs)
-    μ2p = @. νp + μp^2
-    μ2n = @. νn + μn^2
-
-    η = @. layer.ξ / (1 + abs(layer.ξ))
-
-    ∂θ = @. pp * μp - pn * μn
-    ∂γ = @. -(pp * μ2p / (1 + η) + pn * μ2n / (1 - η)) / 2
-    ∂γ .*= sign.(layer.γ)
-    ∂Δ = @. (pp * μp / (1 + η) + pn * μn / (1 - η))
-    abs_γ = abs.(layer.γ)
-    ∂ξ = @. -(
-        pp * (-abs_γ / 2 * μ2p + layer.Δ * μp) / (1 + layer.ξ + abs(layer.ξ))^2 +
-            pn * (abs_γ / 2 * μ2n - layer.Δ * μn) / (1 - layer.ξ + abs(layer.ξ))^2
-    )
-
-    return stack([∂θ, ∂γ, ∂Δ, ∂ξ]; dims = 1)
-end
-
 function ∂energy_from_moments(layer::xReLU, moments::AbstractArray)
-    @assert size(layer.par) == size(moments)
+    @assert ntuple(d -> size(moments, d), ndims(layer.par)) == size(layer.par)
 
     xp1 = moments[1, ..]
     xn1 = moments[2, ..]

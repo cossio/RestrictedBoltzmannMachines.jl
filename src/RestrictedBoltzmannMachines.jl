@@ -28,6 +28,7 @@ include("layers/prelu.jl")
 include("layers/xrelu.jl")
 include("layers/nsReLU.jl")
 include("layers/common.jl")
+include("layers/moments.jl")
 
 include("rbm.jl")
 
@@ -45,7 +46,6 @@ include("train/initialization.jl")
 include("train/train.jl")
 include("train/pcd.jl")
 include("train/gradient.jl")
-include("from_grad.jl")
 
 include("gauge/zerosum.jl")
 include("gauge/rescale_hidden.jl")

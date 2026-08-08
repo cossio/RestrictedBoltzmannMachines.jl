@@ -38,11 +38,9 @@ function meanvar_from_inputs(layer::ReLU, inputs = 0)
     return μ + σ .* tμ, ν .* tν
 end
 
-function ∂cgfs(layer::ReLU, inputs = 0)
+function moments_from_inputs(layer::ReLU, inputs = 0)
     μ, ν = meanvar_from_inputs(layer, inputs)
-    ∂θ = μ
-    ∂γ = -sign.(layer.γ) .* (ν .+ μ .^ 2) / 2
-    return stack([∂θ, ∂γ]; dims = 1)
+    return stack([μ, ν .+ μ .^ 2]; dims = 1)
 end
 
 function ∂energy_from_moments(layer::ReLU, moments::AbstractArray)
