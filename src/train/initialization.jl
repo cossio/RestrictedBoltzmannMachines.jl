@@ -21,15 +21,14 @@ end
 
 #= Public `initialize!` boundaries accept `wts = nothing` (lazy uniform
 weights) and apply the same hygiene as training to explicit weights:
-validation, normalization by the largest weight (so extreme finite weights
-cannot overflow the moment-matching reductions), and dropping zero-weight
-samples (so non-finite data attached to them cannot poison the reductions).
-Returns the prepared `(data, wts)`. =#
+validation and dropping zero-weight samples (so non-finite data attached to
+them cannot poison the moment-matching reductions). Returns the prepared
+`(data, wts)`. =#
 _initialization_data(::Nothing, layer::AbstractLayer, data::AbstractArray) =
     (data, uniform_weights(layer, data))
 function _initialization_data(wts::AbstractArray, layer::AbstractLayer, data::AbstractArray)
     @assert size(wts) == batch_size(layer, data)
-    wts = _normalize_weights(_validate_weights(wts))
+    wts = _validate_weights(wts)
     # Flatten the trailing batch dimensions, so zero-weight configurations are
     # dropped uniformly regardless of the batch layout; the moment-matching
     # reductions are invariant under this reshape.
@@ -40,7 +39,7 @@ _initialization_data(::Nothing, data::AbstractArray) =
 function _initialization_data(wts::AbstractVector, data::AbstractArray)
     length(wts) == size(data, ndims(data)) ||
         throw(DimensionMismatch("length(wts) must equal the number of data samples"))
-    wts = _normalize_weights(_validate_weights(wts))
+    wts = _validate_weights(wts)
     return _filter_zero_weights(data, wts)
 end
 

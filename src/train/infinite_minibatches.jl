@@ -48,15 +48,14 @@ end
 _default_weights(wts::AbstractVector, ::AbstractArray) = wts
 _default_weights(::Nothing, data::AbstractArray) = Ones{Bool}(size(data, ndims(data)))
 
-#= Per-run weight hygiene: validate the weights, normalize by the largest
-weight, and drop zero-weight samples, so the per-iteration kernels can reduce
-with plain matmuls (no per-iteration overflow armor, no `NaN * 0` from
-zero-weight samples). Filtering runs after normalization so relative weights
-that underflow `float(eltype(wts))` are dropped like exact zeros, instead of
-surviving into minibatches whose weights sum to zero. Lazy uniform `Ones`
-weights skip all of it by dispatch. Returns the prepared `(data, wts)`, the
-mean of the prepared weights (used to bias-correct minibatch gradients), and
-the batchsize clamped to the number of remaining samples. =#
+#= Per-run weight hygiene: validate the weights and drop zero-weight samples,
+so the per-iteration kernels can reduce with plain matmuls (no `NaN * 0` from
+zero-weight samples). Weights are not rescaled: extreme finite weights (near
+`floatmax`, or needing wider-than-Float64 accumulation) can overflow the
+plain reductions, which is accepted. Lazy uniform `Ones` weights skip the
+hygiene by dispatch. Returns the prepared `(data, wts)`, the mean of the
+prepared weights (used to bias-correct minibatch gradients), and the
+batchsize clamped to the number of remaining samples. =#
 function _prepare_training_data(
         data::AbstractArray,
         wts::AbstractVector;
@@ -65,7 +64,7 @@ function _prepare_training_data(
     batchsize > 0 || throw(ArgumentError("batchsize must be positive"))
     length(wts) == size(data, ndims(data)) ||
         throw(DimensionMismatch("length(wts) must equal the number of data samples"))
-    wts = _normalize_weights(_validate_weights(wts))
+    wts = _validate_weights(wts)
     data, wts = _filter_zero_weights(data, wts)
     return data, wts, mean(wts), min(batchsize, length(wts))
 end
@@ -80,20 +79,6 @@ function _validate_weights(wts::AbstractArray)
     any(w -> !iszero(w), wts) ||
         throw(ArgumentError("wts must contain at least one positive weight"))
     return wts
-end
-
-# Normalizing by the largest weight bounds the prepared weights by one, so
-# extreme finite weights cannot overflow the training-loop reductions. The
-# division floats the weights, widened to at least Float32 so that narrow
-# eltypes (e.g. Float16) can neither overflow their own batch sums nor
-# underflow moderate weight ratios; Float32 and wider weights keep their
-# eltype (avoiding promotion of the arrays they later multiply), and uniform
-# `Ones` weights stay lazy. `float` of the value, not the eltype, so abstract
-# eltypes (e.g. `Any`) work too.
-_normalize_weights(wts::Ones{<:Real}) = wts
-function _normalize_weights(wts::AbstractArray)
-    scale = float(maximum(wts))
-    return wts ./ convert(promote_type(typeof(scale), Float32), scale)
 end
 
 _filter_zero_weights(data::AbstractArray, wts::Ones{<:Real}) = (data, wts)

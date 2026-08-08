@@ -10,20 +10,18 @@ All notable changes to this project will be documented in this file. The format 
   so uniform weights reduce like plain means without allocating weight arrays
   or promoting eltypes (Float32 training stays Float32 end to end). Visible
   consequences:
-  - `pcd!` callbacks receive the prepared minibatch weights as `wd`: a lazy
-    `Ones` slice for unweighted training (previously `nothing`), and the
-    normalized weights for weighted training (previously the raw weights).
-  - Weight hygiene happens once per training run: weights are validated,
-    normalized by their maximum in `float(eltype(wts))` (widened to at least
-    `Float32`, so narrow weights cannot overflow their own sums), and
-    zero-weight samples are dropped (including positive weights whose ratio
-    to the maximum underflows the widened eltype), replacing the
-    per-iteration Float64 normalization the kernels used to apply.
-    `initialize!` applies the same validation, normalization, and
-    zero-weight filtering to explicit weights. Internal helpers such as
-    `wmean` and `∂free_energy` are now plain weighted reductions: they no
-    longer guard against overflowing weight scales and no longer mask
-    non-finite data attached to zero-weight samples.
+  - `pcd!` callbacks receive lazy uniform `Ones` weight slices as `wd` for
+    unweighted training (previously `nothing`); weighted training callbacks
+    receive the minibatch weights as before.
+  - Weight hygiene happens once per training run: weights are validated and
+    zero-weight samples are dropped, and `initialize!` applies the same
+    hygiene to explicit weights. Weights are no longer rescaled anywhere
+    (the per-iteration Float64 normalization is removed without
+    replacement), so extreme weights (near `floatmax`, or needing
+    wider-than-`Float64` accumulation) can now overflow; ordinary weights
+    are unaffected. Internal helpers such as `wmean` and `∂free_energy` are
+    plain weighted reductions that no longer mask non-finite data attached
+    to zero-weight samples.
   - Unweighted training with `batchsize` larger than the number of samples now
     clamps the batchsize (as weighted training already did) instead of
     silently performing zero iterations.

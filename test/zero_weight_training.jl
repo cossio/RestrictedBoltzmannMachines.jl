@@ -179,55 +179,10 @@ end
     end
 end
 
-@testset "finite extreme $weight_type weights are scale-stable ($name PCD)" for
-    (name, kind, seed) in [
-            ("plain", Val(:plain), 109),
-            ("centered", Val(:centered), 110),
-            ("standardized", Val(:standardized), 111),
-        ],
-        (weight_type, extreme_weight) in [
-            ("Float64", floatmax(Float64)),
-            ("UInt128", typemax(UInt128)),
-        ]
-    data = [
-        NaN 0.0 1.0
-        NaN 1.0 0.0
-    ]
-    extreme_wts = [zero(extreme_weight), extreme_weight, extreme_weight]
-    unit_wts = [0.0, 1.0, 1.0]
-    extreme_rbm = wrap_rbm(kind, base_rbm())
-    unit_rbm = wrap_rbm(kind, base_rbm())
-    extreme_vm = falses(2, 1)
-    unit_vm = copy(extreme_vm)
-    extreme_log = callback_log()
-    unit_log = callback_log()
-
-    seed!(seed)
-    train_pcd!(
-        kind, extreme_rbm, data, extreme_wts, extreme_vm,
-        CountingDescent(0.01, Ref(0)), extreme_log.callback;
-        iters = 2, batchsize = 1,
-    )
-    seed!(seed)
-    train_pcd!(
-        kind, unit_rbm, data, unit_wts, unit_vm,
-        CountingDescent(0.01, Ref(0)), unit_log.callback;
-        iters = 2, batchsize = 1,
-    )
-
-    @test model_state(extreme_rbm) == model_state(unit_rbm)
-    @test extreme_vm == unit_vm
-    # weights are normalized once by their maximum at the training boundary,
-    # so callbacks observe the prepared (normalized) weights
-    @test extreme_log.weights == unit_log.weights == [[1.0], [1.0]]
-    @test all_finite(extreme_rbm)
-end
-
 @testset "wmean is a plain weighted mean" begin
-    # Weight hygiene (validation, zero-weight filtering, overflow
-    # normalization) happens once per training run in
-    # `_prepare_training_data`, not per `wmean` call. `wmean` itself is a
-    # plain matmul-shaped weighted mean.
+    # Weight hygiene (validation, zero-weight filtering) happens once per
+    # training run in `_prepare_training_data`, not per `wmean` call. `wmean`
+    # itself is a plain matmul-shaped weighted mean.
     @test RBMs.wmean([1.0, 3.0]; wts = [1.0, 3.0]) ≈ 2.5
     @test RBMs.wmean([1.0, 3.0]; wts = Any[1.0, 3.0]) ≈ 2.5
     @test RBMs.wmean([1.0, 3.0]; wts = fill(big"1e400", 2)) ≈ 2.0
@@ -248,7 +203,7 @@ end
 @testset "training weights are prepared once per run" begin
     data = zeros(2, 3)
 
-    # lazy uniform weights skip filtering and normalization entirely
+    # lazy uniform weights skip validation and filtering entirely
     prepared_data, prepared_wts, wts_mean, batchsize =
         RBMs._prepare_training_data(data, Ones{Bool}(3); batchsize = 5)
     @test prepared_data === data
@@ -256,51 +211,16 @@ end
     @test wts_mean == 1.0
     @test batchsize == 3 # clamped to the number of samples
 
-    # real weights are normalized by their maximum, preserving their float eltype
+    # weights without zeros pass through untouched (no rescaling)
     for W in (Float32, Float64)
         wts = W[1, 3]
-        _, prepared_wts, wts_mean, _ =
+        prepared_data, prepared_wts, wts_mean, _ =
             RBMs._prepare_training_data(zeros(W, 1, 2), wts; batchsize = 1)
-        @test prepared_wts == W[1, 3] ./ 3
-        @test eltype(prepared_wts) == W
-        @test wts_mean ≈ (prepared_wts[1] + 1) / 2
-        batch_weight = RBMs._batch_weight(prepared_wts[1:1], wts_mean)
-        @test batch_weight ≈ prepared_wts[1] / wts_mean
+        @test prepared_wts === wts
+        @test wts_mean == mean(wts)
+        batch_weight = RBMs._batch_weight(wts[1:1], wts_mean)
+        @test batch_weight ≈ wts[1] / wts_mean
     end
-
-    # extreme finite weights cannot overflow the training-loop reductions
-    for extreme in (floatmax(Float64), typemax(UInt128))
-        wts = [zero(extreme), extreme, extreme]
-        _, prepared_wts, wts_mean, _ =
-            RBMs._prepare_training_data(zeros(1, 3), wts; batchsize = 1)
-        @test prepared_wts == [1.0, 1.0]
-        @test wts_mean == 1.0
-    end
-
-    # narrow weight eltypes are widened to at least Float32, so Float16
-    # weights can neither overflow their own sums nor lose moderate ratios
-    _, prepared_wts, wts_mean, _ = RBMs._prepare_training_data(
-        zeros(Float16, 1, 70_000), ones(Float16, 70_000); batchsize = 1
-    )
-    @test eltype(prepared_wts) == Float32
-    @test wts_mean == 1.0
-    tiny16 = nextfloat(zero(Float16))
-    _, prepared_wts, _, _ = RBMs._prepare_training_data(
-        Float16[1 2], Float16[tiny16, floatmax(Float16)]; batchsize = 1
-    )
-    @test eltype(prepared_wts) == Float32
-    @test length(prepared_wts) == 2
-    @test prepared_wts[1] > 0 # the moderate ratio survives in Float32
-
-    # positive weights whose ratio to the maximum underflows even the widened
-    # eltype are dropped like zero weights, so no minibatch can end up with
-    # weights summing to zero
-    tiny32 = nextfloat(zero(Float32))
-    prepared_data, prepared_wts, _, _ = RBMs._prepare_training_data(
-        Float32[1 2], Float32[tiny32, floatmax(Float32)]; batchsize = 1
-    )
-    @test prepared_wts == [1.0f0]
-    @test prepared_data == Float32[2;;]
 
     # the bias correction is computed in the weights' own precision, so
     # BigFloat weight ratios survive
@@ -338,16 +258,16 @@ end
     initialize!(layer, data; wts = nothing)
     @test all(isfinite, layer.par)
 
-    # extreme finite weights are normalized at the boundary and cannot
-    # overflow the moment-matching reductions
-    extreme_rbm = base_rbm()
+    # weights enter the reductions unrescaled; only relative values matter
+    # for benign scales
+    scaled_rbm = base_rbm()
     unit_rbm = base_rbm()
     seed!(303)
-    initialize!(extreme_rbm, data; wts = fill(floatmax(Float64), 3))
+    initialize!(scaled_rbm, data; wts = fill(2.0, 3))
     seed!(303)
     initialize!(unit_rbm, data; wts = ones(3))
-    @test all_finite(extreme_rbm)
-    @test model_state(extreme_rbm) == model_state(unit_rbm)
+    @test all_finite(scaled_rbm)
+    @test model_state(scaled_rbm) == model_state(unit_rbm)
 
     # zero-weight samples are dropped at the boundary, so non-finite data
     # attached to them cannot poison the moment-matching reductions
