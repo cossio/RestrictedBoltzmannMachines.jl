@@ -14,14 +14,16 @@ All notable changes to this project will be documented in this file. The format 
     `Ones` slice for unweighted training (previously `nothing`), and the
     normalized weights for weighted training (previously the raw weights).
   - Weight hygiene happens once per training run: weights are validated,
-    normalized by their maximum in `float(eltype(wts))`, and zero-weight
-    samples are dropped (including positive weights whose ratio to the
-    maximum underflows the weight eltype), replacing the per-iteration
-    Float64 normalization the kernels used to apply. `initialize!` applies
-    the same validation and normalization to explicit weights. Internal
-    helpers such as `wmean` and `∂free_energy` are now plain weighted
-    reductions: they no longer guard against overflowing weight scales and no
-    longer mask non-finite data attached to zero-weight samples.
+    normalized by their maximum in `float(eltype(wts))` (widened to at least
+    `Float32`, so narrow weights cannot overflow their own sums), and
+    zero-weight samples are dropped (including positive weights whose ratio
+    to the maximum underflows the widened eltype), replacing the
+    per-iteration Float64 normalization the kernels used to apply.
+    `initialize!` applies the same validation, normalization, and
+    zero-weight filtering to explicit weights. Internal helpers such as
+    `wmean` and `∂free_energy` are now plain weighted reductions: they no
+    longer guard against overflowing weight scales and no longer mask
+    non-finite data attached to zero-weight samples.
   - Unweighted training with `batchsize` larger than the number of samples now
     clamps the batchsize (as weighted training already did) instead of
     silently performing zero iterations.

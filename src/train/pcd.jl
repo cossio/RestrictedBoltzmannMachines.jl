@@ -14,11 +14,11 @@ parameters with an `Optimisers.jl` rule.
 - `batchsize::Int=1`: number of samples per update.
 - `iters::Int=1`: number of parameter updates.
 - `wts::Union{AbstractVector,Nothing}=nothing`: optional finite, nonnegative
-  per-sample weights. Zero-weight samples are dropped, at least one weight
-  must be positive, and the remaining weights are normalized once by their
-  maximum (in `float(eltype(wts))`). Without weights, training uses lazy
-  uniform weights (`FillArrays.Ones`); callbacks always receive the prepared
-  weights of the minibatch as `wd`.
+  per-sample weights. At least one weight must be positive; the weights are
+  normalized once by their maximum (in `float(eltype(wts))`, widened to at
+  least `Float32`), and zero-weight samples are dropped. Without weights,
+  training uses lazy uniform weights (`FillArrays.Ones`); callbacks always
+  receive the prepared weights of the minibatch as `wd`.
 - `steps::Int=1`: Gibbs steps used to update persistent chains each iteration.
 - `optim::AbstractRule=Adam()`: optimizer rule from `Optimisers.jl`.
 - `moments`: data moments used by the positive phase. Computed by default as

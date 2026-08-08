@@ -30,7 +30,8 @@ function wsum(A::AbstractArray, wts::AbstractArray; dims = :)
     end
 end
 
-_wsum_all(A::AbstractArray, wts::AbstractArray) = dot(vec(A), vec(wts))
+# `transpose`, not `dot`: the documented sum is `Σ Aᵢwᵢ`, without conjugation
+_wsum_all(A::AbstractArray, wts::AbstractArray) = transpose(vec(A)) * vec(wts)
 _wsum_all(A::AbstractArray, ::Ones{<:Real}) = sum(A)
 _wsum_trailing(A::AbstractMatrix, wts::AbstractVector) = A * wts
 _wsum_trailing(A::AbstractMatrix, ::Ones{<:Real}) = sum(A; dims = 2)

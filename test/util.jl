@@ -34,6 +34,9 @@ end
 
     wts = rand(2)
     @test sum(reshape(wts, 1, 1, 1, 2) .* A; dims = 4) ./ sum(wts) ≈ @inferred RBMs.wmean(A; dims = 4, wts)
+
+    # weighted sums do not conjugate complex values
+    @test RBMs.wmean(ComplexF64[1 + im]; wts = [1.0]) == 1 + im
 end
 
 @testset "reshape_maybe" begin

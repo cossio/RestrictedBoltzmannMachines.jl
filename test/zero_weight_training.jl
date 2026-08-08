@@ -277,20 +277,68 @@ end
         @test wts_mean == 1.0
     end
 
-    # positive weights whose ratio to the maximum underflows the weight
+    # narrow weight eltypes are widened to at least Float32, so Float16
+    # weights can neither overflow their own sums nor lose moderate ratios
+    _, prepared_wts, wts_mean, _ = RBMs._prepare_training_data(
+        zeros(Float16, 1, 70_000), ones(Float16, 70_000); batchsize = 1
+    )
+    @test eltype(prepared_wts) == Float32
+    @test wts_mean == 1.0
+    tiny16 = nextfloat(zero(Float16))
+    _, prepared_wts, _, _ = RBMs._prepare_training_data(
+        Float16[1 2], Float16[tiny16, floatmax(Float16)]; batchsize = 1
+    )
+    @test eltype(prepared_wts) == Float32
+    @test length(prepared_wts) == 2
+    @test prepared_wts[1] > 0 # the moderate ratio survives in Float32
+
+    # positive weights whose ratio to the maximum underflows even the widened
     # eltype are dropped like zero weights, so no minibatch can end up with
     # weights summing to zero
-    tiny = nextfloat(zero(Float16))
+    tiny32 = nextfloat(zero(Float32))
     prepared_data, prepared_wts, _, _ = RBMs._prepare_training_data(
-        Float16[1 2], Float16[tiny, floatmax(Float16)]; batchsize = 1
+        Float32[1 2], Float32[tiny32, floatmax(Float32)]; batchsize = 1
     )
-    @test prepared_wts == [1.0]
-    @test prepared_data == Float16[2;;]
+    @test prepared_wts == [1.0f0]
+    @test prepared_data == Float32[2;;]
+
+    # weights wider than Float64 keep their representable ratios in the
+    # minibatch bias correction
+    big_wts = BigFloat[big"1e-400", big"1.0"]
+    _, prepared_wts, wts_mean, _ = RBMs._prepare_training_data(
+        zeros(1, 2), big_wts; batchsize = 1
+    )
+    @test wts_mean isa BigFloat
+    batch_weight = RBMs._batch_weight(prepared_wts[1:1], wts_mean)
+    @test batch_weight > 0
+    @test batch_weight ≈ big"2e-400" rtol = 1.0e-6
 
     # lazy uniform weights must still be real-valued to skip validation
     @test_throws ArgumentError RBMs._prepare_training_data(
         zeros(1, 2), Ones{ComplexF64}(2); batchsize = 1
     )
+end
+
+@testset "explicitly passed moments are used as given" begin
+    rbm = base_rbm()
+    data = [0.0 1.0; 1.0 0.0]
+    moments = RBMs.moments_from_samples(rbm.visible, data)
+    pcd!(rbm, data; batchsize = 2, iters = 1, moments, zerosum = false, rescale = false)
+    @test all_finite(rbm)
+end
+
+@testset "minibatch bias correction preserves representable products" begin
+    ∂ = RBMs.∂RBM(
+        fill(Float16(1.0e-3), 1, 2), fill(Float16(1.0e-3), 1, 1), fill(Float16(1.0e-3), 2, 1)
+    )
+    # a correction beyond floatmax(Float16) with a representable product
+    scaled = RBMs._scale_gradient(∂, 1.0e5, Float16)
+    @test eltype(scaled.w) == Float16
+    @test scaled.w ≈ fill(Float16(100), 2, 1) rtol = 0.01
+    # the common representable case converts the scalar once
+    scaled = RBMs._scale_gradient(∂, 2.0, Float16)
+    @test eltype(scaled.w) == Float16
+    @test scaled.w ≈ fill(Float16(2.0e-3), 2, 1) rtol = 0.01
 end
 
 @testset "initialize! weight hygiene" begin
@@ -314,6 +362,15 @@ end
     initialize!(unit_rbm, data; wts = ones(3))
     @test all_finite(extreme_rbm)
     @test model_state(extreme_rbm) == model_state(unit_rbm)
+
+    # zero-weight samples are dropped at the boundary, so non-finite data
+    # attached to them cannot poison the moment-matching reductions
+    nan_layer = Binary((1,))
+    initialize!(nan_layer, [NaN 1.0]; wts = [0.0, 1.0])
+    @test all(isfinite, nan_layer.par)
+    nan_rbm = base_rbm()
+    initialize!(nan_rbm, [NaN 1.0; NaN 0.0]; wts = [0.0, 1.0])
+    @test all_finite(nan_rbm)
 
     # invalid weights fail loudly
     @test_throws ArgumentError initialize!(base_rbm(), data; wts = [1.0, -1.0, 1.0])

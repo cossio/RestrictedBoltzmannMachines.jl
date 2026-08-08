@@ -51,12 +51,9 @@ function _train!(
         # positive and negative phase gradients
         ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
         ∂m, extras = negative_phase(vd)
-        # Correct the weighted minibatch bias. The correction is a Float64
-        # scalar; convert it to the gradient eltype so it cannot promote
-        # narrow (e.g. Float32) parameters, saturating at the largest finite
-        # value so extreme corrections cannot round to Inf in narrow types.
-        T = float(real(eltype(∂d.w)))
-        ∂ = (∂d - ∂m) * convert(T, min(batch_weight, floatmax(T)))
+        # Correct the weighted minibatch bias, applied in the gradient eltype
+        # so the wide correction scalar cannot promote narrow parameters.
+        ∂ = _scale_gradient(∂d - ∂m, batch_weight, float(real(eltype(∂d.w))))
 
         # weight decay
         ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum, regularize...)

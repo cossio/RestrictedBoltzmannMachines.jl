@@ -67,9 +67,7 @@ function _prepare_training_data(
         throw(DimensionMismatch("length(wts) must equal the number of data samples"))
     wts = _normalize_weights(_validate_weights(wts))
     data, wts = _filter_zero_weights(data, wts)
-    # Scalar Float64 accumulation; it never touches the array eltypes.
-    wts_mean = sum(Float64, wts) / length(wts)
-    return data, wts, wts_mean, min(batchsize, length(wts))
+    return data, wts, _mean_of_weights(wts), min(batchsize, length(wts))
 end
 
 # Real-valued lazy uniform weights are trivially valid; anything else
@@ -86,10 +84,17 @@ end
 
 # Normalizing by the largest weight bounds the prepared weights by one, so
 # extreme finite weights cannot overflow the training-loop reductions. The
-# division stays in `float(eltype(wts))` to avoid promoting the arrays the
-# weights later multiply; uniform `Ones` weights stay lazy.
+# division floats the weights, widened to at least Float32 so that narrow
+# eltypes (e.g. Float16) can neither overflow their own batch sums nor
+# underflow moderate weight ratios; Float32 and wider weights keep their
+# eltype (avoiding promotion of the arrays they later multiply), and uniform
+# `Ones` weights stay lazy. `float` of the value, not the eltype, so abstract
+# eltypes (e.g. `Any`) work too.
 _normalize_weights(wts::Ones{<:Real}) = wts
-_normalize_weights(wts::AbstractArray) = wts ./ maximum(wts)
+function _normalize_weights(wts::AbstractArray)
+    scale = float(maximum(wts))
+    return wts ./ convert(promote_type(typeof(scale), Float32), scale)
+end
 
 _filter_zero_weights(data::AbstractArray, wts::Ones{<:Real}) = (data, wts)
 
@@ -104,6 +109,12 @@ function _filter_zero_weights(data::AbstractArray, wts::AbstractVector)
     return getobs(positive_indices, data, wts)
 end
 
+# Mean of prepared weights as a scalar in at least Float64 precision (wider if
+# the weights are wider, e.g. BigFloat, so representable weight ratios are not
+# truncated); it never touches the array eltypes.
+_mean_of_weights(wts::AbstractVector) =
+    sum(promote_type(Float64, float(eltype(wts))), wts) / length(wts)
+
 # mean(wd) / mean(wts), the bias correction for a weighted minibatch, as a
-# Float64 scalar (converted to the gradient eltype at its use site).
-_batch_weight(wd::AbstractVector, wts_mean::Float64) = sum(Float64, wd) / (length(wd) * wts_mean)
+# wide scalar (applied in the gradient eltype at its use site).
+_batch_weight(wd::AbstractVector, wts_mean::Real) = _mean_of_weights(wd) / wts_mean
