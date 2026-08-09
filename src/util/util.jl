@@ -14,10 +14,11 @@ scalar). Reduced dimensions are dropped from the result.
 function wsum(A::AbstractArray{<:Any, N}, wts::AbstractArray{<:Real, N}) where {N}
     # full reduction: `wts` spans all of `A`
     @assert size(wts) == size(A)
-    # `transpose`, not `dot`: the documented sum is `Σ Aᵢwᵢ`, without conjugation.
-    # `float` (identity on float arrays) keeps integer/Bool samples on the same
-    # matmul kernel as float-converted runs, which reduce bit-identically.
-    return transpose(float(vec(A))) * vec(wts)
+    # `dot` conjugates its first argument, a no-op for the real `wts`, so the
+    # documented sum `Σ Aᵢwᵢ` never conjugates `A`. `float` (identity on float
+    # arrays) keeps integer/Bool samples on the same kernel as float-converted
+    # runs, which reduce bit-identically.
+    return dot(vec(wts), float(vec(A)))
 end
 
 # partial reduction over the trailing dimensions of `A`
