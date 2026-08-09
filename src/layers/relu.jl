@@ -58,11 +58,14 @@ function ∂energy_from_moments(layer::ReLU, moments::AbstractArray)
 end
 
 """
-    moments_from_samples(layer::ReLU, data; wts = nothing)
+    moments_from_samples(layer::ReLU, data; [wts])
 
 Two moment slots: `<x>` and `<x^2>` (same as `Gaussian`).
 """
-function moments_from_samples(layer::ReLU, data::AbstractArray; wts = nothing)
+function moments_from_samples(
+        layer::ReLU, data::AbstractArray;
+        wts::AbstractArray{<:Real} = uniform_weights(layer, data)
+    )
     return moments_from_samples(Gaussian(layer.par), data; wts)
 end
 

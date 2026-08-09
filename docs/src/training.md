@@ -27,22 +27,12 @@ The usual training workflow is:
 ## Weighted data
 
 Plain, centered, and standardized [`pcd!`](@ref) accept optional per-sample
-weights through `wts`. Weights must be finite, real,
-and nonnegative, and at least one weight must be positive.
+weights through `wts`. Weights must be finite, positive reals: zero or
+negative weights raise an `ArgumentError`. Observations meant to be excluded
+must be dropped (with their weights) before calling [`pcd!`](@ref).
 
-Observations with zero weight are excluded before data moments and mini-batches
-are formed. They therefore do not advance persistent or coupled chains, reach
-the optimizer or callback, or contribute to centered/standardized wrapper
-statistics. This is equivalent to removing those observations and their
-weights before training.
-
-Training calculations rescale positive weights internally without changing
-their relative values, avoiding overflow for finite extreme weights. Callbacks
-still receive the original positive mini-batch weights in `wd`.
-
-The `iters` argument always counts completed parameter updates. Ignored
-zero-weight observations do not consume iterations, and callbacks receive
-consecutive `iter` values from `1` through `iters`.
+The `iters` argument always counts completed parameter updates, and callbacks
+receive consecutive `iter` values from `1` through `iters`.
 
 ## How `pcd!` works (plain `RBM`)
 
@@ -67,7 +57,7 @@ At each training iteration, [`pcd!`](@ref) on `RBM`:
   - `vm`: initial fantasy particles.
 - Data handling:
   - `shuffle`: reshuffle data between epochs,
-  - `wts`: optional finite, real, nonnegative sample weights,
+  - `wts`: optional finite, positive sample weights,
   - `moments`: data sufficient statistics (defaults to layer moments from `data`).
 - Regularization:
   - `l2_fields`, `l1_weights`, `l2_weights`, `l2l1_weights`.
@@ -107,9 +97,8 @@ The stdRBM callback is called as:
 
 `callback(; rbm, optim, state, ps, iter, vm, vd, wd, ∂)`
 
-where `wd` are the weights of the current mini-batch (`nothing` if `wts` was not
-given); zero weights do not appear in these mini-batches. Define callbacks with
-a trailing `_...` slurp (e.g.
+where `wd` are the weights of the current mini-batch (lazy uniform `Ones` if
+`wts` was not given). Define callbacks with a trailing `_...` slurp (e.g.
 `callback(; rbm, iter, _...) = ...`) to stay robust if more keywords are added.
 
 ## Practical tuning guidelines

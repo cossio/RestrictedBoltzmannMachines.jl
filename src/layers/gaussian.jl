@@ -53,15 +53,15 @@ function ∂energy_from_moments(layer::Gaussian, moments::AbstractArray)
 end
 
 """
-    moments_from_samples(layer::Gaussian, data; wts = nothing)
+    moments_from_samples(layer::Gaussian, data; [wts])
 
 Two moment slots: `<x>` and `<x^2>`.
 """
-function moments_from_samples(layer::Gaussian, data::AbstractArray; wts = nothing)
+function moments_from_samples(
+        layer::Gaussian, data::AbstractArray;
+        wts::AbstractArray{<:Real} = uniform_weights(layer, data)
+    )
     x1 = batchmean(layer, data; wts)
     x2 = batchmean(layer, data .^ 2; wts)
-    # vcat of reshapes rather than `stack`: for unbatched `data`, x1 can be a
-    # view (batchmean returns `data` itself) while x2 is an Array, and `stack`
-    # over mixed container types does not infer
-    return vcat(reshape(x1, 1, size(x1)...), reshape(x2, 1, size(x2)...))
+    return stack([x1, x2]; dims = 1)
 end

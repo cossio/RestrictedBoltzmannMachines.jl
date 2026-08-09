@@ -64,8 +64,8 @@ function free_energy_h(rbm::OffsetRBM, h::AbstractArray)
     return E + F - ΔE
 end
 
-function ∂interaction_energy(rbm::OffsetRBM, v::AbstractArray, h::AbstractArray; wts = nothing)
-    return ∂interaction_energy(RBM(rbm), standardize_v(rbm, v), standardize_h(rbm, h); wts)
+function ∂interaction_energy(rbm::OffsetRBM, v::AbstractArray, h::AbstractArray; kwargs...)
+    return ∂interaction_energy(RBM(rbm), standardize_v(rbm, v), standardize_h(rbm, h); kwargs...)
 end
 
 function log_pseudolikelihood(rbm::OffsetRBM, v::AbstractArray; kwargs...)

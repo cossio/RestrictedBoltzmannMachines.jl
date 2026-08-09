@@ -2,9 +2,9 @@ module RestrictedBoltzmannMachines
 
 import ChainRulesCore
 import LinearAlgebra
-using Adapt: Adapt, adapt
+using Adapt: Adapt
 using EllipsisNotation: (..)
-using FillArrays: Falses, Zeros, Ones
+using FillArrays: Falses, Zeros, Ones, Trues
 using LinearAlgebra: Diagonal, dot, logdet
 using LogExpFunctions: log1pexp, logaddexp, logistic, logit, logsumexp, softmax
 using Optimisers: AbstractRule, Adam, setup, update!

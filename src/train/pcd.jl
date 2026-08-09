@@ -18,13 +18,14 @@ parameters with an `Optimisers.jl` rule.
 # Keyword arguments
 - `batchsize::Int=1`: number of samples per update.
 - `iters::Int=1`: number of parameter updates.
-- `wts::Union{AbstractVector,Nothing}=nothing`: optional finite, nonnegative
-  per-sample weights. Zero-weight samples are ignored, and at least one weight
-  must be positive.
+- `wts::AbstractVector{<:Real}`: finite, positive per-sample
+  weights, lazy uniform weights by default. Zero or negative weights raise an
+  `ArgumentError` — drop observations meant to be excluded (and their weights)
+  beforehand. Callbacks receive the minibatch weights as `wd`.
 - `steps::Int=1`: Gibbs steps used to update persistent chains each iteration.
 - `optim::AbstractRule=Adam()`: optimizer rule from `Optimisers.jl`.
-- `moments=moments_from_samples(rbm.visible, data; wts)`: data moments used by
-  the positive phase (zero-weight samples contribute nothing).
+- `moments=moments_from_samples(rbm.visible, data; wts)`: data moments used
+  by the positive phase.
 - `l2_fields::Real=0`: L2 regularization on visible fields.
 - `l1_weights::Real=0`: L1 regularization on interaction weights.
 - `l2_weights::Real=0`: L2 regularization on interaction weights.
@@ -34,8 +35,8 @@ parameters with an `Optimisers.jl` rule.
 - `callback=Returns(nothing)`: called after every update as
   `callback(; rbm, optim, state, ps, iter, vd, wd, ∂, vm)`. Slurp unused
   keywords with a trailing `_...`.
-- `vm`: initial fantasy particles. By default, `batchsize` chains sampled from
-  the visible layer with zero inputs.
+- `vm`: initial fantasy particles. By default, `min(batchsize, nsamples)`
+  chains sampled from the visible layer with zero inputs.
 - `shuffle::Bool=true`: whether to reshuffle samples between epochs.
 - `ps`: optimized parameter container. By default, this contains the visible,
   hidden, and interaction parameters.
@@ -48,7 +49,7 @@ function pcd!(
         data::AbstractArray;
         batchsize::Int = 1,
         iters::Int = 1, # number of gradient updates
-        wts::Union{AbstractVector, Nothing} = nothing, # data weights
+        wts::AbstractVector{<:Real} = uniform_weights(rbm.visible, data), # data weights
         steps::Int = 1, # MC steps to update fantasy chains
         optim::AbstractRule = Adam(), # optimizer rule
         moments = moments_from_samples(rbm.visible, data; wts), # sufficient statistics for visible layer
@@ -66,7 +67,7 @@ function pcd!(
         callback = Returns(nothing), # called for every batch
 
         # init fantasy chains
-        vm::AbstractArray = _default_fantasy_chains(rbm, batchsize),
+        vm::AbstractArray = _default_fantasy_chains(rbm, min(batchsize, size(data)[end])),
 
         shuffle::Bool = true,
 
@@ -75,10 +76,15 @@ function pcd!(
         state = setup(optim, ps),
     )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
-    @assert isnothing(wts) || size(data)[end] == length(wts)
     _validate_layer_parameters(rbm)
-
-    data, wts, normalization, batchsize = _prepare_training_data(data, wts; batchsize)
+    batchsize > 0 || throw(ArgumentError("batchsize must be positive"))
+    size(data, ndims(data)) > 0 ||
+        throw(ArgumentError("data must contain at least one sample"))
+    length(wts) == size(data, ndims(data)) ||
+        throw(DimensionMismatch("length(wts) must equal the number of data samples"))
+    _validate_weights(wts)
+    wts_mean = mean(wts)
+    batchsize = min(batchsize, length(wts))
 
     # initial gauge; zerosum! first because rescaling preserves the zero-sum gauge,
     # while zerosum! perturbs weight norms
@@ -86,8 +92,6 @@ function pcd!(
     rescale && rescale_weights!(rbm)
 
     for (iter, (vd, wd)) in zip(1:iters, infinite_minibatches(data, wts; batchsize, shuffle))
-        batch_weight = _batch_weight(wd, normalization)
-
         # positive phase
         ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
 
@@ -95,7 +99,9 @@ function pcd!(
         vm .= sample_v_from_v(rbm, vm; steps)
         ∂m = ∂free_energy(rbm, vm)
 
-        ∂ = (∂d - ∂m) * batch_weight # correct weighted minibatch bias
+        # weighted minibatch bias correction, in the gradient eltype
+        batch_weight = convert(float(real(eltype(∂d.w))), mean(wd) / wts_mean)
+        ∂ = (∂d - ∂m) * batch_weight
 
         # weight decay
         ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum)

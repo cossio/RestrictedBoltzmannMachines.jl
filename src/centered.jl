@@ -184,19 +184,28 @@ function center_hidden!(rbm::CenteredRBM, offset_h::AbstractArray)
     return rbm
 end
 
-function center_visible_from_data!(rbm::CenteredRBM, data::AbstractArray; wts = nothing)
+function center_visible_from_data!(
+        rbm::CenteredRBM, data::AbstractArray;
+        wts::AbstractArray{<:Real} = uniform_weights(rbm.visible, data)
+    )
     offset_v = batchmean(rbm.visible, data; wts)
     return center_visible!(rbm, offset_v)
 end
 
-function center_hidden_from_data!(rbm::CenteredRBM, data::AbstractArray; wts = nothing, damping::Real = 1)
+function center_hidden_from_data!(
+        rbm::CenteredRBM, data::AbstractArray;
+        wts::AbstractArray{<:Real} = uniform_weights(rbm.visible, data), damping::Real = 1
+    )
     h = mean_h_from_v(rbm, data)
     offset_h_new = batchmean(rbm.hidden, h; wts)
     offset_h = (1 - damping) .* rbm.offset_h .+ damping .* offset_h_new
     return center_hidden!(rbm, offset_h)
 end
 
-function center_from_data!(rbm::CenteredRBM, data::AbstractArray; wts = nothing)
+function center_from_data!(
+        rbm::CenteredRBM, data::AbstractArray;
+        wts::AbstractArray{<:Real} = uniform_weights(rbm.visible, data)
+    )
     center_visible_from_data!(rbm, data; wts)
     center_hidden_from_data!(rbm, data; wts)
     return rbm
@@ -250,7 +259,7 @@ function pcd!(
         data::AbstractArray;
         batchsize::Int = 1,
         iters::Int = 1, # number of gradient updates
-        wts::Union{AbstractVector, Nothing} = nothing, # data weights
+        wts::AbstractVector{<:Real} = uniform_weights(rbm.visible, data), # data weights
         steps::Int = 1, # MC steps to update fantasy chains
         optim::AbstractRule = Adam(), # optimizer rule
         moments = moments_from_samples(rbm.visible, data; wts), # sufficient statistics for visible layer
@@ -271,7 +280,7 @@ function pcd!(
         callback = Returns(nothing), # called for every batch
 
         # init fantasy chains
-        vm::AbstractArray = _default_fantasy_chains(rbm, batchsize),
+        vm::AbstractArray = _default_fantasy_chains(rbm, min(batchsize, size(data)[end])),
 
         shuffle::Bool = true,
 
@@ -280,10 +289,15 @@ function pcd!(
         state = setup(optim, ps),
     )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
-    @assert isnothing(wts) || size(data)[end] == length(wts)
     _validate_layer_parameters(rbm)
-
-    data, wts, normalization, batchsize = _prepare_training_data(data, wts; batchsize)
+    batchsize > 0 || throw(ArgumentError("batchsize must be positive"))
+    size(data, ndims(data)) > 0 ||
+        throw(ArgumentError("data must contain at least one sample"))
+    length(wts) == size(data, ndims(data)) ||
+        throw(DimensionMismatch("length(wts) must equal the number of data samples"))
+    _validate_weights(wts)
+    wts_mean = mean(wts)
+    batchsize = min(batchsize, length(wts))
 
     center_from_data!(rbm, data; wts) # initial centering from data
     # initial gauge; zerosum! first because rescaling preserves the zero-sum gauge,
@@ -292,8 +306,6 @@ function pcd!(
     rescale && rescale_weights!(rbm)
 
     for (iter, (vd, wd)) in zip(1:iters, infinite_minibatches(data, wts; batchsize, shuffle))
-        batch_weight = _batch_weight(wd, normalization)
-
         # positive phase
         ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
 
@@ -301,7 +313,9 @@ function pcd!(
         vm .= sample_v_from_v(rbm, vm; steps)
         ∂m = ∂free_energy(rbm, vm)
 
-        ∂ = (∂d - ∂m) * batch_weight # correct weighted minibatch bias
+        # weighted minibatch bias correction, in the gradient eltype
+        batch_weight = convert(float(real(eltype(∂d.w))), mean(wd) / wts_mean)
+        ∂ = (∂d - ∂m) * batch_weight
 
         # weight decay
         ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum)

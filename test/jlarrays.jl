@@ -9,6 +9,8 @@ using Statistics: mean
 using Random: bitrand
 using Adapt: adapt
 using JLArrays: JLArray, JLArrays
+using FillArrays: Trues
+import RestrictedBoltzmannMachines as RBMs
 using RestrictedBoltzmannMachines: RBM, CenteredRBM, StandardizedRBM, ∂RBM, BinaryRBM,
     Binary, Spin, Potts, Gaussian, ReLU, dReLU, pReLU, xReLU, nsReLU, PottsGumbel,
     energy, energies, free_energy, cgfs, ∂cgfs,
@@ -400,7 +402,7 @@ end
     @test all(isfinite, adapt(Array, jl_standardized_rbm.w))
     @test all(isfinite, adapt(Array, free_energy(jl_standardized_rbm, jl_standardized_data)))
 
-    wts = JLArray(vcat(zeros(256), fill(floatmax(Float64), 256)))
+    wts = JLArray(vcat(fill(1.0, 256), fill(2.0, 256)))
     pcd!(
         jl_rbm, jl_data;
         wts, iters = 2, batchsize = 32, steps = 0, shuffle = false,
@@ -418,4 +420,12 @@ end
     jl_v = JLArray(float(bitrand(N..., 4)))
     R = raise(jl_rbm; nbetas = 20, v = jl_v)
     @test all(isfinite, adapt(Array, R))
+end
+
+@testset "wmean full reduction stays on device" begin
+    A = JLArray(rand(Float32, 2, 3))
+    # default lazy uniform weights over all dimensions: the reduction must be a
+    # plain device `sum`, not a mixed CPU/device matmul (scalar indexing)
+    @test RBMs.wmean(A) ≈ mean(adapt(Array, A))
+    @test RBMs.wmean(A; wts = Trues(size(A))) ≈ mean(adapt(Array, A))
 end
