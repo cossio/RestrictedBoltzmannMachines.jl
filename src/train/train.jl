@@ -47,7 +47,7 @@ function _train!(
         throw(DimensionMismatch("length(wts) must equal the number of data samples"))
     _validate_weights(wts)
     wts_mean = mean(wts)
-    batchsize = min(batchsize, length(wts)) # a too-large batchsize clamps to one full batch
+    batchsize = min(batchsize, length(wts))
     setup!(data, wts)
 
     for (iter, (vd, wd)) in zip(1:iters, infinite_minibatches(data, wts; batchsize, shuffle))
