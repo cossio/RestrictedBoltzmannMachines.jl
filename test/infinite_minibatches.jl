@@ -18,7 +18,7 @@ end
     # lazy uniform weights stay lazy under minibatch slicing
     w = Trues(5)
     _, wslice = @inferred getobs(1:2, X, w)
-    @test wslice isa Ones
+    @test wslice isa Trues
     @test wslice == Trues(2)
 end
 
@@ -30,7 +30,7 @@ end
     # lazy uniform weights stay lazy under shuffling
     X, w = shuffleobs(collect(1:10), Trues(10))
     @test sort(X) == collect(1:10)
-    @test w isa Ones
+    @test w isa Trues
 end
 
 @testset "infinite_minibatches" begin
@@ -55,7 +55,7 @@ end
     wts = Trues(10)
     for (i, (x, w)) in zip(1:7, infinite_minibatches(data, wts; batchsize = 4, shuffle = false))
         @test size(x) == (2, 4)
-        @test w isa Ones
+        @test w isa Trues
         @test length(w) == 4
     end
 
