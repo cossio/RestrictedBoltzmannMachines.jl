@@ -11,27 +11,34 @@ The reduced dimensions are inferred from the shape of `wts`, which must match
 the trailing dimensions of `A` (all of `A` for a full reduction, returning a
 scalar). Reduced dimensions are dropped from the result.
 """
+# full reduction: `wts` spans all of `A`
+function wsum(A::AbstractArray{<:Any, N}, wts::AbstractArray{<:Real, N}) where {N}
+    @assert size(wts) == size(A)
+    # `transpose`, not `dot`: the documented sum is `Σ Aᵢwᵢ`, without conjugation
+    return transpose(_asfloat(vec(A))) * _asfloat(vec(wts))
+end
+
+# partial reduction over the trailing dimensions of `A`
 function wsum(A::AbstractArray, wts::AbstractArray{<:Real})
     kept = ndims(A) - ndims(wts)
     @assert size(wts) == size(A)[(kept + 1):end]
-    if kept == 0
-        # `transpose`, not `dot`: the documented sum is `Σ Aᵢwᵢ`, without conjugation
-        return transpose(_asfloat(vec(A))) * _asfloat(vec(wts))
-    else
-        # A matmul-shaped reduction, which never materializes a weighted copy of `A`
-        S = _asfloat(reshape(A, :, length(wts))) * _asfloat(vec(wts))
-        return reshape(S, ntuple(d -> size(A, d), Val(kept)))
-    end
+    # A matmul-shaped reduction, which never materializes a weighted copy of `A`
+    S = _asfloat(reshape(A, :, length(wts))) * _asfloat(vec(wts))
+    return reshape(S, ntuple(d -> size(A, d), Val(kept)))
 end
 
 # Uniform weights reduce as a plain sum: `float` per element accumulates
 # non-float data in float without materializing a converted copy, and the
 # lazy CPU fill would take a scalar-indexing kernel in the mixed matmul
 # when `A` is a GPU array.
+function wsum(A::AbstractArray{<:Any, N}, wts::Ones{<:Real, N}) where {N}
+    @assert size(wts) == size(A)
+    return sum(float, A)
+end
+
 function wsum(A::AbstractArray, wts::Ones{<:Real})
     kept = ndims(A) - ndims(wts)
     @assert size(wts) == size(A)[(kept + 1):end]
-    kept == 0 && return sum(float, A)
     S = sum(float, A; dims = (kept + 1):ndims(A))
     return reshape(S, ntuple(d -> size(A, d), Val(kept)))
 end
