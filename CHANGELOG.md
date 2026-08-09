@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+- The `vm`, `ps`, and `state` keywords of the `pcd!` trainers now compute their
+  defaults directly in the signature instead of using `nothing` as a sentinel.
+  Passing `nothing` explicitly for these keywords is no longer supported; omit
+  the keyword to get the default.
+
 ## 6.2.0
 
 - Layer conditional statistics are now organized around moments arrays. The new

@@ -34,13 +34,12 @@ parameters with an `Optimisers.jl` rule.
 - `callback=Returns(nothing)`: called after every update as
   `callback(; rbm, optim, state, ps, iter, vd, wd, ∂, vm)`. Slurp unused
   keywords with a trailing `_...`.
-- `vm=nothing`: initial fantasy particles. By default, these are sampled after
-  validating the model's pReLU parameters.
+- `vm`: initial fantasy particles. By default, `batchsize` chains sampled from
+  the visible layer with zero inputs.
 - `shuffle::Bool=true`: whether to reshuffle samples between epochs.
-- `ps=nothing`: optimized parameter container. By default, this contains the
-  visible, hidden, and interaction parameters.
-- `state=nothing`: optimizer state. By default, this is initialized after
-  validating the model's pReLU parameters.
+- `ps`: optimized parameter container. By default, this contains the visible,
+  hidden, and interaction parameters.
+- `state=setup(optim, ps)`: optimizer state.
 
 Returns `(state, ps)`.
 """
@@ -67,20 +66,17 @@ function pcd!(
         callback = Returns(nothing), # called for every batch
 
         # init fantasy chains
-        vm = nothing,
+        vm::AbstractArray = _default_fantasy_chains(rbm, batchsize),
 
         shuffle::Bool = true,
 
         # parameters to optimize
-        ps = nothing,
-        state = nothing,
+        ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w),
+        state = setup(optim, ps),
     )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert isnothing(wts) || size(data)[end] == length(wts)
     _validate_layer_parameters(rbm)
-    isnothing(vm) && (vm = _default_fantasy_chains(rbm, batchsize))
-    isnothing(ps) && (ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w))
-    isnothing(state) && (state = setup(optim, ps))
 
     data, wts, normalization, batchsize = _prepare_training_data(data, wts; batchsize)
 

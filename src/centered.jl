@@ -271,20 +271,17 @@ function pcd!(
         callback = Returns(nothing), # called for every batch
 
         # init fantasy chains
-        vm = nothing,
+        vm::AbstractArray = _default_fantasy_chains(rbm, batchsize),
 
         shuffle::Bool = true,
 
         # parameters to optimize
-        ps = nothing,
-        state = nothing,
+        ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w),
+        state = setup(optim, ps),
     )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert isnothing(wts) || size(data)[end] == length(wts)
     _validate_layer_parameters(rbm)
-    isnothing(vm) && (vm = _default_fantasy_chains(rbm, batchsize))
-    isnothing(ps) && (ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w))
-    isnothing(state) && (state = setup(optim, ps))
 
     data, wts, normalization, batchsize = _prepare_training_data(data, wts; batchsize)
 
