@@ -21,7 +21,7 @@ function energy(layer::_FieldLayers, x::AbstractArray)
     end
 end
 
-function moments_from_inputs(layer::_FieldLayers, inputs = 0)
+function moments_from_inputs(layer::_FieldLayers, inputs::AbstractArray = Falses(size(layer)))
     x1 = mean_from_inputs(layer, inputs)
     return stack([x1]; dims = 1)
 end
@@ -145,7 +145,7 @@ function moments_from_samples(
     return stack([xp1, xn1, xp2, xn2]; dims = 1)
 end
 
-function moments_from_inputs(layer::Union{pReLU, xReLU, nsReLU}, inputs = 0)
+function moments_from_inputs(layer::Union{pReLU, xReLU, nsReLU}, inputs::AbstractArray = Falses(size(layer)))
     return moments_from_inputs(dReLU(layer), inputs)
 end
 
