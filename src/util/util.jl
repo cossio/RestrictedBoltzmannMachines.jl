@@ -27,10 +27,7 @@ function wsum(A::AbstractArray, wts::AbstractArray{<:Real})
     return reshape(S, ntuple(d -> size(A, d), Val(kept)))
 end
 
-# Uniform weights reduce as a plain sum: `float` per element accumulates
-# non-float data in float without materializing a converted copy, and the
-# lazy CPU fill would take a scalar-indexing kernel in the mixed matmul
-# when `A` is a GPU array.
+# uniform weights reduce as a plain sum
 function wsum(A::AbstractArray{<:Any, N}, wts::Ones{<:Real, N}) where {N}
     @assert size(wts) == size(A)
     return sum(float, A)
