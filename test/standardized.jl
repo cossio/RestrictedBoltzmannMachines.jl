@@ -270,18 +270,9 @@ end
             0 0 0 0
         ], 3, 1, 4
     )
-    weighted_binary_data = Bool[
-        0 0 1 1
-        0 1 0 1
-    ]
-    weighted_potts_data = reshape(
-        Bool[
-            1 0 0 0
-            0 1 0 0
-            0 0 1 1
-        ], 3, 1, 4
-    )
-
+    # uniform weights of any scale must reproduce the unweighted statistics
+    # exactly, since weights are never rescaled and always cancel in the
+    # weighted means and variances
     for (
             data_binary, data_potts, wts,
             binary_offset, binary_scale, potts_offset, potts_scale,
@@ -296,9 +287,9 @@ end
                 reshape([0.5, 0.5, 1.0], 3, 1),
             ),
             (
-                weighted_binary_data,
-                weighted_potts_data,
-                [1.0, 1.0, 0.0, 0.0],
+                binary_data,
+                potts_data,
+                fill(2.0, 4),
                 [0.0, 0.5],
                 [1.0, 0.5],
                 reshape([0.5, 0.5, 0.0], 3, 1),
