@@ -66,7 +66,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ## 6.0.0
 
-- **Breaking**: the minimum supported Julia version is now 1.11 (was 1.10). This
+- The minimum supported Julia version is now 1.11 (was 1.10). This
   enables `public` declarations that mark the supported API explicitly.
 - The supported public API is now declared with `public` (the package still
   exports nothing). Only names marked `public` carry the compatibility
