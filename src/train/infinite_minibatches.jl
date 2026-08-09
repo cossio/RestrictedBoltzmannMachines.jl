@@ -56,6 +56,8 @@ function _prepare_training_data(
         batchsize::Int,
     )
     batchsize > 0 || throw(ArgumentError("batchsize must be positive"))
+    size(data, ndims(data)) > 0 ||
+        throw(ArgumentError("data must contain at least one sample"))
     length(wts) == size(data, ndims(data)) ||
         throw(DimensionMismatch("length(wts) must equal the number of data samples"))
     _validate_weights(wts)

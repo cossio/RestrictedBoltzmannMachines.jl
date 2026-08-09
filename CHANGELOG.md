@@ -18,8 +18,8 @@ All notable changes to this project will be documented in this file. The format 
     receive the minibatch weights as before.
   - Weights are validated once per training run: they must be finite,
     positive reals, and anything else (including zero weights) raises an
-    `ArgumentError` before any mutation. `initialize!` applies the same
-    validation. Zero-weight samples are thus rejected rather than silently
+    `ArgumentError` before any mutation; the data must contain at least one
+    sample. `initialize!` applies the same validation. Zero-weight samples are thus rejected rather than silently
     dropped — removing observations meant to be excluded (and their weights)
     beforehand is the caller's responsibility. Valid weights are used exactly
     as given: they are never rescaled (the per-iteration Float64

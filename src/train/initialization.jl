@@ -25,6 +25,8 @@ function initialize!(
     )
     @assert 0 < ϵ < 1 / 2
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
+    size(data, ndims(data)) > 0 ||
+        throw(ArgumentError("data must contain at least one sample"))
     length(wts) == size(data, ndims(data)) ||
         throw(DimensionMismatch("length(wts) must equal the number of data samples"))
     _validate_weights(wts)
@@ -174,10 +176,10 @@ function initialize_w!(
     )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert length(wts) == size(data)[end]
-    x = reshape(data, length(rbm.visible), size(data)[end])
-    # dividing `x` first floats the accumulator, so narrow integer data
-    # (e.g. Int8 spins) cannot overflow the dot product
-    d = dot(x .* reshape(wts, 1, :), x / sum(wts))
+    # float the operands (a no-op for float arrays): narrow integer data or
+    # weights (e.g. Int8 spins) would wrap in the products otherwise
+    x = _asfloat(reshape(data, length(rbm.visible), size(data)[end]))
+    d = dot(x .* reshape(_asfloat(wts), 1, :), x / sum(wts))
     randn!(rbm.w)
     rbm.w .*= λ / √(d + ϵ)
     return rbm # does not impose zerosum

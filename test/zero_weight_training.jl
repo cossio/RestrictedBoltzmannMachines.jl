@@ -131,6 +131,11 @@ end
     @test_throws ArgumentError RBMs._prepare_training_data(
         zeros(1, 2), Ones{ComplexF64}(2); batchsize = 1
     )
+
+    # empty data is rejected before the weighted means can divide by zero
+    @test_throws ArgumentError RBMs._prepare_training_data(
+        zeros(2, 0), Ones{Bool}(0); batchsize = 1
+    )
 end
 
 @testset "explicitly passed moments are used as given" begin
@@ -169,6 +174,22 @@ end
     @test_throws ArgumentError initialize!(base_rbm(), data; wts = [1.0, NaN, 1.0])
     # undersized weights are rejected instead of silently truncating the data
     @test_throws DimensionMismatch initialize!(base_rbm(), data; wts = [1.0, 1.0])
+
+    # empty data fails before mutating parameters to NaN
+    empty_rbm = base_rbm()
+    before = model_state(empty_rbm)
+    @test_throws ArgumentError initialize!(empty_rbm, zeros(2, 0))
+    @test model_state(empty_rbm) == before
+
+    # narrow integer data and weights are floated before the reductions
+    int8_rbm = base_rbm()
+    seed!(404)
+    RBMs.initialize_w!(int8_rbm, reshape(Int8[2, 2], 2, 1); wts = Int8[100])
+    float_rbm = base_rbm()
+    seed!(404)
+    RBMs.initialize_w!(float_rbm, reshape([2.0, 2.0], 2, 1); wts = [100.0])
+    @test int8_rbm.w == float_rbm.w
+    @test all(isfinite, int8_rbm.w)
 end
 
 @testset "∂free_energy with zero weights on finite samples" begin
