@@ -27,15 +27,9 @@ The usual training workflow is:
 ## Weighted data
 
 Plain, centered, and standardized [`pcd!`](@ref) accept optional per-sample
-weights through `wts`. Weights must be finite, real,
-and nonnegative, and at least one weight must be positive.
-
-Observations are used exactly as given: zero-weight observations are not
-removed. They contribute zero to weighted averages, but they still occupy
-mini-batch slots and advance persistent chains. In particular, a mini-batch
-consisting entirely of zero-weight observations has zero total weight and
-produces a `NaN` update. If you want zero-weight observations excluded, drop
-them (and their weights) before calling [`pcd!`](@ref).
+weights through `wts`. Weights must be finite, positive reals: zero or
+negative weights raise an `ArgumentError`. Observations meant to be excluded
+must be dropped (with their weights) before calling [`pcd!`](@ref).
 
 The `iters` argument always counts completed parameter updates, and callbacks
 receive consecutive `iter` values from `1` through `iters`.
@@ -63,7 +57,7 @@ At each training iteration, [`pcd!`](@ref) on `RBM`:
   - `vm`: initial fantasy particles.
 - Data handling:
   - `shuffle`: reshuffle data between epochs,
-  - `wts`: optional finite, real, nonnegative sample weights,
+  - `wts`: optional finite, positive sample weights,
   - `moments`: data sufficient statistics (defaults to layer moments from `data`).
 - Regularization:
   - `l2_fields`, `l1_weights`, `l2_weights`, `l2l1_weights`.

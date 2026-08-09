@@ -16,18 +16,18 @@ All notable changes to this project will be documented in this file. The format 
   - `pcd!` callbacks receive lazy uniform `Ones` weight slices as `wd` for
     unweighted training (previously `nothing`); weighted training callbacks
     receive the minibatch weights as before.
-  - Weights are validated once per training run (finite, real, nonnegative,
-    at least one positive), raising `ArgumentError` before any mutation, and
-    `initialize!` applies the same validation. Weights are otherwise used
-    exactly as given: they are never rescaled (the per-iteration Float64
-    normalization is removed without replacement), and zero-weight samples
-    are no longer dropped — they contribute zero to weighted averages but
-    still occupy minibatch slots; removing them beforehand is the caller's
-    responsibility. Extreme weights (near `floatmax`, or needing
-    wider-than-`Float64` accumulation) can now overflow; ordinary weights
-    are unaffected. Internal helpers such as `wmean` and `∂free_energy` are
-    plain weighted reductions that do not mask non-finite data attached to
-    zero-weight samples.
+  - Weights are validated once per training run: they must be finite,
+    positive reals, and anything else (including zero weights) raises an
+    `ArgumentError` before any mutation. `initialize!` applies the same
+    validation. Zero-weight samples are thus rejected rather than silently
+    dropped — removing observations meant to be excluded (and their weights)
+    beforehand is the caller's responsibility. Valid weights are used exactly
+    as given: they are never rescaled (the per-iteration Float64
+    normalization is removed without replacement), so extreme weights (near
+    `floatmax`, or needing wider-than-`Float64` accumulation) can now
+    overflow; ordinary weights are unaffected. Internal helpers such as
+    `wmean` and `∂free_energy` remain plain weighted reductions that do not
+    validate.
   - Unweighted training with `batchsize` larger than the number of samples now
     clamps the batchsize (as weighted training already did) instead of
     silently performing zero iterations.

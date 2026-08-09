@@ -44,10 +44,11 @@ function infinite_minibatches(ds::AbstractArray...; batchsize::Int, shuffle::Boo
     return InfiniteMinibatchIterator(ds, batchsize, shuffle)
 end
 
-#= Per-run weight checks. Weights are used as given: they are not rescaled
-(extreme finite weights can overflow the plain reductions), and zero-weight
-observations are not removed — dropping them beforehand is the caller's
-responsibility. Returns the mean weight (used to bias-correct minibatch
+#= Per-run weight checks. Weights must be finite, positive reals: zero
+weights are rejected, so observations meant to be excluded must be dropped
+(with their weights) before training. Weights are otherwise used as given —
+they are not rescaled (extreme finite weights can overflow the plain
+reductions). Returns the mean weight (used to bias-correct minibatch
 gradients) and the batchsize clamped to the number of samples. =#
 function _prepare_training_data(
         data::AbstractArray,
@@ -61,20 +62,14 @@ function _prepare_training_data(
     return mean(wts), min(batchsize, length(wts))
 end
 
-# Nonempty real-valued lazy uniform weights are trivially valid; anything else
-# (including complex-valued `Ones`) goes through the elementwise checks. Empty
-# weights have no positive weight, whatever their type.
-function _validate_weights(wts::Ones{<:Real})
-    isempty(wts) &&
-        throw(ArgumentError("wts must contain at least one positive weight"))
-    return wts
-end
+# Real-valued lazy uniform weights are trivially valid (unit weights are
+# positive); anything else (including complex-valued `Ones`) goes through the
+# elementwise checks.
+_validate_weights(wts::Ones{<:Real}) = wts
 
 function _validate_weights(wts::AbstractArray)
-    all(w -> w isa Real && isfinite(w) && w ≥ 0, wts) ||
-        throw(ArgumentError("wts must contain only finite, nonnegative real values"))
-    any(w -> !iszero(w), wts) ||
-        throw(ArgumentError("wts must contain at least one positive weight"))
+    all(w -> w isa Real && isfinite(w) && w > 0, wts) ||
+        throw(ArgumentError("wts must contain only finite, positive real values"))
     return wts
 end
 

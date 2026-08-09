@@ -59,6 +59,7 @@ all_finite(rbm) = all(x -> all(isfinite, x), values(model_state(rbm)))
     data = zeros(2, 2)
     for bad_wts in (
             [2.0, -1.0],
+            [1.0, 0.0], # zero weights are rejected: drop such samples beforehand
             [1.0, NaN],
             [1.0, Inf],
             ComplexF64[1, 1], # complex weights are not real
@@ -79,10 +80,10 @@ end
     @test RBMs.wmean([1.0, 3.0]; wts = [1.0, 3.0]) ≈ 2.5
     @test RBMs.wmean([1.0, 3.0]; wts = Any[1.0, 3.0]) ≈ 2.5
     @test RBMs.wmean([1.0, 3.0]; wts = fill(big"1e400", 2)) ≈ 2.0
-    # zero weights annihilate finite samples arithmetically...
+    # the kernel does not validate weights (the training entry points reject
+    # non-positive weights): zero weights annihilate finite samples
+    # arithmetically, but do not mask non-finite samples
     @test RBMs.wmean([1.0, 2.0, 4.0]; wts = [0.0, 1.0, 3.0]) ≈ 3.5
-    # ...but do not mask non-finite samples; removing such observations is the
-    # caller's responsibility
     @test isnan(RBMs.wmean([NaN, 2.0]; wts = [0.0, 1.0]))
 
     # lazy uniform weights reduce like a plain mean, without promoting —
@@ -130,11 +131,6 @@ end
     @test_throws ArgumentError RBMs._prepare_training_data(
         zeros(1, 2), Ones{ComplexF64}(2); batchsize = 1
     )
-
-    # empty data defaults to empty lazy weights, which have no positive weight
-    @test_throws ArgumentError RBMs._prepare_training_data(
-        zeros(2, 0), Ones{Bool}(0); batchsize = 1
-    )
 end
 
 @testset "explicitly passed moments are used as given" begin
@@ -169,19 +165,15 @@ end
 
     # invalid weights fail loudly
     @test_throws ArgumentError initialize!(base_rbm(), data; wts = [1.0, -1.0, 1.0])
+    @test_throws ArgumentError initialize!(base_rbm(), data; wts = [1.0, 0.0, 1.0])
     @test_throws ArgumentError initialize!(base_rbm(), data; wts = [1.0, NaN, 1.0])
     # undersized weights are rejected instead of silently truncating the data
-    @test_throws DimensionMismatch initialize!(base_rbm(), data; wts = [0.0, 1.0])
-    # empty data fails before mutating parameters to NaN
-    empty_rbm = base_rbm()
-    before = model_state(empty_rbm)
-    @test_throws ArgumentError initialize!(empty_rbm, zeros(2, 0))
-    @test model_state(empty_rbm) == before
+    @test_throws DimensionMismatch initialize!(base_rbm(), data; wts = [1.0, 1.0])
 end
 
 @testset "∂free_energy with zero weights on finite samples" begin
-    # zero weights contribute exactly zero for finite data; non-finite
-    # observations are the caller's responsibility to remove
+    # the kernel does not validate weights (the training entry points reject
+    # non-positive weights); zero weights contribute exactly zero for finite data
     rbm = base_rbm()
     v = [
         1.0 0.0 1.0

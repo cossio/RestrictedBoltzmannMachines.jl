@@ -13,10 +13,10 @@ parameters with an `Optimisers.jl` rule.
 # Keyword arguments
 - `batchsize::Int=1`: number of samples per update.
 - `iters::Int=1`: number of parameter updates.
-- `wts::AbstractVector=Ones{Bool}(nsamples)`: finite, nonnegative per-sample
-  weights, lazy uniform weights by default; at least one weight must be
-  positive. Zero-weight observations are not removed — drop them beforehand
-  if that is intended. Callbacks receive the minibatch weights as `wd`.
+- `wts::AbstractVector=Ones{Bool}(nsamples)`: finite, positive per-sample
+  weights, lazy uniform weights by default. Zero or negative weights raise an
+  `ArgumentError` — drop observations meant to be excluded (and their weights)
+  beforehand. Callbacks receive the minibatch weights as `wd`.
 - `steps::Int=1`: Gibbs steps used to update persistent chains each iteration.
 - `optim::AbstractRule=Adam()`: optimizer rule from `Optimisers.jl`.
 - `moments=moments_from_samples(rbm.visible, data; wts)`: data moments used
