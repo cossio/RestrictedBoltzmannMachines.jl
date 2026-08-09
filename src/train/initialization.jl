@@ -174,10 +174,8 @@ function initialize_w!(
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert length(wts) == size(data)[end]
     _validate_weights(wts)
-    # float the operands (a no-op for float arrays): narrow integer data or
-    # weights (e.g. Int8 spins) would wrap in the products otherwise
-    x = _asfloat(reshape(data, length(rbm.visible), size(data)[end]))
-    d = dot(x .* reshape(_asfloat(wts), 1, :), x / sum(wts))
+    x = reshape(data, length(rbm.visible), size(data)[end])
+    d = dot(x .* reshape(wts, 1, :), x / sum(wts))
     randn!(rbm.w)
     rbm.w .*= λ / √(d + ϵ)
     return rbm # does not impose zerosum

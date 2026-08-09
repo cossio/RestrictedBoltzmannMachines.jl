@@ -96,9 +96,6 @@ function pcd!(
     rescale && rescale_weights!(rbm)
 
     for (iter, (vd, wd)) in zip(1:iters, infinite_minibatches(data, wts; batchsize, shuffle))
-        # bias correction for the weighted minibatch, in the weights' own precision
-        batch_weight = mean(wd) / wts_mean
-
         # positive phase
         ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
 
@@ -106,10 +103,9 @@ function pcd!(
         vm .= sample_v_from_v(rbm, vm; steps)
         ∂m = ∂free_energy(rbm, vm)
 
-        # Correct the weighted minibatch bias, in the gradient eltype so the
-        # correction scalar cannot promote narrow parameters. The correction
-        # is at most the number of samples, so it cannot overflow Float32.
-        ∂ = (∂d - ∂m) * convert(float(real(eltype(∂d.w))), batch_weight)
+        # weighted minibatch bias correction, in the gradient eltype
+        batch_weight = convert(float(real(eltype(∂d.w))), mean(wd) / wts_mean)
+        ∂ = (∂d - ∂m) * batch_weight
 
         # weight decay
         ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum)

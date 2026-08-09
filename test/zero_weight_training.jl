@@ -192,10 +192,10 @@ end
     @test_throws AssertionError initialize!(empty_rbm, zeros(2, 0))
     @test model_state(empty_rbm) == before
 
-    # narrow integer data and weights are floated before the reductions
+    # narrow integer data promotes in the weighted products
     int8_rbm = base_rbm()
     seed!(404)
-    RBMs.initialize_w!(int8_rbm, reshape(Int8[2, 2], 2, 1); wts = Int8[100])
+    RBMs.initialize_w!(int8_rbm, reshape(Int8[2, 2], 2, 1); wts = [100.0])
     float_rbm = base_rbm()
     seed!(404)
     RBMs.initialize_w!(float_rbm, reshape([2.0, 2.0], 2, 1); wts = [100.0])
