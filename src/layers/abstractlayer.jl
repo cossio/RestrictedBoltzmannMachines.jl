@@ -156,14 +156,12 @@ end
 """
     batch_size(layer, x)
 
-Batch sizes of `x`, with respect to `layer`. A scalar `x` broadcasts over the
-layer and has no batch dimensions.
+Batch sizes of `x`, with respect to `layer`.
 """
 function batch_size(layer::AbstractLayer, x::AbstractArray)
     @assert size(layer) == size(x)[1:ndims(layer)]
     return size(x)[batchdims(layer, x)]
 end
-batch_size(::AbstractLayer, ::Number) = ()
 
 """
     uniform_weights(layer, x)
