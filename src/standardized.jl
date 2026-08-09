@@ -294,7 +294,7 @@ function pcd!(
         shuffle::Bool = true,
 
         iters::Int = 1, # number of gradient updates
-        wts::AbstractVector = Trues(size(data, ndims(data))), # data weights
+        wts::AbstractVector = uniform_weights(rbm.visible, data), # data weights
 
         steps::Int = 1,
         vm::Union{AbstractArray, Nothing} = nothing,

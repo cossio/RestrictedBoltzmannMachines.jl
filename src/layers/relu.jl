@@ -20,26 +20,26 @@ function energies(layer::ReLU, x::AbstractArray)
     return relu_energy.(layer.θ, layer.γ, x)
 end
 
-cgfs(layer::ReLU, inputs = 0) = relu_cgf.(layer.θ .+ inputs, layer.γ)
-sample_from_inputs(layer::ReLU, inputs = 0) = relu_rand.(layer.θ .+ inputs, layer.γ)
-mode_from_inputs(layer::ReLU, inputs = 0) = max.((layer.θ .+ inputs) ./ abs.(layer.γ), 0)
-mean_abs_from_inputs(layer::ReLU, inputs = 0) = mean_from_inputs(layer, inputs)
+cgfs(layer::ReLU, inputs::AbstractArray = Falses(size(layer))) = relu_cgf.(layer.θ .+ inputs, layer.γ)
+sample_from_inputs(layer::ReLU, inputs::AbstractArray = Falses(size(layer))) = relu_rand.(layer.θ .+ inputs, layer.γ)
+mode_from_inputs(layer::ReLU, inputs::AbstractArray = Falses(size(layer))) = max.((layer.θ .+ inputs) ./ abs.(layer.γ), 0)
+mean_abs_from_inputs(layer::ReLU, inputs::AbstractArray = Falses(size(layer))) = mean_from_inputs(layer, inputs)
 
-function mean_from_inputs(layer::ReLU, inputs = 0)
+function mean_from_inputs(layer::ReLU, inputs::AbstractArray = Falses(size(layer)))
     g = Gaussian(layer.par)
     μ = mean_from_inputs(g, inputs)
     σ = sqrt.(var_from_inputs(g, inputs))
     return @. μ + σ * tnmean(-μ / σ)
 end
 
-function var_from_inputs(layer::ReLU, inputs = 0)
+function var_from_inputs(layer::ReLU, inputs::AbstractArray = Falses(size(layer)))
     g = Gaussian(layer.par)
     μ = mean_from_inputs(g, inputs)
     ν = var_from_inputs(g, inputs)
     return @. ν * tnvar(-μ / √ν)
 end
 
-function meanvar_from_inputs(layer::ReLU, inputs = 0)
+function meanvar_from_inputs(layer::ReLU, inputs::AbstractArray = Falses(size(layer)))
     g = Gaussian(layer.par)
     μ = mean_from_inputs(g, inputs)
     ν = var_from_inputs(g, inputs)
@@ -48,7 +48,7 @@ function meanvar_from_inputs(layer::ReLU, inputs = 0)
     return μ + σ .* tμ, ν .* tν
 end
 
-function moments_from_inputs(layer::ReLU, inputs = 0)
+function moments_from_inputs(layer::ReLU, inputs::AbstractArray = Falses(size(layer)))
     μ, ν = meanvar_from_inputs(layer, inputs)
     return stack([μ, ν .+ μ .^ 2]; dims = 1)
 end
@@ -58,7 +58,7 @@ function ∂energy_from_moments(layer::ReLU, moments::AbstractArray)
 end
 
 """
-    moments_from_samples(layer::ReLU, data; wts = uniform_weights(layer, data))
+    moments_from_samples(layer::ReLU, data; [wts])
 
 Two moment slots: `<x>` and `<x^2>` (same as `Gaussian`).
 """

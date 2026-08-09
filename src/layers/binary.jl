@@ -5,14 +5,14 @@ Layer with binary units, with external fields `θ`.
 """
 @declare_layer Binary (θ = zeros,)
 
-cgfs(layer::Binary, inputs = 0) = log1pexp.(layer.θ .+ inputs)
-mode_from_inputs(layer::Binary, inputs = 0) = layer.θ .+ inputs .> 0
-mean_from_inputs(layer::Binary, inputs = 0) = logistic.(layer.θ .+ inputs)
-mean_abs_from_inputs(layer::Binary, inputs = 0) = mean_from_inputs(layer, inputs)
-var_from_inputs(layer::Binary, inputs = 0) = binary_var.(layer.θ .+ inputs)
-std_from_inputs(layer::Binary, inputs = 0) = binary_std.(layer.θ .+ inputs)
+cgfs(layer::Binary, inputs::AbstractArray = Falses(size(layer))) = log1pexp.(layer.θ .+ inputs)
+mode_from_inputs(layer::Binary, inputs::AbstractArray = Falses(size(layer))) = layer.θ .+ inputs .> 0
+mean_from_inputs(layer::Binary, inputs::AbstractArray = Falses(size(layer))) = logistic.(layer.θ .+ inputs)
+mean_abs_from_inputs(layer::Binary, inputs::AbstractArray = Falses(size(layer))) = mean_from_inputs(layer, inputs)
+var_from_inputs(layer::Binary, inputs::AbstractArray = Falses(size(layer))) = binary_var.(layer.θ .+ inputs)
+std_from_inputs(layer::Binary, inputs::AbstractArray = Falses(size(layer))) = binary_std.(layer.θ .+ inputs)
 
-function meanvar_from_inputs(layer::Binary, inputs = 0)
+function meanvar_from_inputs(layer::Binary, inputs::AbstractArray = Falses(size(layer)))
     θ = layer.θ .+ inputs
     t = @. exp(-abs(θ))
     μ = @. ifelse(θ ≥ 0, 1 / (1 + t), t / (1 + t))
@@ -20,7 +20,7 @@ function meanvar_from_inputs(layer::Binary, inputs = 0)
     return μ, ν
 end
 
-function sample_from_inputs(layer::Binary, inputs = 0)
+function sample_from_inputs(layer::Binary, inputs::AbstractArray = Falses(size(layer)))
     θ = layer.θ .+ inputs
     u = rand!(similar(θ))
     return binary_rand.(θ, u)

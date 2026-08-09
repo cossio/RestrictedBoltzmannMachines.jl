@@ -20,13 +20,13 @@ corresponding unit. This is the `xReLU` potential with ``\gamma = 1``.
 @declare_layer nsReLU (θ = zeros, Δ = zeros, ξ = zeros) # there is no γ
 
 energies(layer::nsReLU, x::AbstractArray) = energies(xReLU(layer), x)
-cgfs(layer::nsReLU, inputs = 0) = cgfs(xReLU(layer), inputs)
-sample_from_inputs(layer::nsReLU, inputs = 0) = sample_from_inputs(xReLU(layer), inputs)
-mode_from_inputs(layer::nsReLU, inputs = 0) = mode_from_inputs(xReLU(layer), inputs)
-mean_from_inputs(layer::nsReLU, inputs = 0) = mean_from_inputs(xReLU(layer), inputs)
-var_from_inputs(layer::nsReLU, inputs = 0) = var_from_inputs(xReLU(layer), inputs)
-meanvar_from_inputs(layer::nsReLU, inputs = 0) = meanvar_from_inputs(xReLU(layer), inputs)
-mean_abs_from_inputs(layer::nsReLU, inputs = 0) = mean_abs_from_inputs(xReLU(layer), inputs)
+cgfs(layer::nsReLU, inputs::AbstractArray = Falses(size(layer))) = cgfs(xReLU(layer), inputs)
+sample_from_inputs(layer::nsReLU, inputs::AbstractArray = Falses(size(layer))) = sample_from_inputs(xReLU(layer), inputs)
+mode_from_inputs(layer::nsReLU, inputs::AbstractArray = Falses(size(layer))) = mode_from_inputs(xReLU(layer), inputs)
+mean_from_inputs(layer::nsReLU, inputs::AbstractArray = Falses(size(layer))) = mean_from_inputs(xReLU(layer), inputs)
+var_from_inputs(layer::nsReLU, inputs::AbstractArray = Falses(size(layer))) = var_from_inputs(xReLU(layer), inputs)
+meanvar_from_inputs(layer::nsReLU, inputs::AbstractArray = Falses(size(layer))) = meanvar_from_inputs(xReLU(layer), inputs)
+mean_abs_from_inputs(layer::nsReLU, inputs::AbstractArray = Falses(size(layer))) = mean_abs_from_inputs(xReLU(layer), inputs)
 
 function ∂energy_from_moments(layer::nsReLU, moments::AbstractArray)
     @assert ntuple(d -> size(moments, d), ndims(layer) + 1) == (4, size(layer)...)

@@ -177,12 +177,12 @@ end
     @test_throws ArgumentError initialize!(RBMs.Gaussian((2,)), data; wts = [1.0, -1.0, 1.0])
     @test_throws ArgumentError RBMs.initialize_w!(base_rbm(), data; wts = [1.0, NaN, 1.0])
     # undersized weights are rejected instead of silently truncating the data
-    @test_throws DimensionMismatch initialize!(base_rbm(), data; wts = [1.0, 1.0])
+    @test_throws AssertionError initialize!(base_rbm(), data; wts = [1.0, 1.0])
 
     # empty data fails before mutating parameters to NaN
     empty_rbm = base_rbm()
     before = model_state(empty_rbm)
-    @test_throws ArgumentError initialize!(empty_rbm, zeros(2, 0))
+    @test_throws AssertionError initialize!(empty_rbm, zeros(2, 0))
     @test model_state(empty_rbm) == before
 
     # narrow integer data and weights are floated before the reductions

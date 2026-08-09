@@ -45,7 +45,7 @@ function pcd!(
         data::AbstractArray;
         batchsize::Int = 1,
         iters::Int = 1, # number of gradient updates
-        wts::AbstractVector = Trues(size(data, ndims(data))), # data weights
+        wts::AbstractVector = uniform_weights(rbm.visible, data), # data weights
         steps::Int = 1, # MC steps to update fantasy chains
         optim::AbstractRule = Adam(), # optimizer rule
         moments = moments_from_samples(rbm.visible, data; wts), # sufficient statistics for visible layer
