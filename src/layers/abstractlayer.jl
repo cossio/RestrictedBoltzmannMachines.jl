@@ -219,7 +219,6 @@ function batchcov(
         mean::AbstractArray = batchmean(layer, x; wts)
     )
     @assert size(wts) == batch_size(layer, x)
-    # reshape into a matrix even for unbatched `x`, where `flatten` gives a vector
     ξ = reshape(flatten(layer, x .- mean), length(layer), :)
     C = _weighted_outer(ξ, wts, ξ) / sum(wts)
     return reshape(C, size(layer)..., size(layer)...)
