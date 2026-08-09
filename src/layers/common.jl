@@ -40,7 +40,7 @@ One moment slot: `<x>`.
 """
 function moments_from_samples(
         layer::_FieldLayers, data::AbstractArray;
-        wts::AbstractArray = uniform_weights(layer, data)
+        wts::AbstractArray{<:Real} = uniform_weights(layer, data)
     )
     x1 = batchmean(layer, data; wts)
     return stack([x1]; dims = 1)
@@ -133,7 +133,7 @@ and `xn = min(x, 0)`.
 """
 function moments_from_samples(
         layer::Union{dReLU, pReLU, xReLU, nsReLU}, data::AbstractArray;
-        wts::AbstractArray = uniform_weights(layer, data)
+        wts::AbstractArray{<:Real} = uniform_weights(layer, data)
     )
     xp = max.(data, false)
     xn = min.(data, false)

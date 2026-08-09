@@ -59,7 +59,7 @@ Two moment slots: `<x>` and `<x^2>`.
 """
 function moments_from_samples(
         layer::Gaussian, data::AbstractArray;
-        wts::AbstractArray = uniform_weights(layer, data)
+        wts::AbstractArray{<:Real} = uniform_weights(layer, data)
     )
     x1 = batchmean(layer, data; wts)
     x2 = batchmean(layer, data .^ 2; wts)

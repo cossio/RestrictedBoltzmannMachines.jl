@@ -11,7 +11,7 @@ The reduced dimensions are inferred from the shape of `wts`, which must match
 the trailing dimensions of `A` (all of `A` for a full reduction, returning a
 scalar). Reduced dimensions are dropped from the result.
 """
-function wsum(A::AbstractArray, wts::AbstractArray)
+function wsum(A::AbstractArray, wts::AbstractArray{<:Real})
     kept = ndims(A) - ndims(wts)
     @assert kept ≥ 0
     @assert size(wts) == ntuple(i -> size(A, kept + i), ndims(wts))
@@ -51,7 +51,7 @@ _asfloat(A::Trues) = A
 # `A * Diagonal(vec(wts)) * B'`, the weighted outer product `Σᵢ wᵢ A[:,i] B[:,i]'`.
 # Uniform `Ones` weights reduce to the plain product: `Diagonal` of a lazy CPU
 # fill takes a scalar-indexing kernel when the factors are GPU arrays.
-_weighted_outer(A::AbstractMatrix, wts::AbstractArray, B::AbstractMatrix) =
+_weighted_outer(A::AbstractMatrix, wts::AbstractArray{<:Real}, B::AbstractMatrix) =
     A * Diagonal(_asfloat(vec(wts))) * B'
 _weighted_outer(A::AbstractMatrix, ::Ones{<:Real}, B::AbstractMatrix) = A * B'
 
@@ -67,7 +67,7 @@ promoting eltypes.
 \frac{\sum_i A_i w_i}{\sum_i w_i}
 ```
 """
-function wmean(A::AbstractArray; wts::AbstractArray = Trues(size(A)))
+function wmean(A::AbstractArray; wts::AbstractArray{<:Real} = Trues(size(A)))
     return wsum(A, wts) / sum(wts)
 end
 
