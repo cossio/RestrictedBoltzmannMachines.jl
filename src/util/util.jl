@@ -11,18 +11,31 @@ The reduced dimensions are inferred from the shape of `wts`, which must match
 the trailing dimensions of `A` (all of `A` for a full reduction, returning a
 scalar). Reduced dimensions are dropped from the result.
 """
-function wsum(A::AbstractArray, wts::AbstractArray)
+function wsum(A::AbstractArray, wts::AbstractArray{<:Real})
     kept = ndims(A) - ndims(wts)
     @assert kept ≥ 0
-    @assert size(wts) == ntuple(i -> size(A, kept + i), ndims(wts))
+    @assert size(wts) == size(A)[(kept + 1):end]
     if kept == 0
-        return _wsum_all(A, wts)
+        # `transpose`, not `dot`: the documented sum is `Σ Aᵢwᵢ`, without conjugation
+        return transpose(_asfloat(vec(A))) * _asfloat(vec(wts))
     else
-        # A matmul-shaped reduction, which never materializes a weighted copy
-        # of `A` and is a plain `sum` for lazy uniform `Ones` weights.
-        S = _wsum_trailing(reshape(A, :, length(wts)), vec(wts))
-        return reshape(S, ntuple(d -> size(A, d), Val(ndims(A) - ndims(wts))))
+        # A matmul-shaped reduction, which never materializes a weighted copy of `A`
+        S = _asfloat(reshape(A, :, length(wts))) * _asfloat(vec(wts))
+        return reshape(S, ntuple(d -> size(A, d), Val(kept)))
     end
+end
+
+# Uniform weights reduce as a plain sum: `float` per element accumulates
+# non-float data in float without materializing a converted copy, and the
+# lazy CPU fill would take a scalar-indexing kernel in the mixed matmul
+# when `A` is a GPU array.
+function wsum(A::AbstractArray, wts::Ones{<:Real})
+    kept = ndims(A) - ndims(wts)
+    @assert kept ≥ 0
+    @assert size(wts) == size(A)[(kept + 1):end]
+    kept == 0 && return sum(float, A)
+    S = sum(float, A; dims = (kept + 1):ndims(A))
+    return reshape(S, ntuple(d -> size(A, d), Val(kept)))
 end
 
 # Float the operands (a no-op for float arrays): narrow-integer data and
@@ -35,22 +48,10 @@ _asfloat(A::AbstractArray) = float.(A)
 # `Bool`) so they cannot promote the eltype of the reduction.
 _asfloat(A::Trues) = A
 
-# `transpose`, not `dot`: the documented sum is `Σ Aᵢwᵢ`, without conjugation
-_wsum_all(A::AbstractArray, wts::AbstractArray) = transpose(_asfloat(vec(A))) * _asfloat(vec(wts))
-# uniform `Ones` weights reduce as a plain sum: the lazy CPU fill would take a
-# scalar-indexing kernel in the mixed matmul when `A` is a GPU array. `float`
-# per element accumulates non-float data in float without materializing a copy.
-_wsum_all(A::AbstractArray, ::Ones{<:Real}) = sum(float, A)
-
-_wsum_trailing(A::AbstractMatrix, wts::AbstractVector) = _asfloat(A) * _asfloat(wts)
-# uniform `Ones` weights reduce as a plain sum (keeps the unweighted training
-# path free of weighted copies and eltype promotion)
-_wsum_trailing(A::AbstractMatrix, ::Ones{<:Real}) = sum(float, A; dims = 2)
-
 # `A * Diagonal(vec(wts)) * B'`, the weighted outer product `Σᵢ wᵢ A[:,i] B[:,i]'`.
 # Uniform `Ones` weights reduce to the plain product: `Diagonal` of a lazy CPU
 # fill takes a scalar-indexing kernel when the factors are GPU arrays.
-_weighted_outer(A::AbstractMatrix, wts::AbstractArray, B::AbstractMatrix) =
+_weighted_outer(A::AbstractMatrix, wts::AbstractArray{<:Real}, B::AbstractMatrix) =
     A * Diagonal(_asfloat(vec(wts))) * B'
 _weighted_outer(A::AbstractMatrix, ::Ones{<:Real}, B::AbstractMatrix) = A * B'
 
@@ -66,7 +67,7 @@ promoting eltypes.
 \frac{\sum_i A_i w_i}{\sum_i w_i}
 ```
 """
-function wmean(A::AbstractArray; wts::AbstractArray = Trues(size(A)))
+function wmean(A::AbstractArray; wts::AbstractArray{<:Real} = Trues(size(A)))
     return wsum(A, wts) / sum(wts)
 end
 

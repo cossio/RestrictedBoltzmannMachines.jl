@@ -22,7 +22,7 @@ function _train!(
         rbm, data::AbstractArray;
         batchsize::Int,
         iters::Int,
-        wts::AbstractVector,
+        wts::AbstractVector{<:Real},
         moments,
         optim::AbstractRule,
         ps, state,

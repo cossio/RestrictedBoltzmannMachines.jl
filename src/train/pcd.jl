@@ -13,7 +13,7 @@ parameters with an `Optimisers.jl` rule.
 # Keyword arguments
 - `batchsize::Int=1`: number of samples per update.
 - `iters::Int=1`: number of parameter updates.
-- `wts::AbstractVector`: finite, positive per-sample
+- `wts::AbstractVector{<:Real}`: finite, positive per-sample
   weights, lazy uniform weights by default. Zero or negative weights raise an
   `ArgumentError` — drop observations meant to be excluded (and their weights)
   beforehand. Callbacks receive the minibatch weights as `wd`.
@@ -45,7 +45,7 @@ function pcd!(
         data::AbstractArray;
         batchsize::Int = 1,
         iters::Int = 1, # number of gradient updates
-        wts::AbstractVector = uniform_weights(rbm.visible, data), # data weights
+        wts::AbstractVector{<:Real} = uniform_weights(rbm.visible, data), # data weights
         steps::Int = 1, # MC steps to update fantasy chains
         optim::AbstractRule = Adam(), # optimizer rule
         moments = moments_from_samples(rbm.visible, data; wts), # sufficient statistics for visible layer

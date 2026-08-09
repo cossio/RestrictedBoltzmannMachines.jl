@@ -21,7 +21,7 @@ end
 
 function initialize!(
         rbm::RBM, data::AbstractArray;
-        ϵ::Real = 1.0e-6, wts::AbstractVector = uniform_weights(rbm.visible, data)
+        ϵ::Real = 1.0e-6, wts::AbstractVector{<:Real} = uniform_weights(rbm.visible, data)
     )
     @assert 0 < ϵ < 1 / 2
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
@@ -36,7 +36,7 @@ end
 
 function initialize!(
         layer::Binary, data::AbstractArray;
-        ϵ::Real = 1.0e-6, wts::AbstractArray = uniform_weights(layer, data)
+        ϵ::Real = 1.0e-6, wts::AbstractArray{<:Real} = uniform_weights(layer, data)
     )
     @assert 0 < ϵ < 1 / 2
     _validate_weights(wts)
@@ -48,7 +48,7 @@ end
 
 function initialize!(
         layer::Spin, data::AbstractArray;
-        ϵ::Real = 1.0e-6, wts::AbstractArray = uniform_weights(layer, data)
+        ϵ::Real = 1.0e-6, wts::AbstractArray{<:Real} = uniform_weights(layer, data)
     )
     @assert 0 < ϵ < 1 / 2
     _validate_weights(wts)
@@ -60,7 +60,7 @@ end
 
 function initialize!(
         layer::Union{Potts, PottsGumbel}, data::AbstractArray;
-        ϵ::Real = 1.0e-6, wts::AbstractArray = uniform_weights(layer, data)
+        ϵ::Real = 1.0e-6, wts::AbstractArray{<:Real} = uniform_weights(layer, data)
     )
     @assert 0 < ϵ < 1 / 2
     _validate_weights(wts)
@@ -71,7 +71,7 @@ function initialize!(
 end
 
 # Gaussian moment-matching of `θ` and `γ`, shared by the layers initialized as Gaussians.
-function _initialize_gaussian_moments!(θ::AbstractArray, γ::AbstractArray, layer::AbstractLayer, data::AbstractArray; ϵ::Real, wts::AbstractArray)
+function _initialize_gaussian_moments!(θ::AbstractArray, γ::AbstractArray, layer::AbstractLayer, data::AbstractArray; ϵ::Real, wts::AbstractArray{<:Real})
     @assert 0 < ϵ < 1 / 2
     _validate_weights(wts)
     μ = batchmean(layer, data; wts)
@@ -83,14 +83,14 @@ end
 
 function initialize!(
         layer::Gaussian, data::AbstractArray;
-        ϵ::Real = 1.0e-6, wts::AbstractArray = uniform_weights(layer, data)
+        ϵ::Real = 1.0e-6, wts::AbstractArray{<:Real} = uniform_weights(layer, data)
     )
     return _initialize_gaussian_moments!(layer.θ, layer.γ, layer, data; ϵ, wts)
 end
 
 function initialize!(
         layer::xReLU, data::AbstractArray;
-        ϵ::Real = 1.0e-6, wts::AbstractArray = uniform_weights(layer, data)
+        ϵ::Real = 1.0e-6, wts::AbstractArray{<:Real} = uniform_weights(layer, data)
     )
     _initialize_gaussian_moments!(layer.θ, layer.γ, layer, data; ϵ, wts)
     layer.Δ .= layer.ξ .= 0
@@ -99,7 +99,7 @@ end
 
 function initialize!(
         layer::pReLU, data::AbstractArray;
-        ϵ::Real = 1.0e-6, wts::AbstractArray = uniform_weights(layer, data)
+        ϵ::Real = 1.0e-6, wts::AbstractArray{<:Real} = uniform_weights(layer, data)
     )
     _initialize_gaussian_moments!(layer.θ, layer.γ, layer, data; ϵ, wts)
     layer.Δ .= layer.η .= 0
@@ -108,7 +108,7 @@ end
 
 function initialize!(
         layer::dReLU, data::AbstractArray;
-        ϵ::Real = 1.0e-6, wts::AbstractArray = uniform_weights(layer, data)
+        ϵ::Real = 1.0e-6, wts::AbstractArray{<:Real} = uniform_weights(layer, data)
     )
     # initialize as Gaussian
     _initialize_gaussian_moments!(layer.θp, layer.γp, layer, data; ϵ, wts)
@@ -148,7 +148,7 @@ end
 
 function initialize!(
         layer::nsReLU, data::AbstractArray;
-        wts::AbstractArray = uniform_weights(layer, data)
+        wts::AbstractArray{<:Real} = uniform_weights(layer, data)
     )
     _validate_weights(wts)
     μ = batchmean(layer, data; wts)
@@ -169,7 +169,7 @@ Initializes `rbm.w` such that typical inputs to hidden units are λ.
 """
 function initialize_w!(
         rbm::RBM, data::AbstractArray;
-        λ::Real = 0.1, ϵ::Real = 1.0e-6, wts::AbstractVector = uniform_weights(rbm.visible, data)
+        λ::Real = 0.1, ϵ::Real = 1.0e-6, wts::AbstractVector{<:Real} = uniform_weights(rbm.visible, data)
     )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert length(wts) == size(data)[end]

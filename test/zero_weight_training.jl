@@ -62,7 +62,6 @@ all_finite(rbm) = all(x -> all(isfinite, x), values(model_state(rbm)))
             [1.0, 0.0], # zero weights are rejected: drop such samples beforehand
             [1.0, NaN],
             [1.0, Inf],
-            ComplexF64[1, 1], # complex weights are not real
         )
         @test_throws ArgumentError RBMs._validate_weights(bad_wts)
         rbm = base_rbm()
@@ -74,11 +73,19 @@ all_finite(rbm) = all(x -> all(isfinite, x), values(model_state(rbm)))
         )
         @test model_state(rbm) == before
     end
+    # non-real weights are rejected by the signatures (TypeError for the
+    # keyword annotation, MethodError for positional dispatch)
+    @test_throws MethodError RBMs._validate_weights(ComplexF64[1, 1])
+    @test_throws TypeError pcd!(
+        base_rbm(), data;
+        wts = ComplexF64[1, 1], batchsize = 1, iters = 0,
+        zerosum = false, rescale = false,
+    )
 end
 
 @testset "wmean is a plain weighted mean" begin
     @test RBMs.wmean([1.0, 3.0]; wts = [1.0, 3.0]) ≈ 2.5
-    @test RBMs.wmean([1.0, 3.0]; wts = Any[1.0, 3.0]) ≈ 2.5
+    @test RBMs.wmean([1.0, 3.0]; wts = Real[1.0, 3.0]) ≈ 2.5
     @test RBMs.wmean([1.0, 3.0]; wts = fill(big"1e400", 2)) ≈ 2.0
     # the kernel does not validate weights (the training entry points reject
     # non-positive weights): zero weights annihilate finite samples
@@ -105,7 +112,7 @@ end
 @testset "training weight checks" begin
     # lazy uniform weights must still be real-valued to skip validation
     @test RBMs._validate_weights(Trues(3)) isa Ones
-    @test_throws ArgumentError RBMs._validate_weights(Ones{ComplexF64}(2))
+    @test_throws MethodError RBMs._validate_weights(Ones{ComplexF64}(2))
 
     # Empty data and undersized weights are rejected before mutation. The
     # default `moments` kwarg already fails computing statistics of such

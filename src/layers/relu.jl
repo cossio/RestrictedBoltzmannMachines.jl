@@ -64,7 +64,7 @@ Two moment slots: `<x>` and `<x^2>` (same as `Gaussian`).
 """
 function moments_from_samples(
         layer::ReLU, data::AbstractArray;
-        wts::AbstractArray = uniform_weights(layer, data)
+        wts::AbstractArray{<:Real} = uniform_weights(layer, data)
     )
     return moments_from_samples(Gaussian(layer.par), data; wts)
 end
