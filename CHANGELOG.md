@@ -26,20 +26,13 @@ All notable changes to this project will be documented in this file. The format 
     as given: they are never rescaled (the per-iteration Float64
     normalization is removed without replacement), so extreme weights (near
     `floatmax`, or needing wider-than-`Float64` accumulation) can now
-    overflow; ordinary weights are unaffected. Internal helpers such as
-    `wmean` and `∂free_energy` remain plain weighted reductions that do not
-    validate.
+    overflow; ordinary weights are unaffected.
   - Unweighted training with `batchsize` larger than the number of samples now
     clamps the batchsize (as weighted training already did) instead of
     silently performing zero iterations.
-  - `wsum(A, wts)` is available again as the internal weighted-sum kernel
-    behind `wmean`; both reduce the trailing dimensions of `A`, inferred
-    from the shape of `wts`.
-- Minibatch iteration is delegated to `MLUtils.DataLoader`, making MLUtils a
-  direct dependency. The internal helpers `nobs`, `getobs`, `shuffleobs`, and
-  `InfiniteMinibatchIterator` are removed (none were marked `public`);
-  `infinite_minibatches` now returns a cycled loader with the same training
-  behavior (fixed-size batches, fresh permutation per epoch).
+- Minibatch iteration now uses `MLUtils.DataLoader`, making MLUtils a direct
+  dependency. Training behavior is unchanged (fixed-size minibatches, fresh
+  shuffle per epoch).
 
 ## 6.2.0
 
