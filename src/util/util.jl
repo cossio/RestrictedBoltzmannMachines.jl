@@ -1,40 +1,65 @@
 @doc raw"""
-    wmean(A; wts = nothing, dims = :)
+    wsum(A, wts)
 
-Weighted mean of `A` along dimensions `dims`, weighted by `wts`.
+Weighted sum of `A` along its trailing dimensions, weighted by `wts`.
+
+```math
+\sum_i A_i w_i
+```
+
+The reduced dimensions are inferred from the shape of `wts`, which must match
+the trailing dimensions of `A` (all of `A` for a full reduction, returning a
+scalar). Reduced dimensions are dropped from the result.
+"""
+function wsum(A::AbstractArray{<:Any, N}, wts::AbstractArray{<:Real, N}) where {N}
+    # full reduction: `wts` spans all of `A`
+    @assert size(wts) == size(A)
+    # conjugation applies to the real `wts` only; `float` keeps integer data
+    # on the same kernel as float-converted runs (bit-identical reductions)
+    return dot(vec(wts), float(vec(A)))
+end
+
+# partial reduction over the trailing dimensions of `A`
+function wsum(A::AbstractArray, wts::AbstractArray{<:Real})
+    kept = ndims(A) - ndims(wts)
+    @assert size(wts) == size(A)[(kept + 1):end]
+    S = float(reshape(A, :, length(wts))) * vec(wts)
+    return reshape(S, ntuple(d -> size(A, d), Val(kept)))
+end
+
+# uniform weights reduce as a plain sum
+function wsum(A::AbstractArray{<:Any, N}, wts::Ones{<:Real, N}) where {N}
+    @assert size(wts) == size(A)
+    return sum(float, A)
+end
+
+function wsum(A::AbstractArray, wts::Ones{<:Real})
+    kept = ndims(A) - ndims(wts)
+    @assert size(wts) == size(A)[(kept + 1):end]
+    S = sum(float, A; dims = (kept + 1):ndims(A))
+    return reshape(S, ntuple(d -> size(A, d), Val(kept)))
+end
+
+# the weighted outer product `Σᵢ wᵢ A[:,i] B[:,i]'`
+_weighted_outer(A::AbstractMatrix, wts::AbstractArray{<:Real}, B::AbstractMatrix) =
+    A * Diagonal(vec(wts)) * B'
+_weighted_outer(A::AbstractMatrix, ::Ones{<:Real}, B::AbstractMatrix) = A * B'
+
+@doc raw"""
+    wmean(A; [wts])
+
+Weighted mean of `A` along its trailing dimensions, weighted by `wts` (see
+[`wsum`](@ref)). By default, lazy uniform weights over all of `A`, which
+reduce like an ordinary `mean` without allocating a weights array or
+promoting eltypes.
 
 ```math
 \frac{\sum_i A_i w_i}{\sum_i w_i}
 ```
 """
-function wmean(A::AbstractArray; wts::Union{AbstractArray, Nothing} = nothing, dims = :)
-    if isnothing(wts)
-        # if no weights are given, fallback to unweighted mean
-        return mean(A; dims)
-    end
-
-    if dims === (:)
-        @assert size(wts) == size(A)
-        w = wts
-    else
-        @assert size(wts) == ntuple(d -> size(A, dims[d]), length(dims))
-        # insert singleton dimensions in weights, corresponding to reduced dimensions of `A`
-        wsz = ntuple(ndims(A)) do i
-            i ∈ dims ? size(A, i) : 1
-        end
-        w = reshape(wts, wsz)
-    end
-
-    # Accumulate weights normalized by the largest weight, in at least Float64
-    # precision (wider if the weights are wider, e.g. BigFloat), so that
-    # extreme finite weights cannot overflow the weighted sums (narrow float
-    # types like Float16 overflow even on moderately many samples). Zero
-    # weights annihilate their entries exactly, even non-finite ones.
-    wn = w ./ (1.0 * float(maximum(wts)))
-    return mean(_weighted_term.(A, wn); dims) ./ mean(wn)
+function wmean(A::AbstractArray; wts::AbstractArray{<:Real} = Trues(size(A)))
+    return wsum(A, wts) / sum(wts)
 end
-
-_weighted_term(a, w) = iszero(w) ? zero(a) * w : a * w
 
 """
     generate_sequences(n, A = 0:1)

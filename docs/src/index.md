@@ -106,9 +106,9 @@ Useful training arguments for [`pcd!`](@ref):
 - `optim`: optimizer rule from Optimisers.jl.
 - `callback`: receives per-iteration state and can be used for logging.
 - `l1_weights`, `l2_weights`, `l2_fields`, `l2l1_weights`: regularization knobs.
-- `wts`: optional finite, real, nonnegative per-sample weights, supported by
-  plain, centered, and standardized `pcd!`; zero-weight observations are
-  excluded before training work, and at least one weight must be positive.
+- `wts`: optional finite, positive per-sample weights, supported by plain,
+  centered, and standardized `pcd!`; zero or negative weights are rejected —
+  drop observations meant to be excluded (and their weights) beforehand.
 
 ## Documentation guide
 

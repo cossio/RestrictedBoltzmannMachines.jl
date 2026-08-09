@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+- Training and statistics now use a single weighted code path: when no `wts`
+  are given, lazy uniform weights are used instead of a separate unweighted
+  path. Uniform weights reduce like plain means without allocating weight
+  arrays or promoting eltypes (Float32 training stays Float32 end to end).
+  Visible consequences:
+  - **Breaking**: `wts` must be an `AbstractVector{<:Real}` and defaults to
+    lazy uniform weights; `wts = nothing` is no longer accepted by `pcd!` and
+    `initialize!`.
+  - `pcd!` callbacks receive lazy uniform weight slices as `wd` for
+    unweighted training (previously `nothing`); weighted training callbacks
+    receive the minibatch weights as before.
+  - Weights are validated once per training run: they must be finite,
+    positive reals. Non-real weights are rejected by the signatures;
+    non-finite, zero, or negative values raise an `ArgumentError` before any
+    mutation; the data must contain at least one sample. `initialize!`
+    applies the same validation. Zero-weight samples are thus rejected rather
+    than silently dropped — removing observations meant to be excluded (and
+    their weights) beforehand is the caller's responsibility. Valid weights
+    are used exactly as given: they are never rescaled (the per-iteration
+    Float64 normalization is removed without replacement), so extreme weights
+    (near `floatmax`, or needing wider-than-`Float64` accumulation) can now
+    overflow; ordinary weights are unaffected.
+  - Unweighted training with `batchsize` larger than the number of samples now
+    clamps the batchsize (as weighted training already did) instead of
+    silently performing zero iterations.
+
 ## 6.2.0
 
 - Layer conditional statistics are now organized around moments arrays. The new

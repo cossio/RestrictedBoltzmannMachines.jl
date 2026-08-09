@@ -1,9 +1,11 @@
 using Test: @test, @testset, @test_throws
 using Random: seed!
+using Statistics: mean
+using FillArrays: Ones, Trues
 import Optimisers
 import RestrictedBoltzmannMachines as RBMs
 using RestrictedBoltzmannMachines: RBM, Binary, Gaussian, BinaryRBM,
-    CenteredRBM, StandardizedRBM, center, standardize, pcd!
+    CenteredRBM, StandardizedRBM, center, standardize, pcd!, initialize!
 
 struct CountingDescent{T, R} <: Optimisers.AbstractRule
     eta::T
@@ -53,195 +55,160 @@ end
 
 all_finite(rbm) = all(x -> all(isfinite, x), values(model_state(rbm)))
 
-function callback_log()
-    iterations = Int[]
-    weights = Any[]
-    callback = (; iter, wd, kwargs...) -> begin
-        push!(iterations, iter)
-        push!(weights, copy(wd))
-        return nothing
-    end
-    return (; callback, iterations, weights)
-end
-
-function weighted_data()
-    # The NaNs are deliberately attached only to zero-weight observations. If
-    # zero weights are truly ignored, none of the training paths ever sees them.
-    data = [
-        NaN NaN 0.0 1.0
-        NaN NaN 1.0 0.0
-    ]
-    wts = [0.0, 0.0, 1.0, 2.0]
-    return data, wts
-end
-
-function train_pcd!(
-        ::Val{:plain}, rbm, data, wts, vm, optim, callback;
-        iters::Int, batchsize::Int,
-    )
-    return pcd!(
-        rbm, data;
-        wts, vm, optim, callback, iters, batchsize,
-        steps = 1, shuffle = false, zerosum = false, rescale = false,
-    )
-end
-
-function train_pcd!(
-        ::Val{:centered}, rbm, data, wts, vm, optim, callback;
-        iters::Int, batchsize::Int,
-    )
-    return pcd!(
-        rbm, data;
-        wts, vm, optim, callback, iters, batchsize,
-        steps = 1, hidden_offset_damping = 1 // 4,
-        zerosum = false, rescale = false,
-    )
-end
-
-function train_pcd!(
-        ::Val{:standardized}, rbm, data, wts, vm, optim, callback;
-        iters::Int, batchsize::Int,
-    )
-    return pcd!(
-        rbm, data;
-        wts, vm, optim, callback, iters, batchsize,
-        steps = 1, shuffle = false, damping = 1 // 4, ϵv = 0.1, ϵh = 0.1,
-        zerosum = false, rescale_hidden = false,
-    )
-end
-
-function check_pcd_filter_equivalence(kind, seed)
-    data, wts = weighted_data()
-    positive = findall(!iszero, wts)
-    filtered_data = data[:, positive]
-    filtered_wts = wts[positive]
-
-    initial = base_rbm()
-    mixed_rbm = wrap_rbm(kind, deepcopy(initial))
-    filtered_rbm = wrap_rbm(kind, deepcopy(initial))
-    mixed_vm = falses(2, 2)
-    filtered_vm = copy(mixed_vm)
-
-    mixed_calls = Ref(0)
-    filtered_calls = Ref(0)
-    mixed_log = callback_log()
-
-    seed!(seed)
-    train_pcd!(
-        kind, mixed_rbm, data, wts, mixed_vm,
-        CountingDescent(0.01, mixed_calls), mixed_log.callback;
-        iters = 2, batchsize = 2,
-    )
-    seed!(seed)
-    train_pcd!(
-        kind, filtered_rbm, filtered_data, filtered_wts, filtered_vm,
-        CountingDescent(0.01, filtered_calls), Returns(nothing);
-        iters = 2, batchsize = 2,
-    )
-
-    @test mixed_log.iterations == 1:2
-    @test length(mixed_log.weights) == 2
-    @test all(wd -> all(w -> w > 0, wd), mixed_log.weights)
-    @test mixed_calls[] == filtered_calls[] == 3 * 2
-    @test model_state(mixed_rbm) == model_state(filtered_rbm)
-    @test mixed_vm == filtered_vm
-    @test all_finite(mixed_rbm)
-    return nothing
-end
-
-@testset "zero-weight PCD matches filtering ($name)" for (name, kind, seed) in [
-        ("plain", Val(:plain), 101),
-        ("centered", Val(:centered), 102),
-        ("standardized", Val(:standardized), 103),
-    ]
-    check_pcd_filter_equivalence(kind, seed)
-end
-
 @testset "invalid training weights" begin
     data = zeros(2, 2)
-    for (bad_wts, err) in (
-            ([2.0, -1.0], ArgumentError),
-            ([1.0, NaN], ArgumentError),
-            ([1.0, Inf], ArgumentError),
-            (ComplexF64[1, 1], MethodError), # complex weights have no ordering
+    for bad_wts in (
+            [2.0, -1.0],
+            [1.0, 0.0], # zero weights are rejected: drop such samples beforehand
+            [1.0, NaN],
+            [1.0, Inf],
         )
-        @test_throws ArgumentError RBMs._prepare_training_data(data, bad_wts; batchsize = 1)
+        @test_throws ArgumentError RBMs._validate_weights(bad_wts)
         rbm = base_rbm()
         before = model_state(rbm)
-        @test_throws err pcd!(
+        @test_throws ArgumentError pcd!(
             rbm, data;
             wts = bad_wts, batchsize = 1, iters = 0,
             zerosum = false, rescale = false,
         )
         @test model_state(rbm) == before
     end
+    # non-real weights are rejected by the signatures (TypeError for the
+    # keyword annotation, MethodError for positional dispatch)
+    @test_throws MethodError RBMs._validate_weights(ComplexF64[1, 1])
+    @test_throws TypeError pcd!(
+        base_rbm(), data;
+        wts = ComplexF64[1, 1], batchsize = 1, iters = 0,
+        zerosum = false, rescale = false,
+    )
 end
 
-@testset "finite extreme $weight_type weights are scale-stable ($name PCD)" for
-    (name, kind, seed) in [
-            ("plain", Val(:plain), 109),
-            ("centered", Val(:centered), 110),
-            ("standardized", Val(:standardized), 111),
-        ],
-        (weight_type, extreme_weight) in [
-            ("Float64", floatmax(Float64)),
-            ("UInt128", typemax(UInt128)),
-        ]
-    data = [
-        NaN 0.0 1.0
-        NaN 1.0 0.0
-    ]
-    extreme_wts = [zero(extreme_weight), extreme_weight, extreme_weight]
-    unit_wts = [0.0, 1.0, 1.0]
-    extreme_rbm = wrap_rbm(kind, base_rbm())
-    unit_rbm = wrap_rbm(kind, base_rbm())
-    extreme_vm = falses(2, 1)
-    unit_vm = copy(extreme_vm)
-    extreme_log = callback_log()
-    unit_log = callback_log()
-
-    seed!(seed)
-    train_pcd!(
-        kind, extreme_rbm, data, extreme_wts, extreme_vm,
-        CountingDescent(0.01, Ref(0)), extreme_log.callback;
-        iters = 2, batchsize = 1,
-    )
-    seed!(seed)
-    train_pcd!(
-        kind, unit_rbm, data, unit_wts, unit_vm,
-        CountingDescent(0.01, Ref(0)), unit_log.callback;
-        iters = 2, batchsize = 1,
-    )
-
-    @test model_state(extreme_rbm) == model_state(unit_rbm)
-    @test extreme_vm == unit_vm
-    @test extreme_log.weights == [[extreme_weight], [extreme_weight]]
-    @test unit_log.weights == [[1.0], [1.0]]
-    @test all_finite(extreme_rbm)
-end
-
-@testset "wmean ignores zero weights and extreme scales" begin
-    # zero weights annihilate their samples exactly, even non-finite ones
-    @test RBMs.wmean([NaN, 2.0, 4.0]; wts = [0.0, 1.0, 3.0]) ≈ 3.5
-    # extreme finite weights are normalized internally and cannot overflow
-    @test RBMs.wmean([1.0, 3.0]; wts = fill(floatmax(Float64), 2)) ≈ 2.0
-    @test RBMs.wmean([1.0, 3.0]; wts = fill(typemax(UInt128), 2)) ≈ 2.0
-    # finite weights wider than Float64 keep their wide accumulator,
-    # even behind an abstract eltype
+@testset "wmean is a plain weighted mean" begin
+    @test RBMs.wmean([1.0, 3.0]; wts = [1.0, 3.0]) ≈ 2.5
     @test RBMs.wmean([1.0, 3.0]; wts = fill(big"1e400", 2)) ≈ 2.0
-    @test RBMs.wmean([1.0, 3.0]; wts = Real[big"1e400", big"1e400"]) ≈ 2.0
-    @test RBMs.wmean([1.0, 3.0]; wts = Any[1.0, 3.0]) ≈ 2.5
-    # Float16 weights are accumulated in a wider type (naive Float16 sums overflow)
-    n = 70_000
-    A = reshape(repeat(Float16[1, 3], n ÷ 2), 1, n)
-    @test RBMs.wmean(A; wts = ones(Float16, n), dims = 2) ≈ [2]
+    # the kernel does not validate weights (the training entry points reject
+    # non-positive weights): zero weights annihilate finite samples
+    # arithmetically, but do not mask non-finite samples
+    @test RBMs.wmean([1.0, 2.0, 4.0]; wts = [0.0, 1.0, 3.0]) ≈ 3.5
+    @test isnan(RBMs.wmean([NaN, 2.0]; wts = [0.0, 1.0]))
+
+    # lazy uniform weights reduce like a plain mean, without promoting —
+    # on partial and full (default) reductions alike
+    A = rand(Float32, 2, 5)
+    @test RBMs.wmean(A; wts = Trues(5)) ≈ vec(mean(A; dims = 2))
+    @test RBMs.wmean(A; wts = Trues(5)) isa Vector{Float32}
+    @test RBMs.wmean(A) ≈ mean(A)
+    @test RBMs.wmean(A) isa Float32
+    @test RBMs.wmean(Float32[1, 2]) isa Float32
+
+    # integer data accumulates in float on the uniform fast path too,
+    # matching `mean` instead of wrapping like an integer `sum`
+    big_ints = [typemax(Int), typemax(Int)]
+    @test RBMs.wmean(big_ints) ≈ mean(big_ints) ≈ float(typemax(Int))
+    @test RBMs.wmean(reshape(big_ints, 1, 2); wts = Trues(2)) ≈ [float(typemax(Int))]
 end
 
-@testset "∂free_energy ignores zero-weight samples exactly" begin
+@testset "training weight checks" begin
+    # lazy uniform weights must still be real-valued to skip validation
+    @test RBMs._validate_weights(Trues(3)) isa Ones
+    @test_throws MethodError RBMs._validate_weights(Ones{ComplexF64}(2))
+
+    # Empty data and undersized weights are rejected before mutation. The
+    # default `moments` kwarg already fails computing statistics of such
+    # inputs; explicit `moments` routes to the training-loop checks.
+    empty_rbm = base_rbm()
+    before = model_state(empty_rbm)
+    moments = RBMs.moments_from_samples(empty_rbm.visible, [0.0 1.0; 1.0 0.0])
+    @test_throws ArgumentError pcd!(
+        empty_rbm, zeros(2, 0);
+        moments, batchsize = 1, iters = 0, zerosum = false, rescale = false,
+    )
+    @test model_state(empty_rbm) == before
+    @test_throws DimensionMismatch pcd!(
+        base_rbm(), zeros(2, 3);
+        wts = [1.0, 1.0], moments,
+        batchsize = 1, iters = 0, zerosum = false, rescale = false,
+    )
+
+    # batchsize > nsamples clamps to one full batch instead of silently
+    # performing zero training iterations
+    rbm = base_rbm()
+    updates = Ref(0)
+    pcd!(
+        rbm, [0.0 1.0 1.0; 1.0 0.0 1.0];
+        batchsize = 5, iters = 2, steps = 1,
+        optim = CountingDescent(0.01, updates),
+        zerosum = false, rescale = false,
+    )
+    @test updates[] > 0
+    @test all_finite(rbm)
+end
+
+@testset "explicitly passed moments are used as given" begin
+    rbm = base_rbm()
+    data = [0.0 1.0; 1.0 0.0]
+    moments = RBMs.moments_from_samples(rbm.visible, data)
+    pcd!(rbm, data; batchsize = 2, iters = 1, moments, zerosum = false, rescale = false)
+    @test all_finite(rbm)
+end
+
+@testset "initialize! weight checks" begin
+    data = [1.0 0.0 1.0; 0.0 1.0 1.0]
+
+    # the default weights are lazy uniform `Ones`, like everywhere else
+    rbm = base_rbm()
+    initialize!(rbm, data)
+    @test all_finite(rbm)
+    layer = RBMs.Binary((2,))
+    initialize!(layer, data; wts = Trues(3))
+    @test all(isfinite, layer.par)
+
+    # weights enter the reductions unrescaled; only relative values matter
+    # for benign scales
+    scaled_rbm = base_rbm()
+    unit_rbm = base_rbm()
+    seed!(303)
+    initialize!(scaled_rbm, data; wts = fill(2.0, 3))
+    seed!(303)
+    initialize!(unit_rbm, data; wts = ones(3))
+    @test all_finite(scaled_rbm)
+    @test model_state(scaled_rbm) == model_state(unit_rbm)
+
+    # invalid weights fail loudly
+    @test_throws ArgumentError initialize!(base_rbm(), data; wts = [1.0, -1.0, 1.0])
+    @test_throws ArgumentError initialize!(base_rbm(), data; wts = [1.0, 0.0, 1.0])
+    @test_throws ArgumentError initialize!(base_rbm(), data; wts = [1.0, NaN, 1.0])
+    # ... also at the per-layer and initialize_w! entry points
+    @test_throws ArgumentError initialize!(RBMs.Binary((2,)), data; wts = [1.0, 0.0, 1.0])
+    @test_throws ArgumentError initialize!(RBMs.Gaussian((2,)), data; wts = [1.0, -1.0, 1.0])
+    @test_throws ArgumentError RBMs.initialize_w!(base_rbm(), data; wts = [1.0, NaN, 1.0])
+    # undersized weights are rejected instead of silently truncating the data
+    @test_throws AssertionError initialize!(base_rbm(), data; wts = [1.0, 1.0])
+
+    # empty data fails before mutating parameters to NaN
+    empty_rbm = base_rbm()
+    before = model_state(empty_rbm)
+    @test_throws AssertionError initialize!(empty_rbm, zeros(2, 0))
+    @test model_state(empty_rbm) == before
+
+    # narrow integer data promotes in the weighted products
+    int8_rbm = base_rbm()
+    seed!(404)
+    RBMs.initialize_w!(int8_rbm, reshape(Int8[2, 2], 2, 1); wts = [100.0])
+    float_rbm = base_rbm()
+    seed!(404)
+    RBMs.initialize_w!(float_rbm, reshape([2.0, 2.0], 2, 1); wts = [100.0])
+    @test int8_rbm.w == float_rbm.w
+    @test all(isfinite, int8_rbm.w)
+end
+
+@testset "∂free_energy with zero weights on finite samples" begin
+    # the kernel does not validate weights (the training entry points reject
+    # non-positive weights); zero weights contribute exactly zero for finite data
     rbm = base_rbm()
     v = [
-        NaN 0.0 1.0
-        NaN 1.0 0.0
+        1.0 0.0 1.0
+        0.0 1.0 0.0
     ]
     wts = [0.0, 1.0, 2.0]
     ∂ = RBMs.∂free_energy(rbm, v; wts)
@@ -249,21 +216,6 @@ end
     @test ∂.visible ≈ ∂ref.visible
     @test ∂.hidden ≈ ∂ref.hidden
     @test ∂.w ≈ ∂ref.w
-end
-
-@testset "narrow mixed-range weights keep a positive batch weight ($W)" for W in (Float16, Float32)
-    small = nextfloat(zero(W))
-    large = floatmax(W)
-    wts = W[small, large]
-    data = zeros(W, 1, length(wts))
-
-    _, raw_wts, normalization, _ = RBMs._prepare_training_data(data, wts; batchsize = 1)
-    @test raw_wts === wts
-
-    ratio = Float64(small) / Float64(large)
-    batch_weight = RBMs._batch_weight(raw_wts[1:1], normalization)
-    @test batch_weight > 0
-    @test batch_weight ≈ 2ratio / (1 + ratio)
 end
 
 function mutation_sensitive_rbm(::Val{:plain})
@@ -309,104 +261,4 @@ end
         ("standardized", Val(:standardized)),
     ]
     check_all_zero_pcd(kind)
-end
-
-function train_sparse_pcd!(::Val{:plain}, rbm, data, wts, vm, optim, callback)
-    return pcd!(
-        rbm, data;
-        wts, vm, optim, callback,
-        batchsize = 4, iters = 1, steps = 0,
-        shuffle = false, zerosum = false, rescale = false,
-    )
-end
-
-function train_sparse_pcd!(::Val{:centered}, rbm, data, wts, vm, optim, callback)
-    return pcd!(
-        rbm, data;
-        wts, vm, optim, callback,
-        batchsize = 4, iters = 1, steps = 0,
-        hidden_offset_damping = 0, zerosum = false, rescale = false,
-    )
-end
-
-function train_sparse_pcd!(::Val{:standardized}, rbm, data, wts, vm, optim, callback)
-    return pcd!(
-        rbm, data;
-        wts, vm, optim, callback,
-        batchsize = 4, iters = 1, steps = 0,
-        shuffle = false, damping = 0, ϵv = 1, ϵh = 1,
-        zerosum = false, rescale_hidden = false,
-    )
-end
-
-function train_sparse_default_pcd!(::Val{:plain}, rbm, data, wts, optim, callback)
-    return pcd!(
-        rbm, data;
-        wts, optim, callback,
-        batchsize = 4, iters = 1, steps = 0,
-        shuffle = false, zerosum = false, rescale = false,
-    )
-end
-
-function train_sparse_default_pcd!(::Val{:centered}, rbm, data, wts, optim, callback)
-    return pcd!(
-        rbm, data;
-        wts, optim, callback,
-        batchsize = 4, iters = 1, steps = 0,
-        hidden_offset_damping = 0, zerosum = false, rescale = false,
-    )
-end
-
-function train_sparse_default_pcd!(
-        ::Val{:standardized}, rbm, data, wts, optim, callback,
-    )
-    return pcd!(
-        rbm, data;
-        wts, optim, callback,
-        batchsize = 4, iters = 1, steps = 0,
-        shuffle = false, damping = 0, ϵv = 1, ϵh = 1,
-        zerosum = false, rescale_hidden = false,
-    )
-end
-
-@testset "fewer positive samples than batchsize complete ($name PCD)" for (name, kind) in [
-        ("plain", Val(:plain)),
-        ("centered", Val(:centered)),
-        ("standardized", Val(:standardized)),
-    ]
-    data = [
-        NaN NaN NaN NaN 1.0
-        NaN NaN NaN NaN 0.0
-    ]
-    wts = [0.0, 0.0, 0.0, 0.0, 1.0]
-    rbm = wrap_rbm(kind, base_rbm())
-    vm = falses(2, 4)
-    calls = Ref(0)
-    log = callback_log()
-
-    train_sparse_pcd!(
-        kind, rbm, data, wts, vm, CountingDescent(0.01, calls), log.callback,
-    )
-
-    @test log.iterations == [1]
-    @test length(only(log.weights)) == 1
-    @test all(w -> w > 0, only(log.weights))
-    @test calls[] == 3
-    @test all_finite(rbm)
-
-    default_rbm = wrap_rbm(kind, base_rbm())
-    default_calls = Ref(0)
-    fantasy_sizes = Int[]
-    seed!(107)
-    train_sparse_default_pcd!(
-        kind,
-        default_rbm,
-        data,
-        wts,
-        CountingDescent(0.01, default_calls),
-        (; vm, kwargs...) -> push!(fantasy_sizes, size(vm, ndims(vm))),
-    )
-    # the default number of fantasy chains is the requested batchsize
-    @test fantasy_sizes == [4]
-    @test default_calls[] == 3
 end

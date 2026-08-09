@@ -34,11 +34,14 @@ function ∂energy_from_moments(layer::_FieldLayers, moments::AbstractArray)
 end
 
 """
-    moments_from_samples(layer::Union{Binary, Spin, Potts, PottsGumbel}, data; wts = nothing)
+    moments_from_samples(layer::Union{Binary, Spin, Potts, PottsGumbel}, data; [wts])
 
 One moment slot: `<x>`.
 """
-function moments_from_samples(layer::_FieldLayers, data::AbstractArray; wts = nothing)
+function moments_from_samples(
+        layer::_FieldLayers, data::AbstractArray;
+        wts::AbstractArray{<:Real} = uniform_weights(layer, data)
+    )
     x1 = batchmean(layer, data; wts)
     return stack([x1]; dims = 1)
 end
@@ -123,12 +126,15 @@ pReLU(layer::Gaussian) = pReLU(dReLU(layer))
 xReLU(layer::Gaussian) = xReLU(dReLU(layer))
 
 """
-    moments_from_samples(layer::Union{dReLU, pReLU, xReLU, nsReLU}, data; wts = nothing)
+    moments_from_samples(layer::Union{dReLU, pReLU, xReLU, nsReLU}, data; [wts])
 
 Four moment slots: `<xp>`, `<xn>`, `<xp^2>`, `<xn^2>`, where `xp = max(x, 0)`
 and `xn = min(x, 0)`.
 """
-function moments_from_samples(layer::Union{dReLU, pReLU, xReLU, nsReLU}, data::AbstractArray; wts = nothing)
+function moments_from_samples(
+        layer::Union{dReLU, pReLU, xReLU, nsReLU}, data::AbstractArray;
+        wts::AbstractArray{<:Real} = uniform_weights(layer, data)
+    )
     xp = max.(data, false)
     xn = min.(data, false)
     xp1 = batchmean(layer, xp; wts)

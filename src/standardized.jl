@@ -241,7 +241,10 @@ function standardize_hidden!(rbm::StandardizedRBM, offset_h::AbstractArray, scal
     return rbm
 end
 
-function standardize_visible_from_data!(rbm::StandardizedRBM, data::AbstractArray; wts = nothing, ϵ::Real = 0)
+function standardize_visible_from_data!(
+        rbm::StandardizedRBM, data::AbstractArray;
+        wts::AbstractArray{<:Real} = uniform_weights(rbm.visible, data), ϵ::Real = 0
+    )
     μ = batchmean(rbm.visible, data; wts)
     ν = batchvar(rbm.visible, data; wts, mean = μ)
     scale = sqrt.(ν .+ ϵ)
@@ -251,14 +254,20 @@ function standardize_visible_from_data!(rbm::StandardizedRBM, data::AbstractArra
     return standardize_visible!(rbm, μ, scale)
 end
 
-function standardize_hidden_from_inputs!(rbm::StandardizedRBM, inputs::AbstractArray; wts = nothing, damping::Real = 0, ϵ::Real = 0)
+function standardize_hidden_from_inputs!(
+        rbm::StandardizedRBM, inputs::AbstractArray;
+        wts::AbstractArray{<:Real} = uniform_weights(rbm.hidden, inputs), damping::Real = 0, ϵ::Real = 0
+    )
     μ, ν = total_meanvar_from_inputs(rbm.hidden, inputs; wts)
     offset_h = (1 - damping) .* rbm.offset_h + damping .* μ
     scale_h = sqrt.((1 - damping) .* rbm.scale_h .^ 2 + damping .* (ν .+ ϵ))
     return standardize_hidden!(rbm, offset_h, scale_h)
 end
 
-function standardize_hidden_from_v!(rbm::StandardizedRBM, v::AbstractArray; wts = nothing, damping::Real = 0, ϵ::Real = 0)
+function standardize_hidden_from_v!(
+        rbm::StandardizedRBM, v::AbstractArray;
+        wts::AbstractArray{<:Real} = uniform_weights(rbm.visible, v), damping::Real = 0, ϵ::Real = 0
+    )
     inputs = inputs_h_from_v(rbm, v)
     return standardize_hidden_from_inputs!(rbm, inputs; damping, wts, ϵ)
 end
@@ -285,7 +294,7 @@ function pcd!(
         shuffle::Bool = true,
 
         iters::Int = 1, # number of gradient updates
-        wts::Union{AbstractVector, Nothing} = nothing, # data weights
+        wts::AbstractVector{<:Real} = uniform_weights(rbm.visible, data), # data weights
 
         steps::Int = 1,
         vm::Union{AbstractArray, Nothing} = nothing,
@@ -321,20 +330,23 @@ function pcd!(
     )
     @assert 0 ≤ damping ≤ 1
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
-    @assert isnothing(wts) || size(data)[end] == length(wts)
     _validate_layer_parameters(rbm)
+    batchsize > 0 || throw(ArgumentError("batchsize must be positive"))
+    size(data, ndims(data)) > 0 ||
+        throw(ArgumentError("data must contain at least one sample"))
+    length(wts) == size(data, ndims(data)) ||
+        throw(DimensionMismatch("length(wts) must equal the number of data samples"))
+    _validate_weights(wts)
+    wts_mean = mean(wts)
+    batchsize = min(batchsize, length(wts))
     isnothing(vm) && (vm = _default_fantasy_chains(rbm, batchsize))
     isnothing(ps) && (ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w))
     isnothing(state) && (state = setup(optim, ps))
-
-    data, wts, normalization, batchsize = _prepare_training_data(data, wts; batchsize)
 
     standardize_visible_from_data!(rbm, data; wts, ϵ = ϵv)
     zerosum && zerosum!(rbm)
 
     for (iter, (vd, wd)) in zip(1:iters, infinite_minibatches(data, wts; batchsize, shuffle))
-        batch_weight = _batch_weight(wd, normalization)
-
         # positive phase
         ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
 
@@ -342,7 +354,9 @@ function pcd!(
         vm .= sample_v_from_v(rbm, vm; steps)
         ∂m = ∂free_energy(rbm, vm)
 
-        ∂ = (∂d - ∂m) * batch_weight # correct weighted minibatch bias
+        # weighted minibatch bias correction, in the gradient eltype
+        batch_weight = convert(float(real(eltype(∂d.w))), mean(wd) / wts_mean)
+        ∂ = (∂d - ∂m) * batch_weight
 
         # weight decay
         ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum, regularize_unstandardized)
