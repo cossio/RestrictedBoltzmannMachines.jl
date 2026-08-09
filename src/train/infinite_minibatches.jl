@@ -1,47 +1,13 @@
-function nobs(d::AbstractArray, ds::AbstractArray...)
-    n = nobs(d)
-    @assert all(d -> nobs(d) == n, ds)
-    return n
-end
-
-nobs(d::AbstractArray) = size(d, ndims(d))
-
-getobs(i, ds::AbstractArray...) = map(d -> d[.., i], ds)
-
-shuffleobs(ds::AbstractArray...) = getobs(randperm(nobs(ds...)), ds...)
-
-struct InfiniteMinibatchIterator{T}
-    data::T
-    batchsize::Int
-    shuffle::Bool
-end
-
-function Base.iterate(iter::InfiniteMinibatchIterator)
-    iter.batchsize > 0 || throw(ArgumentError("batchsize must be positive"))
-    if iter.batchsize > nobs(iter.data...)
-        return nothing
-    else
-        if iter.shuffle
-            shuffled = shuffleobs(iter.data...)
-        else
-            shuffled = iter.data
-        end
-        return iterate(iter, (i = 1, shuffled))
-    end
-end
-
-function Base.iterate(iter::InfiniteMinibatchIterator, (i, shuffled))
-    if i + iter.batchsize - 1 > nobs(iter.data...)
-        return iterate(iter) # restart iteration
-    else
-        items = getobs(i:(i + iter.batchsize - 1), shuffled...)
-        return items, (i + iter.batchsize, shuffled)
-    end
-end
-
+#= Minibatch iteration is delegated to MLUtils.DataLoader. `Iterators.cycle`
+restarts the loader whenever an epoch is exhausted, and the loader reshuffles on
+each restart, so the stream is infinite with a fresh permutation per epoch.
+`partial = false` drops the trailing incomplete batch, so every minibatch holds
+exactly `batchsize` observations. A `batchsize` larger than the data clamps to
+one full batch (the training entry point clamps before building the iterator,
+so the loader's clamping warning is not reached from the trainers). =#
 function infinite_minibatches(ds::AbstractArray...; batchsize::Int, shuffle::Bool = true)
     batchsize > 0 || throw(ArgumentError("batchsize must be positive"))
-    return InfiniteMinibatchIterator(ds, batchsize, shuffle)
+    return Iterators.cycle(DataLoader(ds; batchsize, shuffle, partial = false))
 end
 
 #= Weights must be finite, positive reals: zero weights are rejected, so

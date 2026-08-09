@@ -34,6 +34,11 @@ All notable changes to this project will be documented in this file. The format 
   - `wsum(A, wts)` is available again as the internal weighted-sum kernel
     behind `wmean`; both reduce the trailing dimensions of `A`, inferred
     from the shape of `wts`.
+- Minibatch iteration is delegated to `MLUtils.DataLoader`, making MLUtils a
+  direct dependency. The internal helpers `nobs`, `getobs`, `shuffleobs`, and
+  `InfiniteMinibatchIterator` are removed (none were marked `public`);
+  `infinite_minibatches` now returns a cycled loader with the same training
+  behavior (fixed-size batches, fresh permutation per epoch).
 
 ## 6.2.0
 
