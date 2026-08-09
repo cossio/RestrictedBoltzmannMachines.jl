@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+- The `vm`, `ps`, and `state` keywords of the `pcd!` trainers now compute their
+  defaults directly in the signature instead of using `nothing` as a sentinel.
+  Passing `nothing` explicitly for these keywords is no longer supported; omit
+  the keyword to get the default.
 - Training and statistics now use a single weighted code path: when no `wts`
   are given, lazy uniform weights are used instead of a separate unweighted
   path. Uniform weights reduce like plain means without allocating weight

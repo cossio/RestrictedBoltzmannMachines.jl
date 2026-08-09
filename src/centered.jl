@@ -280,13 +280,13 @@ function pcd!(
         callback = Returns(nothing), # called for every batch
 
         # init fantasy chains
-        vm = nothing,
+        vm::AbstractArray = _default_fantasy_chains(rbm, min(batchsize, size(data)[end])),
 
         shuffle::Bool = true,
 
         # parameters to optimize
-        ps = nothing,
-        state = nothing,
+        ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w),
+        state = setup(optim, ps),
     )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     _validate_layer_parameters(rbm)
@@ -298,9 +298,6 @@ function pcd!(
     _validate_weights(wts)
     wts_mean = mean(wts)
     batchsize = min(batchsize, length(wts))
-    isnothing(vm) && (vm = _default_fantasy_chains(rbm, batchsize))
-    isnothing(ps) && (ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w))
-    isnothing(state) && (state = setup(optim, ps))
 
     center_from_data!(rbm, data; wts) # initial centering from data
     # initial gauge; zerosum! first because rescaling preserves the zero-sum gauge,

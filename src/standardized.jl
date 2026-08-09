@@ -297,7 +297,7 @@ function pcd!(
         wts::AbstractVector{<:Real} = uniform_weights(rbm.visible, data), # data weights
 
         steps::Int = 1,
-        vm::Union{AbstractArray, Nothing} = nothing,
+        vm::AbstractArray = _default_fantasy_chains(rbm, min(batchsize, size(data)[end])),
 
         moments = moments_from_samples(rbm.visible, data; wts), # sufficient statistics for visible layer
 
@@ -316,8 +316,8 @@ function pcd!(
 
         # optimiser
         optim::AbstractRule = Adam(),
-        ps = nothing,
-        state = nothing,
+        ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w),
+        state = setup(optim, ps),
 
         # Absorb the scale_h into the hidden unit activation (for hidden units with scale parameter).
         # Results in hidden units with var(h) ~ 1.
@@ -339,9 +339,6 @@ function pcd!(
     _validate_weights(wts)
     wts_mean = mean(wts)
     batchsize = min(batchsize, length(wts))
-    isnothing(vm) && (vm = _default_fantasy_chains(rbm, batchsize))
-    isnothing(ps) && (ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w))
-    isnothing(state) && (state = setup(optim, ps))
 
     standardize_visible_from_data!(rbm, data; wts, ϵ = ϵv)
     zerosum && zerosum!(rbm)
