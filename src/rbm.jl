@@ -339,7 +339,7 @@ function gumbel_to_potts(rbm::RBM)
 end
 
 """
-    total_mean_h_from_v(rbm, v; wts = uniform_weights(rbm.visible, v))
+    total_mean_h_from_v(rbm, v; [wts])
 
 Total mean of hidden unit activations from visible activities.
 """
@@ -351,7 +351,7 @@ function total_mean_h_from_v(
 end
 
 """
-    total_mean_v_from_h(rbm, h; wts = uniform_weights(rbm.hidden, h))
+    total_mean_v_from_h(rbm, h; [wts])
 
 Total mean of visible unit activations from given hidden activities.
 """
@@ -363,7 +363,7 @@ function total_mean_v_from_h(
 end
 
 """
-    total_var_h_from_v(rbm, v; wts = uniform_weights(rbm.visible, v))
+    total_var_h_from_v(rbm, v; [wts])
 
 Total variance of hidden unit activations from given visible activities.
 """
@@ -375,7 +375,7 @@ function total_var_h_from_v(
 end
 
 """
-    total_var_v_from_h(rbm, h; wts = uniform_weights(rbm.hidden, h))
+    total_var_v_from_h(rbm, h; [wts])
 
 Total variance of unit activations from given hidden activities.
 """
@@ -387,7 +387,7 @@ function total_var_v_from_h(
 end
 
 """
-    total_meanvar_h_from_v(rbm, v; wts = uniform_weights(rbm.visible, v))
+    total_meanvar_h_from_v(rbm, v; [wts])
 
 Total mean and total variance of hidden unit activations from visible activities.
 """
@@ -399,7 +399,7 @@ function total_meanvar_h_from_v(
 end
 
 """
-    total_meanvar_v_from_h(rbm, h; wts = uniform_weights(rbm.hidden, h))
+    total_meanvar_v_from_h(rbm, h; [wts])
 
 Total mean and total variance of visible unit activations from hidden activities.
 """

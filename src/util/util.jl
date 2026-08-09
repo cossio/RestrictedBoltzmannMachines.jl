@@ -55,7 +55,7 @@ _weighted_outer(A::AbstractMatrix, wts::AbstractArray, B::AbstractMatrix) =
 _weighted_outer(A::AbstractMatrix, ::Ones{<:Real}, B::AbstractMatrix) = A * B'
 
 @doc raw"""
-    wmean(A; wts)
+    wmean(A; [wts])
 
 Weighted mean of `A` along its trailing dimensions, weighted by `wts` (see
 [`wsum`](@ref)). By default, lazy uniform weights over all of `A`, which

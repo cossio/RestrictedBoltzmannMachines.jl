@@ -34,7 +34,7 @@ function ∂energy_from_moments(layer::_FieldLayers, moments::AbstractArray)
 end
 
 """
-    moments_from_samples(layer::Union{Binary, Spin, Potts, PottsGumbel}, data; wts = uniform_weights(layer, data))
+    moments_from_samples(layer::Union{Binary, Spin, Potts, PottsGumbel}, data; [wts])
 
 One moment slot: `<x>`.
 """
@@ -126,7 +126,7 @@ pReLU(layer::Gaussian) = pReLU(dReLU(layer))
 xReLU(layer::Gaussian) = xReLU(dReLU(layer))
 
 """
-    moments_from_samples(layer::Union{dReLU, pReLU, xReLU, nsReLU}, data; wts = uniform_weights(layer, data))
+    moments_from_samples(layer::Union{dReLU, pReLU, xReLU, nsReLU}, data; [wts])
 
 Four moment slots: `<xp>`, `<xn>`, `<xp^2>`, `<xn^2>`, where `xp = max(x, 0)`
 and `xn = min(x, 0)`.

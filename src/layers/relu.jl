@@ -58,7 +58,7 @@ function ∂energy_from_moments(layer::ReLU, moments::AbstractArray)
 end
 
 """
-    moments_from_samples(layer::ReLU, data; wts = uniform_weights(layer, data))
+    moments_from_samples(layer::ReLU, data; [wts])
 
 Two moment slots: `<x>` and `<x^2>` (same as `Gaussian`).
 """

@@ -53,7 +53,7 @@ function ∂energy_from_moments(layer::Gaussian, moments::AbstractArray)
 end
 
 """
-    moments_from_samples(layer::Gaussian, data; wts = uniform_weights(layer, data))
+    moments_from_samples(layer::Gaussian, data; [wts])
 
 Two moment slots: `<x>` and `<x^2>`.
 """

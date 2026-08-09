@@ -171,7 +171,7 @@ Lazy uniform weights over the batch dimensions of `x`.
 uniform_weights(layer::AbstractLayer, x::AbstractArray) = Trues(batch_size(layer, x))
 
 """
-    batchmean(layer, x; wts = uniform_weights(layer, x))
+    batchmean(layer, x; [wts])
 
 Mean of `x` over batch dimensions, weigthed by `wts`.
 """
@@ -183,7 +183,7 @@ function batchmean(
 end
 
 """
-    batchvar(layer, x; wts = uniform_weights(layer, x), [mean])
+    batchvar(layer, x; [wts], [mean])
 
 Variance of `x` over batch dimensions, weigthed by `wts`.
 """
@@ -196,7 +196,7 @@ function batchvar(
 end
 
 """
-    batchstd(layer, x; wts = uniform_weights(layer, x), [mean])
+    batchstd(layer, x; [wts], [mean])
 
 Standard deviation of `x` over batch dimensions, weigthed by `wts`.
 """
@@ -209,7 +209,7 @@ function batchstd(
 end
 
 """
-    batchcov(layer, x; wts = uniform_weights(layer, x), [mean])
+    batchcov(layer, x; [wts], [mean])
 
 Covariance of `x` over batch dimensions, weigthed by `wts`.
 """
@@ -225,7 +225,7 @@ function batchcov(
 end
 
 """
-    total_mean_from_inputs(layer, [inputs]; wts = uniform_weights(layer, inputs))
+    total_mean_from_inputs(layer, [inputs]; [wts])
 
 Total mean of unit activations from inputs.
 """
@@ -238,7 +238,7 @@ function total_mean_from_inputs(
 end
 
 """
-    total_var_from_inputs(layer, [inputs]; wts = uniform_weights(layer, inputs))
+    total_var_from_inputs(layer, [inputs]; [wts])
 
 Total variance of unit activations from inputs.
 """
@@ -253,7 +253,7 @@ function total_var_from_inputs(
 end
 
 """
-    total_meanvar_from_inputs(layer, [inputs]; wts = uniform_weights(layer, inputs))
+    total_meanvar_from_inputs(layer, [inputs]; [wts])
 
 Total mean and total variance of unit activations from inputs.
 """
@@ -270,7 +270,7 @@ function total_meanvar_from_inputs(
 end
 
 """
-    moments_from_samples(layer, data; wts = uniform_weights(layer, data))
+    moments_from_samples(layer, data; [wts])
 
 Empirical moments of `data`, batch-averaged with weights `wts`. Each layer
 defines which moments it computes (see the docstrings of its specific
@@ -300,7 +300,7 @@ that may depend on the current parameters.
 function ∂energy_from_moments end
 
 """
-    ∂energy(layer, data; wts = uniform_weights(layer, data))
+    ∂energy(layer, data; [wts])
 
 Derivative of average energy of `data` with respect to `layer` parameters.
 """
@@ -323,7 +323,7 @@ moment, the next axes are `size(layer)`, and any trailing batch dimensions of
 function moments_from_inputs end
 
 """
-    batchmean_moments(layer, moments; wts = uniform_weights(layer, view(moments, 1, ..)))
+    batchmean_moments(layer, moments; [wts])
 
 Average a per-configuration moments array (as returned by `moments_from_inputs`
 with batched inputs) over its batch dimensions, weighted by `wts` (lazy uniform
@@ -366,7 +366,7 @@ function ∂cgfs(layer::AbstractLayer, inputs::AbstractArray = Falses(size(layer
 end
 
 """
-    ∂cgf(layer, [inputs]; wts = uniform_weights(layer, inputs))
+    ∂cgf(layer, [inputs]; [wts])
 
 Unit activation moments, conjugate to layer parameters.
 These are obtained by differentiating `cgfs` with respect to the layer parameters.
