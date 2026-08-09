@@ -113,7 +113,7 @@ function energy(layer::AbstractLayer, x::AbstractArray)
 end
 
 """
-    cgf(layer, inputs = Falses(size(layer)))
+    cgf(layer, [inputs])
 
 Cumulant generating function of layer, reduced over layer dimensions.
 """
@@ -128,14 +128,14 @@ function cgf(layer::AbstractLayer, inputs::AbstractArray = Falses(size(layer)))
 end
 
 """
-    std_from_inputs(layer, inputs = Falses(size(layer)))
+    std_from_inputs(layer, [inputs])
 
 Standard deviation of unit activations from inputs.
 """
 std_from_inputs(layer::AbstractLayer, inputs::AbstractArray = Falses(size(layer))) = sqrt.(var_from_inputs(layer, inputs))
 
 """
-    meanvar_from_inputs(layer, inputs = Falses(size(layer)))
+    meanvar_from_inputs(layer, [inputs])
 
 Mean and variance of unit activations from inputs.
 """
@@ -299,7 +299,7 @@ function ∂energy(layer::AbstractLayer, data::AbstractArray; wts = nothing)
 end
 
 """
-    moments_from_inputs(layer, inputs = Falses(size(layer)))
+    moments_from_inputs(layer, [inputs])
 
 Moments of the unit activations under the conditional distribution given `inputs`,
 in the same layout as `moments_from_samples`: the first axis indexes the
@@ -336,7 +336,7 @@ for the layout). Batch dimensions of `moments` are preserved.
 function var_from_moments end
 
 """
-    ∂cgfs(layer, inputs = Falses(size(layer)))
+    ∂cgfs(layer, [inputs])
 
 Gradient of `cgfs` with respect to the layer parameters, for each configuration of
 `inputs` (batch dimensions are preserved; the first axis indexes the parameter, as
@@ -348,7 +348,7 @@ function ∂cgfs(layer::AbstractLayer, inputs::AbstractArray = Falses(size(layer
 end
 
 """
-    ∂cgf(layer, inputs = Falses(size(layer)); wts = nothing)
+    ∂cgf(layer, [inputs]; wts = nothing)
 
 Unit activation moments, conjugate to layer parameters.
 These are obtained by differentiating `cgfs` with respect to the layer parameters.
