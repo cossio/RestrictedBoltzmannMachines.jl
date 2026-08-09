@@ -71,11 +71,10 @@ function ∂interaction_energy(
         hflat = with_eltype_of(rbm.w, vec(h))
         ∂wflat = -vflat * hflat'
     else
-        # Weighted batch average as a matmul, folding the weights into the
-        # (typically smaller) hidden factor.
+        # weighted batch average as a Diagonal-weighted matmul, as in `batchcov`
         vflat = with_eltype_of(rbm.w, flatten(rbm.visible, v))
         hflat = with_eltype_of(rbm.w, flatten(rbm.hidden, h))
-        ∂wflat = -vflat * (hflat .* reshape(vec(wts), 1, :))' / sum(wts)
+        ∂wflat = -_weighted_outer(vflat, wts, hflat) / sum(wts)
     end
     ∂w = reshape(∂wflat, size(rbm.w))
     return ∂w

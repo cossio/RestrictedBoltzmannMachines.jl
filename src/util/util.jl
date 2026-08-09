@@ -37,10 +37,18 @@ _asfloat(A::Ones{Bool}) = A
 
 # `transpose`, not `dot`: the documented sum is `Σ Aᵢwᵢ`, without conjugation
 _wsum_all(A::AbstractArray, wts::AbstractArray) = transpose(_asfloat(vec(A))) * _asfloat(vec(wts))
+
 _wsum_trailing(A::AbstractMatrix, wts::AbstractVector) = _asfloat(A) * _asfloat(wts)
 # uniform `Ones` weights reduce as a plain sum (keeps the unweighted training
 # path free of weighted copies and eltype promotion)
 _wsum_trailing(A::AbstractMatrix, ::Ones{<:Real}) = sum(_asfloat(A); dims = 2)
+
+# `A * Diagonal(vec(wts)) * B'`, the weighted outer product `Σᵢ wᵢ A[:,i] B[:,i]'`.
+# Uniform `Ones` weights reduce to the plain product: `Diagonal` of a lazy CPU
+# fill takes a scalar-indexing kernel when the factors are GPU arrays.
+_weighted_outer(A::AbstractMatrix, wts::AbstractArray, B::AbstractMatrix) =
+    A * Diagonal(vec(wts)) * B'
+_weighted_outer(A::AbstractMatrix, ::Ones{<:Real}, B::AbstractMatrix) = A * B'
 
 @doc raw"""
     wmean(A; wts = Ones{Bool}(size(A)))
