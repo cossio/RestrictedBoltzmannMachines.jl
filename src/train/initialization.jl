@@ -21,7 +21,7 @@ end
 
 function initialize!(
         rbm::RBM, data::AbstractArray;
-        ϵ::Real = 1.0e-6, wts::AbstractVector = Trues(size(data, ndims(data)))
+        ϵ::Real = 1.0e-6, wts::AbstractVector = uniform_weights(rbm.visible, data)
     )
     @assert 0 < ϵ < 1 / 2
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
@@ -169,7 +169,7 @@ Initializes `rbm.w` such that typical inputs to hidden units are λ.
 """
 function initialize_w!(
         rbm::RBM, data::AbstractArray;
-        λ::Real = 0.1, ϵ::Real = 1.0e-6, wts::AbstractVector = Trues(size(data, ndims(data)))
+        λ::Real = 0.1, ϵ::Real = 1.0e-6, wts::AbstractVector = uniform_weights(rbm.visible, data)
     )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert length(wts) == size(data)[end]
