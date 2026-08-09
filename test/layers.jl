@@ -6,7 +6,7 @@ using Statistics: mean, var, cov
 using Random: bitrand, rand!, randn!
 using LogExpFunctions: logistic
 using EllipsisNotation: (..)
-using FillArrays: Ones
+using FillArrays: Trues
 using QuadGK: quadgk
 using RestrictedBoltzmannMachines: RBM, Binary, Spin, Potts, Gaussian, ReLU, dReLU, xReLU, pReLU, nsReLU,
     flatten, batch_size, batchmean, batchvar, batchcov, drelu_energy,
@@ -528,7 +528,7 @@ end
         layer.η .= layer.η ./ (1 .+ abs.(layer.η))
     end
     inputs = randn(3, 2, 50)
-    for wts in (Ones{Bool}(50), rand(50))
+    for wts in (Trues(50), rand(50))
         μ, ν = @inferred total_meanvar_from_inputs(layer, inputs; wts)
         h_ave = mean_from_inputs(layer, inputs)
         h_var = var_from_inputs(layer, inputs)

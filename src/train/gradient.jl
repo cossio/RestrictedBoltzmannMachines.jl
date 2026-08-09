@@ -54,7 +54,7 @@ end
 
 function ∂interaction_energy(
         rbm::RBM, v::AbstractArray, h::AbstractArray;
-        wts::AbstractArray = Ones{Bool}(batch_size(rbm, v, h))
+        wts::AbstractArray = Trues(batch_size(rbm, v, h))
     )
     bsz = batch_size(rbm, v, h)
     @assert size(wts) == bsz

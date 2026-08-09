@@ -19,7 +19,7 @@ using RestrictedBoltzmannMachines: standardize, unstandardize, standardize!, uns
 using RestrictedBoltzmannMachines: standardize_hidden, standardize_visible
 using StatsBase: proportionmap
 using Statistics: mean
-using FillArrays: Ones
+using FillArrays: Trues
 using Test: @inferred, @test, @testset
 using Zygote: gradient
 
@@ -280,7 +280,7 @@ end
             (
                 binary_data,
                 potts_data,
-                Ones{Bool}(4),
+                Trues(4),
                 [0.0, 0.5],
                 [1.0, 0.5],
                 reshape([0.5, 0.5, 0.0], 3, 1),

@@ -1,7 +1,7 @@
 using Test: @test, @testset, @test_throws
 using Random: seed!
 using Statistics: mean
-using FillArrays: Ones
+using FillArrays: Ones, Trues
 import Optimisers
 import RestrictedBoltzmannMachines as RBMs
 using RestrictedBoltzmannMachines: RBM, Binary, Gaussian, BinaryRBM,
@@ -89,8 +89,8 @@ end
     # lazy uniform weights reduce like a plain mean, without promoting —
     # on partial and full (default) reductions alike
     A = rand(Float32, 2, 5)
-    @test RBMs.wmean(A; wts = Ones{Bool}(5)) ≈ vec(mean(A; dims = 2))
-    @test RBMs.wmean(A; wts = Ones{Bool}(5)) isa Vector{Float32}
+    @test RBMs.wmean(A; wts = Trues(5)) ≈ vec(mean(A; dims = 2))
+    @test RBMs.wmean(A; wts = Trues(5)) isa Vector{Float32}
     @test RBMs.wmean(A) ≈ mean(A)
     @test RBMs.wmean(A) isa Float32
     @test RBMs.wmean(Float32[1, 2]) isa Float32
@@ -99,12 +99,12 @@ end
     # matching `mean` instead of wrapping like an integer `sum`
     big_ints = [typemax(Int), typemax(Int)]
     @test RBMs.wmean(big_ints) ≈ mean(big_ints) ≈ float(typemax(Int))
-    @test RBMs.wmean(reshape(big_ints, 1, 2); wts = Ones{Bool}(2)) ≈ [float(typemax(Int))]
+    @test RBMs.wmean(reshape(big_ints, 1, 2); wts = Trues(2)) ≈ [float(typemax(Int))]
 end
 
 @testset "training weight checks" begin
     # lazy uniform weights must still be real-valued to skip validation
-    @test RBMs._validate_weights(Ones{Bool}(3)) isa Ones
+    @test RBMs._validate_weights(Trues(3)) isa Ones
     @test_throws ArgumentError RBMs._validate_weights(Ones{ComplexF64}(2))
 
     # Empty data and undersized weights are rejected before mutation. The
@@ -154,7 +154,7 @@ end
     initialize!(rbm, data)
     @test all_finite(rbm)
     layer = RBMs.Binary((2,))
-    initialize!(layer, data; wts = Ones{Bool}(3))
+    initialize!(layer, data; wts = Trues(3))
     @test all(isfinite, layer.par)
 
     # weights enter the reductions unrescaled; only relative values matter
@@ -172,6 +172,10 @@ end
     @test_throws ArgumentError initialize!(base_rbm(), data; wts = [1.0, -1.0, 1.0])
     @test_throws ArgumentError initialize!(base_rbm(), data; wts = [1.0, 0.0, 1.0])
     @test_throws ArgumentError initialize!(base_rbm(), data; wts = [1.0, NaN, 1.0])
+    # ... also at the per-layer and initialize_w! entry points
+    @test_throws ArgumentError initialize!(RBMs.Binary((2,)), data; wts = [1.0, 0.0, 1.0])
+    @test_throws ArgumentError initialize!(RBMs.Gaussian((2,)), data; wts = [1.0, -1.0, 1.0])
+    @test_throws ArgumentError RBMs.initialize_w!(base_rbm(), data; wts = [1.0, NaN, 1.0])
     # undersized weights are rejected instead of silently truncating the data
     @test_throws DimensionMismatch initialize!(base_rbm(), data; wts = [1.0, 1.0])
 

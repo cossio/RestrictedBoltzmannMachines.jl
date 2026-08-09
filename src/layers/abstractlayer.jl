@@ -170,7 +170,7 @@ batch_size(::AbstractLayer, ::Number) = ()
 
 Lazy uniform weights (`FillArrays.Ones`) over the batch dimensions of `x`.
 """
-uniform_weights(layer::AbstractLayer, x) = Ones{Bool}(batch_size(layer, x))
+uniform_weights(layer::AbstractLayer, x) = Trues(batch_size(layer, x))
 
 """
     batchmean(layer, x; wts = uniform_weights(layer, x))
@@ -180,7 +180,6 @@ Mean of `x` over batch dimensions, weigthed by `wts`.
 function batchmean(
         layer::AbstractLayer, x::AbstractArray; wts::AbstractArray = uniform_weights(layer, x)
     )
-    @assert size(layer) == size(x)[1:ndims(layer)]
     @assert size(wts) == batch_size(layer, x)
     return wmean(x; wts)
 end
@@ -192,9 +191,9 @@ Variance of `x` over batch dimensions, weigthed by `wts`.
 """
 function batchvar(
         layer::AbstractLayer, x::AbstractArray;
-        wts::AbstractArray = uniform_weights(layer, x), mean = batchmean(layer, x; wts)
+        wts::AbstractArray = uniform_weights(layer, x),
+        mean::AbstractArray = batchmean(layer, x; wts)
     )
-    @assert size(layer) == size(x)[1:ndims(layer)] == size(mean)
     return batchmean(layer, (x .- mean) .^ 2; wts)
 end
 
@@ -205,7 +204,8 @@ Standard deviation of `x` over batch dimensions, weigthed by `wts`.
 """
 function batchstd(
         layer::AbstractLayer, x::AbstractArray;
-        wts::AbstractArray = uniform_weights(layer, x), mean = batchmean(layer, x; wts)
+        wts::AbstractArray = uniform_weights(layer, x),
+        mean::AbstractArray = batchmean(layer, x; wts)
     )
     return sqrt.(batchvar(layer, x; wts, mean))
 end
@@ -217,9 +217,9 @@ Covariance of `x` over batch dimensions, weigthed by `wts`.
 """
 function batchcov(
         layer::AbstractLayer, x::AbstractArray;
-        wts::AbstractArray = uniform_weights(layer, x), mean = batchmean(layer, x; wts)
+        wts::AbstractArray = uniform_weights(layer, x),
+        mean::AbstractArray = batchmean(layer, x; wts)
     )
-    @assert size(layer) == size(x)[1:ndims(layer)] == size(mean)
     @assert size(wts) == batch_size(layer, x)
     # reshape into a matrix even for unbatched `x`, where `flatten` gives a vector
     ξ = reshape(flatten(layer, x .- mean), length(layer), :)

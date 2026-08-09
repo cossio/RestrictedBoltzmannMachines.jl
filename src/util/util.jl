@@ -33,10 +33,13 @@ _asfloat(A::AbstractArray{<:AbstractFloat}) = A
 _asfloat(A::AbstractArray) = float.(A)
 # The default lazy uniform weights are exact ones already; keep them lazy (and
 # `Bool`) so they cannot promote the eltype of the reduction.
-_asfloat(A::Ones{Bool}) = A
+_asfloat(A::Trues) = A
 
 # `transpose`, not `dot`: the documented sum is `Σ Aᵢwᵢ`, without conjugation
 _wsum_all(A::AbstractArray, wts::AbstractArray) = transpose(_asfloat(vec(A))) * _asfloat(vec(wts))
+# uniform `Ones` weights reduce as a plain sum: the lazy CPU fill would take a
+# scalar-indexing kernel in the mixed matmul when `A` is a GPU array
+_wsum_all(A::AbstractArray, ::Ones{<:Real}) = sum(_asfloat(A))
 
 _wsum_trailing(A::AbstractMatrix, wts::AbstractVector) = _asfloat(A) * _asfloat(wts)
 # uniform `Ones` weights reduce as a plain sum (keeps the unweighted training
@@ -47,11 +50,11 @@ _wsum_trailing(A::AbstractMatrix, ::Ones{<:Real}) = sum(_asfloat(A); dims = 2)
 # Uniform `Ones` weights reduce to the plain product: `Diagonal` of a lazy CPU
 # fill takes a scalar-indexing kernel when the factors are GPU arrays.
 _weighted_outer(A::AbstractMatrix, wts::AbstractArray, B::AbstractMatrix) =
-    A * Diagonal(vec(wts)) * B'
+    A * Diagonal(_asfloat(vec(wts))) * B'
 _weighted_outer(A::AbstractMatrix, ::Ones{<:Real}, B::AbstractMatrix) = A * B'
 
 @doc raw"""
-    wmean(A; wts = Ones{Bool}(size(A)))
+    wmean(A; wts = Trues(size(A)))
 
 Weighted mean of `A` along its trailing dimensions, weighted by `wts` (see
 [`wsum`](@ref)). By default, lazy uniform weights over all of `A`, which
@@ -62,7 +65,7 @@ promoting eltypes.
 \frac{\sum_i A_i w_i}{\sum_i w_i}
 ```
 """
-function wmean(A::AbstractArray; wts::AbstractArray = Ones{Bool}(size(A)))
+function wmean(A::AbstractArray; wts::AbstractArray = Trues(size(A)))
     return wsum(A, wts) / sum(wts)
 end
 

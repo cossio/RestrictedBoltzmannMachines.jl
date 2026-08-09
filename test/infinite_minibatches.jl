@@ -1,12 +1,12 @@
 using Test: @testset, @test, @test_throws, @inferred
 using EllipsisNotation: (..)
-using FillArrays: Ones
+using FillArrays: Trues
 using RestrictedBoltzmannMachines: nobs, getobs, shuffleobs, infinite_minibatches
 
 @testset "nobs" begin
     @test @inferred(nobs(randn(3, 4, 5))) == 5
     @test @inferred(nobs(randn(3, 4, 5), randn(2, 3, 5))) == 5
-    @test @inferred(nobs(randn(3, 4, 5), Ones{Bool}(5))) == 5
+    @test @inferred(nobs(randn(3, 4, 5), Trues(5))) == 5
 end
 
 @testset "getobs" begin
@@ -16,10 +16,10 @@ end
     @test @inferred(getobs(1:2, X, Y)) == (X[.., 1:2], Y[.., 1:2])
 
     # lazy uniform weights stay lazy under minibatch slicing
-    w = Ones{Bool}(5)
+    w = Trues(5)
     _, wslice = @inferred getobs(1:2, X, w)
     @test wslice isa Ones
-    @test wslice == Ones{Bool}(2)
+    @test wslice == Trues(2)
 end
 
 @testset "shuffleobs" begin
@@ -28,7 +28,7 @@ end
     @test sort(X) == sort(Y) == collect(1:10)
 
     # lazy uniform weights stay lazy under shuffling
-    X, w = shuffleobs(collect(1:10), Ones{Bool}(10))
+    X, w = shuffleobs(collect(1:10), Trues(10))
     @test sort(X) == collect(1:10)
     @test w isa Ones
 end
@@ -52,7 +52,7 @@ end
 
 @testset "infinite_minibatches over (data, wts)" begin
     data = randn(2, 10)
-    wts = Ones{Bool}(10)
+    wts = Trues(10)
     for (i, (x, w)) in zip(1:7, infinite_minibatches(data, wts; batchsize = 4, shuffle = false))
         @test size(x) == (2, 4)
         @test w isa Ones

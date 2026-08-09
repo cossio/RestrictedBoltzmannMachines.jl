@@ -2,8 +2,8 @@ import Statistics
 import RestrictedBoltzmannMachines as RBMs
 using Test: @test, @testset, @inferred, @test_throws
 using Statistics: mean, var, cov
-using LinearAlgebra: dot
-using FillArrays: Ones
+using LinearAlgebra: Diagonal, dot
+using FillArrays: Trues
 using RestrictedBoltzmannMachines: convert_eltype
 
 @testset "generate_sequences" begin
@@ -38,7 +38,7 @@ end
         @inferred RBMs.wmean(A; wts)
 
     # a vector spanning the last dimension reduces exactly that dimension
-    @test @inferred(RBMs.wmean(ones(2, 3); wts = Ones{Bool}(3))) == [1.0, 1.0]
+    @test @inferred(RBMs.wmean(ones(2, 3); wts = Trues(3))) == [1.0, 1.0]
 
     # weighted sums do not conjugate complex values
     @test RBMs.wmean(ComplexF64[1 + im]; wts = [1.0]) == 1 + im
@@ -47,6 +47,14 @@ end
     @test_throws AssertionError RBMs.wmean(ones(2, 3); wts = ones(2))
     @test_throws AssertionError RBMs.wmean(ones(2, 3); wts = ones(3, 2))
     @test_throws AssertionError RBMs.wmean(ones(2, 3); wts = ones(2, 3, 4))
+
+    # abstract-eltype weights are narrowed by the float conversion, so the
+    # reductions return concretely typed results
+    A, B = randn(2, 3), randn(2, 3)
+    wts = Real[1.0, 2.0, 3.0]
+    @test RBMs.wmean(A; wts) ≈ RBMs.wmean(A; wts = Float64[1.0, 2.0, 3.0])
+    @test eltype(RBMs._weighted_outer(A, wts, B)) === Float64
+    @test RBMs._weighted_outer(A, wts, B) ≈ A * Diagonal([1.0, 2.0, 3.0]) * B'
 end
 
 @testset "reshape_maybe" begin

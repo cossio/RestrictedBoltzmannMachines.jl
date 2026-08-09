@@ -21,7 +21,7 @@ end
 
 function initialize!(
         rbm::RBM, data::AbstractArray;
-        ϵ::Real = 1.0e-6, wts::AbstractVector = Ones{Bool}(size(data, ndims(data)))
+        ϵ::Real = 1.0e-6, wts::AbstractVector = Trues(size(data, ndims(data)))
     )
     @assert 0 < ϵ < 1 / 2
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
@@ -41,8 +41,8 @@ function initialize!(
         layer::Binary, data::AbstractArray;
         ϵ::Real = 1.0e-6, wts::AbstractArray = uniform_weights(layer, data)
     )
-    @assert size(layer) == size(data)[1:ndims(layer)]
     @assert 0 < ϵ < 1 / 2
+    _validate_weights(wts)
     μ = batchmean(layer, data; wts)
     μϵ = clamp.(μ, ϵ, 1 - ϵ)
     layer.θ .= logit.(μϵ)
@@ -53,8 +53,8 @@ function initialize!(
         layer::Spin, data::AbstractArray;
         ϵ::Real = 1.0e-6, wts::AbstractArray = uniform_weights(layer, data)
     )
-    @assert size(layer) == size(data)[1:ndims(layer)]
     @assert 0 < ϵ < 1 / 2
+    _validate_weights(wts)
     μ = batchmean(layer, data; wts)
     μϵ = clamp.(μ, ϵ - 1, 1 - ϵ)
     layer.θ .= atanh.(μϵ)
@@ -65,8 +65,8 @@ function initialize!(
         layer::Union{Potts, PottsGumbel}, data::AbstractArray;
         ϵ::Real = 1.0e-6, wts::AbstractArray = uniform_weights(layer, data)
     )
-    @assert size(layer) == size(data)[1:ndims(layer)]
     @assert 0 < ϵ < 1 / 2
+    _validate_weights(wts)
     μ = batchmean(layer, data; wts)
     μϵ = clamp.(μ, ϵ, 1 - ϵ)
     layer.θ .= log.(μϵ)
@@ -75,8 +75,8 @@ end
 
 # Gaussian moment-matching of `θ` and `γ`, shared by the layers initialized as Gaussians.
 function _initialize_gaussian_moments!(θ::AbstractArray, γ::AbstractArray, layer::AbstractLayer, data::AbstractArray; ϵ::Real, wts::AbstractArray)
-    @assert size(layer) == size(data)[1:ndims(layer)]
     @assert 0 < ϵ < 1 / 2
+    _validate_weights(wts)
     μ = batchmean(layer, data; wts)
     ν = batchmean(layer, (data .- μ) .^ 2; wts)
     γ .= inv.(ν .+ ϵ)
@@ -153,7 +153,7 @@ function initialize!(
         layer::nsReLU, data::AbstractArray;
         wts::AbstractArray = uniform_weights(layer, data)
     )
-    @assert size(layer) == size(data)[1:ndims(layer)]
+    _validate_weights(wts)
     μ = batchmean(layer, data; wts)
     layer.θ .= μ
     layer.Δ .= layer.ξ .= 0
@@ -172,10 +172,11 @@ Initializes `rbm.w` such that typical inputs to hidden units are λ.
 """
 function initialize_w!(
         rbm::RBM, data::AbstractArray;
-        λ::Real = 0.1, ϵ::Real = 1.0e-6, wts::AbstractVector = Ones{Bool}(size(data, ndims(data)))
+        λ::Real = 0.1, ϵ::Real = 1.0e-6, wts::AbstractVector = Trues(size(data, ndims(data)))
     )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert length(wts) == size(data)[end]
+    _validate_weights(wts)
     # float the operands (a no-op for float arrays): narrow integer data or
     # weights (e.g. Int8 spins) would wrap in the products otherwise
     x = _asfloat(reshape(data, length(rbm.visible), size(data)[end]))
