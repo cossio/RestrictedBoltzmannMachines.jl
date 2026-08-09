@@ -168,7 +168,7 @@ end
 
 Lazy uniform weights over the batch dimensions of `x`.
 """
-uniform_weights(layer::AbstractLayer, x) = Trues(batch_size(layer, x))
+uniform_weights(layer::AbstractLayer, x::AbstractArray) = Trues(batch_size(layer, x))
 
 """
     batchmean(layer, x; wts = uniform_weights(layer, x))
