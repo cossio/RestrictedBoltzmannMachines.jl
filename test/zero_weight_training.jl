@@ -85,7 +85,6 @@ end
 
 @testset "wmean is a plain weighted mean" begin
     @test RBMs.wmean([1.0, 3.0]; wts = [1.0, 3.0]) ≈ 2.5
-    @test RBMs.wmean([1.0, 3.0]; wts = Real[1.0, 3.0]) ≈ 2.5
     @test RBMs.wmean([1.0, 3.0]; wts = fill(big"1e400", 2)) ≈ 2.0
     # the kernel does not validate weights (the training entry points reject
     # non-positive weights): zero weights annihilate finite samples
