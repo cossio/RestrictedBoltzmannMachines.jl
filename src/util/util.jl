@@ -13,7 +13,6 @@ scalar). Reduced dimensions are dropped from the result.
 """
 function wsum(A::AbstractArray, wts::AbstractArray{<:Real})
     kept = ndims(A) - ndims(wts)
-    @assert kept ≥ 0
     @assert size(wts) == size(A)[(kept + 1):end]
     if kept == 0
         # `transpose`, not `dot`: the documented sum is `Σ Aᵢwᵢ`, without conjugation
@@ -31,7 +30,6 @@ end
 # when `A` is a GPU array.
 function wsum(A::AbstractArray, wts::Ones{<:Real})
     kept = ndims(A) - ndims(wts)
-    @assert kept ≥ 0
     @assert size(wts) == size(A)[(kept + 1):end]
     kept == 0 && return sum(float, A)
     S = sum(float, A; dims = (kept + 1):ndims(A))
