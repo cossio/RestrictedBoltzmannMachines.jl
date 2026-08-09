@@ -46,8 +46,10 @@ end
 # Float the operands (a no-op for float arrays): narrow-integer data and
 # weights would otherwise accumulate in their own narrow type (wrapping on
 # overflow), and mixed integer/float operands would take a different matmul
-# kernel than float-converted copies, breaking exact reproducibility.
-_asfloat(A::AbstractArray) = float(A)
+# kernel than float-converted copies, breaking exact reproducibility. The
+# broadcast, unlike `float(A)`, also handles abstractly-typed arrays (`Real[…]`).
+_asfloat(A::AbstractArray{<:AbstractFloat}) = A
+_asfloat(A::AbstractArray) = float.(A)
 # The default lazy uniform weights are exact ones already; keep them lazy (and
 # `Bool`) so they cannot promote the eltype of the reduction.
 _asfloat(A::Trues) = A
