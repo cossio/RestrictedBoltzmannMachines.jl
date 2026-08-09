@@ -7,7 +7,7 @@ Like Potts, but uses the Gumbel-softmax trick for GPU-friendly sampling.
 
 # The statistics (`cgfs`, `mean_from_inputs`, ...) are shared with Potts (see potts.jl).
 # This is the only change with respect to Potts. Here, we use the Gumbel trick.
-function sample_from_inputs(layer::PottsGumbel, inputs = 0)
+function sample_from_inputs(layer::PottsGumbel, inputs::AbstractArray = Falses(size(layer)))
     c = categorical_sample_from_logits_gumbel(layer.θ .+ inputs)
     return onehot_encode(c, 1:size(layer, 1))
 end
