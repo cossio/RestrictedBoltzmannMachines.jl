@@ -40,9 +40,7 @@ function wsum(A::AbstractArray, wts::Ones{<:Real})
     return reshape(S, ntuple(d -> size(A, d), Val(kept)))
 end
 
-# `A * Diagonal(vec(wts)) * B'`, the weighted outer product `Σᵢ wᵢ A[:,i] B[:,i]'`.
-# Uniform `Ones` weights reduce to the plain product: `Diagonal` of a lazy CPU
-# fill takes a scalar-indexing kernel when the factors are GPU arrays.
+# the weighted outer product `Σᵢ wᵢ A[:,i] B[:,i]'`
 _weighted_outer(A::AbstractMatrix, wts::AbstractArray{<:Real}, B::AbstractMatrix) =
     A * Diagonal(vec(wts)) * B'
 _weighted_outer(A::AbstractMatrix, ::Ones{<:Real}, B::AbstractMatrix) = A * B'
