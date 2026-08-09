@@ -13,7 +13,7 @@ parameters with an `Optimisers.jl` rule.
 # Keyword arguments
 - `batchsize::Int=1`: number of samples per update.
 - `iters::Int=1`: number of parameter updates.
-- `wts::AbstractVector=Trues(nsamples)`: finite, positive per-sample
+- `wts::AbstractVector`: finite, positive per-sample
   weights, lazy uniform weights by default. Zero or negative weights raise an
   `ArgumentError` — drop observations meant to be excluded (and their weights)
   beforehand. Callbacks receive the minibatch weights as `wd`.

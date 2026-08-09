@@ -168,7 +168,7 @@ batch_size(::AbstractLayer, ::Number) = ()
 """
     uniform_weights(layer, x)
 
-Lazy uniform weights (`FillArrays.Ones`) over the batch dimensions of `x`.
+Lazy uniform weights over the batch dimensions of `x`.
 """
 uniform_weights(layer::AbstractLayer, x) = Trues(batch_size(layer, x))
 
