@@ -4,12 +4,12 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
-- Training and statistics now use a single weighted code path: when no `wts`
-  are given, lazy uniform weights are used instead of a separate unweighted
-  path. Uniform weights reduce like plain means without allocating weight
-  arrays or promoting eltypes (Float32 training stays Float32 end to end).
-  Visible consequences:
-  - **Breaking**: `wts` must be an `AbstractVector{<:Real}` and defaults to
+- **Breaking**: Training and statistics now use a single weighted code path:
+  when no `wts` are given, lazy uniform weights are used instead of a separate
+  unweighted path. Uniform weights reduce like plain means without allocating
+  weight arrays or promoting eltypes (Float32 training stays Float32 end to
+  end). Visible consequences:
+  - Breaking: `wts` must be an `AbstractVector{<:Real}` and defaults to
     lazy uniform weights; `wts = nothing` is no longer accepted by `pcd!` and
     `initialize!`.
   - `pcd!` callbacks receive lazy uniform weight slices as `wd` for
