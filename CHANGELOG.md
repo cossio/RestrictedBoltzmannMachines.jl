@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+- **Breaking:** the layer input functions (`cgf`, `cgfs`, `sample_from_inputs`,
+  `mean_from_inputs`, `var_from_inputs`, `std_from_inputs`,
+  `meanvar_from_inputs`, `mode_from_inputs`, `mean_abs_from_inputs`,
+  `moments_from_inputs`, `∂cgfs`, `∂cgf`, and the `total_*_from_inputs` family)
+  now require `inputs` to be an `AbstractArray`; scalar `inputs` (e.g.
+  `cgfs(layer, 0)`) now throw a `MethodError`. The default changed from
+  `inputs = 0` to the equivalent lazy `Falses(size(layer))`, so calls that rely
+  on the default or pass arrays are unaffected.
+
 ## 6.2.0
 
 - Layer conditional statistics are now organized around moments arrays. The new
