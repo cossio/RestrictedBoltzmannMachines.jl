@@ -38,13 +38,14 @@ _asfloat(A::Trues) = A
 # `transpose`, not `dot`: the documented sum is `Σ Aᵢwᵢ`, without conjugation
 _wsum_all(A::AbstractArray, wts::AbstractArray) = transpose(_asfloat(vec(A))) * _asfloat(vec(wts))
 # uniform `Ones` weights reduce as a plain sum: the lazy CPU fill would take a
-# scalar-indexing kernel in the mixed matmul when `A` is a GPU array
-_wsum_all(A::AbstractArray, ::Ones{<:Real}) = sum(_asfloat(A))
+# scalar-indexing kernel in the mixed matmul when `A` is a GPU array. `float`
+# per element accumulates non-float data in float without materializing a copy.
+_wsum_all(A::AbstractArray, ::Ones{<:Real}) = sum(float, A)
 
 _wsum_trailing(A::AbstractMatrix, wts::AbstractVector) = _asfloat(A) * _asfloat(wts)
 # uniform `Ones` weights reduce as a plain sum (keeps the unweighted training
 # path free of weighted copies and eltype promotion)
-_wsum_trailing(A::AbstractMatrix, ::Ones{<:Real}) = sum(_asfloat(A); dims = 2)
+_wsum_trailing(A::AbstractMatrix, ::Ones{<:Real}) = sum(float, A; dims = 2)
 
 # `A * Diagonal(vec(wts)) * B'`, the weighted outer product `Σᵢ wᵢ A[:,i] B[:,i]'`.
 # Uniform `Ones` weights reduce to the plain product: `Diagonal` of a lazy CPU
