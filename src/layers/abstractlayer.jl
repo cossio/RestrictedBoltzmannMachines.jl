@@ -333,7 +333,7 @@ function batchmean_moments(
         layer::AbstractLayer, moments::AbstractArray;
         wts::AbstractArray = uniform_weights(layer, view(moments, 1, ..))
     )
-    @assert ndims(wts) == ndims(moments) - ndims(layer) - 1
+    @assert size(wts) == batch_size(layer, view(moments, 1, ..))
     return wmean(moments; wts)
 end
 
@@ -377,6 +377,6 @@ function ∂cgf(
         wts::AbstractArray = uniform_weights(layer, inputs)
     )
     ∂Fs = ∂cgfs(layer, inputs)
-    @assert ndims(wts) == ndims(∂Fs) - ndims(layer.par)
+    @assert size(wts) == batch_size(layer, view(∂Fs, 1, ..))
     return wmean(∂Fs; wts)
 end
