@@ -17,10 +17,12 @@ CUDA.jl, and HDF5 persistence. It requires Julia 1.12 or later.
 - Run the narrowest relevant test file first, then
   `julia --project=. -e 'using Pkg; Pkg.test()'` when the change crosses
   subsystems or affects public behavior.
-- Do not wait for the full test suite to pass locally before opening a PR.
-  GitHub CI runs the complete suite on every PR at no cost, so focus local
-  runs on a few tests targeting the change and open the PR a bit earlier;
-  let CI provide full coverage.
+- On public repos like this one, do not wait for the full test suite to pass
+  locally before opening a PR. GitHub CI runs the complete suite on every PR
+  at no cost, so focus local runs on a few tests targeting the change and
+  open the PR a bit earlier; let CI provide full coverage. On private repos
+  GitHub CI minutes are limited, so there run the full test suite locally
+  before pushing.
 - Load the package with
   `julia --project=. -e 'import RestrictedBoltzmannMachines as RBMs'`.
 
