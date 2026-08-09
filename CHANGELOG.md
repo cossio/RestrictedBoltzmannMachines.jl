@@ -33,6 +33,9 @@ All notable changes to this project will be documented in this file. The format 
   - Unweighted training with `batchsize` larger than the number of samples now
     clamps the batchsize (as weighted training already did) instead of
     silently performing zero iterations.
+- Minibatch iteration now uses `MLUtils.DataLoader`, making MLUtils a direct
+  dependency. Training behavior is unchanged (fixed-size minibatches, fresh
+  shuffle per epoch).
 
 ## 6.2.0
 
