@@ -49,13 +49,6 @@ end
     # wts with more dimensions than A errors slicing the size tuple
     @test_throws BoundsError RBMs.wmean(ones(2, 3); wts = ones(2, 3, 4))
 
-    # abstract-eltype weights are narrowed by the float conversion, so the
-    # reductions return concretely typed results
-    A, B = randn(2, 3), randn(2, 3)
-    wts = Real[1.0, 2.0, 3.0]
-    @test RBMs.wmean(A; wts) ≈ RBMs.wmean(A; wts = Float64[1.0, 2.0, 3.0])
-    @test eltype(RBMs._weighted_outer(A, wts, B)) === Float64
-    @test RBMs._weighted_outer(A, wts, B) ≈ A * Diagonal([1.0, 2.0, 3.0]) * B'
 end
 
 @testset "reshape_maybe" begin

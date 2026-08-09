@@ -11,26 +11,23 @@ The reduced dimensions are inferred from the shape of `wts`, which must match
 the trailing dimensions of `A` (all of `A` for a full reduction, returning a
 scalar). Reduced dimensions are dropped from the result.
 """
-# full reduction: `wts` spans all of `A`
 function wsum(A::AbstractArray{<:Any, N}, wts::AbstractArray{<:Real, N}) where {N}
+    # full reduction: `wts` spans all of `A`
     @assert size(wts) == size(A)
-    # `transpose`, not `dot`: the documented sum is `Σ Aᵢwᵢ`, without conjugation
-    return transpose(_asfloat(vec(A))) * _asfloat(vec(wts))
+    # conjugation applies to the real `wts` only; `float` keeps integer data
+    # on the same kernel as float-converted runs (bit-identical reductions)
+    return dot(vec(wts), float(vec(A)))
 end
 
 # partial reduction over the trailing dimensions of `A`
 function wsum(A::AbstractArray, wts::AbstractArray{<:Real})
     kept = ndims(A) - ndims(wts)
     @assert size(wts) == size(A)[(kept + 1):end]
-    # A matmul-shaped reduction, which never materializes a weighted copy of `A`
-    S = _asfloat(reshape(A, :, length(wts))) * _asfloat(vec(wts))
+    S = float(reshape(A, :, length(wts))) * vec(wts)
     return reshape(S, ntuple(d -> size(A, d), Val(kept)))
 end
 
-# Uniform weights reduce as a plain sum: `float` per element accumulates
-# non-float data in float without materializing a converted copy, and the
-# lazy CPU fill would take a scalar-indexing kernel in the mixed matmul
-# when `A` is a GPU array.
+# uniform weights reduce as a plain sum
 function wsum(A::AbstractArray{<:Any, N}, wts::Ones{<:Real, N}) where {N}
     @assert size(wts) == size(A)
     return sum(float, A)
@@ -43,22 +40,9 @@ function wsum(A::AbstractArray, wts::Ones{<:Real})
     return reshape(S, ntuple(d -> size(A, d), Val(kept)))
 end
 
-# Float the operands (a no-op for float arrays): narrow-integer data and
-# weights would otherwise accumulate in their own narrow type (wrapping on
-# overflow), and mixed integer/float operands would take a different matmul
-# kernel than float-converted copies, breaking exact reproducibility. The
-# broadcast, unlike `float(A)`, also handles abstractly-typed arrays (`Real[…]`).
-_asfloat(A::AbstractArray{<:AbstractFloat}) = A
-_asfloat(A::AbstractArray) = float.(A)
-# The default lazy uniform weights are exact ones already; keep them lazy (and
-# `Bool`) so they cannot promote the eltype of the reduction.
-_asfloat(A::Trues) = A
-
-# `A * Diagonal(vec(wts)) * B'`, the weighted outer product `Σᵢ wᵢ A[:,i] B[:,i]'`.
-# Uniform `Ones` weights reduce to the plain product: `Diagonal` of a lazy CPU
-# fill takes a scalar-indexing kernel when the factors are GPU arrays.
+# the weighted outer product `Σᵢ wᵢ A[:,i] B[:,i]'`
 _weighted_outer(A::AbstractMatrix, wts::AbstractArray{<:Real}, B::AbstractMatrix) =
-    A * Diagonal(_asfloat(vec(wts))) * B'
+    A * Diagonal(vec(wts)) * B'
 _weighted_outer(A::AbstractMatrix, ::Ones{<:Real}, B::AbstractMatrix) = A * B'
 
 @doc raw"""
