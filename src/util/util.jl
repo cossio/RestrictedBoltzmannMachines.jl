@@ -23,9 +23,6 @@ end
 function wsum(A::AbstractArray, wts::AbstractArray{<:Real})
     kept = ndims(A) - ndims(wts)
     @assert size(wts) == size(A)[(kept + 1):end]
-    # A matmul-shaped reduction, which never materializes a weighted copy of `A`.
-    # `float` (identity on float arrays) keeps integer/Bool samples on the same
-    # matmul kernel as float-converted runs, which reduce bit-identically.
     S = float(reshape(A, :, length(wts))) * vec(wts)
     return reshape(S, ntuple(d -> size(A, d), Val(kept)))
 end
