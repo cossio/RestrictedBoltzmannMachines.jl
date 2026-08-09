@@ -4,12 +4,6 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
-- **Breaking:** the layer input functions now require `inputs` to be an
-  `AbstractArray`; scalar `inputs` (e.g. `0`) now throw a `MethodError`. The
-  default changed from `inputs = 0` to the equivalent lazy
-  `Falses(size(layer))`, so calls that rely on the default or pass arrays are
-  unaffected.
-
 ## 6.2.0
 
 - Layer conditional statistics are now organized around moments arrays. The new
