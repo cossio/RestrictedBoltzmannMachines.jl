@@ -42,7 +42,6 @@ include("ais.jl")
 
 include("train/infinite_minibatches.jl")
 include("train/initialization.jl")
-include("train/train.jl")
 include("train/pcd.jl")
 include("train/gradient.jl")
 
