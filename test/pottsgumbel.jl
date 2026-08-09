@@ -38,6 +38,7 @@ using Statistics: mean
 using Statistics: var
 using Test: @inferred
 using Test: @test
+using Test: @test_throws
 using Test: @testset
 
 Random.seed!(2)
@@ -65,7 +66,8 @@ _layers = (
     @test size(@inferred mean_from_inputs(layer)) == size(layer)
     @test size(@inferred var_from_inputs(layer)) == size(layer)
     @test size(@inferred sample_from_inputs(layer)) == size(layer)
-    @test cgfs(layer, 0) ≈ cgfs(layer)
+    @test cgfs(layer, falses(size(layer))) ≈ cgfs(layer)
+    @test_throws MethodError cgfs(layer, 0) # inputs must be an AbstractArray
     @test std_from_inputs(layer) ≈ sqrt.(var_from_inputs(layer))
 
     if (layer isa Potts) || (layer isa PottsGumbel)
@@ -74,7 +76,7 @@ _layers = (
         @test size(@inferred cgfs(layer)) == size(layer)
     end
 
-    @test size(@inferred sample_from_inputs(layer, 0)) == size(layer)
+    @test size(@inferred sample_from_inputs(layer, falses(size(layer)))) == size(layer)
 
     for B in ((), (2,), (1, 2))
         x = rand(sz..., B...)

@@ -23,19 +23,19 @@ function energies(layer::dReLU, x::AbstractArray)
     return drelu_energy.(layer.θp, layer.θn, layer.γp, layer.γn, x)
 end
 
-function cgfs(layer::dReLU, inputs = 0)
+function cgfs(layer::dReLU, inputs::AbstractArray = Falses(size(layer)))
     θp = layer.θp .+ inputs
     θn = layer.θn .+ inputs
     return drelu_cgf.(θp, θn, layer.γp, layer.γn)
 end
 
-function sample_from_inputs(layer::dReLU, inputs = 0)
+function sample_from_inputs(layer::dReLU, inputs::AbstractArray = Falses(size(layer)))
     θp = layer.θp .+ inputs
     θn = layer.θn .+ inputs
     return drelu_rand.(θp, θn, layer.γp, layer.γn)
 end
 
-function mode_from_inputs(layer::dReLU, inputs = 0)
+function mode_from_inputs(layer::dReLU, inputs::AbstractArray = Falses(size(layer)))
     θp = layer.θp .+ inputs
     θn = layer.θn .+ inputs
     return drelu_mode.(θp, θn, layer.γp, layer.γn)
@@ -63,22 +63,22 @@ function _drelu_mixture_moments(layer::dReLU, inputs)
     return (; pp, pn, μp, μn, νp, νn)
 end
 
-mean_from_inputs(layer::dReLU, inputs = 0) = first(meanvar_from_inputs(layer, inputs))
-var_from_inputs(layer::dReLU, inputs = 0) = last(meanvar_from_inputs(layer, inputs))
+mean_from_inputs(layer::dReLU, inputs::AbstractArray = Falses(size(layer))) = first(meanvar_from_inputs(layer, inputs))
+var_from_inputs(layer::dReLU, inputs::AbstractArray = Falses(size(layer))) = last(meanvar_from_inputs(layer, inputs))
 
-function meanvar_from_inputs(layer::dReLU, inputs = 0)
+function meanvar_from_inputs(layer::dReLU, inputs::AbstractArray = Falses(size(layer)))
     (; pp, pn, μp, μn, νp, νn) = _drelu_mixture_moments(layer, inputs)
     μ = pp .* μp - pn .* μn
     ν = @. pp * (νp + μp^2) + pn * (νn + μn^2) - μ^2
     return μ, ν
 end
 
-function mean_abs_from_inputs(layer::dReLU, inputs = 0)
+function mean_abs_from_inputs(layer::dReLU, inputs::AbstractArray = Falses(size(layer)))
     (; pp, pn, μp, μn) = _drelu_mixture_moments(layer, inputs)
     return pp .* μp + pn .* μn
 end
 
-function moments_from_inputs(layer::dReLU, inputs = 0)
+function moments_from_inputs(layer::dReLU, inputs::AbstractArray = Falses(size(layer)))
     (; pp, pn, μp, μn, νp, νn) = _drelu_mixture_moments(layer, inputs)
     xp1 = @. pp * μp
     xn1 = @. -pn * μn # the negative side is mirrored back to x = -y ≤ 0

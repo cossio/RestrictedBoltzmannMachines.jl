@@ -113,13 +113,13 @@ function energy(layer::AbstractLayer, x::AbstractArray)
 end
 
 """
-    cgf(layer, inputs = 0)
+    cgf(layer, [inputs])
 
 Cumulant generating function of layer, reduced over layer dimensions.
 """
-function cgf(layer::AbstractLayer, inputs = 0)
+function cgf(layer::AbstractLayer, inputs::AbstractArray = Falses(size(layer)))
     Γ = cgfs(layer, inputs)
-    if inputs isa Real || ndims(layer) == ndims(inputs)
+    if ndims(layer) == ndims(inputs)
         return sum(Γ)
     else
         _Γ = sum(Γ; dims = 1:ndims(layer))
@@ -128,18 +128,18 @@ function cgf(layer::AbstractLayer, inputs = 0)
 end
 
 """
-    std_from_inputs(layer, inputs = 0)
+    std_from_inputs(layer, [inputs])
 
 Standard deviation of unit activations from inputs.
 """
-std_from_inputs(layer::AbstractLayer, inputs = 0) = sqrt.(var_from_inputs(layer, inputs))
+std_from_inputs(layer::AbstractLayer, inputs::AbstractArray = Falses(size(layer))) = sqrt.(var_from_inputs(layer, inputs))
 
 """
-    meanvar_from_inputs(layer, inputs = 0)
+    meanvar_from_inputs(layer, [inputs])
 
 Mean and variance of unit activations from inputs.
 """
-function meanvar_from_inputs(layer::AbstractLayer, inputs = 0)
+function meanvar_from_inputs(layer::AbstractLayer, inputs::AbstractArray = Falses(size(layer)))
     return (mean_from_inputs(layer, inputs), var_from_inputs(layer, inputs))
 end
 
@@ -227,7 +227,7 @@ end
 
 Total mean of unit activations from inputs.
 """
-function total_mean_from_inputs(layer::AbstractLayer, inputs = 0; wts = nothing)
+function total_mean_from_inputs(layer::AbstractLayer, inputs::AbstractArray = Falses(size(layer)); wts = nothing)
     h_ave = mean_from_inputs(layer, inputs)
     return batchmean(layer, h_ave; wts)
 end
@@ -237,7 +237,7 @@ end
 
 Total variance of unit activations from inputs.
 """
-function total_var_from_inputs(layer::AbstractLayer, inputs = 0; wts = nothing)
+function total_var_from_inputs(layer::AbstractLayer, inputs::AbstractArray = Falses(size(layer)); wts = nothing)
     h_ave, h_var = meanvar_from_inputs(layer, inputs)
     ν_int = batchmean(layer, h_var; wts) # intrinsic noise
     ν_ext = batchvar(layer, h_ave; wts) # extrinsic noise
@@ -249,7 +249,7 @@ end
 
 Total mean and total variance of unit activations from inputs.
 """
-function total_meanvar_from_inputs(layer::AbstractLayer, inputs = 0; wts = nothing)
+function total_meanvar_from_inputs(layer::AbstractLayer, inputs::AbstractArray = Falses(size(layer)); wts = nothing)
     h_ave, h_var = meanvar_from_inputs(layer, inputs)
     μ = batchmean(layer, h_ave; wts)
     ν_int = batchmean(layer, h_var; wts) # intrinsic noise
@@ -299,7 +299,7 @@ function ∂energy(layer::AbstractLayer, data::AbstractArray; wts = nothing)
 end
 
 """
-    moments_from_inputs(layer, inputs = 0)
+    moments_from_inputs(layer, [inputs])
 
 Moments of the unit activations under the conditional distribution given `inputs`,
 in the same layout as `moments_from_samples`: the first axis indexes the
@@ -336,25 +336,25 @@ for the layout). Batch dimensions of `moments` are preserved.
 function var_from_moments end
 
 """
-    ∂cgfs(layer, inputs = 0)
+    ∂cgfs(layer, [inputs])
 
 Gradient of `cgfs` with respect to the layer parameters, for each configuration of
 `inputs` (batch dimensions are preserved; the first axis indexes the parameter, as
 in `layer.par`). Since the cumulant generating function and the energy are conjugate,
 this is `-∂energy_from_moments` evaluated at the conditional moments given `inputs`.
 """
-function ∂cgfs(layer::AbstractLayer, inputs = 0)
+function ∂cgfs(layer::AbstractLayer, inputs::AbstractArray = Falses(size(layer)))
     return -∂energy_from_moments(layer, moments_from_inputs(layer, inputs))
 end
 
 """
-    ∂cgf(layer, inputs = 0; wts = 1)
+    ∂cgf(layer, [inputs]; wts = nothing)
 
 Unit activation moments, conjugate to layer parameters.
 These are obtained by differentiating `cgfs` with respect to the layer parameters.
 Averages over configurations (weigthed by `wts`).
 """
-function ∂cgf(layer::AbstractLayer, inputs = 0; wts = nothing)
+function ∂cgf(layer::AbstractLayer, inputs::AbstractArray = Falses(size(layer)); wts = nothing)
     ∂Fs = ∂cgfs(layer, inputs)
     ∂F = wmean(∂Fs; wts, dims = (ndims(layer.par) + 1):ndims(∂Fs))
     return reshape(∂F, size(layer.par))
