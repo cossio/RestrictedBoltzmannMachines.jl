@@ -329,25 +329,56 @@ function pcd!(
         callback = Returns(nothing)
     )
     @assert 0 ≤ damping ≤ 1
+    @assert size(data) == (size(rbm.visible)..., size(data)[end])
     _validate_layer_parameters(rbm)
+    batchsize > 0 || throw(ArgumentError("batchsize must be positive"))
+    size(data, ndims(data)) > 0 ||
+        throw(ArgumentError("data must contain at least one sample"))
+    length(wts) == size(data, ndims(data)) ||
+        throw(DimensionMismatch("length(wts) must equal the number of data samples"))
+    _validate_weights(wts)
+    wts_mean = mean(wts)
+    batchsize = min(batchsize, length(wts))
     isnothing(vm) && (vm = _default_fantasy_chains(rbm, batchsize))
-    return _train!(
-        rbm, data;
-        batchsize, iters, wts, moments, optim, ps, state, shuffle,
-        l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum, callback,
-        regularize = (; regularize_unstandardized),
-        setup! = (data, wts) -> begin
-            standardize_visible_from_data!(rbm, data; wts, ϵ = ϵv)
-            zerosum && zerosum!(rbm)
-        end,
-        negative_phase = vd -> _pcd_negative_phase(rbm, vm, steps),
-        post_update! = (vd, wd, ∂d) -> begin
-            # update standardization
-            standardize_hidden_from_v!(rbm, vd; wts = wd, damping, ϵ = ϵh)
-            zerosum && zerosum!(rbm)
-            rescale_hidden && rescale_hidden_activations!(rbm)
-        end,
-    )
+    isnothing(ps) && (ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w))
+    isnothing(state) && (state = setup(optim, ps))
+
+    standardize_visible_from_data!(rbm, data; wts, ϵ = ϵv)
+    zerosum && zerosum!(rbm)
+
+    for (iter, (vd, wd)) in zip(1:iters, infinite_minibatches(data, wts; batchsize, shuffle))
+        # bias correction for the weighted minibatch, in the weights' own precision
+        batch_weight = mean(wd) / wts_mean
+
+        # positive phase
+        ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
+
+        # negative phase: update persistent fantasy chains
+        vm .= sample_v_from_v(rbm, vm; steps)
+        ∂m = ∂free_energy(rbm, vm)
+
+        # Correct the weighted minibatch bias, in the gradient eltype so the
+        # correction scalar cannot promote narrow parameters. The correction
+        # is at most the number of samples, so it cannot overflow Float32.
+        ∂ = (∂d - ∂m) * convert(float(real(eltype(∂d.w))), batch_weight)
+
+        # weight decay
+        ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum, regularize_unstandardized)
+
+        # feed gradient to Optimiser rule
+        gs = (; visible = ∂.visible, hidden = ∂.hidden, w = ∂.w)
+        state, ps = update!(state, ps, gs)
+        _validate_layer_parameters(rbm)
+
+        # update standardization
+        standardize_hidden_from_v!(rbm, vd; wts = wd, damping, ϵ = ϵh)
+        # zerosum! first because absorbing scale_h preserves the zero-sum gauge
+        zerosum && zerosum!(rbm)
+        rescale_hidden && rescale_hidden_activations!(rbm)
+
+        callback(; rbm, optim, state, ps, iter, vd, wd, ∂, vm)
+    end
+    return state, ps
 end
 
 """

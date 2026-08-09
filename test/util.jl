@@ -46,7 +46,8 @@ end
     # weights must match the trailing dimensions of `A`
     @test_throws AssertionError RBMs.wmean(ones(2, 3); wts = ones(2))
     @test_throws AssertionError RBMs.wmean(ones(2, 3); wts = ones(3, 2))
-    @test_throws AssertionError RBMs.wmean(ones(2, 3); wts = ones(2, 3, 4))
+    # wts with more dimensions than A errors slicing the size tuple
+    @test_throws BoundsError RBMs.wmean(ones(2, 3); wts = ones(2, 3, 4))
 
     # abstract-eltype weights are narrowed by the float conversion, so the
     # reductions return concretely typed results
