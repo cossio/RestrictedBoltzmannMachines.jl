@@ -323,7 +323,7 @@ moment, the next axes are `size(layer)`, and any trailing batch dimensions of
 function moments_from_inputs end
 
 """
-    batchmean_moments(layer, moments; wts = Ones{Bool}(...))
+    batchmean_moments(layer, moments; wts = uniform_weights(layer, view(moments, 1, ..)))
 
 Average a per-configuration moments array (as returned by `moments_from_inputs`
 with batched inputs) over its batch dimensions, weighted by `wts` (lazy uniform
@@ -331,7 +331,7 @@ weights by default).
 """
 function batchmean_moments(
         layer::AbstractLayer, moments::AbstractArray;
-        wts::AbstractArray = Ones{Bool}(size(moments)[(ndims(layer) + 2):end])
+        wts::AbstractArray = uniform_weights(layer, view(moments, 1, ..))
     )
     @assert ndims(wts) == ndims(moments) - ndims(layer) - 1
     return wmean(moments; wts)

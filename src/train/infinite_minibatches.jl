@@ -44,29 +44,12 @@ function infinite_minibatches(ds::AbstractArray...; batchsize::Int, shuffle::Boo
     return InfiniteMinibatchIterator(ds, batchsize, shuffle)
 end
 
-#= Per-run weight checks. Weights must be finite, positive reals: zero
-weights are rejected, so observations meant to be excluded must be dropped
-(with their weights) before training. Weights are otherwise used as given —
-they are not rescaled (extreme finite weights can overflow the plain
-reductions). Returns the mean weight (used to bias-correct minibatch
-gradients) and the batchsize clamped to the number of samples. =#
-function _prepare_training_data(
-        data::AbstractArray,
-        wts::AbstractVector;
-        batchsize::Int,
-    )
-    batchsize > 0 || throw(ArgumentError("batchsize must be positive"))
-    size(data, ndims(data)) > 0 ||
-        throw(ArgumentError("data must contain at least one sample"))
-    length(wts) == size(data, ndims(data)) ||
-        throw(DimensionMismatch("length(wts) must equal the number of data samples"))
-    _validate_weights(wts)
-    return mean(wts), min(batchsize, length(wts))
-end
-
-# Real-valued lazy uniform weights are trivially valid (unit weights are
-# positive); anything else (including complex-valued `Ones`) goes through the
-# elementwise checks.
+#= Weights must be finite, positive reals: zero weights are rejected, so
+observations meant to be excluded must be dropped (with their weights) before
+training. Valid weights are used exactly as given — they are never rescaled
+(extreme finite weights can overflow the plain reductions). Real-valued lazy
+uniform weights are trivially valid (unit weights are positive); anything else
+(including complex-valued `Ones`) goes through the elementwise checks. =#
 _validate_weights(wts::Ones{<:Real}) = wts
 
 function _validate_weights(wts::AbstractArray)
@@ -74,8 +57,3 @@ function _validate_weights(wts::AbstractArray)
         throw(ArgumentError("wts must contain only finite, positive real values"))
     return wts
 end
-
-# mean(wd) / mean(wts), the bias correction for a weighted minibatch: a
-# scalar in the weights' own precision, applied in the gradient eltype at its
-# use site.
-_batch_weight(wd::AbstractVector, wts_mean::Real) = mean(wd) / wts_mean

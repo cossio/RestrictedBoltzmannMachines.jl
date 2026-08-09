@@ -1,7 +1,6 @@
 using Test: @testset, @test, @test_throws, @inferred
 using EllipsisNotation: (..)
 using FillArrays: Ones
-import RestrictedBoltzmannMachines as RBMs
 using RestrictedBoltzmannMachines: nobs, getobs, shuffleobs, infinite_minibatches
 
 @testset "nobs" begin
@@ -68,12 +67,8 @@ end
 end
 
 @testset "batchsize larger than the data" begin
+    # the training entry point clamps the batchsize before building the
+    # iterator (tested through `pcd!` in zero_weight_training.jl)
     data = randn(2, 5)
     @test iterate(infinite_minibatches(data; batchsize = 6, shuffle = false)) === nothing
-
-    # the training entry point clamps the batchsize instead, for any weights
-    for wts in (Ones{Bool}(5), rand(5))
-        _, batchsize = RBMs._prepare_training_data(data, wts; batchsize = 6)
-        @test batchsize == 5
-    end
 end

@@ -40,19 +40,28 @@ function _train!(
     isnothing(ps) && (ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w))
     isnothing(state) && (state = setup(optim, ps))
 
-    wts_mean, batchsize = _prepare_training_data(data, wts; batchsize)
+    batchsize > 0 || throw(ArgumentError("batchsize must be positive"))
+    size(data, ndims(data)) > 0 ||
+        throw(ArgumentError("data must contain at least one sample"))
+    length(wts) == size(data, ndims(data)) ||
+        throw(DimensionMismatch("length(wts) must equal the number of data samples"))
+    _validate_weights(wts)
+    wts_mean = mean(wts)
+    batchsize = min(batchsize, length(wts)) # a too-large batchsize clamps to one full batch
     setup!(data, wts)
 
     for (iter, (vd, wd)) in zip(1:iters, infinite_minibatches(data, wts; batchsize, shuffle))
-        batch_weight = _batch_weight(wd, wts_mean)
+        # bias correction for the weighted minibatch, in the weights' own precision
+        batch_weight = mean(wd) / wts_mean
 
         # positive and negative phase gradients
         ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
         ∂m, extras = negative_phase(vd)
         # Correct the weighted minibatch bias, in the gradient eltype so the
         # correction scalar cannot promote narrow parameters. The correction
-        # is at most the number of samples (the largest prepared weight is
-        # one), so the conversion cannot overflow Float32 or wider.
+        # is at most the number of samples (the mean minibatch weight is at
+        # most `length(wts) * wts_mean`), so the conversion cannot overflow
+        # Float32 or wider.
         ∂ = (∂d - ∂m) * convert(float(real(eltype(∂d.w))), batch_weight)
 
         # weight decay

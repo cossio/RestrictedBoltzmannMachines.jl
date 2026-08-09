@@ -64,7 +64,7 @@ all_finite(rbm) = all(x -> all(isfinite, x), values(model_state(rbm)))
             [1.0, Inf],
             ComplexF64[1, 1], # complex weights are not real
         )
-        @test_throws ArgumentError RBMs._prepare_training_data(data, bad_wts; batchsize = 1)
+        @test_throws ArgumentError RBMs._validate_weights(bad_wts)
         rbm = base_rbm()
         before = model_state(rbm)
         @test_throws ArgumentError pcd!(
@@ -103,39 +103,39 @@ end
 end
 
 @testset "training weight checks" begin
-    data = zeros(2, 3)
-
-    # weights are used as given: no rescaling, no zero-weight filtering
-    wts_mean, batchsize = RBMs._prepare_training_data(data, Ones{Bool}(3); batchsize = 5)
-    @test wts_mean == 1.0
-    @test batchsize == 3 # clamped to the number of samples
-
-    for W in (Float32, Float64)
-        wts = W[1, 3]
-        wts_mean, _ = RBMs._prepare_training_data(zeros(W, 1, 2), wts; batchsize = 1)
-        @test wts_mean == mean(wts)
-        batch_weight = RBMs._batch_weight(wts[1:1], wts_mean)
-        @test batch_weight ≈ wts[1] / wts_mean
-    end
-
-    # the bias correction is computed in the weights' own precision, so
-    # BigFloat weight ratios survive
-    big_wts = BigFloat[big"1e-400", big"1.0"]
-    wts_mean, _ = RBMs._prepare_training_data(zeros(1, 2), big_wts; batchsize = 1)
-    @test wts_mean isa BigFloat
-    batch_weight = RBMs._batch_weight(big_wts[1:1], wts_mean)
-    @test batch_weight > 0
-    @test batch_weight ≈ big"2e-400" rtol = 1.0e-6
-
     # lazy uniform weights must still be real-valued to skip validation
-    @test_throws ArgumentError RBMs._prepare_training_data(
-        zeros(1, 2), Ones{ComplexF64}(2); batchsize = 1
+    @test RBMs._validate_weights(Ones{Bool}(3)) isa Ones
+    @test_throws ArgumentError RBMs._validate_weights(Ones{ComplexF64}(2))
+
+    # Empty data and undersized weights are rejected before mutation. The
+    # default `moments` kwarg already fails computing statistics of such
+    # inputs; explicit `moments` routes to the training-loop checks.
+    empty_rbm = base_rbm()
+    before = model_state(empty_rbm)
+    moments = RBMs.moments_from_samples(empty_rbm.visible, [0.0 1.0; 1.0 0.0])
+    @test_throws ArgumentError pcd!(
+        empty_rbm, zeros(2, 0);
+        moments, batchsize = 1, iters = 0, zerosum = false, rescale = false,
+    )
+    @test model_state(empty_rbm) == before
+    @test_throws DimensionMismatch pcd!(
+        base_rbm(), zeros(2, 3);
+        wts = [1.0, 1.0], moments,
+        batchsize = 1, iters = 0, zerosum = false, rescale = false,
     )
 
-    # empty data is rejected before the weighted means can divide by zero
-    @test_throws ArgumentError RBMs._prepare_training_data(
-        zeros(2, 0), Ones{Bool}(0); batchsize = 1
+    # batchsize > nsamples clamps to one full batch instead of silently
+    # performing zero training iterations
+    rbm = base_rbm()
+    updates = Ref(0)
+    pcd!(
+        rbm, [0.0 1.0 1.0; 1.0 0.0 1.0];
+        batchsize = 5, iters = 2, steps = 1,
+        optim = CountingDescent(0.01, updates),
+        zerosum = false, rescale = false,
     )
+    @test updates[] > 0
+    @test all_finite(rbm)
 end
 
 @testset "explicitly passed moments are used as given" begin
