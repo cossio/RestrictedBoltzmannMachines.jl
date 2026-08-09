@@ -71,9 +71,3 @@ end
 function _default_fantasy_chains(rbm, batchsize::Int)
     return sample_from_inputs(rbm.visible, Falses(size(rbm.visible)..., batchsize))
 end
-
-# negative phase shared by the PCD trainers: update the persistent chains in-place
-function _pcd_negative_phase(rbm, vm, steps::Int)
-    vm .= sample_v_from_v(rbm, vm; steps)
-    return ∂free_energy(rbm, vm), (; vm)
-end

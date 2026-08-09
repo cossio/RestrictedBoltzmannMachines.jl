@@ -331,7 +331,11 @@ function pcd!(
             standardize_visible_from_data!(rbm, data; wts, ϵ = ϵv)
             zerosum && zerosum!(rbm)
         end,
-        negative_phase = vd -> _pcd_negative_phase(rbm, vm, steps),
+        negative_phase = vd -> begin
+            vm .= sample_v_from_v(rbm, vm; steps)
+            ∂m = ∂free_energy(rbm, vm)
+            return ∂m, (; vm)
+        end,
         post_update! = (vd, wd, ∂d) -> begin
             # update standardization
             standardize_hidden_from_v!(rbm, vd; wts = wd, damping, ϵ = ϵh)

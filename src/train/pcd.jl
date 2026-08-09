@@ -82,7 +82,11 @@ function pcd!(
         batchsize, iters, wts, moments, optim, ps, state, shuffle,
         l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum, callback,
         setup! = (data, wts) -> reset_gauge!(),
-        negative_phase = vd -> _pcd_negative_phase(rbm, vm, steps),
+        negative_phase = vd -> begin
+            vm .= sample_v_from_v(rbm, vm; steps)
+            ∂m = ∂free_energy(rbm, vm)
+            return ∂m, (; vm)
+        end,
         post_update! = (vd, wd, ∂d) -> reset_gauge!(),
     )
 end
