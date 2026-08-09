@@ -279,26 +279,49 @@ function pcd!(
         ps = nothing,
         state = nothing,
     )
+    @assert size(data) == (size(rbm.visible)..., size(data)[end])
+    @assert isnothing(wts) || size(data)[end] == length(wts)
     _validate_layer_parameters(rbm)
     isnothing(vm) && (vm = _default_fantasy_chains(rbm, batchsize))
-    reset_gauge! = () -> begin
+    isnothing(ps) && (ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w))
+    isnothing(state) && (state = setup(optim, ps))
+
+    data, wts, normalization, batchsize = _prepare_training_data(data, wts; batchsize)
+
+    center_from_data!(rbm, data; wts) # initial centering from data
+    # initial gauge; zerosum! first because rescaling preserves the zero-sum gauge,
+    # while zerosum! perturbs weight norms
+    zerosum && zerosum!(rbm)
+    rescale && rescale_weights!(rbm)
+
+    for (iter, (vd, wd)) in zip(1:iters, infinite_minibatches(data, wts; batchsize, shuffle))
+        batch_weight = _batch_weight(wd, normalization)
+
+        # positive phase
+        ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
+
+        # negative phase: update persistent fantasy chains
+        vm .= sample_v_from_v(rbm, vm; steps)
+        ∂m = ∂free_energy(rbm, vm)
+
+        ∂ = (∂d - ∂m) * batch_weight # correct weighted minibatch bias
+
+        # weight decay
+        ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum)
+
+        # feed gradient to Optimiser rule
+        gs = (; visible = ∂.visible, hidden = ∂.hidden, w = ∂.w)
+        state, ps = update!(state, ps, gs)
+        _validate_layer_parameters(rbm)
+
+        # damped update of the hidden offsets towards <h>_d from the minibatch
+        center_hidden_from_data!(rbm, vd; wts = wd, damping = hidden_offset_damping)
+
+        # reset gauge (zerosum! first, as above)
         zerosum && zerosum!(rbm)
         rescale && rescale_weights!(rbm)
-        return nothing
+
+        callback(; rbm, optim, state, ps, iter, vd, wd, ∂, vm)
     end
-    return _train!(
-        rbm, data;
-        batchsize, iters, wts, moments, optim, ps, state, shuffle,
-        l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum, callback,
-        setup! = (data, wts) -> begin
-            center_from_data!(rbm, data; wts) # initial centering from data
-            reset_gauge!()
-        end,
-        negative_phase = vd -> _pcd_negative_phase(rbm, vm, steps),
-        post_update! = (vd, wd, ∂d) -> begin
-            # damped update of the hidden offsets towards <h>_d from the minibatch
-            center_hidden_from_data!(rbm, vd; wts = wd, damping = hidden_offset_damping)
-            reset_gauge!()
-        end,
-    )
+    return state, ps
 end
