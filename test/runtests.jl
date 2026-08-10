@@ -50,6 +50,6 @@ for file in test_files
     name = Symbol(replace(file, r"\.jl$" => "", "/" => "_"), :_tests)
     path = joinpath(@__DIR__, file)
     @eval module $name
-        include($path)
+    include($path)
     end
 end
