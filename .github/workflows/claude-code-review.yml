@@ -23,8 +23,11 @@ jobs:
     # No author gate here, matching claude.yml: claude-code-action already refuses
     # actors without write access to the repository, and blocks bots by default,
     # before it makes any Claude API call.
+    # `startsWith`, not `contains`: the comment must *begin* with the phrase. Merely
+    # mentioning `@review-claude` while discussing it — quoting it in a reply, or
+    # editing these files — must not start a review. Requesting one is deliberate.
     if: >-
-      contains(github.event.comment.body, '@review-claude')
+      startsWith(github.event.comment.body, '@review-claude')
       && (github.event_name == 'pull_request_review_comment' || github.event.issue.pull_request)
 
     runs-on: ubuntu-latest
