@@ -128,6 +128,13 @@ function cgf(layer::AbstractLayer, inputs::AbstractArray = Falses(size(layer)))
 end
 
 """
+    sample_from_inputs(layer, [inputs])
+
+Samples unit activations of `layer` conditioned on the given inputs.
+"""
+function sample_from_inputs end
+
+"""
     std_from_inputs(layer, [inputs])
 
 Standard deviation of unit activations from inputs.

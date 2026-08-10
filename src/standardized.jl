@@ -76,6 +76,14 @@ function mirror(rbm::StandardizedRBM)
     return StandardizedRBM(_rbm, rbm.offset_h, rbm.offset_v, rbm.scale_h, rbm.scale_v)
 end
 
+"""
+    rescale_hidden_activations!(rbm::StandardizedRBM)
+
+For continuous hidden units with a scale parameter, absorbs `scale_h` into the hidden
+layer by dividing hidden unit activations by `scale_h`, leaving unit standardization
+scales (`scale_h .== 1`), and returns `true`. For other hidden units does nothing and
+returns `false`. The modified RBM is equivalent to the original one.
+"""
 function rescale_hidden_activations!(rbm::StandardizedRBM)
     if rescale_activations!(rbm.hidden, rbm.scale_h)
         rbm.offset_h ./= rbm.scale_h
@@ -241,6 +249,14 @@ function standardize_hidden!(rbm::StandardizedRBM, offset_h::AbstractArray, scal
     return rbm
 end
 
+"""
+    standardize_visible_from_data!(rbm::StandardizedRBM, data; [wts], ϵ = 0)
+
+Sets the visible offsets and scales of `rbm` to the mean and standard deviation of
+`data` (variances regularized by `ϵ`). Constant coordinates get the neutral unit
+scale. The other parameters adapt so the model is equivalent to the original one
+(energies differ by a constant).
+"""
 function standardize_visible_from_data!(
         rbm::StandardizedRBM, data::AbstractArray;
         wts::AbstractArray{<:Real} = uniform_wts(rbm.visible, data), ϵ::Real = 0
@@ -264,6 +280,15 @@ function standardize_hidden_from_inputs!(
     return standardize_hidden!(rbm, offset_h, scale_h)
 end
 
+"""
+    standardize_hidden_from_v!(rbm::StandardizedRBM, v; [wts], damping = 0, ϵ = 0)
+
+Sets the hidden offsets and scales of `rbm` to the total mean and standard deviation
+of hidden unit activations conditioned on the visible configurations `v` (interpolated
+with the current values by `damping`, where `damping = 1` takes the data estimate in
+full; variances regularized by `ϵ`). The other parameters adapt so the model is
+equivalent to the original one (energies differ by a constant).
+"""
 function standardize_hidden_from_v!(
         rbm::StandardizedRBM, v::AbstractArray;
         wts::AbstractArray{<:Real} = uniform_wts(rbm.visible, v), damping::Real = 0, ϵ::Real = 0
