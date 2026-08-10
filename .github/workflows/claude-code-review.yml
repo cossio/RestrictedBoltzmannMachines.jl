@@ -18,13 +18,14 @@ on:
 jobs:
   claude-review:
     # `issue_comment` fires for both issues and PRs; `github.event.issue.pull_request`
-    # is set only for PRs. Unlike a `pull_request` trigger, comment events always run
-    # in base-repository context with the OAuth secret and a write-capable token, so
-    # fork PRs are reviewable — but the trigger must be restricted to people we trust.
+    # is set only for PRs, and the prompt below needs a PR number.
+    #
+    # No author gate here, matching claude.yml: claude-code-action already refuses
+    # actors without write access to the repository, and blocks bots by default,
+    # before it makes any Claude API call.
     if: >-
       contains(github.event.comment.body, '@review-claude')
       && (github.event_name == 'pull_request_review_comment' || github.event.issue.pull_request)
-      && contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
 
     runs-on: ubuntu-latest
     permissions:
