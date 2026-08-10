@@ -63,7 +63,7 @@ all_finite(rbm) = all(x -> all(isfinite, x), values(model_state(rbm)))
             [1.0, NaN],
             [1.0, Inf],
         )
-        @test_throws AssertionError RBMs.validate_weights(bad_wts)
+        @test_throws AssertionError RBMs.validate_wts(bad_wts)
         rbm = base_rbm()
         before = model_state(rbm)
         @test_throws AssertionError pcd!(
@@ -75,7 +75,7 @@ all_finite(rbm) = all(x -> all(isfinite, x), values(model_state(rbm)))
     end
     # non-real weights are rejected by the signatures (TypeError for the
     # keyword annotation, MethodError for positional dispatch)
-    @test_throws MethodError RBMs.validate_weights(ComplexF64[1, 1])
+    @test_throws MethodError RBMs.validate_wts(ComplexF64[1, 1])
     @test_throws TypeError pcd!(
         base_rbm(), data;
         wts = ComplexF64[1, 1], batchsize = 1, iters = 0,
@@ -110,8 +110,8 @@ end
 
 @testset "training weight checks" begin
     # lazy uniform weights must still be real-valued to skip validation
-    @test RBMs.validate_weights(Trues(3)) === nothing
-    @test_throws MethodError RBMs.validate_weights(Ones{ComplexF64}(2))
+    @test RBMs.validate_wts(Trues(3)) === nothing
+    @test_throws MethodError RBMs.validate_wts(Ones{ComplexF64}(2))
 
     # Empty data and undersized weights are rejected before mutation. The
     # default `moments` kwarg already fails computing statistics of such

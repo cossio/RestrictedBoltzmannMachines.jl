@@ -49,7 +49,7 @@ function pcd!(
         data::AbstractArray;
         batchsize::Int = 1,
         iters::Int = 1, # number of gradient updates
-        wts::AbstractVector{<:Real} = uniform_weights(rbm.visible, data), # data weights
+        wts::AbstractVector{<:Real} = uniform_wts(rbm.visible, data), # data weights
         steps::Int = 1, # MC steps to update fantasy chains
         optim::AbstractRule = Adam(), # optimizer rule
         moments = moments_from_samples(rbm.visible, data; wts), # sufficient statistics for visible layer
@@ -82,7 +82,7 @@ function pcd!(
         throw(ArgumentError("data must contain at least one sample"))
     length(wts) == size(data, ndims(data)) ||
         throw(DimensionMismatch("length(wts) must equal the number of data samples"))
-    validate_weights(wts)
+    validate_wts(wts)
     wts_mean = mean(wts)
     batchsize = min(batchsize, length(wts))
 

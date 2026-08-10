@@ -243,7 +243,7 @@ end
 
 function standardize_visible_from_data!(
         rbm::StandardizedRBM, data::AbstractArray;
-        wts::AbstractArray{<:Real} = uniform_weights(rbm.visible, data), ϵ::Real = 0
+        wts::AbstractArray{<:Real} = uniform_wts(rbm.visible, data), ϵ::Real = 0
     )
     μ = batchmean(rbm.visible, data; wts)
     ν = batchvar(rbm.visible, data; wts, mean = μ)
@@ -256,7 +256,7 @@ end
 
 function standardize_hidden_from_inputs!(
         rbm::StandardizedRBM, inputs::AbstractArray;
-        wts::AbstractArray{<:Real} = uniform_weights(rbm.hidden, inputs), damping::Real = 0, ϵ::Real = 0
+        wts::AbstractArray{<:Real} = uniform_wts(rbm.hidden, inputs), damping::Real = 0, ϵ::Real = 0
     )
     μ, ν = total_meanvar_from_inputs(rbm.hidden, inputs; wts)
     offset_h = (1 - damping) .* rbm.offset_h + damping .* μ
@@ -266,7 +266,7 @@ end
 
 function standardize_hidden_from_v!(
         rbm::StandardizedRBM, v::AbstractArray;
-        wts::AbstractArray{<:Real} = uniform_weights(rbm.visible, v), damping::Real = 0, ϵ::Real = 0
+        wts::AbstractArray{<:Real} = uniform_wts(rbm.visible, v), damping::Real = 0, ϵ::Real = 0
     )
     inputs = inputs_h_from_v(rbm, v)
     return standardize_hidden_from_inputs!(rbm, inputs; damping, wts, ϵ)
@@ -294,7 +294,7 @@ function pcd!(
         shuffle::Bool = true,
 
         iters::Int = 1, # number of gradient updates
-        wts::AbstractVector{<:Real} = uniform_weights(rbm.visible, data), # data weights
+        wts::AbstractVector{<:Real} = uniform_wts(rbm.visible, data), # data weights
 
         steps::Int = 1,
         vm::AbstractArray = _default_fantasy_chains(rbm, min(batchsize, size(data)[end])),
@@ -336,7 +336,7 @@ function pcd!(
         throw(ArgumentError("data must contain at least one sample"))
     length(wts) == size(data, ndims(data)) ||
         throw(DimensionMismatch("length(wts) must equal the number of data samples"))
-    validate_weights(wts)
+    validate_wts(wts)
     wts_mean = mean(wts)
     batchsize = min(batchsize, length(wts))
 
