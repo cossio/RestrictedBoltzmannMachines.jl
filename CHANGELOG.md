@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- Mark the training-extension surface as `public`: `∂free_energy`,
+  `∂regularize!`, `sample_from_inputs`, `moments_from_samples`,
+  `infinite_minibatches`, `uniform_weights`, `wmean`, `wsum`,
+  `rescale_weights!`, `rescale_hidden_activations!`, `center_from_data!`,
+  `center_hidden_from_data!`, `standardize_visible_from_data!`, and
+  `standardize_hidden_from_v!`.
+
 ## 7.0.0
 
 - The `vm`, `ps`, and `state` keywords of the `pcd!` trainers now compute their

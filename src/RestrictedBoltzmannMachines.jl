@@ -79,5 +79,10 @@ public metropolis, metropolis!, cold_metropolis
 public center, center!, uncenter, standardize, standardize!, unstandardize
 public mirror, zerosum, zerosum!
 public cpu, gpu, save_rbm, load_rbm
+public ∂free_energy, ∂regularize!, sample_from_inputs, moments_from_samples
+public infinite_minibatches, uniform_weights, wmean, wsum
+public rescale_weights!, rescale_hidden_activations!
+public center_from_data!, center_hidden_from_data!,
+    standardize_visible_from_data!, standardize_hidden_from_v!
 
 end # module
