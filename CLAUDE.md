@@ -94,10 +94,11 @@ CUDA.jl, and HDF5 persistence. It requires Julia 1.12 or later.
   internal refactors with unchanged observable behavior, test-only changes,
   docs, formatting, CI, workflows, agent plumbing, or other repository
   tooling.
-- PRs receive automated review comments from Codex Cloud and the default Claude
-  App workflow in `.github/workflows/claude-code-review.yml`. Address each
-  actionable finding or explain the disagreement in its thread, reply to every
-  thread, and resolve it once addressed.
+- PRs receive automated review comments from Codex Cloud. A Claude review is
+  requested explicitly, not on every push: comment `@review-claude` on the PR
+  to run `.github/workflows/claude-code-review.yml`. Address each actionable
+  finding or explain the disagreement in its thread, reply to every thread,
+  and resolve it once addressed.
 - Follow `REVIEW.md`; flag substantial avoidable complexity only when a
   materially simpler design satisfies the current requirements.
 - Never merge a PR or enable auto-merge unless the repository owner explicitly
