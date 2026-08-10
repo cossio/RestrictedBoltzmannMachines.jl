@@ -63,10 +63,10 @@ all_finite(rbm) = all(x -> all(isfinite, x), values(model_state(rbm)))
             [1.0, NaN],
             [1.0, Inf],
         )
-        @test_throws ArgumentError RBMs._validate_weights(bad_wts)
+        @test_throws AssertionError RBMs.validate_weights(bad_wts)
         rbm = base_rbm()
         before = model_state(rbm)
-        @test_throws ArgumentError pcd!(
+        @test_throws AssertionError pcd!(
             rbm, data;
             wts = bad_wts, batchsize = 1, iters = 0,
             zerosum = false, rescale = false,
@@ -75,7 +75,7 @@ all_finite(rbm) = all(x -> all(isfinite, x), values(model_state(rbm)))
     end
     # non-real weights are rejected by the signatures (TypeError for the
     # keyword annotation, MethodError for positional dispatch)
-    @test_throws MethodError RBMs._validate_weights(ComplexF64[1, 1])
+    @test_throws MethodError RBMs.validate_weights(ComplexF64[1, 1])
     @test_throws TypeError pcd!(
         base_rbm(), data;
         wts = ComplexF64[1, 1], batchsize = 1, iters = 0,
@@ -110,8 +110,8 @@ end
 
 @testset "training weight checks" begin
     # lazy uniform weights must still be real-valued to skip validation
-    @test RBMs._validate_weights(Trues(3)) isa Ones
-    @test_throws MethodError RBMs._validate_weights(Ones{ComplexF64}(2))
+    @test RBMs.validate_weights(Trues(3)) === nothing
+    @test_throws MethodError RBMs.validate_weights(Ones{ComplexF64}(2))
 
     # Empty data and undersized weights are rejected before mutation. The
     # default `moments` kwarg already fails computing statistics of such
@@ -175,13 +175,13 @@ end
     @test model_state(scaled_rbm) == model_state(unit_rbm)
 
     # invalid weights fail loudly
-    @test_throws ArgumentError initialize!(base_rbm(), data; wts = [1.0, -1.0, 1.0])
-    @test_throws ArgumentError initialize!(base_rbm(), data; wts = [1.0, 0.0, 1.0])
-    @test_throws ArgumentError initialize!(base_rbm(), data; wts = [1.0, NaN, 1.0])
+    @test_throws AssertionError initialize!(base_rbm(), data; wts = [1.0, -1.0, 1.0])
+    @test_throws AssertionError initialize!(base_rbm(), data; wts = [1.0, 0.0, 1.0])
+    @test_throws AssertionError initialize!(base_rbm(), data; wts = [1.0, NaN, 1.0])
     # ... also at the per-layer and initialize_w! entry points
-    @test_throws ArgumentError initialize!(RBMs.Binary((2,)), data; wts = [1.0, 0.0, 1.0])
-    @test_throws ArgumentError initialize!(RBMs.Gaussian((2,)), data; wts = [1.0, -1.0, 1.0])
-    @test_throws ArgumentError RBMs.initialize_w!(base_rbm(), data; wts = [1.0, NaN, 1.0])
+    @test_throws AssertionError initialize!(RBMs.Binary((2,)), data; wts = [1.0, 0.0, 1.0])
+    @test_throws AssertionError initialize!(RBMs.Gaussian((2,)), data; wts = [1.0, -1.0, 1.0])
+    @test_throws AssertionError RBMs.initialize_w!(base_rbm(), data; wts = [1.0, NaN, 1.0])
     # undersized weights are rejected instead of silently truncating the data
     @test_throws AssertionError initialize!(base_rbm(), data; wts = [1.0, 1.0])
 
@@ -236,7 +236,7 @@ function check_all_zero_pcd(kind)
     updates = Ref(0)
     callbacks = Ref(0)
 
-    @test_throws ArgumentError pcd!(
+    @test_throws AssertionError pcd!(
         rbm, data;
         wts, batchsize = 2, iters = 1, steps = 1,
         optim = CountingDescent(0.01, updates),

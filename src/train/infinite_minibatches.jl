@@ -15,10 +15,9 @@ observations meant to be excluded must be dropped (with their weights) before
 training. Valid weights are used exactly as given — they are never rescaled
 (extreme finite weights can overflow the plain reductions). Non-real weights
 are rejected by dispatch; lazy uniform weights are trivially valid. =#
-_validate_weights(wts::Ones{<:Real}) = wts
+validate_weights(::Ones{<:Real}) = nothing
 
-function _validate_weights(wts::AbstractArray{<:Real})
-    all(w -> isfinite(w) && w > 0, wts) ||
-        throw(ArgumentError("wts must contain only finite, positive values"))
-    return wts
+function validate_weights(wts::AbstractArray{<:Real})
+    @assert all(w -> isfinite(w) && w > 0, wts) "wts must contain only finite, positive values"
+    return nothing
 end

@@ -336,7 +336,7 @@ function pcd!(
         throw(ArgumentError("data must contain at least one sample"))
     length(wts) == size(data, ndims(data)) ||
         throw(DimensionMismatch("length(wts) must equal the number of data samples"))
-    _validate_weights(wts)
+    validate_weights(wts)
     wts_mean = mean(wts)
     batchsize = min(batchsize, length(wts))
 

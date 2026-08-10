@@ -26,7 +26,7 @@ function initialize!(
     @assert 0 < ϵ < 1 / 2
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert length(wts) == size(data, ndims(data)) > 0
-    _validate_weights(wts)
+    validate_weights(wts)
     initialize!(rbm.visible, data; ϵ, wts)
     initialize!(rbm.hidden)
     initialize_w!(rbm, data; ϵ, wts)
@@ -39,7 +39,7 @@ function initialize!(
         ϵ::Real = 1.0e-6, wts::AbstractArray{<:Real} = uniform_weights(layer, data)
     )
     @assert 0 < ϵ < 1 / 2
-    _validate_weights(wts)
+    validate_weights(wts)
     μ = batchmean(layer, data; wts)
     μϵ = clamp.(μ, ϵ, 1 - ϵ)
     layer.θ .= logit.(μϵ)
@@ -51,7 +51,7 @@ function initialize!(
         ϵ::Real = 1.0e-6, wts::AbstractArray{<:Real} = uniform_weights(layer, data)
     )
     @assert 0 < ϵ < 1 / 2
-    _validate_weights(wts)
+    validate_weights(wts)
     μ = batchmean(layer, data; wts)
     μϵ = clamp.(μ, ϵ - 1, 1 - ϵ)
     layer.θ .= atanh.(μϵ)
@@ -63,7 +63,7 @@ function initialize!(
         ϵ::Real = 1.0e-6, wts::AbstractArray{<:Real} = uniform_weights(layer, data)
     )
     @assert 0 < ϵ < 1 / 2
-    _validate_weights(wts)
+    validate_weights(wts)
     μ = batchmean(layer, data; wts)
     μϵ = clamp.(μ, ϵ, 1 - ϵ)
     layer.θ .= log.(μϵ)
@@ -73,7 +73,7 @@ end
 # Gaussian moment-matching of `θ` and `γ`, shared by the layers initialized as Gaussians.
 function _initialize_gaussian_moments!(θ::AbstractArray, γ::AbstractArray, layer::AbstractLayer, data::AbstractArray; ϵ::Real, wts::AbstractArray{<:Real})
     @assert 0 < ϵ < 1 / 2
-    _validate_weights(wts)
+    validate_weights(wts)
     μ = batchmean(layer, data; wts)
     ν = batchmean(layer, (data .- μ) .^ 2; wts)
     γ .= inv.(ν .+ ϵ)
@@ -150,7 +150,7 @@ function initialize!(
         layer::nsReLU, data::AbstractArray;
         wts::AbstractArray{<:Real} = uniform_weights(layer, data)
     )
-    _validate_weights(wts)
+    validate_weights(wts)
     μ = batchmean(layer, data; wts)
     layer.θ .= μ
     layer.Δ .= layer.ξ .= 0
@@ -173,7 +173,7 @@ function initialize_w!(
     )
     @assert size(data) == (size(rbm.visible)..., size(data)[end])
     @assert length(wts) == size(data)[end]
-    _validate_weights(wts)
+    validate_weights(wts)
     x = reshape(data, length(rbm.visible), size(data)[end])
     d = dot(x .* reshape(wts, 1, :), x / sum(wts))
     randn!(rbm.w)
