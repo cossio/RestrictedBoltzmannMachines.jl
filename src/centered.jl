@@ -195,10 +195,8 @@ end
 """
     center_hidden_from_data!(rbm::CenteredRBM, data; [wts], damping = 1)
 
-Sets the hidden offsets of `rbm` to the mean hidden unit activations conditioned on
-`data` (interpolated with the current offsets by `damping`, where `damping = 1` takes
-the data estimate in full). The visible fields adapt so the model is equivalent to the
-original one (energies differ by a constant).
+Sets the hidden offsets to the mean hidden activations conditioned on `data`.
+The model is unchanged (energies differ by a constant).
 """
 function center_hidden_from_data!(
         rbm::CenteredRBM, data::AbstractArray;
@@ -213,9 +211,8 @@ end
 """
     center_from_data!(rbm::CenteredRBM, data; [wts])
 
-Sets the visible offsets of `rbm` to the mean of `data` and the hidden offsets to the
-mean hidden unit activations conditioned on `data`. The fields adapt so the model is
-equivalent to the original one (energies differ by a constant).
+Sets the visible and hidden offsets from the means of `data`. The model is unchanged
+(energies differ by a constant).
 """
 function center_from_data!(
         rbm::CenteredRBM, data::AbstractArray;
