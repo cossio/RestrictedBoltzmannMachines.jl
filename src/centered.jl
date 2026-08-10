@@ -184,6 +184,12 @@ function center_hidden!(rbm::CenteredRBM, offset_h::AbstractArray)
     return rbm
 end
 
+"""
+    center_visible_from_data!(rbm::CenteredRBM, data; [wts])
+
+Sets the visible offsets to the mean of `data`. The model is unchanged (energies
+differ by a constant).
+"""
 function center_visible_from_data!(
         rbm::CenteredRBM, data::AbstractArray;
         wts::AbstractArray{<:Real} = uniform_wts(rbm.visible, data)

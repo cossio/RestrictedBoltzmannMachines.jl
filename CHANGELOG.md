@@ -10,7 +10,8 @@ All notable changes to this project will be documented in this file. The format 
   `uniform_weights`), `validate_wts` (renamed from the internal
   `_validate_weights`), `wmean`, `wsum`,
   `rescale_weights!`, `rescale_hidden_activations!`, `center_from_data!`,
-  `center_hidden_from_data!`, `standardize_visible_from_data!`, and
+  `center_visible_from_data!`, `center_hidden_from_data!`,
+  `standardize_visible_from_data!`, and
   `standardize_hidden_from_v!`. The `wts` spelling avoids confusion with the
   RBM weights `w`.
 - `validate_wts` now checks with `@assert` and returns `nothing`, so
