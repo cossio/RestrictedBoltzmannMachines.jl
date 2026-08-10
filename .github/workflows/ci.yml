@@ -8,7 +8,7 @@ permissions:
   contents: read
 jobs:
   test:
-    name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }}
+    name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - group ${{ matrix.group }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -19,6 +19,12 @@ jobs:
           - ubuntu-latest
         arch:
           - x64
+        # Test groups defined in test/runtests.jl, run as parallel jobs.
+        group:
+          - '1'
+          - '2'
+          - '3'
+          - '4'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: julia-actions/setup-julia@fa02766e078afaaf09b14210362cee14137e6a32
@@ -30,6 +36,8 @@ jobs:
       - uses: julia-actions/julia-runtest@6e050c8013b833b1195105ff2fce9cd802f53271
         with:
           coverage: true
+        env:
+          RBM_TEST_GROUP: ${{ matrix.group }}
       - uses: julia-actions/julia-processcoverage@03114f09f119417c3242a9fb6e0b722676aedf38
       - uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f
         with:
@@ -39,8 +47,17 @@ jobs:
           # Fork PRs can't access secrets, so their uploads stay best-effort.
           fail_ci_if_error: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
   downgrade:
-    name: Downgrade compat - Julia min - ubuntu-latest - x64
+    name: Downgrade compat - Julia min - ubuntu-latest - x64 - group ${{ matrix.group }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Test groups defined in test/runtests.jl, run as parallel jobs.
+        group:
+          - '1'
+          - '2'
+          - '3'
+          - '4'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: julia-actions/setup-julia@fa02766e078afaaf09b14210362cee14137e6a32
@@ -57,3 +74,5 @@ jobs:
         with:
           allow_reresolve: false
           force_latest_compatible_version: false
+        env:
+          RBM_TEST_GROUP: ${{ matrix.group }}
