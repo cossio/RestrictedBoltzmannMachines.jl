@@ -184,17 +184,29 @@ function center_hidden!(rbm::CenteredRBM, offset_h::AbstractArray)
     return rbm
 end
 
+"""
+    center_visible_from_data!(rbm::CenteredRBM, data; [wts])
+
+Sets the visible offsets to the mean of `data`. The model is unchanged (energies
+differ by a constant).
+"""
 function center_visible_from_data!(
         rbm::CenteredRBM, data::AbstractArray;
-        wts::AbstractArray{<:Real} = uniform_weights(rbm.visible, data)
+        wts::AbstractArray{<:Real} = uniform_wts(rbm.visible, data)
     )
     offset_v = batchmean(rbm.visible, data; wts)
     return center_visible!(rbm, offset_v)
 end
 
+"""
+    center_hidden_from_data!(rbm::CenteredRBM, data; [wts], damping = 1)
+
+Sets the hidden offsets to the mean hidden activations conditioned on `data`.
+The model is unchanged (energies differ by a constant).
+"""
 function center_hidden_from_data!(
         rbm::CenteredRBM, data::AbstractArray;
-        wts::AbstractArray{<:Real} = uniform_weights(rbm.visible, data), damping::Real = 1
+        wts::AbstractArray{<:Real} = uniform_wts(rbm.visible, data), damping::Real = 1
     )
     h = mean_h_from_v(rbm, data)
     offset_h_new = batchmean(rbm.hidden, h; wts)
@@ -202,9 +214,15 @@ function center_hidden_from_data!(
     return center_hidden!(rbm, offset_h)
 end
 
+"""
+    center_from_data!(rbm::CenteredRBM, data; [wts])
+
+Sets the visible and hidden offsets from the means of `data`. The model is unchanged
+(energies differ by a constant).
+"""
 function center_from_data!(
         rbm::CenteredRBM, data::AbstractArray;
-        wts::AbstractArray{<:Real} = uniform_weights(rbm.visible, data)
+        wts::AbstractArray{<:Real} = uniform_wts(rbm.visible, data)
     )
     center_visible_from_data!(rbm, data; wts)
     center_hidden_from_data!(rbm, data; wts)
@@ -259,7 +277,7 @@ function pcd!(
         data::AbstractArray;
         batchsize::Int = 1,
         iters::Int = 1, # number of gradient updates
-        wts::AbstractVector{<:Real} = uniform_weights(rbm.visible, data), # data weights
+        wts::AbstractVector{<:Real} = uniform_wts(rbm.visible, data), # data weights
         steps::Int = 1, # MC steps to update fantasy chains
         optim::AbstractRule = Adam(), # optimizer rule
         moments = moments_from_samples(rbm.visible, data; wts), # sufficient statistics for visible layer
@@ -295,7 +313,7 @@ function pcd!(
         throw(ArgumentError("data must contain at least one sample"))
     length(wts) == size(data, ndims(data)) ||
         throw(DimensionMismatch("length(wts) must equal the number of data samples"))
-    _validate_weights(wts)
+    validate_wts(wts)
     wts_mean = mean(wts)
     batchsize = min(batchsize, length(wts))
 

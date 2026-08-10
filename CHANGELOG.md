@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- Mark the training-extension surface as `public`: `∂free_energy`,
+  `∂regularize!`, `sample_from_inputs`, `moments_from_samples`,
+  `infinite_minibatches`, `uniform_wts` (renamed from the internal
+  `uniform_weights`), `validate_wts` (renamed from the internal
+  `_validate_weights`), `wmean`, `wsum`,
+  `rescale_weights!`, `rescale_hidden_activations!`, `center_from_data!`,
+  `center_visible_from_data!`, `center_hidden_from_data!`,
+  `standardize_visible_from_data!`, and
+  `standardize_hidden_from_v!`. The `wts` spelling avoids confusion with the
+  RBM weights `w`.
+- `validate_wts` now checks with `@assert` and returns `nothing`, so
+  invalid training weights raise `AssertionError` (previously `ArgumentError`)
+  from `pcd!` and `initialize!`. The `ArgumentError`s for non-positive
+  `batchsize` and empty data are unchanged.
+
 ## 7.0.0
 
 - The `vm`, `ps`, and `state` keywords of the `pcd!` trainers now compute their

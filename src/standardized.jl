@@ -76,6 +76,12 @@ function mirror(rbm::StandardizedRBM)
     return StandardizedRBM(_rbm, rbm.offset_h, rbm.offset_v, rbm.scale_h, rbm.scale_v)
 end
 
+"""
+    rescale_hidden_activations!(rbm::StandardizedRBM)
+
+Absorbs `scale_h` into the hidden layer if it has a scale parameter, returning `true`
+if this was done. The modified RBM is equivalent to the original one.
+"""
 function rescale_hidden_activations!(rbm::StandardizedRBM)
     if rescale_activations!(rbm.hidden, rbm.scale_h)
         rbm.offset_h ./= rbm.scale_h
@@ -241,9 +247,15 @@ function standardize_hidden!(rbm::StandardizedRBM, offset_h::AbstractArray, scal
     return rbm
 end
 
+"""
+    standardize_visible_from_data!(rbm::StandardizedRBM, data; [wts], ϵ = 0)
+
+Sets the visible offsets and scales to the mean and standard deviation of `data`.
+The model is unchanged (energies differ by a constant).
+"""
 function standardize_visible_from_data!(
         rbm::StandardizedRBM, data::AbstractArray;
-        wts::AbstractArray{<:Real} = uniform_weights(rbm.visible, data), ϵ::Real = 0
+        wts::AbstractArray{<:Real} = uniform_wts(rbm.visible, data), ϵ::Real = 0
     )
     μ = batchmean(rbm.visible, data; wts)
     ν = batchvar(rbm.visible, data; wts, mean = μ)
@@ -256,7 +268,7 @@ end
 
 function standardize_hidden_from_inputs!(
         rbm::StandardizedRBM, inputs::AbstractArray;
-        wts::AbstractArray{<:Real} = uniform_weights(rbm.hidden, inputs), damping::Real = 0, ϵ::Real = 0
+        wts::AbstractArray{<:Real} = uniform_wts(rbm.hidden, inputs), damping::Real = 0, ϵ::Real = 0
     )
     μ, ν = total_meanvar_from_inputs(rbm.hidden, inputs; wts)
     offset_h = (1 - damping) .* rbm.offset_h + damping .* μ
@@ -264,9 +276,15 @@ function standardize_hidden_from_inputs!(
     return standardize_hidden!(rbm, offset_h, scale_h)
 end
 
+"""
+    standardize_hidden_from_v!(rbm::StandardizedRBM, v; [wts], damping = 0, ϵ = 0)
+
+Sets the hidden offsets and scales to the mean and standard deviation of hidden unit
+activations conditioned on `v`. The model is unchanged (energies differ by a constant).
+"""
 function standardize_hidden_from_v!(
         rbm::StandardizedRBM, v::AbstractArray;
-        wts::AbstractArray{<:Real} = uniform_weights(rbm.visible, v), damping::Real = 0, ϵ::Real = 0
+        wts::AbstractArray{<:Real} = uniform_wts(rbm.visible, v), damping::Real = 0, ϵ::Real = 0
     )
     inputs = inputs_h_from_v(rbm, v)
     return standardize_hidden_from_inputs!(rbm, inputs; damping, wts, ϵ)
@@ -294,7 +312,7 @@ function pcd!(
         shuffle::Bool = true,
 
         iters::Int = 1, # number of gradient updates
-        wts::AbstractVector{<:Real} = uniform_weights(rbm.visible, data), # data weights
+        wts::AbstractVector{<:Real} = uniform_wts(rbm.visible, data), # data weights
 
         steps::Int = 1,
         vm::AbstractArray = _default_fantasy_chains(rbm, min(batchsize, size(data)[end])),
@@ -336,7 +354,7 @@ function pcd!(
         throw(ArgumentError("data must contain at least one sample"))
     length(wts) == size(data, ndims(data)) ||
         throw(DimensionMismatch("length(wts) must equal the number of data samples"))
-    _validate_weights(wts)
+    validate_wts(wts)
     wts_mean = mean(wts)
     batchsize = min(batchsize, length(wts))
 
