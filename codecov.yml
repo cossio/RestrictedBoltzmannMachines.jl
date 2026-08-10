@@ -1,3 +1,14 @@
+codecov:
+  notify:
+    # CI runs the test suite as 4 parallel group jobs (see test/runtests.jl),
+    # each uploading its own coverage report. Wait for all of them before
+    # computing status, so a partial merge doesn't report a spurious drop.
+    after_n_builds: 4
+    wait_for_ci: true
+
+comment:
+  after_n_builds: 4
+
 coverage:
   status:
     # Overall repository coverage: must not drop by more than 1% in a PR.
