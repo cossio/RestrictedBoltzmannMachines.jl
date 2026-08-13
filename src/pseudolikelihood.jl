@@ -231,11 +231,9 @@ function log_pseudolikelihood_exact(rbm::RBM{<:Potts}, v::AbstractArray)
     Inew = similar(Iflat)
     for j in 1:nsites
         rows = ((j - 1) * q + 1):(j * q)
-        # indexed copies, not views: strided views of GPU arrays send `*` to
-        # BLAS, which requires raw pointers
-        Vsite = with_eltype_of(wflat, vflat[rows, :]) # q × B, one-hot columns
-        θsite = θflat[rows] # q
-        Wsite = wflat[rows, :] # q × M
+        Vsite = with_eltype_of(wflat, view(vflat, rows, :)) # q × B, one-hot columns
+        θsite = view(θflat, rows) # q
+        Wsite = view(wflat, rows, :) # q × M
         Wold = Wsite' * Vsite # M × B
         θold = Vsite' * θsite # B
         for x in 1:q
@@ -267,10 +265,8 @@ function log_pseudolikelihood_exact(
 
     for j in 1:nsites
         rows = ((j - 1) * q + 1):(j * q)
-        # indexed copies, not views: strided views of GPU arrays send `*` to
-        # BLAS, which requires raw pointers
-        Vsite = vflat[rows, :]
-        Wsite = wflat[rows, :]
+        Vsite = view(vflat, rows, :)
+        Wsite = view(wflat, rows, :)
         wscaled_site .= Wsite .* reshape(invγ, 1, length(rbm.hidden))
         gram = wscaled_site * Wsite'
         gram_v = gram * Vsite
