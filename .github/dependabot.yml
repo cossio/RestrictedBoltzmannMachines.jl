@@ -1,19 +1,27 @@
 version: 2
+
 updates:
+  # GitHub Actions: all bumps grouped into a single PR, auto-merged once CI
+  # passes (see .github/workflows/dependabot-auto-merge.yml).
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     groups:
       all-deps:
         patterns:
           - "*"
 
-  - package-ecosystem: "julia" # See documentation for possible values
-    directory: "/" # Location of package manifests
+  # Julia packages: all bumps grouped into a single PR, merged manually after
+  # review. Kept separate from Actions by construction: a group cannot span
+  # ecosystems.
+  - package-ecosystem: "julia"
+    directories:
+      - "/"
+      - "/test"
     schedule:
-      interval: "weekly"
-    groups: # uncomment to group all julia package updates into a single PR
+      interval: "monthly"
+    groups:
       all-julia-packages:
         patterns:
           - "*"
