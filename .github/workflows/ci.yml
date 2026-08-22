@@ -20,18 +20,18 @@ jobs:
         arch:
           - x64
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - uses: julia-actions/setup-julia@fa02766e078afaaf09b14210362cee14137e6a32
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: julia-actions/setup-julia@fa02766e078afaaf09b14210362cee14137e6a32 # v3.0.2
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
-      - uses: julia-actions/cache@a7bed9df697e5d7309d68afe7542a87621a8b6c8
-      - uses: julia-actions/julia-buildpkg@e3eb439fad4f9aba7da2667e7510e4a46ebc46e1
-      - uses: julia-actions/julia-runtest@6e050c8013b833b1195105ff2fce9cd802f53271
+      - uses: julia-actions/cache@a7bed9df697e5d7309d68afe7542a87621a8b6c8 # v3.3.0
+      - uses: julia-actions/julia-buildpkg@e3eb439fad4f9aba7da2667e7510e4a46ebc46e1 # v1.7.0
+      - uses: julia-actions/julia-runtest@6e050c8013b833b1195105ff2fce9cd802f53271 # v1.12.0
         with:
           coverage: true
-      - uses: julia-actions/julia-processcoverage@03114f09f119417c3242a9fb6e0b722676aedf38
-      - uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f
+      - uses: julia-actions/julia-processcoverage@03114f09f119417c3242a9fb6e0b722676aedf38 # v1.2.2
+      - uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           files: lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -42,18 +42,18 @@ jobs:
     name: Downgrade compat - Julia min - ubuntu-latest - x64
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - uses: julia-actions/setup-julia@fa02766e078afaaf09b14210362cee14137e6a32
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: julia-actions/setup-julia@fa02766e078afaaf09b14210362cee14137e6a32 # v3.0.2
         with:
           version: 'min'
           arch: x64
-      - uses: julia-actions/julia-downgrade-compat@30b83cf94e89744fcbd7ea5496be4967d6fbe540
+      - uses: julia-actions/julia-downgrade-compat@30b83cf94e89744fcbd7ea5496be4967d6fbe540 # v2.7.0
         with:
           projects: '.'
           mode: deps
-      - uses: julia-actions/cache@a7bed9df697e5d7309d68afe7542a87621a8b6c8
-      - uses: julia-actions/julia-buildpkg@e3eb439fad4f9aba7da2667e7510e4a46ebc46e1
-      - uses: julia-actions/julia-runtest@6e050c8013b833b1195105ff2fce9cd802f53271
+      - uses: julia-actions/cache@a7bed9df697e5d7309d68afe7542a87621a8b6c8 # v3.3.0
+      - uses: julia-actions/julia-buildpkg@e3eb439fad4f9aba7da2667e7510e4a46ebc46e1 # v1.7.0
+      - uses: julia-actions/julia-runtest@6e050c8013b833b1195105ff2fce9cd802f53271 # v1.12.0
         with:
           allow_reresolve: false
           force_latest_compatible_version: false
