@@ -15,10 +15,19 @@ updates:
   # Julia packages: all bumps grouped into a single PR, merged manually after
   # review. Kept separate from Actions by construction: a group cannot span
   # ecosystems.
+  #
+  # Rooted at "/" ONLY -- do not add "/test". Each entry under `directories:`
+  # runs as an independent update job, and in a "/test" job Dependabot treats
+  # test/Project.toml as that job's *own* project file, so it synthesizes a
+  # compat entry for every direct dep that lacks one (CompatHelper convention).
+  # That pins deps already bounded by the root Project.toml and, because a
+  # workspace intersects compat across all members into one manifest, silently
+  # narrows the whole resolve. Rooted at "/", test/Project.toml is instead
+  # discovered through [workspace] as a *member* file, where Dependabot does
+  # not synthesize compat -- while still updating entries that already exist
+  # there (e.g. Aqua) and the shared manifest.
   - package-ecosystem: "julia"
-    directories:
-      - "/"
-      - "/test"
+    directory: "/"
     schedule:
       interval: "monthly"
     groups:
