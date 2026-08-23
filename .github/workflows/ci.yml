@@ -39,14 +39,14 @@ jobs:
           # Fork PRs can't access secrets, so their uploads stay best-effort.
           fail_ci_if_error: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
   downgrade:
-    name: Downgrade compat - Julia min - ubuntu-latest - x64
+    name: Downgrade compat - Julia min - ubuntu-latest - default
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: julia-actions/setup-julia@fa02766e078afaaf09b14210362cee14137e6a32 # v3.0.2
         with:
           version: 'min'
-          arch: x64
+          arch: default
       - uses: julia-actions/julia-downgrade-compat@30b83cf94e89744fcbd7ea5496be4967d6fbe540 # v2.7.0
         with:
           projects: '.'
