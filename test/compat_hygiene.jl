@@ -1,0 +1,4 @@
+import RestrictedBoltzmannMachines
+import TestCompatHygiene
+
+TestCompatHygiene.test_all(RestrictedBoltzmannMachines)
