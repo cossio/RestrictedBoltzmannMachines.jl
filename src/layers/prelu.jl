@@ -37,9 +37,6 @@ function _validate_layer_parameters(layer::pReLU)
     return nothing
 end
 
-# The statistics (`energies`, `cgfs`, sampling, ...) are those of the equivalent dReLU
-# layer; see common.jl.
-
 # ∂θ, ∂γ, ∂Δ of the pReLU-type energy at the dReLU moments, for asymmetry `η`
 function _prelu_∂θγΔ(γ, η, xp1, xn1, xp2, xn2)
     ∂θ = -(xp1 + xn1)

@@ -19,9 +19,6 @@ corresponding unit. This is the `xReLU` potential with ``\gamma = 1``.
 """
 @declare_layer nsReLU (θ = zeros, Δ = zeros, ξ = zeros) # there is no γ
 
-# The statistics (`energies`, `cgfs`, sampling, ...) are those of the equivalent dReLU
-# layer; see common.jl.
-
 function ∂energy_from_moments(layer::nsReLU, moments::AbstractArray)
     @assert ntuple(d -> size(moments, d), ndims(layer) + 1) == (4, size(layer)...)
     ∂ = ∂energy_from_moments(xReLU(layer), moments)

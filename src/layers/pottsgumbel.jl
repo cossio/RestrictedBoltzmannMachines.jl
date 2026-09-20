@@ -11,5 +11,3 @@ function sample_from_inputs(layer::PottsGumbel, inputs::AbstractArray = Falses(s
     c = categorical_sample_from_logits_gumbel(layer.θ .+ inputs)
     return onehot_encode(c, 1:size(layer, 1))
 end
-
-# `potts_to_gumbel` / `gumbel_to_potts` are defined in potts.jl, once both types exist.

@@ -19,9 +19,6 @@ the corresponding unit. This is the `pReLU` potential with the bounded asymmetry
 """
 @declare_layer xReLU (θ = zeros, γ = ones, Δ = zeros, ξ = zeros)
 
-# The statistics (`energies`, `cgfs`, sampling, ...) are those of the equivalent dReLU
-# layer; see common.jl.
-
 function ∂energy_from_moments(layer::xReLU, moments::AbstractArray)
     @assert ntuple(d -> size(moments, d), ndims(layer.par)) == size(layer.par)
 
