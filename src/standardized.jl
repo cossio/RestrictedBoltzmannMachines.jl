@@ -83,7 +83,6 @@ Absorbs `scale_h` into the hidden layer if it has a scale parameter, returning `
 if this was done. The modified RBM is equivalent to the original one.
 """
 function rescale_hidden_activations!(rbm::StandardizedRBM)
-    # copy: `rescale_hidden!` divides `scale_h` itself by the scaling factor
     return rescale_hidden!(rbm, copy(rbm.scale_h))
 end
 
