@@ -20,8 +20,6 @@ function ∂regularize!(
     return ∂
 end
 
-# Adds the weight-regularization gradient of `rbm` to `∂w`, divided by `scale` (the
-# weight scales of an equivalent standardized model; lazy ones for a plain `RBM`).
 function _∂regularize_weights!(
         ∂w::AbstractArray, rbm::RBM;
         l1_weights::Real, l2_weights::Real, l2l1_weights::Real,
