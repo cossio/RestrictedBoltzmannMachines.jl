@@ -4,23 +4,16 @@ struct CenteredRBM{V, H, W, Ov, Oh}
     w::W
     offset_v::Ov
     offset_h::Oh
-    function CenteredRBM{V, H, W, Ov, Oh}(
-            visible::V, hidden::H, w::W, λv::Ov, λh::Oh
-        ) where {V <: AbstractLayer, H <: AbstractLayer, W <: AbstractArray, Ov <: AbstractArray, Oh <: AbstractArray}
+    function CenteredRBM(
+            visible::AbstractLayer, hidden::AbstractLayer, w::AbstractArray,
+            offset_v::AbstractArray, offset_h::AbstractArray
+        )
         @assert size(w) == (size(visible)..., size(hidden)...)
-        @assert size(visible) == size(λv)
-        @assert size(hidden) == size(λh)
-        return new{V, H, W, Ov, Oh}(visible, hidden, w, λv, λh)
+        @assert size(visible) == size(offset_v)
+        @assert size(hidden) == size(offset_h)
+        V, H, W, Ov, Oh = typeof(visible), typeof(hidden), typeof(w), typeof(offset_v), typeof(offset_h)
+        return new{V, H, W, Ov, Oh}(visible, hidden, w, offset_v, offset_h)
     end
-end
-
-function CenteredRBM(
-        visible::AbstractLayer, hidden::AbstractLayer, w::AbstractArray,
-        offset_v::AbstractArray, offset_h::AbstractArray
-    )
-    V, H, W = typeof(visible), typeof(hidden), typeof(w)
-    Ov, Oh = typeof(offset_v), typeof(offset_h)
-    return CenteredRBM{V, H, W, Ov, Oh}(visible, hidden, w, offset_v, offset_h)
 end
 
 """
@@ -40,8 +33,8 @@ end
 Creates a centered RBM, with offsets initialized to zero.
 """
 function CenteredRBM(visible::AbstractLayer, hidden::AbstractLayer, w::AbstractArray)
-    offset_v = similar(w, size(visible)) .= 0
-    offset_h = similar(w, size(hidden)) .= 0
+    offset_v = zeros_like(w, size(visible))
+    offset_h = zeros_like(w, size(hidden))
     return CenteredRBM(RBM(visible, hidden, w), offset_v, offset_h)
 end
 
@@ -208,8 +201,7 @@ function center_hidden_from_data!(
         rbm::CenteredRBM, data::AbstractArray;
         wts::AbstractArray{<:Real} = uniform_wts(rbm.visible, data), damping::Real = 1
     )
-    h = mean_h_from_v(rbm, data)
-    offset_h_new = batchmean(rbm.hidden, h; wts)
+    offset_h_new = total_mean_h_from_v(rbm, data; wts)
     offset_h = (1 - damping) .* rbm.offset_h .+ damping .* offset_h_new
     return center_hidden!(rbm, offset_h)
 end
@@ -257,7 +249,7 @@ otherwise it does nothing and returns `false`. Since the interaction involves
 function rescale_hidden!(rbm::CenteredRBM, λ::AbstractArray)
     @assert size(rbm.hidden) == size(λ)
     if rescale_activations!(rbm.hidden, λ)
-        rbm.w .*= reshape(λ, map(one, size(rbm.visible))..., size(rbm.hidden)...)
+        rbm.w .*= _along_hidden(rbm, λ)
         rbm.offset_h ./= λ
         return true
     end
@@ -306,16 +298,7 @@ function pcd!(
         ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w),
         state = setup(optim, ps),
     )
-    @assert size(data) == (size(rbm.visible)..., size(data)[end])
-    _validate_layer_parameters(rbm)
-    batchsize > 0 || throw(ArgumentError("batchsize must be positive"))
-    size(data, ndims(data)) > 0 ||
-        throw(ArgumentError("data must contain at least one sample"))
-    length(wts) == size(data, ndims(data)) ||
-        throw(DimensionMismatch("length(wts) must equal the number of data samples"))
-    validate_wts(wts)
-    wts_mean = mean(wts)
-    batchsize = min(batchsize, length(wts))
+    wts_mean, batchsize = _pcd_check_args(rbm, data, wts, batchsize)
 
     center_from_data!(rbm, data; wts) # initial centering from data
     # initial gauge; zerosum! first because rescaling preserves the zero-sum gauge,
@@ -324,24 +307,10 @@ function pcd!(
     rescale && rescale_weights!(rbm)
 
     for (iter, (vd, wd)) in zip(1:iters, infinite_minibatches(data, wts; batchsize, shuffle))
-        # positive phase
-        ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
-
-        # negative phase: update persistent fantasy chains
-        vm .= sample_v_from_v(rbm, vm; steps)
-        ∂m = ∂free_energy(rbm, vm)
-
-        # weighted minibatch bias correction, in the gradient eltype
-        batch_weight = convert(float(real(eltype(∂d.w))), mean(wd) / wts_mean)
-        ∂ = (∂d - ∂m) * batch_weight
-
-        # weight decay
-        ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum)
-
-        # feed gradient to Optimiser rule
-        gs = (; visible = ∂.visible, hidden = ∂.hidden, w = ∂.w)
-        state, ps = update!(state, ps, gs)
-        _validate_layer_parameters(rbm)
+        state, ps, ∂ = _pcd_step!(
+            rbm, ps, state, vd, wd, vm, wts_mean;
+            steps, moments, l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum
+        )
 
         # damped update of the hidden offsets towards <h>_d from the minibatch
         center_hidden_from_data!(rbm, vd; wts = wd, damping = hidden_offset_damping)

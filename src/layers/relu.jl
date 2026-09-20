@@ -48,11 +48,6 @@ function meanvar_from_inputs(layer::ReLU, inputs::AbstractArray = Falses(size(la
     return μ + σ .* tμ, ν .* tν
 end
 
-function moments_from_inputs(layer::ReLU, inputs::AbstractArray = Falses(size(layer)))
-    μ, ν = meanvar_from_inputs(layer, inputs)
-    return stack([μ, ν .+ μ .^ 2]; dims = 1)
-end
-
 function ∂energy_from_moments(layer::ReLU, moments::AbstractArray)
     return ∂energy_from_moments(Gaussian(layer.par), moments)
 end

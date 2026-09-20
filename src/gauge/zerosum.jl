@@ -1,9 +1,9 @@
 zerosum(A::AbstractArray; dims = 1) = A .- mean(A; dims)
-zerosum!(A::AbstractArray; dims = 1) = A .= zerosum(A; dims)
+zerosum!(A::AbstractArray; dims = 1) = A .-= mean(A; dims)
 
 # zerosum only affects Potts layers
 has_potts_layers(rbm) =
-    rbm.visible isa Union{Potts, PottsGumbel} || rbm.hidden isa Union{Potts, PottsGumbel}
+    rbm.visible isa _PottsLayers || rbm.hidden isa _PottsLayers
 
 """
     zerosum(rbm)
@@ -26,14 +26,14 @@ end
 In-place zero-sum gauge on `rbm`.
 """
 function zerosum!(rbm::RBM)
-    if rbm.visible isa Union{Potts, PottsGumbel}
+    if rbm.visible isa _PottsLayers
         zerosum!(rbm.visible.θ; dims = 1)
         ωv = mean(rbm.w; dims = 1)
         rbm.w .-= ωv
         dims = ntuple(identity, ndims(rbm.visible))
         shift_fields!(rbm.hidden, reshape(sum(ωv; dims), size(rbm.hidden)))
     end
-    if rbm.hidden isa Union{Potts, PottsGumbel}
+    if rbm.hidden isa _PottsLayers
         zerosum!(rbm.hidden.θ; dims = 1)
         ωh = mean(rbm.w; dims = 1 + ndims(rbm.visible))
         rbm.w .-= ωh
@@ -51,11 +51,11 @@ Projects the gradient so that it doesn't modify the zerosum gauge.
 function zerosum!(∂::∂RBM, rbm::RBM)
     # ∂.visible and ∂.hidden have the layer `par` layout, where dim 1 indexes the
     # parameter type (θ, singleton for Potts) and dim 2 the Potts colors.
-    if rbm.visible isa Union{Potts, PottsGumbel}
+    if rbm.visible isa _PottsLayers
         zerosum!(∂.visible; dims = 2)
         zerosum!(∂.w; dims = 1)
     end
-    if rbm.hidden isa Union{Potts, PottsGumbel}
+    if rbm.hidden isa _PottsLayers
         zerosum!(∂.hidden; dims = 2)
         zerosum!(∂.w; dims = ndims(rbm.visible) + 1)
     end
@@ -65,10 +65,10 @@ end
 function zerosum_weights(weights::AbstractArray, rbm::RBM)
     @assert size(weights) == size(rbm.w)
     w = weights
-    if rbm.visible isa Union{Potts, PottsGumbel}
+    if rbm.visible isa _PottsLayers
         w = w .- mean(w; dims = 1)
     end
-    if rbm.hidden isa Union{Potts, PottsGumbel}
+    if rbm.hidden isa _PottsLayers
         w = w .- mean(w; dims = ndims(rbm.visible) + 1)
     end
     return oftype(weights, w)

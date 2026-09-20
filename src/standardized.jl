@@ -83,12 +83,7 @@ Absorbs `scale_h` into the hidden layer if it has a scale parameter, returning `
 if this was done. The modified RBM is equivalent to the original one.
 """
 function rescale_hidden_activations!(rbm::StandardizedRBM)
-    if rescale_activations!(rbm.hidden, rbm.scale_h)
-        rbm.offset_h ./= rbm.scale_h
-        rbm.scale_h ./= rbm.scale_h
-        return true
-    end
-    return false
+    return rescale_hidden!(rbm, copy(rbm.scale_h))
 end
 
 """
@@ -186,7 +181,7 @@ end
 function standardize_hidden(std_rbm::StandardizedRBM, offset_h::AbstractArray, scale_h::AbstractArray)
     @assert size(std_rbm.hidden) == size(offset_h) == size(scale_h)
 
-    ch = reshape(scale_h ./ std_rbm.scale_h, map(one, size(std_rbm.visible))..., size(std_rbm.hidden)...)
+    ch = _along_hidden(std_rbm, scale_h ./ std_rbm.scale_h)
     Δθ = inputs_v_from_h(std_rbm, offset_h)
 
     vis = shift_fields(std_rbm.visible, Δθ)
@@ -236,7 +231,7 @@ end
 function standardize_hidden!(rbm::StandardizedRBM, offset_h::AbstractArray, scale_h::AbstractArray)
     @assert size(rbm.hidden) == size(offset_h) == size(scale_h)
 
-    ch = reshape(scale_h ./ rbm.scale_h, (map(one, size(rbm.visible))..., size(rbm.hidden)...))
+    ch = _along_hidden(rbm, scale_h ./ rbm.scale_h)
     Δθ = inputs_v_from_h(rbm, offset_h)
 
     shift_fields!(rbm.visible, Δθ)
@@ -292,17 +287,8 @@ end
 
 unstandardized_weights(rbm::StandardizedRBM) = rbm.w ./ _scale_w(rbm)
 
-function potts_to_gumbel(rbm::StandardizedRBM)
-    visible = potts_to_gumbel(rbm.visible)
-    hidden = potts_to_gumbel(rbm.hidden)
-    return StandardizedRBM(visible, hidden, rbm.w, rbm.offset_v, rbm.offset_h, rbm.scale_v, rbm.scale_h)
-end
-
-function gumbel_to_potts(rbm::StandardizedRBM)
-    visible = gumbel_to_potts(rbm.visible)
-    hidden = gumbel_to_potts(rbm.hidden)
-    return StandardizedRBM(visible, hidden, rbm.w, rbm.offset_v, rbm.offset_h, rbm.scale_v, rbm.scale_h)
-end
+potts_to_gumbel(rbm::StandardizedRBM) = StandardizedRBM(potts_to_gumbel(RBM(rbm)), rbm.offset_v, rbm.offset_h, rbm.scale_v, rbm.scale_h)
+gumbel_to_potts(rbm::StandardizedRBM) = StandardizedRBM(gumbel_to_potts(RBM(rbm)), rbm.offset_v, rbm.offset_h, rbm.scale_v, rbm.scale_h)
 
 function pcd!(
         rbm::StandardizedRBM,
@@ -347,39 +333,17 @@ function pcd!(
         callback = Returns(nothing)
     )
     @assert 0 ≤ damping ≤ 1
-    @assert size(data) == (size(rbm.visible)..., size(data)[end])
-    _validate_layer_parameters(rbm)
-    batchsize > 0 || throw(ArgumentError("batchsize must be positive"))
-    size(data, ndims(data)) > 0 ||
-        throw(ArgumentError("data must contain at least one sample"))
-    length(wts) == size(data, ndims(data)) ||
-        throw(DimensionMismatch("length(wts) must equal the number of data samples"))
-    validate_wts(wts)
-    wts_mean = mean(wts)
-    batchsize = min(batchsize, length(wts))
+    wts_mean, batchsize = _pcd_check_args(rbm, data, wts, batchsize)
 
     standardize_visible_from_data!(rbm, data; wts, ϵ = ϵv)
     zerosum && zerosum!(rbm)
 
     for (iter, (vd, wd)) in zip(1:iters, infinite_minibatches(data, wts; batchsize, shuffle))
-        # positive phase
-        ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
-
-        # negative phase: update persistent fantasy chains
-        vm .= sample_v_from_v(rbm, vm; steps)
-        ∂m = ∂free_energy(rbm, vm)
-
-        # weighted minibatch bias correction, in the gradient eltype
-        batch_weight = convert(float(real(eltype(∂d.w))), mean(wd) / wts_mean)
-        ∂ = (∂d - ∂m) * batch_weight
-
-        # weight decay
-        ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum, regularize_unstandardized)
-
-        # feed gradient to Optimiser rule
-        gs = (; visible = ∂.visible, hidden = ∂.hidden, w = ∂.w)
-        state, ps = update!(state, ps, gs)
-        _validate_layer_parameters(rbm)
+        state, ps, ∂ = _pcd_step!(
+            rbm, ps, state, vd, wd, vm, wts_mean;
+            steps, moments, l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum,
+            regularize_unstandardized
+        )
 
         # update standardization
         standardize_hidden_from_v!(rbm, vd; wts = wd, damping, ϵ = ϵh)
@@ -434,13 +398,6 @@ function SpinStandardizedRBM(a::AbstractArray, b::AbstractArray, w::AbstractArra
     return standardize(rbm)
 end
 
-function log_partition(rbm::StandardizedRBM)
-    v = ChainRulesCore.ignore_derivatives() do
-        collect_states(rbm.visible)
-    end
-    return logsumexp(-free_energy(rbm, v))
-end
-
 """
     rescale_hidden!(rbm::StandardizedRBM, λ::AbstractArray)
 
@@ -463,8 +420,4 @@ end
 Computes the norms of the unstandardized weights for each hidden unit. If you want the norms
 of the standardized weights, use `weight_norms(RBM(std_rbm))`.
 """
-function weight_norms(rbm::StandardizedRBM)
-    w = unstandardized_weights(rbm)
-    w2 = sum(abs2, w; dims = 1:ndims(rbm.visible))
-    return reshape(sqrt.(w2), size(rbm.hidden))
-end
+weight_norms(rbm::StandardizedRBM) = weight_norms(RBM(rbm.visible, rbm.hidden, unstandardized_weights(rbm)))

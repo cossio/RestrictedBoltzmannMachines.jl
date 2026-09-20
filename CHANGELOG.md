@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+- `log_partition` (by exhaustive enumeration) and `log_likelihood` now also accept a
+  `CenteredRBM`. They dispatch on the generic `free_energy` interface instead of
+  carrying separate `RBM` and `StandardizedRBM` methods.
 - `log_pseudolikelihood` (and `log_pseudolikelihood_exact`,
   `log_pseudolikelihood_sites`) now support `Gaussian` visible layers with
   `Gaussian` hidden layers, using the closed-form Gaussian conditionals. The

@@ -17,17 +17,8 @@ _scale_h(rbm::StandardizedRBM) = rbm.scale_h
 _scale_v(rbm::CenteredRBM) = Ones{eltype(rbm.w)}(size(rbm.visible))
 _scale_h(rbm::CenteredRBM) = Ones{eltype(rbm.w)}(size(rbm.hidden))
 
-_maybe_div(x::AbstractArray, ::Ones) = x
-_maybe_div(x::AbstractArray, s::AbstractArray) = x ./ s
-_maybe_mul(x::AbstractArray, ::Ones) = x
-_maybe_mul(x::AbstractArray, s::AbstractArray) = x .* s
-
 # scales of the weights of the equivalent plain RBM, shaped like `rbm.w`
-function _scale_w(rbm::StandardizedRBM)
-    cv = reshape(rbm.scale_v, size(rbm.visible)..., map(one, size(rbm.hidden))...)
-    ch = reshape(rbm.scale_h, map(one, size(rbm.visible))..., size(rbm.hidden)...)
-    return cv .* ch
-end
+_scale_w(rbm::StandardizedRBM) = _along_visible(rbm, rbm.scale_v) .* _along_hidden(rbm, rbm.scale_h)
 _scale_w(rbm::CenteredRBM) = Ones{eltype(rbm.w)}(size(rbm.w))
 
 # equivalent plain `RBM` modeling the same distribution
@@ -81,41 +72,26 @@ function ∂regularize!(
         regularize_unstandardized::Bool = true,
         zerosum::Bool = false # whether to zerosum gradients
     )
-    if regularize_unstandardized
-        # regularization applies to the parameters of the equivalent plain RBM
+    if !regularize_unstandardized
+        # regularization applies directly to the offset model's parameters
+        ∂regularize!(∂, RBM(offset_rbm); l2_fields, l1_weights, l2_weights, l2l1_weights)
+    elseif !all(iszero, (l2_fields, l1_weights, l2_weights, l2l1_weights))
+        # regularization applies to the parameters of the equivalent plain RBM, whose
+        # weights are `w / scale_w` and whose visible fields absorb `w * offset_h`
         rbm = _equivalent_rbm(offset_rbm)
-        offset_h = reshape(offset_rbm.offset_h, map(one, size(offset_rbm.offset_v))..., size(offset_rbm.offset_h)...)
         scale_w = _scale_w(offset_rbm)
-
         if !iszero(l2_fields)
             visible_reg = ∂regularize_fields(rbm.visible; l2_fields)
             ∂.visible .+= visible_reg
-            ∂regularize_add_visible_offset!(∂, visible_reg, offset_h, scale_w, offset_rbm.visible)
+            # chain rule through the absorbed field shift; only the field rows of
+            # `visible_reg` are nonzero, so summing over parameter rows collects them
+            field_reg = dropdims(sum(visible_reg; dims = 1); dims = 1)
+            ∂.w .-= _maybe_div(field_reg .* _along_hidden(offset_rbm, offset_rbm.offset_h), scale_w)
         end
-        if !iszero(l1_weights)
-            ∂.w .+= _maybe_div(l1_weights * sign.(rbm.w), scale_w)
-        end
-        if !iszero(l2_weights)
-            ∂.w .+= _maybe_div(l2_weights * rbm.w, scale_w)
-        end
-        if !iszero(l2l1_weights)
-            dims = ntuple(identity, ndims(offset_rbm.visible))
-            ∂.w .+= _maybe_div(l2l1_weights * sign.(rbm.w) .* mean(abs, rbm.w; dims), scale_w)
-        end
-    else
-        # regularization applies directly to the offset model's parameters
-        ∂regularize!(∂, RBM(offset_rbm); l2_fields, l1_weights, l2_weights, l2l1_weights)
+        _∂regularize_weights!(∂.w, rbm; l1_weights, l2_weights, l2l1_weights, scale = scale_w)
     end
     zerosum && zerosum!(∂, offset_rbm)
     return ∂
-end
-
-function ∂regularize_add_visible_offset!(∂::∂RBM, visible_regularization::AbstractArray, offset_h::AbstractArray, scale_w::AbstractArray, ::dReLU)
-    return ∂.w .-= _maybe_div((visible_regularization[1, ..] + visible_regularization[2, ..]) .* offset_h, scale_w)
-end
-
-function ∂regularize_add_visible_offset!(∂::∂RBM, visible_regularization::AbstractArray, offset_h::AbstractArray, scale_w::AbstractArray, ::Union{Binary, Spin, Potts, PottsGumbel, Gaussian, ReLU, xReLU, pReLU, nsReLU})
-    return ∂.w .-= _maybe_div(visible_regularization[1, ..] .* offset_h, scale_w)
 end
 
 function regularization_penalty(
@@ -135,7 +111,7 @@ end
 In-place version of `zerosum(rbm)`. Offsets (and scales) are not modified.
 """
 function zerosum!(rbm::OffsetRBM)
-    if rbm.visible isa Union{Potts, PottsGumbel}
+    if rbm.visible isa _PottsLayers
         # Gauge move on the weights of the equivalent plain RBM, w̃ = w / (scale_v ⊗ scale_h):
         # subtract their mean over visible colors (scale_h cancels out of the w update).
         scale_v = _scale_v(rbm)
@@ -149,8 +125,8 @@ function zerosum!(rbm::OffsetRBM)
         Δθh = _maybe_div(reshape(sum(ξ .* (1 .- Ov); dims = vdims), size(rbm.hidden)), _scale_h(rbm))
         shift_fields!(rbm.hidden, Δθh)
     end
-    if rbm.hidden isa Union{Potts, PottsGumbel}
-        scale_h = reshape(_scale_h(rbm), map(one, size(rbm.visible))..., size(rbm.hidden)...)
+    if rbm.hidden isa _PottsLayers
+        scale_h = _along_hidden(rbm, _scale_h(rbm))
         ζ = mean(_maybe_div(rbm.w, scale_h); dims = ndims(rbm.visible) + 1)
         rbm.w .-= _maybe_mul(ζ, scale_h)
         zerosum!(rbm.hidden.θ; dims = 1)
@@ -176,15 +152,15 @@ gauge direction `ξ .* scale_v`. For a `CenteredRBM` the scales are one and thes
 conditions coincide with the plain `RBM` ones.
 """
 function zerosum!(∂::∂RBM, rbm::OffsetRBM)
-    if rbm.visible isa Union{Potts, PottsGumbel}
+    if rbm.visible isa _PottsLayers
         zerosum!(∂.visible; dims = 2) # dim 1 of `par` is the (singleton) parameter type
         scale_v = _scale_v(rbm)
         ξ = mean(_maybe_div(∂.w, scale_v); dims = 1)
         ∂.w .-= _maybe_mul(ξ, scale_v)
     end
-    if rbm.hidden isa Union{Potts, PottsGumbel}
+    if rbm.hidden isa _PottsLayers
         zerosum!(∂.hidden; dims = 2)
-        scale_h = reshape(_scale_h(rbm), map(one, size(rbm.visible))..., size(rbm.hidden)...)
+        scale_h = _along_hidden(rbm, _scale_h(rbm))
         ζ = mean(_maybe_div(∂.w, scale_h); dims = ndims(rbm.visible) + 1)
         ∂.w .-= _maybe_mul(ζ, scale_h)
     end

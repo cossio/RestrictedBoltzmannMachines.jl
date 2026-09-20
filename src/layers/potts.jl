@@ -13,21 +13,29 @@ The number of classes is the size of the first dimension.
 
 # The statistics are shared with PottsGumbel, which differs from Potts only in how it
 # samples (see pottsgumbel.jl).
-cgfs(layer::Union{Potts, PottsGumbel}, inputs::AbstractArray = Falses(size(layer))) = logsumexp(layer.θ .+ inputs; dims = 1)
-mean_from_inputs(layer::Union{Potts, PottsGumbel}, inputs::AbstractArray = Falses(size(layer))) = softmax(layer.θ .+ inputs; dims = 1)
-mean_abs_from_inputs(layer::Union{Potts, PottsGumbel}, inputs::AbstractArray = Falses(size(layer))) = mean_from_inputs(layer, inputs)
+const _PottsLayers = Union{Potts, PottsGumbel}
 
-function mode_from_inputs(layer::Union{Potts, PottsGumbel}, inputs::AbstractArray = Falses(size(layer)))
+# conversions between the two Potts encodings; other layers pass through unchanged
+potts_to_gumbel(layer::Potts) = PottsGumbel(layer)
+potts_to_gumbel(layer::AbstractLayer) = layer
+gumbel_to_potts(layer::PottsGumbel) = Potts(layer)
+gumbel_to_potts(layer::AbstractLayer) = layer
+
+cgfs(layer::_PottsLayers, inputs::AbstractArray = Falses(size(layer))) = logsumexp(layer.θ .+ inputs; dims = 1)
+mean_from_inputs(layer::_PottsLayers, inputs::AbstractArray = Falses(size(layer))) = softmax(layer.θ .+ inputs; dims = 1)
+mean_abs_from_inputs(layer::_PottsLayers, inputs::AbstractArray = Falses(size(layer))) = mean_from_inputs(layer, inputs)
+
+function mode_from_inputs(layer::_PottsLayers, inputs::AbstractArray = Falses(size(layer)))
     θ = layer.θ .+ inputs
     return θ .== maximum(θ; dims = 1)
 end
 
-function var_from_inputs(layer::Union{Potts, PottsGumbel}, inputs::AbstractArray = Falses(size(layer)))
+function var_from_inputs(layer::_PottsLayers, inputs::AbstractArray = Falses(size(layer)))
     μ = mean_from_inputs(layer, inputs)
     return μ .* (1 .- μ)
 end
 
-function meanvar_from_inputs(layer::Union{Potts, PottsGumbel}, inputs::AbstractArray = Falses(size(layer)))
+function meanvar_from_inputs(layer::_PottsLayers, inputs::AbstractArray = Falses(size(layer)))
     μ = mean_from_inputs(layer, inputs)
     ν = μ .* (1 .- μ)
     return μ, ν

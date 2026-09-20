@@ -37,12 +37,6 @@ function mean_abs_from_inputs(layer::Gaussian, inputs::AbstractArray = Falses(si
     return @. √(2ν / π) * exp(-μ^2 / (2ν)) + μ * erf(μ / √(2ν))
 end
 
-function moments_from_inputs(layer::Gaussian, inputs::AbstractArray = Falses(size(layer)))
-    x1 = mean_from_inputs(layer, inputs)
-    x2 = x1 .^ 2 .+ var_from_inputs(layer, inputs)
-    return stack([x1, x2]; dims = 1)
-end
-
 function ∂energy_from_moments(layer::Gaussian, moments::AbstractArray)
     @assert ntuple(d -> size(moments, d), ndims(layer.par)) == size(layer.par)
     x1 = @view moments[1, ..]

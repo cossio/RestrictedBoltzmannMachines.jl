@@ -12,7 +12,7 @@ shift_fields(l::pReLU, a::AbstractArray) = pReLU(; θ = l.θ .+ a, l.γ, l.Δ, l
 shift_fields(l::xReLU, a::AbstractArray) = xReLU(; θ = l.θ .+ a, l.γ, l.Δ, l.ξ)
 shift_fields(l::nsReLU, a::AbstractArray) = nsReLU(; θ = l.θ .+ a, l.Δ, l.ξ)
 
-function shift_fields!(l::Union{Binary, Spin, Potts, PottsGumbel, Gaussian, ReLU, pReLU, xReLU, nsReLU}, a::AbstractArray)
+function shift_fields!(l::_ThetaLayers, a::AbstractArray)
     l.θ .+= a
     return l
 end
