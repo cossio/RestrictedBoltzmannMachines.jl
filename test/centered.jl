@@ -478,9 +478,12 @@ end
         log_pseudolikelihood(uncenter(rbm), v; exact = true)
 
     # Gaussian visible and hidden layers use the closed-form conditionals.
+    # Keep the conditionals normalizable: |γv| must exceed Σ_μ w_iμ² / |γh_μ|.
+    hidden = Gaussian(; θ = randn(2), γ = 1 .+ rand(2))
+    w = randn(3, 2)
+    w ./= 2 * √maximum(sum(w .^ 2 ./ abs.(hidden.γ)'; dims = 2))
     rbm = CenteredRBM(
-        Gaussian(; θ = randn(3), γ = 1 .+ rand(3)), Gaussian(; θ = randn(2), γ = 1 .+ rand(2)),
-        randn(3, 2) / 4, randn(3), randn(2),
+        Gaussian(; θ = randn(3), γ = 1 .+ rand(3)), hidden, w, randn(3), randn(2),
     )
     v = randn(3, 7)
     @test log_pseudolikelihood(rbm, v; exact = true) ≈

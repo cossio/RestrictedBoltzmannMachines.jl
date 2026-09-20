@@ -175,12 +175,12 @@ end
     rbm_potts = RBM(potts_visible, Binary(; θ = randn(3)), w)
     v_potts = float(sample_from_inputs(potts_visible, zeros(Q, N..., B)))
 
-    # Gaussian visible units with Gaussian hidden units (closed-form conditionals)
-    rbm_gaussian = RBM(
-        Gaussian(; θ = randn(N...), γ = 1 .+ rand(N...)),
-        Gaussian(; θ = randn(3), γ = 1 .+ rand(3)),
-        randn(N..., 3) / √prod(N),
-    )
+    # Gaussian visible units with Gaussian hidden units (closed-form conditionals).
+    # Keep the conditionals normalizable: |γv| must exceed Σ_μ w_iμ² / |γh_μ|.
+    hidden_gaussian = Gaussian(; θ = randn(3), γ = 1 .+ rand(3))
+    w_gaussian = randn(N..., 3)
+    w_gaussian ./= 2 * √maximum(sum(reshape(w_gaussian, prod(N), :) .^ 2 ./ abs.(hidden_gaussian.γ)'; dims = 2))
+    rbm_gaussian = RBM(Gaussian(; θ = randn(N...), γ = 1 .+ rand(N...)), hidden_gaussian, w_gaussian)
     v_gaussian = randn(N..., B)
 
     for (rbm, v) in ((rbm_binary, v_binary), (rbm_potts, v_potts), (rbm_gaussian, v_gaussian))
