@@ -15,23 +15,32 @@ function ∂regularize!(
     if !iszero(l2_fields)
         ∂regularize_fields!(∂.visible, rbm.visible; l2_fields)
     end
-    if !iszero(l1_weights)
-        ∂.w .+= l1_weights * sign.(rbm.w)
-    end
-    if !iszero(l2_weights)
-        ∂.w .+= l2_weights * rbm.w
-    end
-    if !iszero(l2l1_weights)
-        dims = ntuple(identity, ndims(rbm.visible))
-        ∂.w .+= l2l1_weights * sign.(rbm.w) .* mean(abs, rbm.w; dims)
-    end
+    _∂regularize_weights!(∂.w, rbm; l1_weights, l2_weights, l2l1_weights)
     zerosum && zerosum!(∂, rbm)
     return ∂
 end
 
-function ∂regularize_fields!(
-        ∂::AbstractArray, layer::Union{Binary, Spin, Potts, PottsGumbel, Gaussian, ReLU, xReLU, pReLU, nsReLU}; l2_fields::Real = 0
+# Adds the weight-regularization gradient of `rbm` to `∂w`, divided by `scale` (the
+# weight scales of an equivalent standardized model; lazy ones for a plain `RBM`).
+function _∂regularize_weights!(
+        ∂w::AbstractArray, rbm::RBM;
+        l1_weights::Real, l2_weights::Real, l2l1_weights::Real,
+        scale::AbstractArray = Ones{eltype(rbm.w)}(size(rbm.w))
     )
+    if !iszero(l1_weights)
+        ∂w .+= _maybe_div(l1_weights .* sign.(rbm.w), scale)
+    end
+    if !iszero(l2_weights)
+        ∂w .+= _maybe_div(l2_weights .* rbm.w, scale)
+    end
+    if !iszero(l2l1_weights)
+        dims = ntuple(identity, ndims(rbm.visible))
+        ∂w .+= _maybe_div(l2l1_weights .* sign.(rbm.w) .* mean(abs, rbm.w; dims), scale)
+    end
+    return ∂w
+end
+
+function ∂regularize_fields!(∂::AbstractArray, layer::_ThetaLayers; l2_fields::Real = 0)
     if !iszero(l2_fields)
         ∂[1, ..] .+= l2_fields * layer.θ
     end
@@ -63,4 +72,4 @@ function regularization_penalty(rbm::RBM; l1_weights::Real = 0, l2_weights::Real
 end
 
 regularization_penalty_fields(layer::dReLU) = sum(abs2, layer.θp) + sum(abs2, layer.θn)
-regularization_penalty_fields(layer::Union{Binary, Spin, Potts, PottsGumbel, Gaussian, ReLU, pReLU, xReLU, nsReLU}) = sum(abs2, layer.θ)
+regularization_penalty_fields(layer::_ThetaLayers) = sum(abs2, layer.θ)

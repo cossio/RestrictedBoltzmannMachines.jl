@@ -12,18 +12,4 @@ function sample_from_inputs(layer::PottsGumbel, inputs::AbstractArray = Falses(s
     return onehot_encode(c, 1:size(layer, 1))
 end
 
-function potts_to_gumbel(layer::AbstractLayer)
-    if layer isa Potts
-        return PottsGumbel(layer)
-    else
-        return layer
-    end
-end
-
-function gumbel_to_potts(layer::AbstractLayer)
-    if layer isa PottsGumbel
-        return Potts(layer)
-    else
-        return layer
-    end
-end
+# `potts_to_gumbel` / `gumbel_to_potts` are defined in potts.jl, once both types exist.

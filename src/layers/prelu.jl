@@ -37,14 +37,16 @@ function _validate_layer_parameters(layer::pReLU)
     return nothing
 end
 
-energies(layer::pReLU, x::AbstractArray) = energies(dReLU(layer), x)
-cgfs(layer::pReLU, inputs::AbstractArray = Falses(size(layer))) = cgfs(dReLU(layer), inputs)
-sample_from_inputs(layer::pReLU, inputs::AbstractArray = Falses(size(layer))) = sample_from_inputs(dReLU(layer), inputs)
-mean_from_inputs(layer::pReLU, inputs::AbstractArray = Falses(size(layer))) = mean_from_inputs(dReLU(layer), inputs)
-var_from_inputs(layer::pReLU, inputs::AbstractArray = Falses(size(layer))) = var_from_inputs(dReLU(layer), inputs)
-meanvar_from_inputs(layer::pReLU, inputs::AbstractArray = Falses(size(layer))) = meanvar_from_inputs(dReLU(layer), inputs)
-mode_from_inputs(layer::pReLU, inputs::AbstractArray = Falses(size(layer))) = mode_from_inputs(dReLU(layer), inputs)
-mean_abs_from_inputs(layer::pReLU, inputs::AbstractArray = Falses(size(layer))) = mean_abs_from_inputs(dReLU(layer), inputs)
+# The statistics (`energies`, `cgfs`, sampling, ...) are those of the equivalent dReLU
+# layer; see common.jl.
+
+# ∂θ, ∂γ, ∂Δ of the pReLU-type energy at the dReLU moments, for asymmetry `η`
+function _prelu_∂θγΔ(γ, η, xp1, xn1, xp2, xn2)
+    ∂θ = -(xp1 + xn1)
+    ∂γ = @. sign(γ) * (xp2 / (1 + η) + xn2 / (1 - η)) / 2
+    ∂Δ = @. -(xp1 / (1 + η) - xn1 / (1 - η))
+    return ∂θ, ∂γ, ∂Δ
+end
 
 function ∂energy_from_moments(layer::pReLU, moments::AbstractArray)
     _validate_layer_parameters(layer)
@@ -55,9 +57,7 @@ function ∂energy_from_moments(layer::pReLU, moments::AbstractArray)
     xp2 = @view moments[3, ..]
     xn2 = @view moments[4, ..]
 
-    ∂θ = -(xp1 + xn1)
-    ∂γ = @. sign(layer.γ) * (xp2 / (1 + layer.η) + xn2 / (1 - layer.η)) / 2
-    ∂Δ = @. -(xp1 / (1 + layer.η) - xn1 / (1 - layer.η))
+    ∂θ, ∂γ, ∂Δ = _prelu_∂θγΔ(layer.γ, layer.η, xp1, xn1, xp2, xn2)
     ∂η = @. (
         (-abs(layer.γ) * xp2 / 2 + layer.Δ * xp1) / (1 + layer.η)^2 +
             (abs(layer.γ) * xn2 / 2 + layer.Δ * xn1) / (1 - layer.η)^2

@@ -28,6 +28,11 @@ flat_w(rbm) = reshape(rbm.w, length(rbm.visible), length(rbm.hidden))
 flat_v(rbm, v) = flatten(rbm.visible, v)
 flat_h(rbm, h) = flatten(rbm.hidden, h)
 
+# reshape a visible-sized (resp. hidden-sized) array so it broadcasts along the
+# visible (resp. hidden) dimensions of `rbm.w`
+_along_visible(rbm, x::AbstractArray) = reshape(x, size(rbm.visible)..., map(one, size(rbm.hidden))...)
+_along_hidden(rbm, x::AbstractArray) = reshape(x, map(one, size(rbm.visible))..., size(rbm.hidden)...)
+
 """
     inputs_h_from_v(rbm, v)
 
@@ -100,8 +105,8 @@ Weight mediated interaction energy.
 """
 function interaction_energy(rbm, v, h)
     bsz = batch_size(rbm, v, h)
-    if ndims(rbm.visible) == ndims(v) && ndims(rbm.hidden) == ndims(h)
-        # Both v and h are single samples: use full matrix multiply
+    if ndims(rbm.visible) == ndims(v)
+        # v is a single sample (h single or batched): v'*w*h as matrix products
         w_flat = flat_w(rbm)
         v_flat = with_eltype_of(w_flat, flat_v(rbm, v))
         h_flat = with_eltype_of(w_flat, flat_h(rbm, h))
@@ -114,12 +119,6 @@ function interaction_energy(rbm, v, h)
         wh = w_flat * h_flat
         v_flat = flat_v(rbm, v)
         E = -(v_flat' * wh)
-    elseif ndims(rbm.visible) == ndims(v)
-        # h is batched, v is single: v is small so original approach is efficient
-        w_flat = flat_w(rbm)
-        v_flat = with_eltype_of(w_flat, flat_v(rbm, v))
-        h_flat = with_eltype_of(w_flat, flat_h(rbm, h))
-        E = -(v_flat' * w_flat * h_flat)
     elseif length(rbm.visible) ≥ length(rbm.hidden)
         inputs = inputs_h_from_v(rbm, v)
         E = -sum(inputs .* h; dims = 1:ndims(rbm.hidden))
@@ -255,19 +254,10 @@ end
 
 Returns the batch size if `energy(rbm, v, h)` were computed.
 """
-function batch_size(rbm, v, h)
-    v_bsz = batch_size(rbm.visible, v)
-    h_bsz = batch_size(rbm.hidden, h)
-    if isempty(v_bsz)
-        return h_bsz
-    elseif isempty(h_bsz)
-        return v_bsz
-    else
-        return join_batch_size(v_bsz, h_bsz)
-    end
-end
+batch_size(rbm, v, h) = join_batch_size(batch_size(rbm.visible, v), batch_size(rbm.hidden, h))
 
-function join_batch_size(bsz_1::Tuple{Int, Vararg{Int}}, bsz_2::Tuple{Int, Vararg{Int}})
+# broadcast-style join of two batch sizes (either may be empty)
+function join_batch_size(bsz_1::Dims, bsz_2::Dims)
     if length(bsz_1) > length(bsz_2)
         D = length(bsz_2)
         sz2 = bsz_1[(D + 1):end]
@@ -292,11 +282,7 @@ function reconstruction_error(rbm, v; steps = 1)
     @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
     v1 = sample_v_from_v(rbm, v; steps)
     ϵ = mean(abs.(v .- v1); dims = 1:ndims(rbm.visible))
-    if ndims(v) == ndims(rbm.visible)
-        return only(ϵ)
-    else
-        return reshape(ϵ, batch_size(rbm.visible, v))
-    end
+    return reshape_maybe(ϵ, batch_size(rbm.visible, v))
 end
 
 """

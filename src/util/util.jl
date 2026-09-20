@@ -84,6 +84,12 @@ reshape_maybe(x::AbstractArray, ::Tuple{}) = only(x)
 reshape_maybe(x::AbstractArray, sz::Dims) = reshape(x, sz)
 reshape_maybe(x::Union{Number, AbstractArray}, sz::Int...) = reshape(x, sz)
 
+# divide / multiply by a scale array, skipping the no-op for lazy unit scales
+_maybe_div(x::AbstractArray, ::Ones) = x
+_maybe_div(x::AbstractArray, s::AbstractArray) = x ./ s
+_maybe_mul(x::AbstractArray, ::Ones) = x
+_maybe_mul(x::AbstractArray, s::AbstractArray) = x .* s
+
 zeros_like(A::AbstractArray) = zeros_like(A, size(A))
 zeros_like(A::AbstractArray, size) = zero(similar(A, size))
 

@@ -3,6 +3,49 @@ function _default_fantasy_chains(rbm, batchsize::Int)
     return sample_from_inputs(rbm.visible, Falses(size(rbm.visible)..., batchsize))
 end
 
+# Argument checks shared by the `pcd!` trainers. Returns the mean data weight and the
+# effective batch size.
+function _pcd_check_args(rbm, data::AbstractArray, wts::AbstractVector, batchsize::Int)
+    @assert size(data) == (size(rbm.visible)..., size(data)[end])
+    _validate_layer_parameters(rbm)
+    batchsize > 0 || throw(ArgumentError("batchsize must be positive"))
+    size(data, ndims(data)) > 0 ||
+        throw(ArgumentError("data must contain at least one sample"))
+    length(wts) == size(data, ndims(data)) ||
+        throw(DimensionMismatch("length(wts) must equal the number of data samples"))
+    validate_wts(wts)
+    return mean(wts), min(batchsize, length(wts))
+end
+
+# One PCD parameter update: positive phase on the minibatch `(vd, wd)`, negative phase on
+# the persistent chains `vm` (updated in place), regularization, and optimiser step.
+# Returns the updated optimiser state and parameters, and the gradient fed to the
+# optimiser. `regularization` keywords are forwarded to `∂regularize!`.
+function _pcd_step!(
+        rbm, ps, state, vd::AbstractArray, wd::AbstractArray, vm::AbstractArray, wts_mean::Real;
+        steps::Int, moments, regularization...
+    )
+    # positive phase
+    ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
+
+    # negative phase: update persistent fantasy chains
+    vm .= sample_v_from_v(rbm, vm; steps)
+    ∂m = ∂free_energy(rbm, vm)
+
+    # weighted minibatch bias correction, in the gradient eltype
+    batch_weight = convert(float(real(eltype(∂d.w))), mean(wd) / wts_mean)
+    ∂ = (∂d - ∂m) * batch_weight
+
+    # weight decay
+    ∂regularize!(∂, rbm; regularization...)
+
+    # feed gradient to Optimiser rule
+    gs = (; visible = ∂.visible, hidden = ∂.hidden, w = ∂.w)
+    state, ps = update!(state, ps, gs)
+    _validate_layer_parameters(rbm)
+    return state, ps, ∂
+end
+
 """
     pcd!(rbm, data; kwargs...)
 
@@ -75,16 +118,7 @@ function pcd!(
         ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w),
         state = setup(optim, ps),
     )
-    @assert size(data) == (size(rbm.visible)..., size(data)[end])
-    _validate_layer_parameters(rbm)
-    batchsize > 0 || throw(ArgumentError("batchsize must be positive"))
-    size(data, ndims(data)) > 0 ||
-        throw(ArgumentError("data must contain at least one sample"))
-    length(wts) == size(data, ndims(data)) ||
-        throw(DimensionMismatch("length(wts) must equal the number of data samples"))
-    validate_wts(wts)
-    wts_mean = mean(wts)
-    batchsize = min(batchsize, length(wts))
+    wts_mean, batchsize = _pcd_check_args(rbm, data, wts, batchsize)
 
     # initial gauge; zerosum! first because rescaling preserves the zero-sum gauge,
     # while zerosum! perturbs weight norms
@@ -92,24 +126,10 @@ function pcd!(
     rescale && rescale_weights!(rbm)
 
     for (iter, (vd, wd)) in zip(1:iters, infinite_minibatches(data, wts; batchsize, shuffle))
-        # positive phase
-        ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
-
-        # negative phase: update persistent fantasy chains
-        vm .= sample_v_from_v(rbm, vm; steps)
-        ∂m = ∂free_energy(rbm, vm)
-
-        # weighted minibatch bias correction, in the gradient eltype
-        batch_weight = convert(float(real(eltype(∂d.w))), mean(wd) / wts_mean)
-        ∂ = (∂d - ∂m) * batch_weight
-
-        # weight decay
-        ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum)
-
-        # feed gradient to Optimiser rule
-        gs = (; visible = ∂.visible, hidden = ∂.hidden, w = ∂.w)
-        state, ps = update!(state, ps, gs)
-        _validate_layer_parameters(rbm)
+        state, ps, ∂ = _pcd_step!(
+            rbm, ps, state, vd, wd, vm, wts_mean;
+            steps, moments, l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum
+        )
 
         # reset gauge (zerosum! first, as above)
         zerosum && zerosum!(rbm)

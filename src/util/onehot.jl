@@ -37,10 +37,7 @@ end
 Like categorical_sample_from_logits, but using the Gumbel trick.
 """
 function categorical_sample_from_logits_gumbel(logits::AbstractArray)
-    z = logits .+ randgumbel.(eltype(logits))
-    idx = dropdims(argmax(z; dims = 1); dims = 1)
-    c = first.(Tuple.(idx))
-    return c
+    return onehot_decode(logits .+ randgumbel.(eltype(logits)))
 end
 
 """
