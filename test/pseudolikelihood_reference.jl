@@ -4,10 +4,12 @@
 # slow oracles to validate the optimized paths in `src/pseudolikelihood.jl`.
 module PseudolikelihoodReference
 
+using Adapt: adapt
 using EllipsisNotation: (..)
 using LogExpFunctions: logsumexp
+using QuadGK: quadgk
 using Statistics: mean
-using RestrictedBoltzmannMachines: RBM, Binary, Spin, Potts, PottsGumbel,
+using RestrictedBoltzmannMachines: RBM, Binary, Spin, Potts, PottsGumbel, Gaussian,
     batch_size, colors, free_energy, sitedims, sitesize
 
 _with_leading_dims(x::Number, n::Int) = x
@@ -178,6 +180,68 @@ end
 
 function substitution_matrix_exhaustive(rbm::RBM{<:PottsGumbel}, v::AbstractArray)
     return substitution_matrix_exhaustive(RBM(Potts(rbm.visible), rbm.hidden, rbm.w), v)
+end
+
+# Gaussian visible units: the conditional of a site is a density over the real line,
+# obtained by numerical integration of the substituted free energies. Works with any
+# hidden layer, so it serves as an oracle for the closed-form Gaussian-Gaussian path.
+# The quadrature runs in Float64 whatever the model eltype, so that its tolerance is
+# attainable and the oracle approximates the mathematical value.
+function log_conditional_density_site(
+        rbm::RBM{<:Gaussian}, v::AbstractArray, site::CartesianIndex
+    )
+    @assert size(v) == size(rbm.visible)
+    rbm = adapt(Array{Float64}, rbm)
+    v_ = Array{Float64}(v) # always a copy: the quadrature mutates it
+    F0 = free_energy(rbm, v_)
+    function F(x)
+        v_[site] = x
+        return free_energy(rbm, v_)
+    end
+    # Integrate over a wide finite domain, split into segments on the scale of the
+    # visible unit's own Gaussian, so that the adaptive quadrature cannot miss a
+    # narrow conditional peak. Infinite tails are avoided because the free energy
+    # overflows to `Inf - Inf` at astronomically large inputs. The integrand is
+    # shifted by its minimum on the grid to avoid overflow, and must vanish at the
+    # ends of the domain for the truncation to be negligible.
+    μ0 = rbm.visible.θ[site] / abs(rbm.visible.γ[site])
+    σ0 = 1 / sqrt(abs(rbm.visible.γ[site]))
+    grid = μ0 .+ σ0 .* range(-40, 40; step = 0.5)
+    Fgrid = map(F, grid)
+    Fmin = min(F0, minimum(Fgrid))
+    @assert exp(-(first(Fgrid) - Fmin)) < 1.0e-12
+    @assert exp(-(last(Fgrid) - Fmin)) < 1.0e-12
+    integrand(x) = exp(-(F(x) - Fmin))
+    Z, _ = quadgk(integrand, grid...; rtol = 1.0e-10)
+    return Fmin - F0 - log(Z)
+end
+
+function log_pseudolikelihood_sites(
+        rbm::RBM{<:Gaussian}, v::AbstractArray, sites::AbstractArray{<:CartesianIndex}
+    )
+    @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
+    @assert size(sites) == batch_size(rbm.visible, v)
+    batch_indices = CartesianIndices(batch_size(rbm.visible, v))
+    lPL = similar(rbm.w, float(eltype(rbm.w)), size(sites))
+    for (b, site) in pairs(sites)
+        vb = reshape(v[.., batch_indices[b]], size(rbm.visible))
+        lPL[b] = log_conditional_density_site(rbm, vb, site)
+    end
+    return lPL
+end
+
+function log_pseudolikelihood_exact(rbm::RBM{<:Gaussian}, v::AbstractArray)
+    @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
+    batch_indices = CartesianIndices(batch_size(rbm.visible, v))
+    lPL = similar(rbm.w, float(eltype(rbm.w)), batch_size(rbm.visible, v))
+    for b in batch_indices
+        vb = reshape(v[.., b], size(rbm.visible))
+        lPL[b] = mean(
+            log_conditional_density_site(rbm, vb, site)
+                for site in CartesianIndices(size(rbm.visible))
+        )
+    end
+    return lPL
 end
 
 end # module PseudolikelihoodReference

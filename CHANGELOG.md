@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+- `log_pseudolikelihood` (and `log_pseudolikelihood_exact`,
+  `log_pseudolikelihood_sites`) now support `Gaussian` visible layers with
+  `Gaussian` hidden layers, using the closed-form Gaussian conditionals. The
+  returned values are log-densities of each site given the others; sites whose
+  conditional precision is not positive give `-Inf`. Previously these calls
+  raised a `MethodError`. `CenteredRBM` and `StandardizedRBM` with Gaussian
+  layers are supported through their equivalent plain `RBM`.
+
 ## 7.1.0
 
 - Mark the training-extension surface as `public`: `∂free_energy`,

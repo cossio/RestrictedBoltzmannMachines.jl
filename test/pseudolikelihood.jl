@@ -322,6 +322,86 @@ end
     end
 end
 
+@testset "Gaussian-Gaussian pseudolikelihood" begin
+    n = (3, 2)
+    m = (2,)
+    B = 3
+    visible = Gaussian(; θ = randn(n...), γ = rand((-1, 1), n...) .* (1 .+ rand(n...)))
+    hidden = Gaussian(; θ = randn(m...), γ = rand((-1, 1), m...) .* (1 .+ rand(m...)))
+    # Keep the conditionals normalizable: |γv| must exceed Σ_μ w_iμ² / |γh_μ|.
+    w = randn(n..., m...)
+    w ./= 2 * √maximum(sum(reshape(w, prod(n), :) .^ 2 ./ abs.(vec(hidden.γ))'; dims = 2))
+    rbm = RBM(visible, hidden, w)
+    v = randn(n..., B)
+
+    @test log_pseudolikelihood(rbm, v; exact = true) ≈ PLRef.log_pseudolikelihood_exact(rbm, v)
+    @test log_pseudolikelihood_exact(rbm, v) ≈ PLRef.log_pseudolikelihood_exact(rbm, v)
+    sites = [rand(CartesianIndices(n)) for _ in 1:B]
+    @test log_pseudolikelihood_sites(rbm, v, sites) ≈ PLRef.log_pseudolikelihood_sites(rbm, v, sites)
+
+    # With a single site the stochastic estimator coincides with the exact value.
+    rbm1 = RBM(Gaussian(; θ = randn(1), γ = [4.0]), Gaussian(m), randn(1, m...) / 4)
+    v1 = randn(1, 7)
+    @test log_pseudolikelihood(rbm1, v1) ≈ log_pseudolikelihood(rbm1, v1; exact = true)
+    @test log_pseudolikelihood(rbm1, v1) ≈ PLRef.log_pseudolikelihood_exact(rbm1, v1)
+
+    # Without weights, each site is an independent Gaussian with mean θ/|γ| and
+    # variance 1/|γ|, so the pseudolikelihood is the mean of the site log-densities.
+    rbm0 = RBM(visible, hidden, zeros(n..., m...))
+    μ = visible.θ ./ abs.(visible.γ)
+    σ² = inv.(abs.(visible.γ))
+    logpdf = @. -(v - μ)^2 / (2σ²) - log(2π * σ²) / 2
+    @test log_pseudolikelihood(rbm0, v; exact = true) ≈ vec(mean(logpdf; dims = (1, 2)))
+
+    # Non-normalizable conditionals (precision not positive) give -Inf.
+    rbm_bad = RBM(
+        Gaussian(; θ = randn(n...), γ = fill(0.1, n...)),
+        Gaussian(; θ = randn(m...), γ = fill(0.1, m...)),
+        ones(n..., m...),
+    )
+    @test all(==(-Inf), log_pseudolikelihood(rbm_bad, v; exact = true))
+    @test all(==(-Inf), log_pseudolikelihood_sites(rbm_bad, v, sites))
+    @test all(==(-Inf), log_pseudolikelihood(rbm_bad, v))
+
+    # Batch shapes, unbatched input, and eltypes.
+    T = Float32
+    batch = (2, 3)
+    rbmT = RBM(
+        Gaussian(; θ = randn(T, n...), γ = 1 .+ rand(T, n...)),
+        Gaussian(; θ = randn(T, m...), γ = 1 .+ rand(T, m...)),
+        randn(T, n..., m...) / sqrt(T(prod(n))),
+    )
+    vT = randn(T, n..., batch...)
+    result = log_pseudolikelihood_exact(rbmT, vT)
+    @test size(result) == batch
+    @test eltype(result) == T
+    @test result ≈ PLRef.log_pseudolikelihood_exact(rbmT, vT) rtol = 5.0e-4 atol = 5.0e-5
+    sitesT = [rand(CartesianIndices(n)) for _ in CartesianIndices(batch)]
+    result = log_pseudolikelihood_sites(rbmT, vT, sitesT)
+    @test size(result) == batch
+    @test eltype(result) == T
+    @test result ≈ PLRef.log_pseudolikelihood_sites(rbmT, vT, sitesT) rtol = 5.0e-4 atol = 5.0e-5
+
+    v_unbatched = randn(T, n...)
+    result = log_pseudolikelihood_exact(rbmT, v_unbatched)
+    @test size(result) == ()
+    @test only(result) ≈ only(PLRef.log_pseudolikelihood_exact(rbmT, v_unbatched)) rtol = 5.0e-4
+    site = fill(rand(CartesianIndices(n)))
+    result = log_pseudolikelihood_sites(rbmT, v_unbatched, site)
+    @test size(result) == ()
+    @test only(result) ≈ only(PLRef.log_pseudolikelihood_sites(rbmT, v_unbatched, site)) rtol = 5.0e-4
+
+    # Mixed precision promotes to the widest parameter eltype.
+    rbm_mixed = RBM(
+        Gaussian(; θ = randn(n...), γ = 1 .+ rand(n...)),
+        Gaussian(; θ = randn(T, m...), γ = 1 .+ rand(T, m...)),
+        randn(T, n..., m...) / sqrt(T(prod(n))),
+    )
+    result = log_pseudolikelihood_exact(rbm_mixed, vT)
+    @test eltype(result) == Float64
+    @test result ≈ PLRef.log_pseudolikelihood_exact(rbm_mixed, vT) rtol = 5.0e-4
+end
+
 @testset "PottsGumbel pseudolikelihood delegates to Potts" begin
     q = 3
     n = (3, 2)

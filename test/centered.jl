@@ -417,7 +417,7 @@ using RestrictedBoltzmannMachines: RBM, regularization_penalty
         regularization_penalty(RBM(rbm); l2_fields, l1_weights, l2_weights, l2l1_weights)
 end
 
-using RestrictedBoltzmannMachines: log_pseudolikelihood
+using RestrictedBoltzmannMachines: log_pseudolikelihood, Gaussian
 
 @testset "CenteredBinaryRBM with zero offsets" begin
     a, b, w = randn(3), randn(2), randn(3, 2)
@@ -476,6 +476,16 @@ end
     @test log_pseudolikelihood(rbm, v) ≈ log_pseudolikelihood(uncenter(rbm), v)
     @test log_pseudolikelihood(rbm, v; exact = true) ≈
         log_pseudolikelihood(uncenter(rbm), v; exact = true)
+
+    # Gaussian visible and hidden layers use the closed-form conditionals.
+    rbm = CenteredRBM(
+        Gaussian(; θ = randn(3), γ = 1 .+ rand(3)), Gaussian(; θ = randn(2), γ = 1 .+ rand(2)),
+        randn(3, 2) / 4, randn(3), randn(2),
+    )
+    v = randn(3, 7)
+    @test log_pseudolikelihood(rbm, v; exact = true) ≈
+        log_pseudolikelihood(uncenter(rbm), v; exact = true)
+    @test all(isfinite, log_pseudolikelihood(rbm, v))
 end
 
 using RestrictedBoltzmannMachines: RBM, rescale_hidden!, rescale_weights!, weight_norms

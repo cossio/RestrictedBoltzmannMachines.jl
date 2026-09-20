@@ -7,6 +7,12 @@ in which case the result is a stochastic approximation, where a random site is s
 for each sample, and its conditional probability is calculated. In average the results
 with `exact = false` coincide with the deterministic result, and the estimate is more
 precise as the number of samples increases.
+
+For `Gaussian` visible units the conditional distribution of a site is a density, and
+the returned values are log-densities rather than log-probabilities. This case is
+implemented for `Gaussian` hidden units, where the conditionals are Gaussian and the
+pseudolikelihood has a closed form. If some site is not normalizable given the others
+(its conditional precision is not positive), the result is `-Inf`.
 """
 function log_pseudolikelihood(rbm::RBM, v::AbstractArray; exact::Bool = false)
     if exact
@@ -41,7 +47,8 @@ end
 Log-pseudolikelihood of a site conditioned on the other sites, where `sites`
 is an array of site indices (CartesianIndex), one for each sample.
 Returns an array of log-pseudolikelihood values, for each sample.
-Implemented for `Binary`, `Spin`, `Potts`, and `PottsGumbel` visible layers.
+Implemented for `Binary`, `Spin`, `Potts`, and `PottsGumbel` visible layers, and for
+`Gaussian` visible layers with `Gaussian` hidden layers.
 """
 function log_pseudolikelihood_sites end
 
@@ -50,7 +57,8 @@ function log_pseudolikelihood_sites end
 
 Log-pseudolikelihood of `v`. This function computes the exact pseudolikelihood, doing
 traces over all sites. Note that this can be slow for large number of samples.
-Implemented for `Binary`, `Spin`, `Potts`, and `PottsGumbel` visible layers.
+Implemented for `Binary`, `Spin`, `Potts`, and `PottsGumbel` visible layers, and for
+`Gaussian` visible layers with `Gaussian` hidden layers.
 """
 function log_pseudolikelihood_exact end
 
@@ -296,4 +304,63 @@ end
 
 function log_pseudolikelihood_exact(rbm::RBM{<:PottsGumbel}, v::AbstractArray)
     return log_pseudolikelihood_exact(RBM(Potts(rbm.visible), rbm.hidden, rbm.w), v)
+end
+
+#= Gaussian visible units with Gaussian hidden units.
+
+Integrating out the hidden layer, the free energy of a Gaussian-Gaussian RBM is quadratic
+in `v`, so the conditional distribution of a visible unit given the others is Gaussian.
+Writing the substituted value as `v_i + δ`, the free-energy change is
+
+    ΔF(δ) = a * δ^2 / 2 - b * δ,
+
+with the conditional precision `a = |γ_i| - Σ_μ w_iμ^2 / |γ_μ|` (independent of `v`) and
+the linear coefficient `b = θ_i - |γ_i| v_i + Σ_μ w_iμ (θ_μ + I_μ) / |γ_μ|`, where `I` are
+the inputs to the hidden units. Then
+
+    log p(v_i | v_{-i}) = -log ∫ exp(-ΔF(δ)) dδ = log(a / 2π) / 2 - b^2 / (2a),
+
+when `a > 0`. Otherwise the conditional is not normalizable and the log-density is
+`-Inf`. =#
+function _gaussian_conditional_logpdf(a::Real, b::Real)
+    T = float(promote_type(typeof(a), typeof(b)))
+    a > 0 || return T(-Inf)
+    return (log(T(a)) - log(2 * T(π))) / 2 - T(b)^2 / (2 * T(a))
+end
+
+# Conditional precisions `a` (vector over flattened visible units) and linear
+# coefficients `b` (flattened visible units × samples) of the Gaussian conditionals.
+function _gaussian_visible_pseudolikelihood_context(
+        rbm::RBM{<:Gaussian, <:Gaussian}, v::AbstractArray
+    )
+    @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
+    batch_sz, B, vflat, wflat, invγ, hidden_mean =
+        _gaussian_hidden_pseudolikelihood_context(rbm, v)
+    T = eltype(wflat)
+    θv = convert_eltype(T, vec(rbm.visible.θ))
+    γv = abs.(convert_eltype(T, vec(rbm.visible.γ)))
+    wscaled = wflat .* reshape(invγ, 1, length(rbm.hidden))
+    precision = γv .- vec(mapreduce(*, +, wscaled, wflat; dims = 2))
+    linear = wflat * hidden_mean
+    linear .+= θv .- γv .* vflat
+    return batch_sz, B, precision, linear
+end
+
+function log_pseudolikelihood_exact(rbm::RBM{<:Gaussian, <:Gaussian}, v::AbstractArray)
+    batch_sz, _, precision, linear = _gaussian_visible_pseudolikelihood_context(rbm, v)
+    lPL = vec(mean(_gaussian_conditional_logpdf.(precision, linear); dims = 1))
+    return reshape(lPL, batch_sz)
+end
+
+function log_pseudolikelihood_sites(
+        rbm::RBM{<:Gaussian, <:Gaussian}, v::AbstractArray,
+        sites::AbstractArray{<:CartesianIndex}
+    )
+    @assert size(sites) == batch_size(rbm.visible, v)
+    batch_sz, B, precision, linear = _gaussian_visible_pseudolikelihood_context(rbm, v)
+    site_linear = LinearIndices(size(rbm.visible))
+    j = _on_device(linear, [site_linear[i] for i in reshape(sites, B)])
+    b = _on_device(linear, collect(1:B))
+    lPL = _gaussian_conditional_logpdf.(precision[j], linear[CartesianIndex.(j, b)])
+    return reshape(lPL, batch_sz)
 end

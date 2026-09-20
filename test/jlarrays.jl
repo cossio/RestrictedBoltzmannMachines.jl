@@ -175,7 +175,15 @@ end
     rbm_potts = RBM(potts_visible, Binary(; θ = randn(3)), w)
     v_potts = float(sample_from_inputs(potts_visible, zeros(Q, N..., B)))
 
-    for (rbm, v) in ((rbm_binary, v_binary), (rbm_potts, v_potts))
+    # Gaussian visible units with Gaussian hidden units (closed-form conditionals)
+    rbm_gaussian = RBM(
+        Gaussian(; θ = randn(N...), γ = 1 .+ rand(N...)),
+        Gaussian(; θ = randn(3), γ = 1 .+ rand(3)),
+        randn(N..., 3) / √prod(N),
+    )
+    v_gaussian = randn(N..., B)
+
+    for (rbm, v) in ((rbm_binary, v_binary), (rbm_potts, v_potts), (rbm_gaussian, v_gaussian))
         jl_rbm = adapt(JLArray, rbm)
         jl_v = JLArray(v)
         # exact pseudolikelihood is deterministic: must match CPU
