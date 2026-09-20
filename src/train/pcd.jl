@@ -17,10 +17,6 @@ function _pcd_check_args(rbm, data::AbstractArray, wts::AbstractVector, batchsiz
     return mean(wts), min(batchsize, length(wts))
 end
 
-# One PCD parameter update: positive phase on the minibatch `(vd, wd)`, negative phase on
-# the persistent chains `vm` (updated in place), regularization, and optimiser step.
-# Returns the updated optimiser state and parameters, and the gradient fed to the
-# optimiser. `regularization` keywords are forwarded to `∂regularize!`.
 function _pcd_step!(
         rbm, ps, state, vd::AbstractArray, wd::AbstractArray, vm::AbstractArray, wts_mean::Real;
         steps::Int, moments, regularization...

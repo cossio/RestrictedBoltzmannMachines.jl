@@ -59,12 +59,10 @@ function ∂interaction_energy(
     bsz = batch_size(rbm, v, h)
     @assert size(wts) == bsz
     if ndims(rbm.visible) < ndims(v) && ndims(rbm.hidden) < ndims(h)
-        # both batched: weighted batch average as a Diagonal-weighted matmul, as in `batchcov`
         vflat = with_eltype_of(rbm.w, flatten(rbm.visible, v))
         hflat = with_eltype_of(rbm.w, flatten(rbm.hidden, h))
         ∂wflat = -_weighted_outer(vflat, wts, hflat) / sum(wts)
     else
-        # at most one side is batched: average it, then take the outer product
         v̄ = ndims(rbm.visible) == ndims(v) ? v : batchmean(rbm.visible, v; wts)
         h̄ = ndims(rbm.hidden) == ndims(h) ? h : batchmean(rbm.hidden, h; wts)
         vflat = with_eltype_of(rbm.w, vec(v̄))
