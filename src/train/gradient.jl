@@ -58,23 +58,16 @@ function ∂interaction_energy(
     )
     bsz = batch_size(rbm, v, h)
     @assert size(wts) == bsz
-    if ndims(rbm.visible) == ndims(v) && ndims(rbm.hidden) == ndims(h)
-        vflat = with_eltype_of(rbm.w, vec(v))
-        hflat = with_eltype_of(rbm.w, vec(h))
-        ∂wflat = -vflat * hflat'
-    elseif ndims(rbm.visible) == ndims(v)
-        vflat = with_eltype_of(rbm.w, vec(v))
-        hflat = with_eltype_of(rbm.w, vec(batchmean(rbm.hidden, h; wts)))
-        ∂wflat = -vflat * hflat'
-    elseif ndims(rbm.hidden) == ndims(h)
-        vflat = with_eltype_of(rbm.w, vec(batchmean(rbm.visible, v; wts)))
-        hflat = with_eltype_of(rbm.w, vec(h))
-        ∂wflat = -vflat * hflat'
-    else
-        # weighted batch average as a Diagonal-weighted matmul, as in `batchcov`
+    if ndims(rbm.visible) < ndims(v) && ndims(rbm.hidden) < ndims(h)
         vflat = with_eltype_of(rbm.w, flatten(rbm.visible, v))
         hflat = with_eltype_of(rbm.w, flatten(rbm.hidden, h))
         ∂wflat = -_weighted_outer(vflat, wts, hflat) / sum(wts)
+    else
+        v̄ = ndims(rbm.visible) == ndims(v) ? v : batchmean(rbm.visible, v; wts)
+        h̄ = ndims(rbm.hidden) == ndims(h) ? h : batchmean(rbm.hidden, h; wts)
+        vflat = with_eltype_of(rbm.w, vec(v̄))
+        hflat = with_eltype_of(rbm.w, vec(h̄))
+        ∂wflat = -vflat * hflat'
     end
     ∂w = reshape(∂wflat, size(rbm.w))
     return ∂w

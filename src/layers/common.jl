@@ -1,4 +1,10 @@
 const _FieldLayers = Union{Binary, Spin, Potts, PottsGumbel}
+# layers whose only field parameter is `θ` (dReLU has the two fields `θp`, `θn`)
+const _ThetaLayers = Union{Binary, Spin, Potts, PottsGumbel, Gaussian, ReLU, pReLU, xReLU, nsReLU}
+# dReLU and its reparameterizations, which share the four-slot dReLU moments layout
+const _dReLUFamily = Union{dReLU, pReLU, xReLU, nsReLU}
+# reparameterizations whose statistics are computed through the equivalent dReLU layer
+const _dReLUReparam = Union{pReLU, xReLU, nsReLU}
 
 """
     energies(layer, x)
@@ -52,7 +58,7 @@ end
 Number of possible states of units in discrete layers.
 """
 colors(layer::Union{Spin, Binary}) = 2
-colors(layer::Union{Potts, PottsGumbel}) = size(layer, 1)
+colors(layer::_PottsLayers) = size(layer, 1)
 
 """
     sitedims(layer)
@@ -61,7 +67,7 @@ Number of dimensions of layer, with special handling of Potts layer,
 for which the first dimension doesn't count as a site dimension.
 """
 sitedims(layer::AbstractLayer) = ndims(layer)
-sitedims(layer::Union{Potts, PottsGumbel}) = ndims(layer) - 1
+sitedims(layer::_PottsLayers) = ndims(layer) - 1
 
 """
     sitesize(layer)
@@ -70,16 +76,22 @@ Size of layer, with special handling of Potts layer,
 for which the first dimension doesn't count as a site dimension.
 """
 sitesize(layer::AbstractLayer) = size(layer)
-sitesize(layer::Union{Potts, PottsGumbel}) = size(layer)[2:end]
+sitesize(layer::_PottsLayers) = size(layer)[2:end]
 
 PottsGumbel(layer::Potts) = PottsGumbel(layer.par)
 Potts(layer::PottsGumbel) = Potts(layer.par)
 
-function pReLU(layer::dReLU)
+# location `θ`, scale `γ`, and offset `Δ` shared by the pReLU and xReLU parameterizations
+function _drelu_shared_params(layer::dReLU)
     γ = @. 2abs(layer.γp) * abs(layer.γn) / (abs(layer.γp) + abs(layer.γn))
-    η = @. (abs(layer.γn) - abs(layer.γp)) / (abs(layer.γp) + abs(layer.γn))
     θ = @. (layer.θp * abs(layer.γn) + layer.θn * abs(layer.γp)) / (abs(layer.γp) + abs(layer.γn))
     Δ = @. γ * (layer.θp - layer.θn) / (abs(layer.γp) + abs(layer.γn))
+    return θ, γ, Δ
+end
+
+function pReLU(layer::dReLU)
+    θ, γ, Δ = _drelu_shared_params(layer)
+    η = @. (abs(layer.γn) - abs(layer.γp)) / (abs(layer.γp) + abs(layer.γn))
     return pReLU(; θ, γ, Δ, η)
 end
 
@@ -93,10 +105,8 @@ function dReLU(layer::pReLU)
 end
 
 function xReLU(layer::dReLU)
-    γ = @. 2abs(layer.γp) * abs(layer.γn) / (abs(layer.γp) + abs(layer.γn))
+    θ, γ, Δ = _drelu_shared_params(layer)
     ξ = @. (abs(layer.γn) - abs(layer.γp)) / (abs(layer.γp) + abs(layer.γn) - abs(abs(layer.γn) - abs(layer.γp)))
-    θ = @. (layer.θp * abs(layer.γn) + layer.θn * abs(layer.γp)) / (abs(layer.γp) + abs(layer.γn))
-    Δ = @. γ * (layer.θp - layer.θn) / (abs(layer.γp) + abs(layer.γn))
     return xReLU(; θ, γ, Δ, ξ)
 end
 
@@ -132,7 +142,7 @@ Four moment slots: `<xp>`, `<xn>`, `<xp^2>`, `<xn^2>`, where `xp = max(x, 0)`
 and `xn = min(x, 0)`.
 """
 function moments_from_samples(
-        layer::Union{dReLU, pReLU, xReLU, nsReLU}, data::AbstractArray;
+        layer::_dReLUFamily, data::AbstractArray;
         wts::AbstractArray{<:Real} = uniform_wts(layer, data)
     )
     xp = max.(data, false)
@@ -145,17 +155,30 @@ function moments_from_samples(
     return stack([xp1, xn1, xp2, xn2]; dims = 1)
 end
 
-function moments_from_inputs(layer::Union{pReLU, xReLU, nsReLU}, inputs::AbstractArray = Falses(size(layer)))
-    return moments_from_inputs(dReLU(layer), inputs)
+# The statistics of the dReLU reparameterizations are those of the equivalent dReLU layer.
+energies(layer::_dReLUReparam, x::AbstractArray) = energies(dReLU(layer), x)
+cgfs(layer::_dReLUReparam, inputs::AbstractArray = Falses(size(layer))) = cgfs(dReLU(layer), inputs)
+sample_from_inputs(layer::_dReLUReparam, inputs::AbstractArray = Falses(size(layer))) = sample_from_inputs(dReLU(layer), inputs)
+mean_from_inputs(layer::_dReLUReparam, inputs::AbstractArray = Falses(size(layer))) = mean_from_inputs(dReLU(layer), inputs)
+var_from_inputs(layer::_dReLUReparam, inputs::AbstractArray = Falses(size(layer))) = var_from_inputs(dReLU(layer), inputs)
+meanvar_from_inputs(layer::_dReLUReparam, inputs::AbstractArray = Falses(size(layer))) = meanvar_from_inputs(dReLU(layer), inputs)
+mode_from_inputs(layer::_dReLUReparam, inputs::AbstractArray = Falses(size(layer))) = mode_from_inputs(dReLU(layer), inputs)
+mean_abs_from_inputs(layer::_dReLUReparam, inputs::AbstractArray = Falses(size(layer))) = mean_abs_from_inputs(dReLU(layer), inputs)
+moments_from_inputs(layer::_dReLUReparam, inputs::AbstractArray = Falses(size(layer))) = moments_from_inputs(dReLU(layer), inputs)
+
+# Two moment slots `<x>`, `<x^2>` from the conditional mean and variance.
+function moments_from_inputs(layer::Union{Gaussian, ReLU}, inputs::AbstractArray = Falses(size(layer)))
+    μ, ν = meanvar_from_inputs(layer, inputs)
+    return stack([μ, μ .^ 2 .+ ν]; dims = 1)
 end
 
 mean_from_moments(::Union{Binary, Spin, Potts, PottsGumbel, Gaussian, ReLU}, moments::AbstractArray) = moments[1, ..]
-mean_from_moments(::Union{dReLU, pReLU, xReLU, nsReLU}, moments::AbstractArray) = moments[1, ..] + moments[2, ..]
+mean_from_moments(::_dReLUFamily, moments::AbstractArray) = moments[1, ..] + moments[2, ..]
 
 var_from_moments(::Union{Binary, Potts, PottsGumbel}, moments::AbstractArray) = moments[1, ..] .* (1 .- moments[1, ..])
 var_from_moments(::Union{Gaussian, ReLU}, moments::AbstractArray) = moments[2, ..] - moments[1, ..] .^ 2
 
-function var_from_moments(::Union{dReLU, pReLU, xReLU, nsReLU}, moments::AbstractArray)
+function var_from_moments(::_dReLUFamily, moments::AbstractArray)
     # xp and xn cannot be nonzero simultaneously, so <x^2> = <xp^2> + <xn^2>
     return moments[3, ..] + moments[4, ..] - (moments[1, ..] + moments[2, ..]) .^ 2
 end

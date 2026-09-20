@@ -237,7 +237,9 @@ end
     seed!(63)
     data = potts_dataset()
     rbm = standardize(initialize!(RBM(Potts((3, 2)), Binary((3,)), zeros(3, 2, 3)), data))
-    pcd!(rbm, data; batchsize = 32, iters = 5000, steps = 5, optim = Adam(1.0e-3))
+    # 20 Gibbs steps per update: with 5 the final-iterate moment gaps hover around the
+    # 0.05 threshold depending on the RNG stream (0.054 on Julia 1.13 for this seed)
+    pcd!(rbm, data; batchsize = 32, iters = 5000, steps = 20, optim = Adam(1.0e-3))
     gaps = moment_gaps(rbm, data)
     @test gaps.v < 0.05
     @test gaps.h < 0.05
