@@ -59,7 +59,7 @@ function initialize!(
 end
 
 function initialize!(
-        layer::Union{Potts, PottsGumbel}, data::AbstractArray;
+        layer::_PottsLayers, data::AbstractArray;
         ϵ::Real = 1.0e-6, wts::AbstractArray{<:Real} = uniform_wts(layer, data)
     )
     @assert 0 < ϵ < 1 / 2
@@ -75,7 +75,7 @@ function _initialize_gaussian_moments!(θ::AbstractArray, γ::AbstractArray, lay
     @assert 0 < ϵ < 1 / 2
     validate_wts(wts)
     μ = batchmean(layer, data; wts)
-    ν = batchmean(layer, (data .- μ) .^ 2; wts)
+    ν = batchvar(layer, data; wts, mean = μ)
     γ .= inv.(ν .+ ϵ)
     θ .= μ .* γ
     return layer

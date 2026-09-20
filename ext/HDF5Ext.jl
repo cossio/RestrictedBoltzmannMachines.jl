@@ -107,31 +107,28 @@ construct_layer(::Val{:xReLU}, par::AbstractArray) = xReLU(par)
 construct_layer(::Val{:nsReLU}, par::AbstractArray) = nsReLU(par)
 construct_layer(::Val{:PottsGumbel}, par::AbstractArray) = PottsGumbel(par)
 
-function _load_rbm(file, ::Val{:RBM})
+# the layers and weights shared by every RBM type
+function _load_base(file)
     w = read(file, "weights")
     visible = construct_layer(read(file, "visible_type"), read(file, "visible_par"))
     hidden = construct_layer(read(file, "hidden_type"), read(file, "hidden_par"))
-    return RBM(visible, hidden, w)
+    return visible, hidden, w
 end
+
+_load_rbm(file, ::Val{:RBM}) = RBM(_load_base(file)...)
 
 function _load_rbm(file, ::Val{:StandardizedRBM})
     offset_v = read(file, "offset_v")
     offset_h = read(file, "offset_h")
     scale_v = read(file, "scale_v")
     scale_h = read(file, "scale_h")
-    w = read(file, "weights")
-    visible = construct_layer(read(file, "visible_type"), read(file, "visible_par"))
-    hidden = construct_layer(read(file, "hidden_type"), read(file, "hidden_par"))
-    return StandardizedRBM(visible, hidden, w, offset_v, offset_h, scale_v, scale_h)
+    return StandardizedRBM(_load_base(file)..., offset_v, offset_h, scale_v, scale_h)
 end
 
 function _load_rbm(file, ::Val{:CenteredRBM})
     offset_v = read(file, "offset_v")
     offset_h = read(file, "offset_h")
-    w = read(file, "weights")
-    visible = construct_layer(read(file, "visible_type"), read(file, "visible_par"))
-    hidden = construct_layer(read(file, "hidden_type"), read(file, "hidden_par"))
-    return CenteredRBM(visible, hidden, w, offset_v, offset_h)
+    return CenteredRBM(_load_base(file)..., offset_v, offset_h)
 end
 
 end

@@ -78,10 +78,7 @@ Variance of the standard normal distribution,
 truncated to the interval (a, +∞).
 WARNING: Fails for very very large values of `a`.
 """
-function tnvar(a::Real)
-    μ = tnmean(a)
-    return one(μ) - (μ - a) * μ
-end
+tnvar(a::Real) = last(tnmeanvar(a))
 
 """
     tnmeanvar(a)

@@ -103,12 +103,18 @@ Layer energy, reduced over layer dimensions.
 """
 function energy(layer::AbstractLayer, x::AbstractArray)
     @assert size(layer) == size(x)[1:ndims(layer)]
-    Es = energies(layer, x)
-    if ndims(layer) == ndims(x)
-        return sum(Es)
+    return _sum_layer_dims(layer, energies(layer, x))
+end
+
+# Sum `A` over the first `ndims(layer)` dimensions, keeping the trailing batch dimensions
+# (a scalar if there are none). `A` need not have the layer's shape along the reduced
+# dimensions: e.g. Potts `cgfs` are already reduced over the class dimension.
+function _sum_layer_dims(layer::AbstractLayer, A::AbstractArray)
+    if ndims(layer) == ndims(A)
+        return sum(A)
     else
-        E = sum(Es; dims = 1:ndims(layer))
-        return reshape(E, size(x)[(ndims(layer) + 1):end])
+        S = sum(A; dims = 1:ndims(layer))
+        return reshape(S, size(A)[(ndims(layer) + 1):end])
     end
 end
 
@@ -118,13 +124,7 @@ end
 Cumulant generating function of layer, reduced over layer dimensions.
 """
 function cgf(layer::AbstractLayer, inputs::AbstractArray = Falses(size(layer)))
-    Γ = cgfs(layer, inputs)
-    if ndims(layer) == ndims(inputs)
-        return sum(Γ)
-    else
-        _Γ = sum(Γ; dims = 1:ndims(layer))
-        return reshape(_Γ, size(inputs)[(ndims(layer) + 1):end])
-    end
+    return _sum_layer_dims(layer, cgfs(layer, inputs))
 end
 
 """
@@ -383,7 +383,5 @@ function ∂cgf(
         layer::AbstractLayer, inputs::AbstractArray = Falses(size(layer));
         wts::AbstractArray{<:Real} = uniform_wts(layer, inputs)
     )
-    ∂Fs = ∂cgfs(layer, inputs)
-    @assert size(wts) == batch_size(layer, view(∂Fs, 1, ..))
-    return wmean(∂Fs; wts)
+    return batchmean_moments(layer, ∂cgfs(layer, inputs); wts)
 end

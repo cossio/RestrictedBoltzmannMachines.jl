@@ -13,8 +13,8 @@ end
 
 function GaussianRBM(θv::AbstractArray, γv::AbstractArray, w::AbstractArray)
     @assert size(θv) == size(γv) == size(w)[1:ndims(θv)]
-    θh = fill!(similar(θv, eltype(θv), size(w)[(ndims(θv) + 1):end]), 0)
-    γh = fill!(similar(γv, eltype(γv), size(w)[(ndims(γv) + 1):end]), 1)
+    θh = zeros_like(θv, size(w)[(ndims(θv) + 1):end])
+    γh = ones_like(γv, size(w)[(ndims(γv) + 1):end])
     return GaussianRBM(θv, γv, θh, γh, w)
 end
 

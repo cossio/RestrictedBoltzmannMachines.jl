@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+- `log_partition` (by exhaustive enumeration) and `log_likelihood` now also accept a
+  `CenteredRBM`. They dispatch on the generic `free_energy` interface instead of
+  carrying separate `RBM` and `StandardizedRBM` methods.
+
 ## 7.1.0
 
 - Mark the training-extension surface as `public`: `∂free_energy`,

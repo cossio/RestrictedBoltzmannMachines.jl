@@ -13,7 +13,7 @@ Non-normalizable models with a singular or indefinite joint precision return
 If your RBM has a smaller hidden layer, consider mirroring the layers of the
 `rbm` first (see [`mirror`](@ref)).
 """
-function log_partition(rbm::RBM)
+function log_partition(rbm)
     v = ChainRulesCore.ignore_derivatives() do
         collect_states(rbm.visible)
     end
@@ -26,7 +26,7 @@ end
 Log-likelihood of `v` under `rbm`, with the partition function compued by
 extensive enumeration. For discrete layers, this is exponentially slow for large machines.
 """
-function log_likelihood(rbm::RBM, v::AbstractArray)
+function log_likelihood(rbm, v::AbstractArray)
     logZ = log_partition(rbm)
     F = free_energy(rbm, v)
     return -F .- logZ
