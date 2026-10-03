@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+- Add equilibrium training by Parallel Trajectory Tempering
+  ([Béreux et al., 2026](https://arxiv.org/abs/2607.27077)): `ptt!` trains like `pcd!`
+  (for `RBM`, `CenteredRBM`, and `StandardizedRBM`), keeping the persistent chains at
+  equilibrium by replica exchange with frozen checkpoints of the training trajectory,
+  held by a `TrajectoryLadder`. The ladder also estimates the partition function along
+  training, through `log_partition(ladder)` and `log_likelihood(ladder, v)`. `pcd!` now
+  also accepts a `TrajectoryLadder` as `vm`. Adds the `CossimDescent` optimiser rule,
+  whose learning rate adapts to the alignment of successive gradients.
 - **Breaking**: `pcd!` draws each minibatch as an independent uniformly random subset of
   the data (without replacement within the minibatch) instead of cycling through a fresh
   permutation of the data per epoch. Its `shuffle` keyword and the `infinite_minibatches`

@@ -7,7 +7,8 @@ CurrentModule = RestrictedBoltzmannMachines
 This page describes how model training works in this package, focusing on:
 
 - [`pcd!`](@ref) for plain `RBM`,
-- [`pcd!`](@ref) for `StandardizedRBM` (stdRBM), including `CenteredRBM`.
+- [`pcd!`](@ref) for `StandardizedRBM` (stdRBM), including `CenteredRBM`,
+- [`ptt!`](@ref), equilibrium training by Parallel Trajectory Tempering.
 
 There is one trainer: a plain `RBM` is trained as the equivalent stdRBM whose offsets and
 scales are fixed to zero and one, so the extra stdRBM steps below reduce to nothing for it.
@@ -96,6 +97,51 @@ In addition to the standard PCD updates, it:
 
 Other arguments, including `rescale` and `callback`, are the same as for a plain `RBM`.
 A plain `RBM` also accepts the stdRBM-specific arguments, which have no effect on it.
+
+## Equilibrium training with `ptt!`
+
+On multimodal or scarce data, the persistent chains of [`pcd!`](@ref) can fall out of
+equilibrium (for instance, getting trapped in some of the modes), which biases the
+gradient. [`ptt!`](@ref) implements Parallel Trajectory Tempering
+([Béreux, Decelle, Furtlehner, Seoane, 2026](https://arxiv.org/abs/2607.27077)), which
+keeps the chains at equilibrium by replica exchange with frozen checkpoints of the
+training trajectory itself:
+
+```julia
+rbm = BinaryRBM(Float32, 784, 200)
+initialize!(rbm, data)
+ladder = TrajectoryLadder(rbm; nchains = 1000)
+ptt!(rbm, data; ladder, batchsize = 500, iters = 10_000, steps = 10)
+log_likelihood(ladder, data) # with the partition function estimated by the ladder
+```
+
+The [`TrajectoryLadder`](@ref) holds the checkpoints and the persistent chains:
+
+1. It starts from the independent-site model obtained by setting the weights to zero,
+   which is sampled exactly and has a known partition function, and builds checkpoints
+   along the weights scaled down from those of `rbm`, ending with `rbm` itself.
+2. Each training update proposes to exchange every chain with an equilibrium sample of
+   the last checkpoint, drawn from a reservoir, and then runs `steps` Gibbs steps.
+3. When the swap acceptance between the last checkpoint and the model falls below `α`
+   (default `0.3`), the model is frozen as a new checkpoint. Its chains are
+   thermalized by exchanges with the reservoir of the previous checkpoint (for 20
+   autocorrelation times of the exchanges) and then collected into a new reservoir.
+4. Log-partition functions of successive checkpoints are linked by the Bennett
+   acceptance ratio, which gives [`log_partition(ladder)`](@ref log_partition(::TrajectoryLadder))
+   and [`log_likelihood(ladder, v)`](@ref log_likelihood(::TrajectoryLadder, ::AbstractArray))
+   at no extra cost.
+5. If an update makes the acceptance drop below `αmin` (default `0.1`), or below `α`
+   right after a checkpoint, it is rejected: the model is restored to the last
+   checkpoint and the learning rate of the optimizer is halved.
+
+`ptt!` accepts all the keywords of [`pcd!`](@ref) (and so works with `CenteredRBM` and
+`StandardizedRBM` too); passing the ladder as `vm = ladder` to `pcd!` is equivalent. By
+default it uses [`CossimDescent`](@ref), the gradient descent with learning rate adapted
+to the alignment of successive gradients used in the paper. The update size sets how
+often checkpoints are frozen, each of which costs some tens of sweeps: with rules taking
+steps of fixed size, like `Adam`, a small learning rate avoids freezing checkpoints too
+often. Every checkpoint is kept in `ladder.checkpoints`, with its log-partition function in
+`ladder.logZ`.
 
 ## Practical tuning guidelines
 

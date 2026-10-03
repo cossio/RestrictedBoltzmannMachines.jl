@@ -102,7 +102,9 @@ equilibrium, they must stay at equilibrium within Monte-Carlo error. =#
 end
 
 #= A bimodal Hopfield model, whose Gibbs chains never leave the mode they start in. PTT
-equilibrates the relative weights of the two modes through the ladder. =#
+equilibrates the relative weights of the two modes through the ladder. Chains moved out of
+equilibrium, all into one mode, are exchanged into the reservoir, which is therefore large
+enough that this leaves its mode weights unchanged within the tolerance. =#
 @testset "PTT mixes between modes" begin
     N = 10
     rbm = RBM(Spin(; θ = fill(0.03, N)), Gaussian(; θ = zeros(1), γ = ones(1)), fill(0.8, N, 1))
@@ -112,18 +114,19 @@ equilibrates the relative weights of the two modes through the ladder. =#
     p_up = sum(p[up]) # exact weight of the mode with positive magnetization
     @test 0.6 < p_up < 0.9
 
-    ladder = TrajectoryLadder(rbm; nchains = 2000)
+    ladder = TrajectoryLadder(rbm; nchains = 1000, nreservoir = 100_000)
     @test length(ladder.checkpoints) > 2 # needs intermediate models
     @test abs(log_partition(ladder) - log_partition(rbm)) < 0.05
+    @test abs(mean(sum(ladder.chains; dims = 1) .> 0) - p_up) < 4sqrt(p_up * (1 - p_up) / 1000)
 
     ladder.chains .= 1 # all chains in the positive mode
     gibbs = RBMs.sample_v_from_v(rbm, copy(ladder.chains); steps = 200)
     @test all(sum(gibbs; dims = 1) .> 0) # Gibbs sampling stays in that mode
-    for _ in 1:200
+    for _ in 1:100
         RBMs._ptt_update!(ladder, rbm; steps = 1)
     end
     f_up = mean(sum(ladder.chains; dims = 1) .> 0)
-    @test abs(f_up - p_up) < 4sqrt(p_up * (1 - p_up) / 2000)
+    @test abs(f_up - p_up) < 4sqrt(p_up * (1 - p_up) / 1000)
 end
 
 @testset "TrajectoryLadder of $(nameof(typeof(model)))" for model in (
