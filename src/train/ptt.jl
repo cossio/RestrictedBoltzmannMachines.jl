@@ -43,8 +43,8 @@ mutable struct TrajectoryLadder{M, A <: AbstractArray, F <: AbstractVector}
     acceptance::Float64 # last swap acceptance between the last checkpoint and `rbm`
     since_checkpoint::Int # updates since the last checkpoint was frozen or restored
     rejections::Int # consecutive rejected updates
-    τint::Float64 # integrated and exponential autocorrelation times (in sweeps) of
-    τexp::Float64 # the replica exchanges, measured when building the last reservoir
+    τint::Float64 # integrated and exponential autocorrelation times (in sweeps) of the
+    τexp::Float64 # chains' free energies, measured when building the last reservoir
     const sweeps::Int
     const α::Float64
     const αmin::Float64
@@ -134,7 +134,10 @@ update. Returns `:rejected` if `model` lost overlap with the last checkpoint, in
 
 The chains still sample the model before its last move, so the acceptance that decides
 between these outcomes reweights them to `model`; otherwise a step too large would go
-unnoticed until the chains catch up. =#
+unnoticed until the chains catch up. The effective sample fraction of this reweighting
+measures the overlap between the model before and after its last move: a value below
+`αmin` (corresponding to a swap acceptance of about 0.3 for Gaussian log-weights) rejects
+the move. =#
 function _ptt_update!(ladder::TrajectoryLadder, model; steps::Int)
     status = :accepted
     for sweep in 1:ladder.sweeps
@@ -143,7 +146,8 @@ function _ptt_update!(ladder::TrajectoryLadder, model; steps::Int)
             logw = ladder.chains_F - proposal.Fθx # reweights the chains to `model`
             w = exp.(logw .- maximum(logw))
             ladder.acceptance = sum(w .* min.(1, exp.(proposal.Δ))) / sum(w)
-            status = _ptt_status(ladder)
+            ess = sum(w)^2 / sum(abs2, w) / length(w)
+            status = ess < ladder.αmin ? :rejected : _ptt_status(ladder)
             if status === :rejected
                 _copyto_model!(model, last(ladder.checkpoints))
                 ladder.chains .= proposal.y
@@ -211,18 +215,20 @@ function _push_checkpoint!(ladder::TrajectoryLadder, model; steps::Int, minsweep
     ladder.reservoir .= ladder.samples
     ladder.reservoir_F .= ladder.samples_F
 
+    # returns the free energies of the chains under the checkpoint, before the sweep
     function sweep!()
-        accept = _exchange!(ladder, _propose_exchange(ladder, checkpoint))
+        proposal = _propose_exchange(ladder, checkpoint)
+        _exchange!(ladder, proposal)
         ladder.chains .= sample_v_from_v(checkpoint, ladder.chains; steps)
-        return Array(accept)
+        return Array{Float64}(proposal.Fθx)
     end
 
-    swaps = [sweep!() for _ in 1:minsweeps]
-    τint, τexp = _autocorrelation_times(swaps)
-    while length(swaps) < 20max(τint, τexp)
-        length(swaps) < maxsweeps || error("PTT failed to thermalize a new checkpoint within $maxsweeps sweeps")
-        append!(swaps, sweep!() for _ in eachindex(swaps)) # doubles the run
-        τint, τexp = _autocorrelation_times(swaps)
+    F = reduce(hcat, sweep!() for _ in 1:minsweeps)
+    τint, τexp = _autocorrelation_times(F)
+    while size(F, 2) < 20max(τint, τexp)
+        size(F, 2) < maxsweeps || error("PTT failed to thermalize a new checkpoint within $maxsweeps sweeps")
+        F = hcat(F, reduce(hcat, sweep!() for _ in axes(F, 2))) # doubles the run
+        τint, τexp = _autocorrelation_times(F)
     end
 
     samples = similar(ladder.samples)
@@ -241,6 +247,7 @@ function _push_checkpoint!(ladder::TrajectoryLadder, model; steps::Int, minsweep
     push!(ladder.logZ, logZ)
     ladder.samples, ladder.samples_F = samples, samples_F
     ladder.reservoir, ladder.reservoir_F = copy(samples), copy(samples_F)
+    ladder.chains_F .= free_energy(checkpoint, ladder.chains)
     ladder.τint, ladder.τexp = τint, τexp
     ladder.since_checkpoint = 0
     return ladder
@@ -266,23 +273,20 @@ function _anneal!(ladder::TrajectoryLadder; steps::Int, nsteps::Int)
             β₀ = β
         end
     end
-    _push_checkpoint!(ladder, ladder.rbm; steps)
-    ladder.since_checkpoint = 1 # `ladder.rbm` and its chains are already in sync
-    return ladder
+    return _push_checkpoint!(ladder, ladder.rbm; steps)
 end
 
-#= Integrated and exponential autocorrelation times of the ladder level of each chain along
-the replica exchanges, following Alvarez Baños et al., J. Stat. Mech. (2010) P06026. Each
-element of `swaps` holds the accepted exchanges of one sweep, which flip the level of the
-chains between the current model and the reservoir. The integrated time uses Sokal's
-self-consistent window. =#
-function _autocorrelation_times(swaps::AbstractVector{<:AbstractVector{Bool}})
-    s = @. ifelse(isodd($cumsum($reduce(hcat, swaps); dims = 2)), -1.0, 1.0) # chains × sweeps
-    T = size(s, 2)
+#= Integrated and exponential autocorrelation times (in sweeps) of the time series `F`
+(chains × sweeps), the free energies of the chains, which relax both through exchanges and
+Gibbs sampling. The integrated time uses Sokal's self-consistent window. =#
+function _autocorrelation_times(F::AbstractMatrix{<:Real})
+    x = F .- mean(F)
+    T = size(x, 2)
+    C₀ = dot(x, x) / length(x)
     τint = 0.5
     τexp = 0.0
     for t in 1:(T ÷ 2)
-        C = dot(view(s, :, (1 + t):T), view(s, :, 1:(T - t))) / (size(s, 1) * (T - t))
+        C = dot(view(x, :, (1 + t):T), view(x, :, 1:(T - t))) / (size(x, 1) * (T - t) * C₀)
         C > 0.05 && (τexp = max(τexp, -t / log(C)))
         τint += C
         t ≥ 6τint && break

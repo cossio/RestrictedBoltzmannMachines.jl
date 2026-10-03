@@ -430,6 +430,22 @@ end
     @test all(isfinite, adapt(Array, R))
 end
 
+@testset "ptt! with $(nameof(typeof(visible))) visible layer" for visible in (
+        Binary(; θ = randn(N...)), PottsGumbel(; θ = randn(Q, N...)),
+    )
+    rbm = RBM(visible, Binary(; θ = randn(2)), randn(size(visible)..., 2) / 3)
+    data = sample_from_inputs(rbm.visible, zeros(size(rbm.visible)..., 64))
+    jl_rbm = adapt(JLArray, rbm)
+    jl_data = adapt(JLArray, data)
+    ladder = RBMs.TrajectoryLadder(jl_rbm; nchains = 16, nreservoir = 64, anneal = 5)
+    @test ladder.chains isa JLArray
+    @test ladder.samples isa JLArray
+    RBMs.ptt!(jl_rbm, jl_data; ladder, iters = 10, batchsize = 16, optim = RBMs.CossimDescent(0.1, 1.0))
+    @test all(isfinite, adapt(Array, jl_rbm.w))
+    @test isfinite(RBMs.log_partition(ladder))
+    @test all(isfinite, adapt(Array, RBMs.log_likelihood(ladder, jl_data)))
+end
+
 @testset "wmean full reduction stays on device" begin
     A = JLArray(rand(Float32, 2, 3))
     # default lazy uniform weights over all dimensions: the reduction must be a

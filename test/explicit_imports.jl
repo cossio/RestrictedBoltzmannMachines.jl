@@ -22,9 +22,11 @@ end
         # Adapt documents @adapt_structure for package integration but does not
         # mark the macro public. Base documents @__doc__ as the way for macros
         # to attach docstrings to their expansions, but does not mark it public.
+        # Optimisers documents adjust for changing hyperparameters, but does not
+        # mark it public.
         all_qualified_accesses_are_public = (
             ignore = (
-                Symbol("@adapt_structure"), Symbol("@__doc__"),
+                Symbol("@adapt_structure"), Symbol("@__doc__"), :adjust,
                 public_accesses_without_legacy_metadata...,
             ),
         ),
