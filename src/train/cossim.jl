@@ -35,7 +35,6 @@ end
 
 # Halves the learning rate of every parameter in the optimiser state tree `state`.
 _halve_learning_rate!(state::Union{Tuple, NamedTuple}) = foreach(_halve_learning_rate!, state)
-_halve_learning_rate!(::Nothing) = nothing
 function _halve_learning_rate!(leaf) # an `Optimisers.Leaf`
     leaf.rule, leaf.state = _halve_learning_rate(leaf.rule, leaf.state)
     return nothing

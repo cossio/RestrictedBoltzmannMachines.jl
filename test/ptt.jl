@@ -76,6 +76,9 @@ random_layer(::Type{L}, sz::Dims) where {L <: Union{Binary, Potts}} = L(; θ = r
         RBMs._halve_learning_rate!(state)
         @test update!(state, deepcopy(ps), gs)[2] == update!(setup(halved, ps), deepcopy(ps), gs)[2]
     end
+    state = setup(Adam(0.1), (; a = [1.0], b = 1)) # the non-trainable `b` has an empty state
+    RBMs._halve_learning_rate!(state)
+    @test state.a.rule.eta == 0.05
 end
 
 #= Replica exchange with the reservoir, followed by Gibbs sampling, must leave the joint
@@ -127,6 +130,28 @@ enough that this leaves its mode weights unchanged within the tolerance. =#
     end
     f_up = mean(sum(ladder.chains; dims = 1) .> 0)
     @test abs(f_up - p_up) < 4sqrt(p_up * (1 - p_up) / 1000)
+end
+
+@testset "PTT update decisions" begin
+    ladder = TrajectoryLadder(BinaryRBM(4, 2); nchains = 10) # α = 0.3, αmin = 0.1
+    for (acceptance, since_checkpoint, status) in (
+            (0.5, 0, :accepted), (0.2, 2, :frozen), # freeze when acceptance < α
+            (0.2, 1, :rejected), # ... but not one update after the last checkpoint
+            (0.05, 5, :rejected), # acceptance < αmin
+        )
+        ladder.acceptance, ladder.since_checkpoint = acceptance, since_checkpoint
+        @test RBMs._ptt_status(ladder) === status
+    end
+end
+
+#= Annealing in a single step from the independent-site model to the bimodal model above
+loses overlap, so the step is rejected and refined; intermediate checkpoints are only
+possible after such a rejection. =#
+@testset "TrajectoryLadder with a coarse anneal" begin
+    rbm = RBM(Spin(; θ = fill(0.03, 10)), Gaussian(; θ = zeros(1), γ = ones(1)), fill(0.8, 10, 1))
+    ladder = TrajectoryLadder(rbm; nchains = 1000, anneal = 1)
+    @test length(ladder.checkpoints) > 2
+    @test abs(log_partition(ladder) - log_partition(rbm)) < 0.1
 end
 
 @testset "TrajectoryLadder of $(nameof(typeof(model)))" for model in (

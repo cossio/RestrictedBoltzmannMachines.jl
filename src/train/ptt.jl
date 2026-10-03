@@ -355,6 +355,7 @@ end
 (chains × sweeps), the free energies of the chains, which relax both through exchanges and
 Gibbs sampling. The integrated time uses Sokal's self-consistent window. =#
 function _autocorrelation_times(F::AbstractMatrix{<:Real})
+    allequal(F) && return 0.5, 0.0 # constant free energies (e.g. all parameters zero) carry no time scale
     x = F .- mean(F)
     T = size(x, 2)
     C₀ = dot(x, x) / length(x)
