@@ -160,14 +160,15 @@ end
         data[:, n] .= (rand() < 0.7 ? ξ : .!ξ) .⊻ (rand(8) .< 0.1)
     end
     initialize!(RBM(rbm.visible, rbm.hidden, rbm.w), data)
-    ladder = TrajectoryLadder(rbm; nchains = 500)
+    ladder = TrajectoryLadder(rbm; nchains = 500, α = 0.6) # frequent checkpoints
+    K₀ = length(ladder.checkpoints)
     ll₀ = mean(RBMs.log_likelihood(rbm, data))
     nfrozen = Ref(0)
     state, ps = ptt!(
         rbm, data; ladder, batchsize = 100, iters = 1000, optim = CossimDescent(0.02, 0.1),
         callback = (; vm, _...) -> (nfrozen[] = length(vm.checkpoints)),
     )
-    @test nfrozen[] == length(ladder.checkpoints) > 2
+    @test nfrozen[] == length(ladder.checkpoints) > K₀
     @test mean(RBMs.log_likelihood(rbm, data)) > ll₀ + 1
     @test log_partition(ladder) ≈ log_partition(rbm) atol = 0.05
     @test all(isapprox.(ladder.logZ, log_partition.(ladder.checkpoints); atol = 0.05))
@@ -184,9 +185,12 @@ end
     data[:, 1:2:end] .= true
     rbm = BinaryRBM(8, 4)
     initialize!(rbm, data)
-    ladder = TrajectoryLadder(rbm; nchains = 100)
+    ladder = TrajectoryLadder(rbm; nchains = 500)
     state, _ = ptt!(rbm, data; ladder, batchsize = 100, iters = 20, optim = Descent(1000.0))
     @test state.w.rule.eta < 1000 # halved at least once
     @test all(isfinite, rbm.w)
+    for _ in 1:20 # let the chains catch up with the last (large) update
+        RBMs._ptt_update!(ladder, rbm; steps = 1)
+    end
     @test log_partition(ladder) ≈ log_partition(rbm) atol = 0.1
 end

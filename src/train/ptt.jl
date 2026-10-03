@@ -29,6 +29,12 @@ checkpoint and the learning rate is halved.
 The ladder starts at the independent-site model obtained by setting the weights of `rbm`
 to zero, and is extended along `anneal` steps scaling the weights up to those of `rbm`,
 which becomes the last checkpoint. `steps` are the Gibbs steps per sweep used meanwhile.
+
+The checkpoints and their log-partition functions are kept in `ladder.checkpoints` and
+`ladder.logZ`, the persistent chains in `ladder.chains`, equilibrium samples of the last
+checkpoint in `ladder.samples`, and the last swap acceptance in `ladder.acceptance`. See
+also [`log_partition(ladder)`](@ref log_partition(::TrajectoryLadder)) and
+[`log_likelihood(ladder, v)`](@ref log_likelihood(::TrajectoryLadder, ::AbstractArray)).
 """
 mutable struct TrajectoryLadder{M, A <: AbstractArray, F <: AbstractVector}
     const rbm::M # model being trained (not a copy)
@@ -77,12 +83,14 @@ end
 
 Estimate of the log-partition function of the model trained with `ladder`, by the Bennett
 acceptance ratio between equilibrium samples of the last checkpoint and the chains of the
-model.
+model. The chains are reweighted from the model they were last sampled from (before the
+last parameter update) to the current one.
 """
 function log_partition(ladder::TrajectoryLadder)
-    (; rbm, chains, samples, samples_F) = ladder
+    (; rbm, chains, chains_F, samples, samples_F) = ladder
+    F = free_energy(rbm, chains)
     return last(ladder.logZ) + _log_partition_ratio(
-        last(ladder.checkpoints), samples, samples_F, rbm, chains, free_energy(rbm, chains)
+        last(ladder.checkpoints), samples, samples_F, rbm, chains, F; logw = chains_F - F
     )
 end
 
@@ -273,7 +281,7 @@ function _anneal!(ladder::TrajectoryLadder; steps::Int, nsteps::Int)
             β₀ = β
         end
     end
-    return _push_checkpoint!(ladder, ladder.rbm; steps)
+    return β₀ == 1 ? ladder : _push_checkpoint!(ladder, ladder.rbm; steps)
 end
 
 #= Integrated and exponential autocorrelation times (in sweeps) of the time series `F`
@@ -297,12 +305,16 @@ end
 #= Bennett acceptance ratio estimate of log(Z₁ / Z₀) from equilibrium samples `x₀` of `m₀`,
 with free energies `F₀x₀` under `m₀`, and samples `x₁` of `m₁`, with free energies `F₁x₁`
 under `m₁` (Bennett, J. Comput. Phys. 22, 245 (1976); Shirts et al., Phys. Rev. Lett. 91,
-140601 (2003)). Solves the self-consistent equation for Δf = log(Z₀ / Z₁) by bisection. =#
-function _log_partition_ratio(m₀, x₀, F₀x₀, m₁, x₁, F₁x₁)
+140601 (2003)). Samples `x₁` can carry importance log-weights `logw`, entering through their
+normalized weights and effective number. Solves the self-consistent equation for
+Δf = log(Z₀ / Z₁) by bisection. =#
+function _log_partition_ratio(m₀, x₀, F₀x₀, m₁, x₁, F₁x₁; logw = Zeros(length(F₁x₁)))
     W₀ = Array{Float64}(free_energy(m₁, x₀) - F₀x₀) # forward "work"
     W₁ = Array{Float64}(free_energy(m₀, x₁) - F₁x₁) # reverse "work"
-    M = log(length(W₀) / length(W₁))
-    g(Δf) = sum(w -> logistic(Δf - M - w), W₀) - sum(w -> logistic(M - w - Δf), W₁)
+    p₁ = softmax(Array{Float64}(logw))
+    n₁ = 1 / sum(abs2, p₁) # effective number of samples x₁
+    M = log(length(W₀) / n₁)
+    g(Δf) = sum(w -> logistic(Δf - M - w), W₀) - n₁ * sum(p₁ .* logistic.(M .- W₁ .- Δf))
     lo = hi = -_logmeanexp(-W₀) # one-sided (exponential averaging) estimate
     while g(lo) > 0
         lo -= 1 + abs(lo)
