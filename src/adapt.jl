@@ -17,3 +17,17 @@ Adapt.@adapt_structure StandardizedRBM
 Adapt.adapt_structure(to, rbm::CenteredRBM) =
     CenteredRBM(Adapt.adapt(to, RBM(rbm)), Adapt.adapt(to, rbm.offset_v), Adapt.adapt(to, rbm.offset_h))
 Adapt.@adapt_structure ∂RBM
+
+# Adapt.jl adaptor that copies every array, preserving its backend
+struct _CopyArrays end
+Adapt.adapt_storage(::_CopyArrays, x::AbstractArray) = copy(x)
+
+# deep copy of a model (layers, weights, offsets and scales)
+_copy_model(model) = Adapt.adapt(_CopyArrays(), model)
+
+# copies the parameters of `src` into those of `dst`, a model of the same type
+_copyto_model!(dst::AbstractArray, src::AbstractArray) = copyto!(dst, src)
+function _copyto_model!(dst::T, src::T) where {T}
+    foreach(f -> _copyto_model!(getfield(dst, f), getfield(src, f)), fieldnames(T))
+    return dst
+end
