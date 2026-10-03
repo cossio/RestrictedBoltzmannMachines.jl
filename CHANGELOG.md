@@ -10,8 +10,8 @@ All notable changes to this project will be documented in this file. The format 
   equilibrium by replica exchange with frozen checkpoints of the training trajectory,
   held by a `TrajectoryLadder`. The ladder also estimates the partition function along
   training, through `log_partition(ladder)` and `log_likelihood(ladder, v)`. `pcd!` now
-  also accepts a `TrajectoryLadder` as `vm`. Adds the `CossimDescent` optimiser rule,
-  whose learning rate adapts to the alignment of successive gradients.
+  also accepts a `TrajectoryLadder` as `vm`. Adds the `CossimDescent` optimiser rule
+  used in the paper, whose learning rate adapts to the alignment of successive gradients.
 - **Breaking**: `pcd!` draws each minibatch as an independent uniformly random subset of
   the data (without replacement within the minibatch) instead of cycling through a fresh
   permutation of the data per epoch. Its `shuffle` keyword and the `infinite_minibatches`

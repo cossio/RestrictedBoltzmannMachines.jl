@@ -104,14 +104,16 @@ log_likelihood(ladder::TrajectoryLadder, v::AbstractArray) =
     -free_energy(ladder.rbm, v) .- log_partition(ladder)
 
 """
-    ptt!(rbm, data; ladder = TrajectoryLadder(rbm; nchains, steps), optim = CossimDescent(), kwargs...)
+    ptt!(rbm, data; ladder = TrajectoryLadder(rbm; nchains, steps), kwargs...)
 
 Train `rbm` with Parallel Trajectory Tempering (PTT; Béreux, Decelle, Furtlehner, Seoane,
 arXiv:2607.27077). This is [`pcd!`](@ref) with persistent chains kept at equilibrium by
 replica exchange with frozen checkpoints of the training trajectory, held by the
 [`TrajectoryLadder`](@ref) `ladder` (by default with `nchains = min(batchsize, nsamples)`
 chains). The other keyword arguments are those of [`pcd!`](@ref), where `steps` counts the
-Gibbs steps per sweep, and the callback receives the ladder as `vm`.
+Gibbs steps per sweep, and the callback receives the ladder as `vm`. The learning rate of
+the optimiser is halved whenever an update is rejected. [`CossimDescent`](@ref) is the
+optimiser used in the paper.
 
 Returns `(state, ps)`.
 """
@@ -119,10 +121,9 @@ function ptt!(
         rbm, data::AbstractArray;
         batchsize::Int = 1, steps::Int = 1,
         ladder::TrajectoryLadder = TrajectoryLadder(rbm; nchains = min(batchsize, size(data)[end]), steps),
-        optim::AbstractRule = CossimDescent(),
         kwargs...
     )
-    return pcd!(rbm, data; batchsize, steps, optim, vm = ladder, kwargs...)
+    return pcd!(rbm, data; batchsize, steps, vm = ladder, kwargs...)
 end
 
 # negative phase of `pcd!` with a ladder in place of the fantasy chains
@@ -214,10 +215,11 @@ function _swap!(x::AbstractArray, y::AbstractArray, accept::AbstractVector)
 end
 
 #= Freezes a copy of `model` as a new checkpoint. Its chains are thermalized by exchanges
-with the reservoir of the previous checkpoint, for 20 times the autocorrelation time of the
-exchanges, and then collected every 2 integrated autocorrelation times into new equilibrium
-samples. Exchanges with chains lagging behind a moving model slightly bias the reservoir,
-which is therefore first reset to the equilibrium samples of the previous checkpoint. =#
+with the reservoir of the previous checkpoint, for 20 times the autocorrelation time of their
+free energies (and at least `minsweeps` sweeps), and then collected every 2 integrated
+autocorrelation times into new equilibrium samples. Exchanges with chains lagging behind a
+moving model slightly bias the reservoir, which is therefore first reset to the equilibrium
+samples of the previous checkpoint. =#
 function _push_checkpoint!(ladder::TrajectoryLadder, model; steps::Int, minsweeps::Int = 20, maxsweeps::Int = 10_000)
     checkpoint = _copy_model(model)
     ladder.reservoir .= ladder.samples
