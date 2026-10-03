@@ -10,8 +10,8 @@ All notable changes to this project will be documented in this file. The format 
   equilibrium by replica exchange with frozen checkpoints of the training trajectory,
   held by a `TrajectoryLadder`. The ladder also estimates the partition function along
   training, through `log_partition(ladder)` and `log_likelihood(ladder, v)`. `pcd!` now
-  also accepts a `TrajectoryLadder` as `vm`. Adds the `CossimDescent` optimiser rule,
-  whose learning rate adapts to the alignment of successive gradients.
+  also accepts a `TrajectoryLadder` as `vm`. Adds the `CossimDescent` optimiser rule
+  used in the paper, whose learning rate adapts to the alignment of successive gradients.
 - `log_partition` (by exhaustive enumeration) and `log_likelihood` now also accept a
   `CenteredRBM`. They dispatch on the generic `free_energy` interface instead of
   carrying separate `RBM` and `StandardizedRBM` methods.

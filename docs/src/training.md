@@ -139,13 +139,17 @@ The [`TrajectoryLadder`](@ref) holds the checkpoints and the persistent chains:
    checkpoint and the learning rate of the optimizer is halved.
 
 `ptt!` accepts all the keywords of [`pcd!`](@ref) (and so works with `CenteredRBM` and
-`StandardizedRBM` too); passing the ladder as `vm = ladder` to `pcd!` is equivalent. By
-default it uses [`CossimDescent`](@ref), the gradient descent with learning rate adapted
-to the alignment of successive gradients used in the paper. The update size sets how
-often checkpoints are frozen, each of which costs some tens of sweeps: with rules taking
-steps of fixed size, like `Adam`, a small learning rate avoids freezing checkpoints too
-often. Every checkpoint is kept in `ladder.checkpoints`, with its log-partition function in
-`ladder.logZ`.
+`StandardizedRBM` too); passing the ladder as `vm = ladder` to `pcd!` is equivalent. The
+paper uses [`CossimDescent`](@ref), a gradient descent whose learning rate adapts to the
+alignment of successive gradients; the default optimiser is `Adam()`, as for `pcd!`. The
+size of the updates sets how often checkpoints are frozen, each of which costs some tens
+of sweeps, so a smaller learning rate trades slower learning for fewer checkpoints.
+Every checkpoint is kept in `ladder.checkpoints`, with its log-partition function in
+`ladder.logZ`. The log-partition functions accumulate the errors of the successive
+estimates, from a few hundredths to about a tenth of a nat per checkpoint (slightly biased
+downwards, since equilibrium samples collected from the persistent chains are correlated),
+so fewer checkpoints give more accurate estimates. For a final, independent estimate,
+build a new `TrajectoryLadder` for a copy of the trained model.
 
 ## Practical tuning guidelines
 
