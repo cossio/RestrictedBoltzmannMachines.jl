@@ -50,9 +50,7 @@ end
 tree of the parameters `ps`, keeping the learning rates. =#
 _reset_optimiser!(tree::Union{Tuple, NamedTuple}, ps) = foreach(_reset_optimiser!, tree, ps)
 _reset_optimiser!(::Tuple{}, ps) = nothing # parameters without optimiser state
-function _reset_optimiser!(leaf, x) # an `Optimisers.Leaf` of the parameters `x`
-    leaf.state = _reset_optimiser(leaf.rule, leaf.state, x)
-    return nothing
-end
+# `leaf` is the `Optimisers.Leaf` of the parameters `x`
+_reset_optimiser!(leaf, x) = (leaf.state = _reset_optimiser(leaf.rule, leaf.state, x); nothing)
 _reset_optimiser(::CossimDescent, (g, η), x::AbstractArray) = (zero(g), η)
 _reset_optimiser(o::AbstractRule, state, x::AbstractArray) = Optimisers.init(o, x)

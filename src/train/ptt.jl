@@ -227,10 +227,8 @@ With `freeze`, `model` is frozen unless rejected.
 
 The chains still sample the model before its last move, so the acceptance that decides
 between these outcomes reweights them to `model`. Otherwise, the acceptance of a large step
-is overestimated until the chains catch up. This estimate is only meaningful while the
-weights are spread over many chains: a move whose weights concentrate on a few chains
-(effective fraction below `αmin`) is too large to assess, and is rejected. So is a frozen
-`model` whose chains then fail to equilibrate with the last checkpoint. =#
+is overestimated until the chains catch up. A frozen `model` whose chains then fail to
+equilibrate with the last checkpoint is rejected too. =#
 function _ptt_update!(ladder::TrajectoryLadder, model; steps::Int, freeze::Bool = false)
     status = :accepted
     for sweep in 1:ladder.sweeps
@@ -239,8 +237,7 @@ function _ptt_update!(ladder::TrajectoryLadder, model; steps::Int, freeze::Bool 
             logw = ladder.chains_F - proposal.Fθx # reweights the chains to `model`
             w = exp.(logw .- maximum(logw))
             ladder.acceptance = sum(w .* min.(1, exp.(proposal.Δ))) / sum(w)
-            ess = sum(w)^2 / sum(abs2, w) / length(w) # effective fraction of chains
-            status = ess < ladder.αmin ? :rejected : _ptt_status(ladder; freeze)
+            status = _ptt_status(ladder; freeze)
             status === :rejected && return _reject!(ladder, model)
         end
         _exchange!(ladder, proposal)
