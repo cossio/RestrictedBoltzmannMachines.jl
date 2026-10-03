@@ -1,5 +1,6 @@
 using LinearAlgebra: I, norm
-using Random: bitrand
+using LogExpFunctions: logsumexp
+using Random: bitrand, seed!
 using RestrictedBoltzmannMachines: ∂free_energy, ∂free_energy_h, ∂free_energy_v, ∂regularize!
 using RestrictedBoltzmannMachines: Binary, Spin, dReLU, Gaussian, Potts, ReLU, nsReLU, pReLU, xReLU
 using RestrictedBoltzmannMachines: RBM, StandardizedRBM
@@ -339,20 +340,25 @@ end
 end
 
 @testset "exact enumeration of configurations" begin
+    #= Scales are positive and bounded away from zero. A near-zero `randn` scale inflates
+    the energies, which made a naive log(sum(exp(...))) reference underflow and
+    occasionally broke the sampling check below.
+    https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/244 =#
+    seed!(244)
     rbm = BinaryStandardizedRBM(
         randn(2), randn(2), randn(2, 2),
-        randn(2), randn(2), randn(2), randn(2)
+        randn(2), randn(2), 0.5 .+ rand(2), 0.5 .+ rand(2)
     )
     vs = generate_sequences(2, 0:1)
     hs = generate_sequences(2, 0:1)
 
     for v in vs
-        @test free_energy(rbm, v) ≈ -log(sum(exp(-energy(rbm, v, h)) for h in hs))
+        @test free_energy(rbm, v) ≈ -logsumexp(-energy(rbm, v, h) for h in hs)
         @test free_energy(rbm, v) ≈ free_energy_v(rbm, v)
     end
 
     for h in hs
-        @test free_energy_h(rbm, h) ≈ -log(sum(exp(-energy(rbm, v, h)) for v in vs))
+        @test free_energy_h(rbm, h) ≈ -logsumexp(-energy(rbm, v, h) for v in vs)
         @test free_energy_h(rbm, h) ≈ free_energy(mirror(rbm), h)
     end
 
@@ -363,8 +369,8 @@ end
     empirical_probs_h = proportionmap(eachcol(sample_h))
 
     logZ = log_partition(rbm)
-    @test logZ ≈ log(sum(exp(-free_energy_h(rbm, h)) for h in hs))
-    @test logZ ≈ log(sum(exp(-free_energy_v(rbm, v)) for v in vs))
+    @test logZ ≈ logsumexp(-free_energy_h(rbm, h) for h in hs)
+    @test logZ ≈ logsumexp(-free_energy_v(rbm, v) for v in vs)
 
     exact_probs_v = [exp.(-free_energy_v(rbm, v) .- logZ) for v in vs]
     exact_probs_h = [exp.(-free_energy_h(rbm, h) .- logZ) for h in hs]
