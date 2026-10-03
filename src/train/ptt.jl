@@ -399,3 +399,14 @@ end
 
 _nsamples(x::AbstractArray) = size(x, ndims(x))
 _logmeanexp(x::AbstractArray) = logsumexp(x) - log(length(x))
+
+# deep copy of a model (layers, weights, offsets and scales), preserving the array backend
+_copy_model(x::AbstractArray) = copy(x)
+_copy_model(x::T) where {T} = T.name.wrapper(map(f -> _copy_model(getfield(x, f)), fieldnames(T))...)
+
+# copies the parameters of `src` into those of `dst`, a model of the same type
+_copyto_model!(dst::AbstractArray, src::AbstractArray) = copyto!(dst, src)
+function _copyto_model!(dst::T, src::T) where {T}
+    foreach(f -> _copyto_model!(getfield(dst, f), getfield(src, f)), fieldnames(T))
+    return dst
+end
