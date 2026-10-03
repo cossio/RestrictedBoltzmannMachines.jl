@@ -134,10 +134,12 @@ The [`TrajectoryLadder`](@ref) holds the checkpoints and the persistent chains:
    right after a checkpoint, it is rejected: the model is restored to the last
    checkpoint and the learning rate of the optimizer is halved.
 
-`ptt!` accepts all the keywords of [`pcd!`](@ref) (and so works with `CenteredRBM` and
-`StandardizedRBM` too); passing the ladder as `vm = ladder` to `pcd!` is equivalent. The
-paper uses [`CossimDescent`](@ref), a gradient descent whose learning rate adapts to the
-alignment of successive gradients; the default optimiser is `Adam()`, as for `pcd!`. The
+`ptt!` trains plain `RBM`s and accepts the keywords of [`pcd!`](@ref) for `RBM`, plus the
+`ladder`; its callback also receives the ladder as `ladder`. A `TrajectoryLadder` can also
+be built for a `CenteredRBM` or `StandardizedRBM`, to sample it or estimate its partition
+function. The paper uses [`CossimDescent`](@ref), a gradient descent whose learning rate
+adapts to the alignment of successive gradients; the default optimiser is `Adam()`, as for
+`pcd!`. The
 size of the updates sets how often checkpoints are frozen, each of which costs some tens
 of sweeps, so a smaller learning rate trades slower learning for fewer checkpoints.
 Every checkpoint is kept in `ladder.checkpoints`, with its log-partition function in
