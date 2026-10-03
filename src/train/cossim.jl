@@ -33,14 +33,26 @@ function Optimisers.apply!(o::CossimDescent, (g, η), x::AbstractArray, dx::Abst
     return (g, η), dx .* convert(float(real(eltype(x))), η)
 end
 
-# Halves the learning rate of every parameter in the optimiser state tree `state`.
-_halve_learning_rate!(state::Union{Tuple, NamedTuple}) = foreach(_halve_learning_rate!, state)
-function _halve_learning_rate!(leaf) # an `Optimisers.Leaf`
-    leaf.rule, leaf.state = _halve_learning_rate(leaf.rule, leaf.state)
+# Multiplies the learning rate of every parameter in the optimiser state tree by `factor`.
+_scale_learning_rate!(tree::Union{Tuple, NamedTuple}, factor::Real) =
+    foreach(leaf -> _scale_learning_rate!(leaf, factor), tree)
+function _scale_learning_rate!(leaf, factor::Real) # an `Optimisers.Leaf`
+    leaf.rule, leaf.state = _scale_learning_rate(leaf.rule, leaf.state, factor)
     return nothing
 end
-_halve_learning_rate(o::CossimDescent, (g, η)) = o, (g, η / 2)
-function _halve_learning_rate(o::AbstractRule, state)
-    hasproperty(o, :eta) || throw(ArgumentError("cannot halve the learning rate of $o"))
-    return Optimisers.adjust(o, o.eta / 2), state
+_scale_learning_rate(o::CossimDescent, (g, η), factor::Real) = o, (g, min(η * factor, o.etamax))
+function _scale_learning_rate(o::AbstractRule, state, factor::Real)
+    hasproperty(o, :eta) || throw(ArgumentError("cannot scale the learning rate of $o"))
+    return Optimisers.adjust(o, o.eta * factor), state
 end
+
+#= Discards the memory of past gradients (momenta, moment estimates) in the optimiser state
+tree of the parameters `ps`, keeping the learning rates. =#
+_reset_optimiser!(tree::Union{Tuple, NamedTuple}, ps) = foreach(_reset_optimiser!, tree, ps)
+_reset_optimiser!(::Tuple{}, ps) = nothing # parameters without optimiser state
+function _reset_optimiser!(leaf, x) # an `Optimisers.Leaf` of the parameters `x`
+    leaf.state = _reset_optimiser(leaf.rule, leaf.state, x)
+    return nothing
+end
+_reset_optimiser(::CossimDescent, (g, η), x::AbstractArray) = (zero(g), η)
+_reset_optimiser(o::AbstractRule, state, x::AbstractArray) = Optimisers.init(o, x)

@@ -124,30 +124,39 @@ The [`TrajectoryLadder`](@ref) holds the checkpoints and the persistent chains:
    the last checkpoint, drawn from a reservoir, and then runs `steps` Gibbs steps.
 3. When the swap acceptance between the last checkpoint and the model falls below `α`
    (default `0.3`), the model is frozen as a new checkpoint. Its chains are
-   thermalized by exchanges with the reservoir of the previous checkpoint (for 20
-   autocorrelation times of the exchanges) and then collected into a new reservoir.
+   thermalized by exchanges with the reservoir of the previous checkpoint, for 20
+   autocorrelation times of the ladder level of the chains, as in the paper, and then
+   collected into a new reservoir.
 4. Log-partition functions of successive checkpoints are linked by the Bennett
    acceptance ratio, which gives [`log_partition(ladder)`](@ref log_partition(::TrajectoryLadder))
    and [`log_likelihood(ladder, v)`](@ref log_likelihood(::TrajectoryLadder, ::AbstractArray))
    at no extra cost.
-5. If an update makes the acceptance drop below `αmin` (default `0.1`), or below `α`
-   right after a checkpoint, it is rejected: the model is restored to the last
-   checkpoint and the learning rate of the optimizer is halved.
+5. An update is rejected if it makes the acceptance drop below `αmin` (default `0.1`), or
+   below `α` right after a checkpoint, or if the chains of a new checkpoint do not reach
+   an acceptance of `αmin` with the previous one once thermalized. The model is then
+   restored to the last checkpoint, the learning rate of the optimiser is halved, and the
+   optimiser forgets its momenta. The reduction is temporary: each later checkpoint
+   doubles the learning rate back, up to its initial value.
 
 `ptt!` trains plain `RBM`s and accepts the keywords of [`pcd!`](@ref) for `RBM`, plus the
-`ladder`; its callback also receives the ladder as `ladder`. A `TrajectoryLadder` can also
-be built for a `CenteredRBM` or `StandardizedRBM`, to sample it or estimate its partition
-function. The paper uses [`CossimDescent`](@ref), a gradient descent whose learning rate
-adapts to the alignment of successive gradients; the default optimiser is `Adam()`, as for
-`pcd!`. The
-size of the updates sets how often checkpoints are frozen, each of which costs some tens
-of sweeps, so a smaller learning rate trades slower learning for fewer checkpoints.
+`ladder`; its callback also receives the ladder as `ladder`. The optimiser must have a
+learning rate `eta`. To resume training, pass the ladder of the previous run: without it,
+`ptt!` builds a new one. A `TrajectoryLadder` can also be built for a `CenteredRBM` or
+`StandardizedRBM`, to sample it or estimate its partition function. The paper uses
+[`CossimDescent`](@ref), a gradient descent whose learning rate adapts to the alignment
+of successive gradients; the default optimiser is `Adam()`, as for `pcd!`.
+
+The size of the updates sets how often checkpoints are frozen, each of which costs some
+tens of sweeps, so a smaller learning rate trades slower learning for fewer checkpoints.
+Repeated rejections at the same checkpoint mean that the chains lag behind the model, so
+that the acceptance overestimates its overlap with the checkpoint: increase `steps`.
 Every checkpoint is kept in `ladder.checkpoints`, with its log-partition function in
 `ladder.logZ`. The log-partition functions accumulate the errors of the successive
-estimates, from a few hundredths to about a tenth of a nat per checkpoint (slightly biased
-downwards, since equilibrium samples collected from the persistent chains are correlated),
-so fewer checkpoints give more accurate estimates. For a final, independent estimate,
-build a new `TrajectoryLadder` for a copy of the trained model.
+estimates, from a few hundredths to about a tenth of a nat per checkpoint, so fewer
+checkpoints give more accurate estimates. For an `rbm` that is already trained and
+multimodal, the initial ladder can misjudge the weights of the modes unless the `anneal`
+steps of the `TrajectoryLadder` are many. For a final, independent estimate, build a new
+`TrajectoryLadder` for a copy of the trained model.
 
 ## Practical tuning guidelines
 

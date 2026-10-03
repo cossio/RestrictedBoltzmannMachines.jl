@@ -10,7 +10,8 @@ whenever the swap acceptance between the last checkpoint and the current model d
 of the current model are simulated: each sweep proposes to exchange every chain with a
 random reservoir member, and then runs Gibbs sampling. The ladder starts at the
 independent-site model (`w = 0`), which is sampled exactly and whose partition function is
-known, and partition functions of later checkpoints follow by reweighting the reservoirs. =#
+known; partition functions of later checkpoints follow by the Bennett acceptance ratio
+between the equilibrium samples of consecutive checkpoints. =#
 
 """
     TrajectoryLadder(rbm; nchains, nreservoir = 10nchains, α = 0.3, αmin = 0.1, sweeps = 1, steps = 1, anneal = 100)
@@ -23,12 +24,16 @@ persistent chains of `rbm`.
 Every update runs `sweeps` sweeps, each exchanging the chains with reservoir samples and
 then running Gibbs sampling. A new checkpoint is frozen when the swap acceptance between
 the last checkpoint and `rbm` falls below `α`. If it falls below `αmin`, or below `α` one
-update after a checkpoint was frozen, the update is rejected: `rbm` is restored to the last
-checkpoint and the learning rate is halved.
+update after a checkpoint was frozen, or if the swap acceptance of a new checkpoint at
+equilibrium is below `αmin`, the update is rejected: `rbm` is restored to the last
+checkpoint, and [`ptt!`](@ref) halves the learning rate.
 
 The ladder starts at the independent-site model obtained by setting the weights of `rbm`
-to zero, and is extended along `anneal` steps scaling the weights up to those of `rbm`,
-which becomes the last checkpoint. `steps` are the Gibbs steps per sweep used meanwhile.
+to zero, whose partition function is known, and is extended along `anneal` steps scaling
+the weights up to those of `rbm`, which becomes the last checkpoint. `steps` are the Gibbs
+steps per sweep used meanwhile. For a freshly initialized `rbm` this takes a few
+checkpoints. For a trained, multimodal `rbm`, the mode weights of the ladder can be
+inaccurate unless `anneal` is large.
 
 The checkpoints and their log-partition functions are kept in `ladder.checkpoints` and
 `ladder.logZ`, the persistent chains in `ladder.chains`, equilibrium samples of the last
@@ -50,7 +55,7 @@ mutable struct TrajectoryLadder{M, A <: AbstractArray, F <: AbstractVector}
     since_checkpoint::Int # updates since the last checkpoint was frozen or restored
     rejections::Int # consecutive rejected updates
     τint::Float64 # integrated and exponential autocorrelation times (in sweeps) of the
-    τexp::Float64 # chains' free energies, measured when building the last reservoir
+    τexp::Float64 # chains' ladder level, measured when building the last reservoir
     const sweeps::Int
     const α::Float64
     const αmin::Float64
@@ -112,18 +117,23 @@ Seoane, arXiv:2607.27077).
 Like [`pcd!`](@ref), but the persistent chains are kept at equilibrium by replica exchange
 with frozen checkpoints of the training trajectory, held by a [`TrajectoryLadder`](@ref).
 Each update runs `ladder.sweeps` sweeps, exchanging the chains with equilibrium samples of
-the last checkpoint and then running `steps` Gibbs steps, before the gradient step. An
-update that loses overlap with the last checkpoint is rejected: `rbm` is restored to that
-checkpoint and the learning rate of the optimiser is halved.
+the last checkpoint and then running `steps` Gibbs steps, before the gradient step.
+
+An update that loses overlap with the last checkpoint is rejected: `rbm` is restored to that
+checkpoint, the learning rate is halved, and the optimiser forgets its past gradients
+(momenta, moment estimates), which would otherwise repeat the rejected step. The reduction
+is temporary: each later checkpoint doubles the learning rate back, up to its value at the
+start of `ptt!`.
 
 `data` must have shape `(size(rbm.visible)..., nsamples)`.
 
 # Keyword arguments
-- `ladder`: the [`TrajectoryLadder`](@ref) of `rbm`, by default with
-  `nchains = min(batchsize, nsamples)` chains.
+- `ladder`: the [`TrajectoryLadder`](@ref) of `rbm`, by default a new one with
+  `nchains = min(batchsize, nsamples)` chains. To resume training, pass the ladder of the
+  previous run.
 - `steps::Int=1`: Gibbs steps per sweep.
-- `optim::AbstractRule=Adam()`: optimizer rule from `Optimisers.jl`, whose learning rate
-  can be halved. [`CossimDescent`](@ref) is the optimiser used in the paper.
+- `optim::AbstractRule=Adam()`: optimizer rule from `Optimisers.jl`, with a learning rate
+  `eta`. [`CossimDescent`](@ref) is the optimiser used in the paper.
 - `callback=Returns(nothing)`: called after every update as
   `callback(; rbm, optim, state, ps, iter, vd, wd, ∂, vm, ladder)`, where `vm` are the
   chains of the ladder. Slurp unused keywords with a trailing `_...`.
@@ -169,11 +179,19 @@ function ptt!(
     zerosum && zerosum!(rbm)
     rescale && rescale_weights!(rbm)
 
+    lr_scale = 1 # learning rates relative to their values at the start
     for (iter, (vd, wd)) in zip(1:iters, infinite_minibatches(data, wts; batchsize, shuffle))
         # negative phase first, since a rejected update restores the parameters
-        if _ptt_update!(ladder, rbm; steps) === :rejected
+        status = _ptt_update!(ladder, rbm; steps)
+        if status === :rejected
             ladder.rejections ≤ 30 || error("PTT lost equilibrium after 30 consecutive learning rate halvings")
-            _halve_learning_rate!(state)
+            # without its stale momenta, the optimiser does not repeat the rejected step
+            _scale_learning_rate!(state, 1 / 2)
+            _reset_optimiser!(state, ps)
+            lr_scale /= 2
+        elseif status === :frozen && lr_scale < 1
+            _scale_learning_rate!(state, 2) # the reduction is temporary
+            lr_scale *= 2
         end
         ∂m = ∂free_energy(rbm, ladder.chains)
 
@@ -203,16 +221,17 @@ end
 
 #= One PTT update of the chains of `model`, which moved along its trajectory since the last
 update. Returns `:rejected` if `model` lost overlap with the last checkpoint, in which case
-`model` is restored to that checkpoint and the chains to samples from its reservoir;
-`:frozen` if `model` was frozen as a new checkpoint; and `:accepted` otherwise.
+`model` is restored to that checkpoint, and the reservoir and the chains to its equilibrium
+samples; `:frozen` if `model` was frozen as a new checkpoint; and `:accepted` otherwise.
+With `freeze`, `model` is frozen unless rejected.
 
 The chains still sample the model before its last move, so the acceptance that decides
-between these outcomes reweights them to `model`; otherwise a step too large would go
-unnoticed until the chains catch up. The effective sample fraction of this reweighting
-measures the overlap between the model before and after its last move: a value below
-`αmin` (corresponding to a swap acceptance of about 0.3 for Gaussian log-weights) rejects
-the move. =#
-function _ptt_update!(ladder::TrajectoryLadder, model; steps::Int)
+between these outcomes reweights them to `model`. Otherwise, the acceptance of a large step
+is overestimated until the chains catch up. This estimate is only meaningful while the
+weights are spread over many chains: a move whose weights concentrate on a few chains
+(effective fraction below `αmin`) is too large to assess, and is rejected. So is a frozen
+`model` whose chains then fail to equilibrate with the last checkpoint. =#
+function _ptt_update!(ladder::TrajectoryLadder, model; steps::Int, freeze::Bool = false)
     status = :accepted
     for sweep in 1:ladder.sweeps
         proposal = _propose_exchange(ladder, model)
@@ -220,19 +239,14 @@ function _ptt_update!(ladder::TrajectoryLadder, model; steps::Int)
             logw = ladder.chains_F - proposal.Fθx # reweights the chains to `model`
             w = exp.(logw .- maximum(logw))
             ladder.acceptance = sum(w .* min.(1, exp.(proposal.Δ))) / sum(w)
-            ess = sum(w)^2 / sum(abs2, w) / length(w)
-            status = ess < ladder.αmin ? :rejected : _ptt_status(ladder)
-            if status === :rejected
-                _copyto_model!(model, last(ladder.checkpoints))
-                ladder.chains .= proposal.y
-                ladder.chains_F .= proposal.Fy
-                ladder.since_checkpoint = 0
-                ladder.rejections += 1
-                return status
-            end
+            ess = sum(w)^2 / sum(abs2, w) / length(w) # effective fraction of chains
+            status = ess < ladder.αmin ? :rejected : _ptt_status(ladder; freeze)
+            status === :rejected && return _reject!(ladder, model)
         end
         _exchange!(ladder, proposal)
-        sweep == 1 && status === :frozen && _push_checkpoint!(ladder, model; steps)
+        if sweep == 1 && status === :frozen
+            _push_checkpoint!(ladder, model; steps) || return _reject!(ladder, model)
+        end
         ladder.chains .= sample_v_from_v(model, ladder.chains; steps)
     end
     ladder.chains_F .= free_energy(model, ladder.chains)
@@ -241,9 +255,22 @@ function _ptt_update!(ladder::TrajectoryLadder, model; steps::Int)
     return status
 end
 
-function _ptt_status(ladder::TrajectoryLadder)
-    ladder.acceptance ≥ ladder.α && return :accepted
+function _ptt_status(ladder::TrajectoryLadder; freeze::Bool = false)
+    ladder.acceptance ≥ ladder.α && return freeze ? :frozen : :accepted
     ladder.acceptance ≥ ladder.αmin && ladder.since_checkpoint > 1 && return :frozen
+    return :rejected
+end
+
+# restores `model` to the last checkpoint, and the reservoir and the chains to its samples
+function _reject!(ladder::TrajectoryLadder, model)
+    _copyto_model!(model, last(ladder.checkpoints))
+    ladder.reservoir .= ladder.samples
+    ladder.reservoir_F .= ladder.samples_F
+    idx = randperm(_nsamples(ladder.samples))[1:_nsamples(ladder.chains)]
+    ladder.chains .= ladder.samples[.., idx]
+    ladder.chains_F .= ladder.samples_F[idx]
+    ladder.since_checkpoint = 0
+    ladder.rejections += 1
     return :rejected
 end
 
@@ -280,31 +307,44 @@ function _swap!(x::AbstractArray, y::AbstractArray, accept::AbstractVector)
 end
 
 #= Freezes a copy of `model` as a new checkpoint. Its chains are thermalized by exchanges
-with the reservoir of the previous checkpoint, for 20 times the autocorrelation time of their
-free energies (and at least `minsweeps` sweeps), and then collected every 2 integrated
-autocorrelation times into new equilibrium samples. Exchanges with chains lagging behind a
-moving model slightly bias the reservoir, which is therefore first reset to the equilibrium
-samples of the previous checkpoint. =#
+with the reservoir of the previous checkpoint, for 20 times the autocorrelation time of
+their ladder level (and at least `minsweeps` sweeps), and then collected every 2 integrated
+autocorrelation times into new equilibrium samples, as in the paper.
+
+Returns `false`, with the checkpoints unchanged, if the chains fail to thermalize within
+`maxsweeps` sweeps, or if their swap acceptance falls below `αmin`. The online acceptance
+then overestimated the overlap of `model` with the last checkpoint, because its chains
+lagged behind `model`. The swap acceptance is measured over the second half of the run. It
+typically decreases during thermalization, from its value for chains fed by the reservoir
+to its equilibrium value, so the run stops as soon as it falls below `αmin`. The reference
+implementation also checks both conditions, and restarts training from the last good
+checkpoint with a halved learning rate if either fails.
+
+The working reservoir is first reset to the equilibrium samples of the previous checkpoint,
+because exchanges write the chains back into it, which biases it in two ways: chains lagging
+behind the moving model are not at equilibrium, and, when Gibbs sampling cannot move between
+modes, the swaps conserve the number of configurations of each mode in chains and reservoir
+together, so that a shift of the model's mode weights is partly absorbed by the reservoir. =#
 function _push_checkpoint!(ladder::TrajectoryLadder, model; steps::Int, minsweeps::Int = 20, maxsweeps::Int = 10_000)
     checkpoint = _copy_model(model)
     ladder.reservoir .= ladder.samples
     ladder.reservoir_F .= ladder.samples_F
 
-    # returns the free energies of the chains under the checkpoint, before the sweep
+    # returns the exchanges accepted in the sweep
     function sweep!()
-        proposal = _propose_exchange(ladder, checkpoint)
-        _exchange!(ladder, proposal)
+        accept = _exchange!(ladder, _propose_exchange(ladder, checkpoint))
         ladder.chains .= sample_v_from_v(checkpoint, ladder.chains; steps)
-        return Array{Float64}(proposal.Fθx)
+        return Array(accept)
     end
 
-    F = reduce(hcat, sweep!() for _ in 1:minsweeps)
-    τint, τexp = _autocorrelation_times(F)
-    while size(F, 2) < 20max(τint, τexp)
-        size(F, 2) < maxsweeps || error("PTT failed to thermalize a new checkpoint within $maxsweeps sweeps")
-        F = hcat(F, reduce(hcat, sweep!() for _ in axes(F, 2))) # doubles the run
-        τint, τexp = _autocorrelation_times(F)
+    swaps = reduce(hcat, sweep!() for _ in 1:minsweeps)
+    τint, τexp = _autocorrelation_times(swaps)
+    while size(swaps, 2) < 20max(τint, τexp)
+        _late_mean(swaps) ≥ ladder.αmin && size(swaps, 2) < maxsweeps || return false
+        swaps = hcat(swaps, reduce(hcat, sweep!() for _ in axes(swaps, 2))) # doubles the run
+        τint, τexp = _autocorrelation_times(swaps)
     end
+    _late_mean(swaps) ≥ ladder.αmin || return false
 
     samples = similar(ladder.samples)
     nchains, nsamples = _nsamples(ladder.chains), _nsamples(samples)
@@ -325,8 +365,11 @@ function _push_checkpoint!(ladder::TrajectoryLadder, model; steps::Int, minsweep
     ladder.chains_F .= free_energy(checkpoint, ladder.chains)
     ladder.τint, ladder.τexp = τint, τexp
     ladder.since_checkpoint = 0
-    return ladder
+    return true
 end
+
+# mean over the second half of the sweeps (columns) of `swaps`
+_late_mean(swaps::AbstractMatrix) = mean(view(swaps, :, (size(swaps, 2) ÷ 2 + 1):size(swaps, 2)))
 
 #= Builds the initial ladder, from the independent-site model to `ladder.rbm`, along models
 whose weights are those of `ladder.rbm` scaled by β ∈ [0, 1], in `nsteps` steps (halved when
@@ -336,10 +379,10 @@ function _anneal!(ladder::TrajectoryLadder; steps::Int, nsteps::Int)
     model = _copy_model(ladder.rbm)
     β = β₀ = 0.0 # current β, and β of the last checkpoint
     δ = 1 / nsteps
-    while β < 1
+    while β₀ < 1
         β = min(β + δ, 1.0)
         model.w .= β .* ladder.rbm.w
-        status = _ptt_update!(ladder, model; steps)
+        status = _ptt_update!(ladder, model; steps, freeze = β == 1)
         if status === :rejected
             β = β₀
             δ = δ / 2
@@ -348,21 +391,22 @@ function _anneal!(ladder::TrajectoryLadder; steps::Int, nsteps::Int)
             β₀ = β
         end
     end
-    return β₀ == 1 ? ladder : _push_checkpoint!(ladder, ladder.rbm; steps)
+    return ladder
 end
 
-#= Integrated and exponential autocorrelation times (in sweeps) of the time series `F`
-(chains × sweeps), the free energies of the chains, which relax both through exchanges and
-Gibbs sampling. The integrated time uses Sokal's self-consistent window. =#
-function _autocorrelation_times(F::AbstractMatrix{<:Real})
-    allequal(F) && return 0.5, 0.0 # constant free energies (e.g. all parameters zero) carry no time scale
-    x = F .- mean(F)
-    T = size(x, 2)
-    C₀ = dot(x, x) / length(x)
+#= Integrated and exponential autocorrelation times (in sweeps) of the ladder level of each
+chain, whose diffusion the paper uses to measure thermalization (after Alvarez Baños et al.,
+J. Stat. Mech. (2010) P06026). With the reservoir in place of the previous checkpoint, the
+level of a chain flips at each of its accepted exchanges, given by `swaps` (chains × sweeps).
+The integrated time uses Sokal's self-consistent window, and the exponential time is the
+slowest decay of the autocorrelation while it is above 0.05. =#
+function _autocorrelation_times(swaps::AbstractMatrix{Bool})
+    s = @. ifelse(isodd($cumsum(swaps; dims = 2)), -1.0, 1.0) # level of each chain, as ±1
+    T = size(s, 2)
     τint = 0.5
     τexp = 0.0
     for t in 1:(T ÷ 2)
-        C = dot(view(x, :, (1 + t):T), view(x, :, 1:(T - t))) / (size(x, 1) * (T - t) * C₀)
+        C = dot(view(s, :, (1 + t):T), view(s, :, 1:(T - t))) / (size(s, 1) * (T - t))
         C > 0.05 && (τexp = max(τexp, -t / log(C)))
         τint += C
         t ≥ 6τint && break

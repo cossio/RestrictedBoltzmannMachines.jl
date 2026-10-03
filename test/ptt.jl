@@ -5,7 +5,7 @@ using Statistics: mean
 using LogExpFunctions: softmax
 using StatsBase: sample, Weights
 using EllipsisNotation: (..)
-using Optimisers: Adam, Descent, setup, update!
+using Optimisers: Adam, Descent, Nesterov, setup, update!
 using RestrictedBoltzmannMachines: RBM, BinaryRBM, Binary, Spin, Potts, Gaussian,
     TrajectoryLadder, CossimDescent, ptt!, initialize!, free_energy,
     log_partition, log_likelihood, collect_states, center, standardize
@@ -69,15 +69,26 @@ random_layer(::Type{L}, sz::Dims) where {L <: Union{Binary, Potts}} = L(; θ = r
     @test_throws ArgumentError CossimDescent(0.1, 0.05)
     @test_throws ArgumentError CossimDescent(0.1, 0.2, 1.0)
 
-    ps = (; a = [1.0], b = [2.0])
-    gs = (; a = [1.0], b = [-1.0])
-    for (optim, halved) in ((CossimDescent(0.1, 0.2), CossimDescent(0.05, 0.2)), (Adam(0.1), Adam(0.05)), (Descent(0.1), Descent(0.05)))
+    # after a rejected update, the optimiser restarts with half the learning rate
+    ps = (; a = [1.0, -1.0], b = [2.0])
+    gs = (; a = [1.0, 0.5], b = [-1.0])
+    for (optim, halved) in (
+            (CossimDescent(0.1, 0.2), CossimDescent(0.05, 0.2)), (Adam(0.1), Adam(0.05)),
+            (Nesterov(0.1, 0.9), Nesterov(0.05, 0.9)), (Descent(0.1), Descent(0.05)),
+        )
         state = setup(optim, ps)
-        RBMs._halve_learning_rate!(state)
+        update!(state, deepcopy(ps), gs) # builds up momenta
+        RBMs._scale_learning_rate!(state, 1 / 2)
+        RBMs._reset_optimiser!(state, ps)
         @test update!(state, deepcopy(ps), gs)[2] == update!(setup(halved, ps), deepcopy(ps), gs)[2]
     end
-    state = setup(Adam(0.1), (; a = [1.0], b = 1)) # the non-trainable `b` has an empty state
-    RBMs._halve_learning_rate!(state)
+    state = setup(CossimDescent(0.1, 0.2), ps)
+    RBMs._scale_learning_rate!(state, 4)
+    @test state.a.state[2] == 0.2 # capped at ηmax
+    ps = (; a = [1.0], b = 1) # the non-trainable `b` has an empty state
+    state = setup(Adam(0.1), ps)
+    RBMs._scale_learning_rate!(state, 1 / 2)
+    RBMs._reset_optimiser!(state, ps)
     @test state.a.rule.eta == 0.05
 end
 
@@ -141,6 +152,10 @@ end
         )
         ladder.acceptance, ladder.since_checkpoint = acceptance, since_checkpoint
         @test RBMs._ptt_status(ladder) === status
+    end
+    for (acceptance, since_checkpoint, status) in ((0.5, 0, :frozen), (0.2, 1, :rejected))
+        ladder.acceptance, ladder.since_checkpoint = acceptance, since_checkpoint
+        @test RBMs._ptt_status(ladder; freeze = true) === status
     end
 end
 
@@ -207,17 +222,57 @@ end
     @test_throws ArgumentError ptt!(other, data; ladder, batchsize = 100)
 end
 
-@testset "ptt! rejects updates that lose overlap" begin
-    data = falses(8, 100)
-    data[:, 1:2:end] .= true
+#= The chains lag behind `model` at the independent-site model `base`, so that the online
+acceptance (≈ 0.61) overestimates the overlap of the two models at equilibrium (≈ 0.054). =#
+@testset "PTT rejects checkpoints that do not equilibrate" begin
+    base = BinaryRBM(zeros(10), zeros(2), zeros(10, 2))
+    ladder = TrajectoryLadder(base; nchains = 1000)
+    K = length(ladder.checkpoints)
+    model = BinaryRBM(fill(2.0, 10), zeros(2), zeros(10, 2))
+    ladder.chains_F .= free_energy(model, ladder.chains) # as if they sampled `model`
+    @test RBMs._ptt_update!(ladder, model; steps = 1, freeze = true) === :rejected
+    @test ladder.acceptance > 0.5
+    @test length(ladder.checkpoints) == K
+    @test iszero(model.visible.θ) # restored to the last checkpoint
+    @test ladder.reservoir == ladder.samples
+    # with enough overlap (≈ 0.13), but more sweeps needed than allowed
+    model.visible.θ .= 1.5
+    @test !RBMs._push_checkpoint!(ladder, model; steps = 1, maxsweeps = 20)
+    @test length(ladder.checkpoints) == K
+    @test RBMs._push_checkpoint!(ladder, model; steps = 1)
+    @test length(ladder.checkpoints) == K + 1
+    @test last(ladder.logZ) ≈ log_partition(model) atol = 0.05
+end
+
+@testset "ptt! recovers from rejected updates" begin
+    ξ = rand(Bool, 8)
+    data = falses(8, 1000)
+    for n in 1:1000
+        data[:, n] .= (rand() < 0.7 ? ξ : .!ξ) .⊻ (rand(8) .< 0.1)
+    end
     rbm = BinaryRBM(8, 4)
     initialize!(rbm, data)
     ladder = TrajectoryLadder(rbm; nchains = 500)
-    state, _ = ptt!(rbm, data; ladder, batchsize = 100, iters = 20, optim = Descent(1000.0))
-    @test state.w.rule.eta < 1000 # halved at least once
-    @test all(isfinite, rbm.w)
-    for _ in 1:20 # let the chains catch up with the last (large) update
-        RBMs._ptt_update!(ladder, rbm; steps = 1)
+    ll₀ = mean(RBMs.log_likelihood(rbm, data))
+    η₀ = 2.0 # too large: rejected updates, in long runs without the optimiser reset
+    η, K, rejected = [η₀], [length(ladder.checkpoints)], [false]
+    ptt!(
+        rbm, data; ladder, batchsize = 100, iters = 300, optim = Nesterov(η₀, 0.9),
+        callback = (; state, ladder, _...) -> begin
+            push!(η, state.w.rule.eta)
+            push!(K, length(ladder.checkpoints))
+            push!(rejected, ladder.rejections > 0)
+        end,
+    )
+    @test any(rejected)
+    # each rejection halves the learning rate, and each later checkpoint doubles it back
+    @test all(2:length(η)) do t
+        rejected[t] && return η[t] == η[t - 1] / 2
+        K[t] > K[t - 1] && return η[t] == min(2η[t - 1], η₀)
+        return η[t] == η[t - 1]
     end
+    @test any(t -> η[t] > η[t - 1], 2:length(η))
+    @test mean(RBMs.log_likelihood(rbm, data)) > ll₀ + 1
     @test log_partition(ladder) ≈ log_partition(rbm) atol = 0.1
+    @test all(isapprox.(ladder.logZ, log_partition.(ladder.checkpoints); atol = 0.1))
 end
