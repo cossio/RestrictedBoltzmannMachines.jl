@@ -301,7 +301,7 @@ function pcd!(
         wts::AbstractVector{<:Real} = uniform_wts(rbm.visible, data), # data weights
 
         steps::Int = 1,
-        vm::Union{AbstractArray, TrajectoryLadder} = _default_fantasy_chains(rbm, min(batchsize, size(data)[end])),
+        vm::AbstractArray = _default_fantasy_chains(rbm, min(batchsize, size(data)[end])),
 
         moments = moments_from_samples(rbm.visible, data; wts), # sufficient statistics for visible layer
 

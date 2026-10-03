@@ -7,7 +7,7 @@ using StatsBase: sample, Weights
 using EllipsisNotation: (..)
 using Optimisers: Adam, Descent, setup, update!
 using RestrictedBoltzmannMachines: RBM, BinaryRBM, Binary, Spin, Potts, Gaussian,
-    StandardizedRBM, TrajectoryLadder, CossimDescent, ptt!, initialize!, free_energy,
+    TrajectoryLadder, CossimDescent, ptt!, initialize!, free_energy,
     log_partition, log_likelihood, collect_states, center, standardize
 
 Random.seed!(41)
@@ -151,22 +151,24 @@ end
     @test_throws ArgumentError TrajectoryLadder(model; nchains = 10, α = 0.1, αmin = 0.2)
 end
 
-@testset "ptt! on $(nameof(typeof(rbm)))" for rbm in (
-        BinaryRBM(8, 4), RBMs.CenteredRBM(BinaryRBM(8, 4)), StandardizedRBM(BinaryRBM(8, 4)),
-    )
+@testset "ptt!" begin
     ξ = rand(Bool, 8)
     data = falses(8, 1000) # two noisy modes, with weights 0.7 and 0.3
     for n in 1:1000
         data[:, n] .= (rand() < 0.7 ? ξ : .!ξ) .⊻ (rand(8) .< 0.1)
     end
-    initialize!(RBM(rbm.visible, rbm.hidden, rbm.w), data)
+    rbm = BinaryRBM(8, 4)
+    initialize!(rbm, data)
     ladder = TrajectoryLadder(rbm; nchains = 500, α = 0.6) # frequent checkpoints
     K₀ = length(ladder.checkpoints)
     ll₀ = mean(RBMs.log_likelihood(rbm, data))
     nfrozen = Ref(0)
     state, ps = ptt!(
         rbm, data; ladder, batchsize = 100, iters = 1000, optim = CossimDescent(0.02, 0.1),
-        callback = (; vm, _...) -> (nfrozen[] = length(vm.checkpoints)),
+        callback = (; vm, ladder, _...) -> begin
+            @assert vm === ladder.chains
+            nfrozen[] = length(ladder.checkpoints)
+        end,
     )
     @test nfrozen[] == length(ladder.checkpoints) > K₀
     @test mean(RBMs.log_likelihood(rbm, data)) > ll₀ + 1

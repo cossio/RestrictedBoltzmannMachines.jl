@@ -3,9 +3,6 @@ function _default_fantasy_chains(rbm, batchsize::Int)
     return sample_from_inputs(rbm.visible, Falses(size(rbm.visible)..., batchsize))
 end
 
-# negative phase of the `pcd!` trainers: Gibbs updates of the persistent fantasy chains
-_negative_phase!(vm::AbstractArray, rbm, state; steps::Int) = vm .= sample_v_from_v(rbm, vm; steps)
-
 # Argument checks shared by the `pcd!` trainers. Returns the mean data weight and the
 # effective batch size.
 function _pcd_check_args(rbm, data::AbstractArray, wts::AbstractVector, batchsize::Int)
@@ -21,14 +18,15 @@ function _pcd_check_args(rbm, data::AbstractArray, wts::AbstractVector, batchsiz
 end
 
 function _pcd_step!(
-        rbm, ps, state, vd::AbstractArray, wd::AbstractArray, vm, wts_mean::Real;
+        rbm, ps, state, vd::AbstractArray, wd::AbstractArray, vm::AbstractArray, wts_mean::Real;
         steps::Int, moments, regularization...
     )
-    # negative phase first, since a `TrajectoryLadder` can restore the parameters
-    ∂m = ∂free_energy(rbm, _negative_phase!(vm, rbm, state; steps))
-
     # positive phase
     ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
+
+    # negative phase: update persistent fantasy chains
+    vm .= sample_v_from_v(rbm, vm; steps)
+    ∂m = ∂free_energy(rbm, vm)
 
     # weighted minibatch bias correction, in the gradient eltype
     batch_weight = convert(float(real(eltype(∂d.w))), mean(wd) / wts_mean)
@@ -77,9 +75,7 @@ parameters with an `Optimisers.jl` rule.
   `callback(; rbm, optim, state, ps, iter, vd, wd, ∂, vm)`. Slurp unused
   keywords with a trailing `_...`.
 - `vm`: initial fantasy particles. By default, `min(batchsize, nsamples)`
-  chains sampled from the visible layer with zero inputs. Can also be a
-  [`TrajectoryLadder`](@ref), whose chains then evolve by Parallel Trajectory
-  Tempering (see [`ptt!`](@ref)).
+  chains sampled from the visible layer with zero inputs.
 - `shuffle::Bool=true`: whether to reshuffle samples between epochs.
 - `ps`: optimized parameter container. By default, this contains the visible,
   hidden, and interaction parameters.
@@ -110,7 +106,7 @@ function pcd!(
         callback = Returns(nothing), # called for every batch
 
         # init fantasy chains
-        vm::Union{AbstractArray, TrajectoryLadder} = _default_fantasy_chains(rbm, min(batchsize, size(data)[end])),
+        vm::AbstractArray = _default_fantasy_chains(rbm, min(batchsize, size(data)[end])),
 
         shuffle::Bool = true,
 

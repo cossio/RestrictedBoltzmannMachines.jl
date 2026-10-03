@@ -104,36 +104,101 @@ log_likelihood(ladder::TrajectoryLadder, v::AbstractArray) =
     -free_energy(ladder.rbm, v) .- log_partition(ladder)
 
 """
-    ptt!(rbm, data; ladder = TrajectoryLadder(rbm; nchains, steps), kwargs...)
+    ptt!(rbm, data; kwargs...)
 
-Train `rbm` with Parallel Trajectory Tempering (PTT; Béreux, Decelle, Furtlehner, Seoane,
-arXiv:2607.27077). This is [`pcd!`](@ref) with persistent chains kept at equilibrium by
-replica exchange with frozen checkpoints of the training trajectory, held by the
-[`TrajectoryLadder`](@ref) `ladder` (by default with `nchains = min(batchsize, nsamples)`
-chains). The other keyword arguments are those of [`pcd!`](@ref), where `steps` counts the
-Gibbs steps per sweep, and the callback receives the ladder as `vm`. The learning rate of
-the optimiser is halved whenever an update is rejected. [`CossimDescent`](@ref) is the
-optimiser used in the paper.
+Train an `RBM` with Parallel Trajectory Tempering (PTT; Béreux, Decelle, Furtlehner,
+Seoane, arXiv:2607.27077).
+
+Like [`pcd!`](@ref), but the persistent chains are kept at equilibrium by replica exchange
+with frozen checkpoints of the training trajectory, held by a [`TrajectoryLadder`](@ref).
+Each update runs `ladder.sweeps` sweeps, exchanging the chains with equilibrium samples of
+the last checkpoint and then running `steps` Gibbs steps, before the gradient step. An
+update that loses overlap with the last checkpoint is rejected: `rbm` is restored to that
+checkpoint and the learning rate of the optimiser is halved.
+
+`data` must have shape `(size(rbm.visible)..., nsamples)`.
+
+# Keyword arguments
+- `ladder`: the [`TrajectoryLadder`](@ref) of `rbm`, by default with
+  `nchains = min(batchsize, nsamples)` chains.
+- `steps::Int=1`: Gibbs steps per sweep.
+- `optim::AbstractRule=Adam()`: optimizer rule from `Optimisers.jl`, whose learning rate
+  can be halved. [`CossimDescent`](@ref) is the optimiser used in the paper.
+- `callback=Returns(nothing)`: called after every update as
+  `callback(; rbm, optim, state, ps, iter, vd, wd, ∂, vm, ladder)`, where `vm` are the
+  chains of the ladder. Slurp unused keywords with a trailing `_...`.
+- `batchsize`, `iters`, `wts`, `moments`, `l2_fields`, `l1_weights`, `l2_weights`,
+  `l2l1_weights`, `zerosum`, `rescale`, `shuffle`, `ps`, `state`: as for [`pcd!`](@ref).
 
 Returns `(state, ps)`.
 """
 function ptt!(
-        rbm, data::AbstractArray;
-        batchsize::Int = 1, steps::Int = 1,
+        rbm::RBM,
+        data::AbstractArray;
+        batchsize::Int = 1,
+        iters::Int = 1, # number of gradient updates
+        wts::AbstractVector{<:Real} = uniform_wts(rbm.visible, data), # data weights
+        steps::Int = 1, # Gibbs steps per sweep
         ladder::TrajectoryLadder = TrajectoryLadder(rbm; nchains = min(batchsize, size(data)[end]), steps),
-        kwargs...
-    )
-    return pcd!(rbm, data; batchsize, steps, vm = ladder, kwargs...)
-end
+        optim::AbstractRule = Adam(), # optimizer rule
+        moments = moments_from_samples(rbm.visible, data; wts), # sufficient statistics for visible layer
 
-# negative phase of `pcd!` with a ladder in place of the fantasy chains
-function _negative_phase!(ladder::TrajectoryLadder, rbm, state; steps::Int)
+        # regularization
+        l2_fields::Real = 0, # visible fields L2 regularization
+        l1_weights::Real = 0, # weights L1 regularization
+        l2_weights::Real = 0, # weights L2 regularization
+        l2l1_weights::Real = 0, # weights L2/L1 regularization
+
+        # gauge
+        zerosum::Bool = true, # zerosum gauge for Potts layers
+        rescale::Bool = true, # normalize weights to unit norm (for continuous hidden units only)
+
+        callback = Returns(nothing), # called for every batch
+
+        shuffle::Bool = true,
+
+        # parameters to optimize
+        ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w),
+        state = setup(optim, ps),
+    )
     ladder.rbm === rbm || throw(ArgumentError("the ladder was built for another model"))
-    if _ptt_update!(ladder, rbm; steps) === :rejected
-        ladder.rejections ≤ 30 || error("PTT lost equilibrium after 30 consecutive learning rate halvings")
-        _halve_learning_rate!(state)
+    wts_mean, batchsize = _pcd_check_args(rbm, data, wts, batchsize)
+
+    # initial gauge; zerosum! first because rescaling preserves the zero-sum gauge,
+    # while zerosum! perturbs weight norms
+    zerosum && zerosum!(rbm)
+    rescale && rescale_weights!(rbm)
+
+    for (iter, (vd, wd)) in zip(1:iters, infinite_minibatches(data, wts; batchsize, shuffle))
+        # negative phase first, since a rejected update restores the parameters
+        if _ptt_update!(ladder, rbm; steps) === :rejected
+            ladder.rejections ≤ 30 || error("PTT lost equilibrium after 30 consecutive learning rate halvings")
+            _halve_learning_rate!(state)
+        end
+        ∂m = ∂free_energy(rbm, ladder.chains)
+
+        # positive phase
+        ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
+
+        # weighted minibatch bias correction, in the gradient eltype
+        batch_weight = convert(float(real(eltype(∂d.w))), mean(wd) / wts_mean)
+        ∂ = (∂d - ∂m) * batch_weight
+
+        # weight decay
+        ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum)
+
+        # feed gradient to Optimiser rule
+        gs = (; visible = ∂.visible, hidden = ∂.hidden, w = ∂.w)
+        state, ps = update!(state, ps, gs)
+        _validate_layer_parameters(rbm)
+
+        # reset gauge (zerosum! first, as above)
+        zerosum && zerosum!(rbm)
+        rescale && rescale_weights!(rbm)
+
+        callback(; rbm, optim, state, ps, iter, vd, wd, ∂, vm = ladder.chains, ladder)
     end
-    return ladder.chains
+    return state, ps
 end
 
 #= One PTT update of the chains of `model`, which moved along its trajectory since the last
