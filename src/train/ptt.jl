@@ -41,16 +41,16 @@ checkpoint in `ladder.samples`, and the last swap acceptance in `ladder.acceptan
 also [`log_partition(ladder)`](@ref log_partition(::TrajectoryLadder)) and
 [`log_likelihood(ladder, v)`](@ref log_likelihood(::TrajectoryLadder, ::AbstractArray)).
 """
-mutable struct TrajectoryLadder{M, A <: AbstractArray, F <: AbstractVector}
+mutable struct TrajectoryLadder{M, A <: AbstractArray}
     const rbm::M # model being trained (not a copy)
     const checkpoints::Vector{M} # frozen copies of `rbm` along its training trajectory
     const logZ::Vector{Float64} # log-partition functions of the checkpoints
     const chains::A # persistent chains of `rbm`
-    chains_F::F # their free energies under the model they were last sampled from
+    chains_F::Vector{Float64} # their free energies under the model they were last sampled from
     samples::A # equilibrium samples of the last checkpoint
-    samples_F::F # their free energies under the last checkpoint
+    samples_F::Vector{Float64} # their free energies under the last checkpoint
     reservoir::A # working copy of `samples`, exchanged with `chains`
-    reservoir_F::F
+    reservoir_F::Vector{Float64}
     acceptance::Float64 # last swap acceptance between the last checkpoint and `rbm`
     since_checkpoint::Int # updates since the last checkpoint was frozen or restored
     rejections::Int # consecutive rejected updates
@@ -72,11 +72,11 @@ function TrajectoryLadder(
     independent = _copy_model(rbm)
     independent.w .= 0
     samples = _default_fantasy_chains(independent, nreservoir) # exact samples
-    samples_F = free_energy(independent, samples)
+    samples_F = _free_energies(independent, samples)
     chains = _default_fantasy_chains(independent, nchains)
     ladder = TrajectoryLadder(
         rbm, [independent], [Float64(log_partition_zero_weight(independent))],
-        chains, free_energy(independent, chains), samples, samples_F, copy(samples),
+        chains, _free_energies(independent, chains), samples, samples_F, copy(samples),
         copy(samples_F), 1.0, 0, 0, NaN, NaN, sweeps, α, αmin
     )
     _anneal!(ladder; steps, nsteps = anneal)
@@ -93,7 +93,7 @@ last parameter update) to the current one.
 """
 function log_partition(ladder::TrajectoryLadder)
     (; rbm, chains, chains_F, samples, samples_F) = ladder
-    F = free_energy(rbm, chains)
+    F = _free_energies(rbm, chains)
     return last(ladder.logZ) + _log_partition_ratio(
         last(ladder.checkpoints), samples, samples_F, rbm, chains, F; logw = chains_F - F
     )
@@ -246,7 +246,7 @@ function _ptt_update!(ladder::TrajectoryLadder, model; steps::Int, freeze::Bool 
         end
         ladder.chains .= sample_v_from_v(model, ladder.chains; steps)
     end
-    ladder.chains_F .= free_energy(model, ladder.chains)
+    ladder.chains_F .= _free_energies(model, ladder.chains)
     ladder.since_checkpoint += 1
     ladder.rejections = 0
     return status
@@ -278,16 +278,16 @@ function _propose_exchange(ladder::TrajectoryLadder, model)
     idx = randperm(_nsamples(ladder.reservoir))[1:_nsamples(x)]
     y = ladder.reservoir[.., idx]
     Fy = ladder.reservoir_F[idx]
-    Fx = free_energy(last(ladder.checkpoints), x)
-    Fθx = free_energy(model, x)
-    Δ = (Fθx - Fx) - (free_energy(model, y) - Fy)
+    Fx = _free_energies(last(ladder.checkpoints), x)
+    Fθx = _free_energies(model, x)
+    Δ = (Fθx - Fx) - (_free_energies(model, y) - Fy)
     return (; idx, y, Fx, Fy, Fθx, Δ)
 end
 
 # applies the exchange `proposal` by the Metropolis rule; returns the accepted swaps
 function _exchange!(ladder::TrajectoryLadder, proposal::NamedTuple)
     (; idx, y, Fx, Fy, Δ) = proposal
-    accept = log.(rand!(similar(Δ))) .< Δ
+    accept = map((u, d) -> log(u) < d, rand(length(Δ)), Δ)
     _swap!(ladder.chains, y, accept)
     ladder.reservoir[.., idx] = y
     ladder.reservoir_F[idx] = ifelse.(accept, Fx, Fy)
@@ -296,7 +296,8 @@ end
 
 # swaps the samples `x[.., n]` and `y[.., n]` where `accept[n]` holds
 function _swap!(x::AbstractArray, y::AbstractArray, accept::AbstractVector)
-    mask = reshape(accept, ntuple(Returns(1), ndims(x) - 1)..., length(accept))
+    mask = copyto!(similar(x, Bool, length(accept)), accept) # on the device of `x`
+    mask = reshape(mask, ntuple(Returns(1), ndims(x) - 1)..., length(accept))
     x′ = ifelse.(mask, y, x)
     y .= ifelse.(mask, x, y)
     x .= x′
@@ -331,7 +332,7 @@ function _push_checkpoint!(ladder::TrajectoryLadder, model; steps::Int, minsweep
     function sweep!()
         accept = _exchange!(ladder, _propose_exchange(ladder, checkpoint))
         ladder.chains .= sample_v_from_v(checkpoint, ladder.chains; steps)
-        return Array(accept)
+        return accept
     end
 
     swaps = reduce(hcat, sweep!() for _ in 1:minsweeps)
@@ -351,7 +352,7 @@ function _push_checkpoint!(ladder::TrajectoryLadder, model; steps::Int, minsweep
         samples[.., n:(n + m - 1)] .= view(ladder.chains, .., 1:m)
     end
 
-    samples_F = free_energy(checkpoint, samples)
+    samples_F = _free_energies(checkpoint, samples)
     logZ = last(ladder.logZ) + _log_partition_ratio(
         last(ladder.checkpoints), ladder.samples, ladder.samples_F, checkpoint, samples, samples_F
     )
@@ -359,7 +360,7 @@ function _push_checkpoint!(ladder::TrajectoryLadder, model; steps::Int, minsweep
     push!(ladder.logZ, logZ)
     ladder.samples, ladder.samples_F = samples, samples_F
     ladder.reservoir, ladder.reservoir_F = copy(samples), copy(samples_F)
-    ladder.chains_F .= free_energy(checkpoint, ladder.chains)
+    ladder.chains_F .= _free_energies(checkpoint, ladder.chains)
     ladder.τint, ladder.τexp = τint, τexp
     ladder.since_checkpoint = 0
     return true
@@ -418,8 +419,8 @@ under `m₁` (Bennett, J. Comput. Phys. 22, 245 (1976); Shirts et al., Phys. Rev
 normalized weights and effective number. Solves the self-consistent equation for
 Δf = log(Z₀ / Z₁) by bisection. =#
 function _log_partition_ratio(m₀, x₀, F₀x₀, m₁, x₁, F₁x₁; logw = Zeros(length(F₁x₁)))
-    W₀ = Array{Float64}(free_energy(m₁, x₀) - F₀x₀) # forward "work"
-    W₁ = Array{Float64}(free_energy(m₀, x₁) - F₁x₁) # reverse "work"
+    W₀ = _free_energies(m₁, x₀) - F₀x₀ # forward "work"
+    W₁ = _free_energies(m₀, x₁) - F₁x₁ # reverse "work"
     p₁ = softmax(Array{Float64}(logw))
     n₁ = 1 / sum(abs2, p₁) # effective number of samples x₁
     M = log(length(W₀) / n₁)
@@ -441,6 +442,9 @@ end
 
 _nsamples(x::AbstractArray) = size(x, ndims(x))
 _logmeanexp(x::AbstractArray) = logsumexp(x) - log(length(x))
+
+# free energies of the samples `x` under `model`, on the host in double precision
+_free_energies(model, x::AbstractArray) = convert(Vector{Float64}, Array(free_energy(model, x)))
 
 # deep copy of a model (layers, weights, offsets and scales), preserving the array backend
 _copy_model(x::AbstractArray) = copy(x)
