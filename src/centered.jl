@@ -290,7 +290,7 @@ function pcd!(
         callback = Returns(nothing), # called for every batch
 
         # init fantasy chains
-        vm::AbstractArray = _default_fantasy_chains(rbm, min(batchsize, size(data)[end])),
+        vm::Union{AbstractArray, TrajectoryLadder} = _default_fantasy_chains(rbm, min(batchsize, size(data)[end])),
 
         shuffle::Bool = true,
 

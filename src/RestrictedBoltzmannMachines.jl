@@ -8,8 +8,8 @@ using FillArrays: Falses, Zeros, Ones, Trues
 using LinearAlgebra: Diagonal, dot, logdet
 using LogExpFunctions: log1pexp, logaddexp, logistic, logit, logsumexp, softmax
 using MLUtils: DataLoader
-using Optimisers: AbstractRule, Adam, setup, update!
-using Random: AbstractRNG, default_rng, rand!, randexp, randn!
+using Optimisers: Optimisers, AbstractRule, Adam, setup, update!
+using Random: AbstractRNG, default_rng, rand!, randexp, randn!, randperm
 using SpecialFunctions: erf, erfcx, logerfcx
 using Statistics: mean
 
@@ -43,6 +43,8 @@ include("ais.jl")
 
 include("train/infinite_minibatches.jl")
 include("train/initialization.jl")
+include("train/cossim.jl")
+include("train/ptt.jl")
 include("train/pcd.jl")
 include("train/gradient.jl")
 
@@ -69,7 +71,7 @@ public RBM, CenteredRBM, StandardizedRBM
 public Binary, Spin, Potts, Gaussian, ReLU, dReLU, pReLU, xReLU, nsReLU, PottsGumbel
 public BinaryRBM, SpinRBM, GaussianRBM, HopfieldRBM,
     CenteredBinaryRBM, BinaryStandardizedRBM, SpinStandardizedRBM
-public pcd!, initialize!
+public pcd!, ptt!, TrajectoryLadder, CossimDescent, initialize!
 public log_pseudolikelihood, log_partition, log_likelihood, aise, raise
 public energy, free_energy, interaction_energy
 public sample_v_from_h, sample_h_from_v, sample_v_from_v, sample_h_from_h
