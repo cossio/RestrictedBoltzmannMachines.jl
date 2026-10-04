@@ -25,7 +25,7 @@ RestrictedBoltzmannMachines.load_rbm(path::AbstractString) = h5open(path, "r") d
 end
 
 function RestrictedBoltzmannMachines.save_rbm(
-        path::AbstractString, rbm::Union{RBM, StandardizedRBM, CenteredRBM}; overwrite::Bool = false
+        path::AbstractString, rbm::Union{RBM, StandardizedRBM}; overwrite::Bool = false
     )
     !overwrite && isfile(path) && error("File already exists: $path")
     h5open(path, "w") do file

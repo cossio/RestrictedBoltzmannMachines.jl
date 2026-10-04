@@ -56,7 +56,6 @@ include("metropolis.jl")
 
 include("standardized.jl")
 include("centered.jl")
-include("offset_rbms.jl")
 
 include("adapt.jl")
 
@@ -101,13 +100,12 @@ public sample_v_from_h, sample_h_from_v, sample_v_from_v, sample_h_from_h
 public mean_h_from_v, mean_v_from_h, var_h_from_v, var_v_from_h, mode_h_from_v, mode_v_from_h
 public inputs_h_from_v, inputs_v_from_h
 public metropolis, metropolis!, cold_metropolis
-public center, center!, uncenter, standardize, standardize!, unstandardize
+public standardize, standardize!, unstandardize
 public mirror, zerosum, zerosum!
 public cpu, gpu, save_rbm, load_rbm
 public ∂free_energy, ∂regularize!, sample_from_inputs, moments_from_samples
 public infinite_minibatches, uniform_wts, validate_wts, wmean, wsum
 public rescale_weights!, rescale_hidden_activations!
-public center_from_data!, center_visible_from_data!, center_hidden_from_data!,
-    standardize_visible_from_data!, standardize_hidden_from_v!
+public standardize_visible_from_data!, standardize_hidden_from_v!
 
 end # module
