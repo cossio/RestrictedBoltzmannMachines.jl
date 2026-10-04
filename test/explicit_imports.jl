@@ -1,4 +1,3 @@
-import Adapt
 import ExplicitImports
 import RestrictedBoltzmannMachines
 using Test: @test, @testset
@@ -14,14 +13,10 @@ end
     ExplicitImports.test_explicit_imports(
         RBMs;
         # Adapt documents @adapt_structure for package integration but does not
-        # mark the macro public, and marks adapt_structure public only from 4.7,
-        # above our compat floor. Base documents @__doc__ as the way for macros
+        # mark the macro public. Base documents @__doc__ as the way for macros
         # to attach docstrings to their expansions, but does not mark it public.
         all_qualified_accesses_are_public = (
-            ignore = (
-                Symbol("@adapt_structure"), Symbol("@__doc__"),
-                (pkgversion(Adapt) < v"4.7" ? (:adapt_structure,) : ())...,
-            ),
+            ignore = (Symbol("@adapt_structure"), Symbol("@__doc__")),
         ),
     )
 

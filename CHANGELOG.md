@@ -27,6 +27,7 @@ All notable changes to this project will be documented in this file. The format 
   hidden standardization as documented; the previous default, `0`, changed nothing.
 - `initialize!(rbm, data)` now also accepts any `StandardizedRBM`, setting its offsets and
   scales from `data` after initializing the parameters.
+- Requires Adapt 4.7 or later.
 - `log_partition` (by exhaustive enumeration) and `log_likelihood` now also accept a
   `CenteredRBM`. They dispatch on the generic `free_energy` interface instead of
   carrying separate `RBM` and `StandardizedRBM` methods.
