@@ -8,7 +8,7 @@ using EllipsisNotation: (..)
 using Optimisers: Adam, Descent, Nesterov, setup, update!
 using RestrictedBoltzmannMachines: RBM, BinaryRBM, Binary, Spin, Potts, Gaussian,
     TrajectoryLadder, CossimDescent, ptt!, initialize!, free_energy,
-    log_partition, log_likelihood, collect_states, center, standardize
+    log_partition, log_likelihood, collect_states, standardize
 
 Random.seed!(41)
 
@@ -166,10 +166,10 @@ possible after such a rejection. =#
     @test abs(log_partition(ladder) - log_partition(rbm)) < 0.1
 end
 
-@testset "TrajectoryLadder of $(nameof(typeof(model)))" for model in (
-        BinaryRBM(randn(8) / 2, randn(4) / 2, 1.5randn(8, 4)),
-        center(BinaryRBM(randn(8) / 2, randn(4) / 2, 1.5randn(8, 4)), rand(8), rand(4)),
-        standardize(BinaryRBM(randn(8) / 2, randn(4) / 2, 1.5randn(8, 4)), rand(8), rand(4), 0.5 .+ rand(8), 0.5 .+ rand(4)),
+@testset "TrajectoryLadder of $name" for (name, model) in (
+        ("RBM", BinaryRBM(randn(8) / 2, randn(4) / 2, 1.5randn(8, 4))),
+        ("CenteredRBM", standardize(BinaryRBM(randn(8) / 2, randn(4) / 2, 1.5randn(8, 4)), rand(8), rand(4))),
+        ("StandardizedRBM", standardize(BinaryRBM(randn(8) / 2, randn(4) / 2, 1.5randn(8, 4)), rand(8), rand(4), 0.5 .+ rand(8), 0.5 .+ rand(4))),
     )
     ladder = TrajectoryLadder(model; nchains = 1000)
     @test ladder.rbm === model
