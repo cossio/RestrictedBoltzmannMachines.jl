@@ -6,7 +6,7 @@ using Optimisers: Adam
 using RestrictedBoltzmannMachines: BinaryRBM, HopfieldRBM, sample_v_from_v, initialize!, pcd!, CenteredRBM
 using RestrictedBoltzmannMachines: RBM, Potts, Gaussian, StandardizedRBM, inputs_h_from_v, free_energy
 using RestrictedBoltzmannMachines: standardize_visible_from_data!, standardize_hidden_from_v!, unstandardize
-using RestrictedBoltzmannMachines: _PlainStandardizedRBM
+using RestrictedBoltzmannMachines: PlainStandardizedRBM
 using FillArrays: Falses, Trues
 
 Random.seed!(23)
@@ -62,7 +62,7 @@ end
 
 @testset "plain RBM trains as a StandardizedRBM with fixed offsets and scales" begin
     rbm = RBM(Potts((3, 2)), Gaussian((2,)), randn(Float32, 3, 2, 2))
-    std_rbm = _PlainStandardizedRBM(rbm)
+    std_rbm = PlainStandardizedRBM(rbm)
     @test std_rbm isa StandardizedRBM && std_rbm isa CenteredRBM
     @test std_rbm.visible === rbm.visible && std_rbm.hidden === rbm.hidden && std_rbm.w === rbm.w
     @test std_rbm.offset_v isa Falses && std_rbm.offset_h isa Falses

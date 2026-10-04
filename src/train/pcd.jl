@@ -90,5 +90,5 @@ accepts the standardization keywords `damping`, `ϵv`, `ϵh` and
 function pcd!(rbm::RBM, data::AbstractArray; callback = Returns(nothing), kwargs...)
     plain_rbm = rbm # the callback receives it, rather than the standardized wrapper
     std_callback(; rbm, kw...) = callback(; rbm = plain_rbm, kw...)
-    return pcd!(_PlainStandardizedRBM(rbm), data; callback = std_callback, kwargs...)
+    return pcd!(PlainStandardizedRBM(rbm), data; callback = std_callback, kwargs...)
 end
