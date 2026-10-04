@@ -149,7 +149,9 @@ implementation, it draws every minibatch at random, independently of the others:
 minibatches of an epoch have anticorrelated noise, which makes the learning rate of
 `CossimDescent` collapse when epochs have few minibatches. The optimiser must have a
 learning rate `eta`. To continue training, pass the ladder of the previous run: without
-it, `ptt!` builds a new one. The paper uses [`CossimDescent`](@ref), a gradient descent whose learning rate adapts to the alignment
+it, `ptt!` builds a new one. A `TrajectoryLadder` can also be built for a `CenteredRBM` or
+`StandardizedRBM`, to sample it or estimate its partition function. The paper uses
+[`CossimDescent`](@ref), a gradient descent whose learning rate adapts to the alignment
 of successive gradients. The default optimiser is `Adam(1e-4)`, a tenth of the learning
 rate of `pcd!`'s `Adam()`, whose larger steps can be rejected from the first update. On
 four protein and RNA families, it reached the best or tied best validation

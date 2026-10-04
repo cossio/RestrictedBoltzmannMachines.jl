@@ -23,7 +23,7 @@ const PTT_MAX_REJECTIONS = 30
 const PTT_WARN_HALVINGS = 10
 
 """
-    TrajectoryLadder(rbm::RBM; nchains, nreservoir = 10nchains, α = 0.3, αmin = 0.1, sweeps = 1, steps = 1, anneal = 100)
+    TrajectoryLadder(rbm; nchains, nreservoir = 10nchains, α = 0.3, αmin = 0.1, sweeps = 1, steps = 1, anneal = 100)
 
 Persistent state of Parallel Trajectory Tempering for training `rbm` (see [`ptt!`](@ref)):
 frozen checkpoints along the training trajectory of `rbm`, their log-partition functions,
@@ -37,8 +37,8 @@ update after a checkpoint was frozen, or if the swap acceptance of a new checkpo
 equilibrium is below `αmin`, the update is rejected: `rbm` is restored to the last
 checkpoint, and [`ptt!`](@ref) halves the learning rate.
 
-`rbm` is the model at the start of training, typically set by [`initialize!`](@ref). The
-ladder starts at the independent-site model obtained by setting the weights of `rbm` to
+`rbm` is an `RBM` or a `StandardizedRBM` (including a `CenteredRBM`), freshly initialized
+by [`initialize!`](@ref). The ladder starts at the independent-site model obtained by setting the weights of `rbm` to
 zero, whose partition function is known, and is extended along `anneal` steps scaling the
 weights up to those of `rbm`, which becomes the last checkpoint. `steps` are the Gibbs
 steps per sweep used meanwhile.
@@ -72,7 +72,7 @@ Base.@kwdef mutable struct TrajectoryLadder{M, A <: AbstractArray}
 end
 
 function TrajectoryLadder(
-        rbm::RBM; nchains::Int, nreservoir::Int = 10nchains, α::Real = 0.3, αmin::Real = 0.1,
+        rbm; nchains::Int, nreservoir::Int = 10nchains, α::Real = 0.3, αmin::Real = 0.1,
         sweeps::Int = 1, steps::Int = 1, anneal::Int = 100
     )
     nchains > 0 || throw(ArgumentError("nchains must be positive"))
@@ -486,10 +486,9 @@ _logmeanexp(x::AbstractArray) = logsumexp(x) - log(length(x))
 # free energies of the samples `x` under `model`, on the host in double precision
 _free_energies(model, x::AbstractArray) = convert(Vector{Float64}, Array(free_energy(model, x)))
 
-# copies the parameters of `src` into those of `dst`
-function _copyto_model!(dst::RBM, src::RBM)
-    copyto!(dst.visible.par, src.visible.par)
-    copyto!(dst.hidden.par, src.hidden.par)
-    copyto!(dst.w, src.w)
+# copies the parameters of `src` into those of `dst`, a model of the same type
+_copyto_model!(dst::AbstractArray, src::AbstractArray) = copyto!(dst, src)
+function _copyto_model!(dst::T, src::T) where {T}
+    foreach(f -> _copyto_model!(getfield(dst, f), getfield(src, f)), fieldnames(T))
     return dst
 end
