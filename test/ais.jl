@@ -18,6 +18,9 @@ end
 @testset "anneal layer" begin
     β = 0.3
     N = 11
+    # the energy interpolates linearly only in parameters it is linear in, so the
+    # asymmetry parameters η and ξ are shared between `init` and `final`
+    γ, η, ξ = rand(N), rand(N) .- 0.5, randn(N)
     for (init, final) in (
             (Binary(; θ = randn(N)), Binary(; θ = randn(N))),
             (Spin(; θ = randn(N)), Spin(; θ = randn(N))),
@@ -25,9 +28,9 @@ end
             (Gaussian(; θ = randn(N), γ = rand(N)), Gaussian(; θ = randn(N), γ = rand(N))),
             (ReLU(; θ = randn(N), γ = rand(N)), ReLU(; θ = randn(N), γ = rand(N))),
             (dReLU(; θp = randn(N), θn = randn(N), γp = rand(N), γn = rand(N)), dReLU(; θp = randn(N), θn = randn(N), γp = rand(N), γn = rand(N))),
-            (pReLU(; θ = randn(N), γ = rand(N), Δ = randn(N), η = rand(N) .- 0.5), pReLU(; θ = randn(N), γ = rand(N), Δ = randn(N), η = rand(N) .- 0.5)),
-            (xReLU(; θ = randn(N), γ = rand(N), Δ = randn(N), ξ = randn(N)), xReLU(; θ = randn(N), γ = rand(N), Δ = randn(N), ξ = randn(N))),
-            (nsReLU(; θ = randn(N), Δ = randn(N), ξ = randn(N)), nsReLU(; θ = randn(N), Δ = randn(N), ξ = randn(N))),
+            (pReLU(; θ = randn(N), γ, Δ = randn(N), η), pReLU(; θ = randn(N), γ, Δ = randn(N), η)),
+            (xReLU(; θ = randn(N), γ, Δ = randn(N), ξ), xReLU(; θ = randn(N), γ, Δ = randn(N), ξ)),
+            (nsReLU(; θ = randn(N), Δ = randn(N), ξ), nsReLU(; θ = randn(N), Δ = randn(N), ξ)),
         )
         x = sample_from_inputs(final)
         @test energy(anneal(init, final; β), x) ≈ (1 - β) * energy(init, x) + β * energy(final, x)
