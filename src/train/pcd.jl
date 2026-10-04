@@ -76,7 +76,8 @@ parameters with an `Optimisers.jl` rule.
   keywords with a trailing `_...`.
 - `vm`: initial fantasy particles. By default, `min(batchsize, nsamples)`
   chains sampled from the visible layer with zero inputs.
-- `shuffle::Bool=true`: whether to reshuffle samples between epochs.
+- `shuffle::Bool=true`: draw each minibatch as a random subset of the data; if `false`,
+  cycle through the data in order.
 - `ps`: optimized parameter container. By default, this contains the visible,
   hidden, and interaction parameters.
 - `state=setup(optim, ps)`: optimizer state.

@@ -1,4 +1,4 @@
-using Test: @testset, @test, @test_logs, @test_throws
+using Test: @testset, @test, @test_throws
 using FillArrays: Trues
 using RestrictedBoltzmannMachines: infinite_minibatches
 
@@ -35,7 +35,8 @@ end
     end
 end
 
-@testset "shuffle draws a fresh permutation each epoch" begin
+@testset "shuffle draws a fresh random subset each iteration" begin
+    # batchsize equal to the number of observations yields the full data, in random order
     orders = Set{Vector{Int}}()
     for (x, w) in Iterators.take(infinite_minibatches(1:10, collect(1:10); batchsize = 10, shuffle = true), 20)
         @test sort(x) == 1:10
@@ -43,17 +44,22 @@ end
         push!(orders, copy(x))
     end
     @test length(orders) > 1
+
+    # smaller minibatches are drawn without replacement and cover the data over time
+    seen = Set{Int}()
+    for (x,) in Iterators.take(infinite_minibatches(1:10; batchsize = 3, shuffle = true), 200)
+        @test length(x) == 3
+        @test allunique(x)
+        @test all(in(1:10), x)
+        union!(seen, x)
+    end
+    @test seen == Set(1:10)
 end
 
 @testset "batchsize edge cases" begin
     @test_throws ArgumentError infinite_minibatches(1:3; batchsize = 0, shuffle = false)
     @test_throws ArgumentError infinite_minibatches(1:3, collect(1:3); batchsize = 0, shuffle = false)
-
-    # batchsize larger than the data clamps to one full batch, with a warning
-    # from the loader (the training entry point clamps before building the
-    # iterator, so training never hits this warning)
-    it = @test_logs (:warn,) infinite_minibatches(randn(2, 5), rand(5); batchsize = 6, shuffle = false)
-    (x, w), _ = iterate(it)
-    @test size(x) == (2, 5)
-    @test length(w) == 5
+    # the training entry point clamps batchsize to the data size before building the iterator
+    @test_throws ArgumentError infinite_minibatches(randn(2, 5), rand(5); batchsize = 6, shuffle = false)
+    @test_throws DimensionMismatch infinite_minibatches(randn(2, 5), rand(4); batchsize = 2)
 end

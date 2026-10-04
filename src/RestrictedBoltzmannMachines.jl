@@ -7,11 +7,11 @@ using EllipsisNotation: (..)
 using FillArrays: Falses, Zeros, Ones, Trues
 using LinearAlgebra: Diagonal, dot, logdet
 using LogExpFunctions: log1pexp, logaddexp, logistic, logit, logsumexp, softmax
-using MLUtils: DataLoader
 using Optimisers: AbstractRule, Adam, setup, update!
 using Random: AbstractRNG, default_rng, rand!, randexp, randn!
 using SpecialFunctions: erf, erfcx, logerfcx
 using Statistics: mean
+using StatsBase: sample
 
 include("util/util.jl")
 include("util/onehot.jl")
