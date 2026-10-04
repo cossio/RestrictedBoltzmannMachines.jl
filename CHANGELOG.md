@@ -28,6 +28,11 @@ All notable changes to this project will be documented in this file. The format 
 - `initialize!(rbm, data)` now also accepts any `StandardizedRBM`, setting its offsets and
   scales from `data` after initializing the parameters.
 - Requires Adapt 4.7 or later.
+- `metropolis` and `metropolis!` now accept a single configuration without batch
+  dimensions, like the other samplers, instead of throwing a `MethodError`. The
+  accept/reject step is broadcast over the batch, so it also runs on device arrays. The
+  random stream of the sampler changes, as the acceptance test now draws a uniform number
+  per chain instead of an exponential one.
 - `log_partition` (by exhaustive enumeration) and `log_likelihood` now also accept a
   `CenteredRBM`. They dispatch on the generic `free_energy` interface instead of
   carrying separate `RBM` and `StandardizedRBM` methods.
