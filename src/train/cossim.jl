@@ -33,17 +33,14 @@ function Optimisers.apply!(o::CossimDescent, (g, η), x::AbstractArray, dx::Abst
     return (g, η), dx .* convert(float(real(eltype(x))), η)
 end
 
-# Multiplies the learning rate of every parameter in the optimiser state tree by `factor`.
-_scale_learning_rate!(tree::Union{Tuple, NamedTuple}, factor::Real) =
-    foreach(leaf -> _scale_learning_rate!(leaf, factor), tree)
-function _scale_learning_rate!(leaf, factor::Real) # an `Optimisers.Leaf`
-    leaf.rule, leaf.state = _scale_learning_rate(leaf.rule, leaf.state, factor)
-    return nothing
-end
-_scale_learning_rate(o::CossimDescent, (g, η), factor::Real) = o, (g, min(η * factor, o.etamax))
-function _scale_learning_rate(o::AbstractRule, state, factor::Real)
-    hasproperty(o, :eta) || throw(ArgumentError("cannot scale the learning rate of $o"))
-    return Optimisers.adjust(o, o.eta * factor), state
+# Halves the learning rate of every parameter in the optimiser state tree.
+_halve_learning_rate!(tree::Union{Tuple, NamedTuple}) = foreach(_halve_learning_rate!, tree)
+# `leaf` is an `Optimisers.Leaf`
+_halve_learning_rate!(leaf) = ((leaf.rule, leaf.state) = _halve_learning_rate(leaf.rule, leaf.state); nothing)
+_halve_learning_rate(o::CossimDescent, (g, η)) = o, (g, η / 2)
+function _halve_learning_rate(o::AbstractRule, state)
+    hasproperty(o, :eta) || throw(ArgumentError("cannot halve the learning rate of $o"))
+    return Optimisers.adjust(o, o.eta / 2), state
 end
 
 #= Discards the memory of past gradients (momenta, moment estimates) in the optimiser state

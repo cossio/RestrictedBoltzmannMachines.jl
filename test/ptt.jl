@@ -78,16 +78,13 @@ random_layer(::Type{L}, sz::Dims) where {L <: Union{Binary, Potts}} = L(; θ = r
         )
         state = setup(optim, ps)
         update!(state, deepcopy(ps), gs) # builds up momenta
-        RBMs._scale_learning_rate!(state, 1 / 2)
+        RBMs._halve_learning_rate!(state)
         RBMs._reset_optimiser!(state, ps)
         @test update!(state, deepcopy(ps), gs)[2] == update!(setup(halved, ps), deepcopy(ps), gs)[2]
     end
-    state = setup(CossimDescent(0.1, 0.2), ps)
-    RBMs._scale_learning_rate!(state, 4)
-    @test state.a.state[2] == 0.2 # capped at ηmax
     ps = (; a = [1.0], b = 1) # the non-trainable `b` has an empty state
     state = setup(Adam(0.1), ps)
-    RBMs._scale_learning_rate!(state, 1 / 2)
+    RBMs._halve_learning_rate!(state)
     RBMs._reset_optimiser!(state, ps)
     @test state.a.rule.eta == 0.05
 end
@@ -244,7 +241,7 @@ acceptance (≈ 0.61) overestimates the overlap of the two models at equilibrium
     @test last(ladder.logZ) ≈ log_partition(model) atol = 0.05
 end
 
-@testset "ptt! recovers from rejected updates" begin
+@testset "ptt! halves the learning rate at rejections" begin
     ξ = rand(Bool, 8)
     data = falses(8, 1000)
     for n in 1:1000
@@ -255,22 +252,17 @@ end
     ladder = TrajectoryLadder(rbm; nchains = 500)
     ll₀ = mean(RBMs.log_likelihood(rbm, data))
     η₀ = 2.0 # too large: rejected updates, in long runs without the optimiser reset
-    η, K, rejected = [η₀], [length(ladder.checkpoints)], [false]
+    η, rejected = [η₀], [false]
     ptt!(
         rbm, data; ladder, batchsize = 100, iters = 300, optim = Nesterov(η₀, 0.9),
         callback = (; state, ladder, _...) -> begin
             push!(η, state.w.rule.eta)
-            push!(K, length(ladder.checkpoints))
             push!(rejected, ladder.rejections > 0)
         end,
     )
     @test any(rejected)
-    # each rejection halves the learning rate, and each later checkpoint doubles it back
-    @test all(2:length(η)) do t
-        rejected[t] && return η[t] == η[t - 1] / 2
-        K[t] > K[t - 1] && return η[t] == min(2η[t - 1], η₀)
-        return η[t] == η[t - 1]
-    end
+    # each rejection halves the learning rate, for good
+    @test all(t -> η[t] == (rejected[t] ? η[t - 1] / 2 : η[t - 1]), 2:length(η))
     @test mean(RBMs.log_likelihood(rbm, data)) > ll₀ + 0.5
     # the checkpoints stay consistent (with steps this large, the chains can lag behind)
     @test all(isapprox.(ladder.logZ, log_partition.(ladder.checkpoints); atol = 0.2))

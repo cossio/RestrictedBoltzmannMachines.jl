@@ -135,8 +135,8 @@ The [`TrajectoryLadder`](@ref) holds the checkpoints and the persistent chains:
    below `α` right after a checkpoint, or if the chains of a new checkpoint do not reach
    an acceptance of `αmin` with the previous one once thermalized. The model is then
    restored to the last checkpoint, the learning rate of the optimiser is halved, and the
-   optimiser forgets its momenta. The reduction is temporary: each later checkpoint
-   doubles the learning rate back, up to its initial value.
+   optimiser forgets its momenta. As in the reference implementation, the halving is
+   permanent.
 
 `ptt!` trains plain `RBM`s and accepts the keywords of [`pcd!`](@ref) for `RBM`, plus the
 `ladder`; its callback also receives the ladder as `ladder`. The optimiser must have a

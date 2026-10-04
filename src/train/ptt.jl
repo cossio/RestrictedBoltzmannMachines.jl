@@ -121,9 +121,10 @@ the last checkpoint and then running `steps` Gibbs steps, before the gradient st
 
 An update that loses overlap with the last checkpoint is rejected: `rbm` is restored to that
 checkpoint, the learning rate is halved, and the optimiser forgets its past gradients
-(momenta, moment estimates), which would otherwise repeat the rejected step. The reduction
-is temporary: each later checkpoint doubles the learning rate back, up to its value at the
-start of `ptt!`.
+(momenta, moment estimates), which would otherwise repeat the rejected step. As in the
+reference implementation, the halving is permanent: letting the learning rate grow back
+at later checkpoints gave several times more rejections, and checkpoints frozen at
+excursions of the model away from the data.
 
 `data` must have shape `(size(rbm.visible)..., nsamples)`.
 
@@ -179,19 +180,14 @@ function ptt!(
     zerosum && zerosum!(rbm)
     rescale && rescale_weights!(rbm)
 
-    lr_scale = 1 # learning rates relative to their values at the start
     for (iter, (vd, wd)) in zip(1:iters, infinite_minibatches(data, wts; batchsize, shuffle))
         # negative phase first, since a rejected update restores the parameters
         status = _ptt_update!(ladder, rbm; steps)
         if status === :rejected
             ladder.rejections ≤ 30 || error("PTT lost equilibrium after 30 consecutive learning rate halvings")
             # without its stale momenta, the optimiser does not repeat the rejected step
-            _scale_learning_rate!(state, 1 / 2)
+            _halve_learning_rate!(state)
             _reset_optimiser!(state, ps)
-            lr_scale /= 2
-        elseif status === :frozen && lr_scale < 1
-            _scale_learning_rate!(state, 2) # the reduction is temporary
-            lr_scale *= 2
         end
         ∂m = ∂free_energy(rbm, ladder.chains)
 
