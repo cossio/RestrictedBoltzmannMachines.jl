@@ -8,7 +8,7 @@ using EllipsisNotation: (..)
 using Optimisers: Adam, ClipGrad, Descent, Nesterov, setup, update!
 using RestrictedBoltzmannMachines: RBM, BinaryRBM, Binary, Spin, Potts, Gaussian,
     TrajectoryLadder, CossimDescent, ptt!, initialize!, free_energy,
-    log_partition, log_likelihood, collect_states, standardize
+    log_partition, log_likelihood, collect_states
 
 Random.seed!(41)
 
@@ -102,13 +102,9 @@ end
 distribution of the chains and the reservoir invariant: starting both exactly at
 equilibrium, they must stay at equilibrium within Monte-Carlo error, through updates of
 two sweeps each. =#
-@testset "no drift: PTT update, $V visible, standardized = $standardized" for (V, vsz) in ((Binary, (6,)), (Potts, (3, 3))), standardized in (false, true)
+@testset "no drift: PTT update, $V visible" for (V, vsz) in ((Binary, (6,)), (Potts, (3, 3)))
     model = RBM(random_layer(V, vsz), Binary(; θ = randn(3) / 2), randn(vsz..., 3) * 0.6)
     base = RBM(model.visible, model.hidden, model.w .+ randn(vsz..., 3) * 0.3)
-    if standardized
-        model = standardize(model, rand(vsz...) / 3, rand(3) / 3, 0.5 .+ rand(vsz...), 0.5 .+ rand(3))
-        base = standardize(base, rand(vsz...) / 3, rand(3) / 3, 0.5 .+ rand(vsz...), 0.5 .+ rand(3))
-    end
     states = enumerate_states(model.visible)
     p = softmax(-free_energy(model, states))
     p₀ = softmax(-free_energy(base, states))
@@ -166,21 +162,8 @@ end
     end
 end
 
-#= Annealing in a single step from the independent-site model to the bimodal model above
-loses overlap, so the step is rejected and refined; intermediate checkpoints are only
-possible after such a rejection. =#
-@testset "TrajectoryLadder with a coarse anneal" begin
-    rbm = RBM(Spin(; θ = fill(0.03, 10)), Gaussian(; θ = zeros(1), γ = ones(1)), fill(0.8, 10, 1))
-    ladder = TrajectoryLadder(rbm; nchains = 1000, anneal = 1)
-    @test length(ladder.checkpoints) > 2
-    @test abs(log_partition(ladder) - log_partition(rbm)) < 0.1
-end
-
-@testset "TrajectoryLadder of $name" for (name, model) in (
-        ("RBM", BinaryRBM(randn(8) / 2, randn(4) / 2, 1.5randn(8, 4))),
-        ("CenteredRBM", standardize(BinaryRBM(randn(8) / 2, randn(4) / 2, 1.5randn(8, 4)), rand(8), rand(4))),
-        ("StandardizedRBM", standardize(BinaryRBM(randn(8) / 2, randn(4) / 2, 1.5randn(8, 4)), rand(8), rand(4), 0.5 .+ rand(8), 0.5 .+ rand(4))),
-    )
+@testset "TrajectoryLadder" begin
+    model = BinaryRBM(randn(8) / 2, randn(4) / 2, 1.5randn(8, 4))
     ladder = TrajectoryLadder(model; nchains = 1000)
     @test ladder.rbm === model
     @test iszero(first(ladder.checkpoints).w)
@@ -196,6 +179,10 @@ end
 
     @test_throws ArgumentError TrajectoryLadder(model; nchains = 10, nreservoir = 5)
     @test_throws ArgumentError TrajectoryLadder(model; nchains = 10, α = 0.1, αmin = 0.2)
+
+    # a single anneal step to the bimodal model above loses overlap
+    bimodal = RBM(Spin(; θ = fill(0.03, 10)), Gaussian(; θ = zeros(1), γ = ones(1)), fill(0.8, 10, 1))
+    @test_throws ErrorException TrajectoryLadder(bimodal; nchains = 1000, anneal = 1)
 end
 
 #= Bennett's acceptance ratio is exact for models whose energies differ by a constant, c,

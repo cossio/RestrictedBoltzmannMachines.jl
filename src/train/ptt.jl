@@ -21,11 +21,9 @@ const PTT_DECORRELATION = 2
 const PTT_MAX_REJECTIONS = 30
 # learning rate halvings after which `ptt!` warns that training may stall
 const PTT_WARN_HALVINGS = 10
-# smallest step in the weight scale β by which the initial ladder is annealed
-const PTT_MIN_ANNEAL_STEP = 1.0e-6
 
 """
-    TrajectoryLadder(rbm; nchains, nreservoir = 10nchains, α = 0.3, αmin = 0.1, sweeps = 1, steps = 1, anneal = 100)
+    TrajectoryLadder(rbm::RBM; nchains, nreservoir = 10nchains, α = 0.3, αmin = 0.1, sweeps = 1, steps = 1, anneal = 100)
 
 Persistent state of Parallel Trajectory Tempering for training `rbm` (see [`ptt!`](@ref)):
 frozen checkpoints along the training trajectory of `rbm`, their log-partition functions,
@@ -39,12 +37,11 @@ update after a checkpoint was frozen, or if the swap acceptance of a new checkpo
 equilibrium is below `αmin`, the update is rejected: `rbm` is restored to the last
 checkpoint, and [`ptt!`](@ref) halves the learning rate.
 
-The ladder starts at the independent-site model obtained by setting the weights of `rbm`
-to zero, whose partition function is known, and is extended along `anneal` steps scaling
-the weights up to those of `rbm`, which becomes the last checkpoint. `steps` are the Gibbs
-steps per sweep used meanwhile. For a freshly initialized `rbm` this takes a few
-checkpoints. For a trained, multimodal `rbm`, the mode weights of the ladder can be
-inaccurate unless `anneal` is large.
+`rbm` is the model at the start of training, typically set by [`initialize!`](@ref). The
+ladder starts at the independent-site model obtained by setting the weights of `rbm` to
+zero, whose partition function is known, and is extended along `anneal` steps scaling the
+weights up to those of `rbm`, which becomes the last checkpoint. `steps` are the Gibbs
+steps per sweep used meanwhile.
 
 The checkpoints and their log-partition functions are kept in `ladder.checkpoints` and
 `ladder.logZ`, the persistent chains in `ladder.chains`, equilibrium samples of the last
@@ -75,7 +72,7 @@ Base.@kwdef mutable struct TrajectoryLadder{M, A <: AbstractArray}
 end
 
 function TrajectoryLadder(
-        rbm; nchains::Int, nreservoir::Int = 10nchains, α::Real = 0.3, αmin::Real = 0.1,
+        rbm::RBM; nchains::Int, nreservoir::Int = 10nchains, α::Real = 0.3, αmin::Real = 0.1,
         sweeps::Int = 1, steps::Int = 1, anneal::Int = 100
     )
     nchains > 0 || throw(ArgumentError("nchains must be positive"))
@@ -150,7 +147,7 @@ when an epoch has few minibatches.
 
 # Keyword arguments
 - `ladder`: the [`TrajectoryLadder`](@ref) of `rbm`, by default a new one with
-  `nchains = min(batchsize, nsamples)` chains. To resume training, pass the ladder of the
+  `nchains = min(batchsize, nsamples)` chains. To continue training, pass the ladder of the
   previous run.
 - `steps::Int=1`: Gibbs steps per sweep.
 - `optim::AbstractRule=Adam(1e-4)`: optimizer rule from `Optimisers.jl`, with a learning
@@ -415,24 +412,15 @@ end
 _late_mean(swaps::AbstractMatrix) = mean(view(swaps, :, (size(swaps, 2) ÷ 2 + 1):size(swaps, 2)))
 
 #= Builds the initial ladder, from the independent-site model to `ladder.rbm`, along models
-whose weights are those of `ladder.rbm` scaled by β ∈ [0, 1], in `nsteps` steps (halved when
-rejected). `ladder.rbm` is frozen as the last checkpoint, so that rejected training updates
-never move back further than the initial model. =#
+whose weights are those of `ladder.rbm` scaled by k / `nsteps`, for k = 1, …, `nsteps`.
+`ladder.rbm` is frozen as the last checkpoint, so that rejected training updates never move
+back further than the initial model. =#
 function _anneal!(ladder::TrajectoryLadder; steps::Int, nsteps::Int)
     model = deepcopy(ladder.rbm)
-    β = β₀ = 0.0 # current β, and β of the last checkpoint
-    δ = 1 / nsteps
-    while β₀ < 1
-        β = min(β + δ, 1.0)
-        model.w .= β .* ladder.rbm.w
-        status = _ptt_update!(ladder, model; steps, freeze = β == 1)
-        if status === :rejected
-            β = β₀
-            δ = δ / 2
-            δ > PTT_MIN_ANNEAL_STEP || error("PTT failed to anneal from the independent-site model")
-        elseif status === :frozen
-            β₀ = β
-        end
+    for k in 1:nsteps
+        model.w .= (k / nsteps) .* ladder.rbm.w
+        _ptt_update!(ladder, model; steps, freeze = k == nsteps) === :rejected &&
+            error("PTT failed to anneal from the independent-site model to the initial model; increase `anneal`")
     end
     return ladder
 end
@@ -498,9 +486,10 @@ _logmeanexp(x::AbstractArray) = logsumexp(x) - log(length(x))
 # free energies of the samples `x` under `model`, on the host in double precision
 _free_energies(model, x::AbstractArray) = convert(Vector{Float64}, Array(free_energy(model, x)))
 
-# copies the parameters of `src` into those of `dst`, a model of the same type
-_copyto_model!(dst::AbstractArray, src::AbstractArray) = copyto!(dst, src)
-function _copyto_model!(dst::T, src::T) where {T}
-    foreach(f -> _copyto_model!(getfield(dst, f), getfield(src, f)), fieldnames(T))
+# copies the parameters of `src` into those of `dst`
+function _copyto_model!(dst::RBM, src::RBM)
+    copyto!(dst.visible.par, src.visible.par)
+    copyto!(dst.hidden.par, src.hidden.par)
+    copyto!(dst.w, src.w)
     return dst
 end

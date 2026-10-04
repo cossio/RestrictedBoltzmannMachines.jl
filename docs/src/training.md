@@ -142,15 +142,14 @@ The [`TrajectoryLadder`](@ref) holds the checkpoints and the persistent chains:
    rejected, whatever its initial learning rate; plain gradient descent (`Descent`)
    can then train through.
 
-`ptt!` trains plain `RBM`s and accepts the keywords of [`pcd!`](@ref) for `RBM` except
-`shuffle`, plus the `ladder`; its callback also receives the ladder as `ladder`. Unlike
-`pcd!`, and as in the reference implementation, it draws every minibatch at random,
-independently of the others: the minibatches of an epoch have anticorrelated noise,
-which makes the learning rate of `CossimDescent` collapse when epochs have few
-minibatches. The optimiser must have a learning rate `eta`. To resume training, pass the
-ladder of the previous run: without it, `ptt!` builds a new one. A `TrajectoryLadder` can also be built for a `CenteredRBM` or
-`StandardizedRBM`, to sample it or estimate its partition function. The paper uses
-[`CossimDescent`](@ref), a gradient descent whose learning rate adapts to the alignment
+`ptt!` trains plain `RBM`s from scratch, starting from [`initialize!`](@ref), and
+accepts the keywords of [`pcd!`](@ref) for `RBM` except `shuffle`, plus the `ladder`; its
+callback also receives the ladder as `ladder`. Unlike `pcd!`, and as in the reference
+implementation, it draws every minibatch at random, independently of the others: the
+minibatches of an epoch have anticorrelated noise, which makes the learning rate of
+`CossimDescent` collapse when epochs have few minibatches. The optimiser must have a
+learning rate `eta`. To continue training, pass the ladder of the previous run: without
+it, `ptt!` builds a new one. The paper uses [`CossimDescent`](@ref), a gradient descent whose learning rate adapts to the alignment
 of successive gradients. The default optimiser is `Adam(1e-4)`, a tenth of the learning
 rate of `pcd!`'s `Adam()`, whose larger steps can be rejected from the first update. On
 four protein and RNA families, it reached the best or tied best validation
@@ -165,10 +164,7 @@ helps if that many Gibbs steps move the chains between the modes of the model. E
 checkpoint is kept in `ladder.checkpoints`, with its log-partition function in
 `ladder.logZ`. The log-partition functions accumulate the errors of the successive
 estimates, from a few hundredths to about a tenth of a nat per checkpoint, so fewer
-checkpoints give more accurate estimates. For an `rbm` that is already trained and
-multimodal, the initial ladder can misjudge the weights of the modes unless the `anneal`
-steps of the `TrajectoryLadder` are many. For a final, independent estimate, build a new
-`TrajectoryLadder` for a copy of the trained model.
+checkpoints give more accurate estimates.
 
 ## Practical tuning guidelines
 
