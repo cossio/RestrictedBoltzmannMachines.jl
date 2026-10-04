@@ -69,7 +69,7 @@ function TrajectoryLadder(
     nreservoir ≥ nchains || throw(ArgumentError("nreservoir must be at least nchains"))
     0 ≤ αmin < α ≤ 1 || throw(ArgumentError("expected 0 ≤ αmin < α ≤ 1"))
     sweeps > 0 && anneal > 0 || throw(ArgumentError("sweeps and anneal must be positive"))
-    independent = _copy_model(rbm)
+    independent = deepcopy(rbm)
     independent.w .= 0
     samples = _default_fantasy_chains(independent, nreservoir) # exact samples
     samples_F = _free_energies(independent, samples)
@@ -249,21 +249,18 @@ between these outcomes reweights them to `model`. Otherwise, the acceptance of a
 is overestimated until the chains catch up. A frozen `model` whose chains then fail to
 equilibrate with the last checkpoint is rejected too. =#
 function _ptt_update!(ladder::TrajectoryLadder, model; steps::Int, freeze::Bool = false)
-    status = :accepted
-    for sweep in 1:ladder.sweeps
-        proposal = _propose_exchange(ladder, model)
-        if sweep == 1
-            logw = ladder.chains_F - proposal.Fθx # reweights the chains to `model`
-            w = exp.(logw .- maximum(logw))
-            ladder.acceptance = sum(w .* min.(1, exp.(proposal.Δ))) / sum(w)
-            status = _ptt_status(ladder; freeze)
-            status === :rejected && return _reject!(ladder, model)
-        end
-        _exchange!(ladder, proposal)
-        if sweep == 1 && status === :frozen
-            _push_checkpoint!(ladder, model; steps) || return _reject!(ladder, model)
-        end
-        ladder.chains .= sample_v_from_v(model, ladder.chains; steps)
+    proposal = _propose_exchange(ladder, model)
+    w = softmax(ladder.chains_F - proposal.Fθx) # reweights the chains to `model`
+    ladder.acceptance = dot(w, min.(1, exp.(proposal.Δ)))
+    status = _ptt_status(ladder; freeze)
+    status === :rejected && return _reject!(ladder, model)
+    _exchange!(ladder, proposal)
+    if status === :frozen
+        _push_checkpoint!(ladder, model; steps) || return _reject!(ladder, model)
+    end
+    ladder.chains .= sample_v_from_v(model, ladder.chains; steps)
+    for _ in 2:ladder.sweeps
+        _sweep!(ladder, model; steps)
     end
     ladder.chains_F .= _free_energies(model, ladder.chains)
     ladder.since_checkpoint += 1
@@ -277,11 +274,24 @@ function _ptt_status(ladder::TrajectoryLadder; freeze::Bool = false)
     return :rejected
 end
 
+# exchanges the chains with the reservoir, then runs Gibbs sampling; returns the accepted swaps
+function _sweep!(ladder::TrajectoryLadder, model; steps::Int)
+    accept = _exchange!(ladder, _propose_exchange(ladder, model))
+    ladder.chains .= sample_v_from_v(model, ladder.chains; steps)
+    return accept
+end
+
+# resets the working reservoir to the equilibrium samples of the last checkpoint
+function _reset_reservoir!(ladder::TrajectoryLadder)
+    ladder.reservoir .= ladder.samples
+    ladder.reservoir_F .= ladder.samples_F
+    return ladder
+end
+
 # restores `model` to the last checkpoint, and the reservoir and the chains to its samples
 function _reject!(ladder::TrajectoryLadder, model)
     _copyto_model!(model, last(ladder.checkpoints))
-    ladder.reservoir .= ladder.samples
-    ladder.reservoir_F .= ladder.samples_F
+    _reset_reservoir!(ladder)
     idx = randperm(_nsamples(ladder.samples))[1:_nsamples(ladder.chains)]
     ladder.chains .= ladder.samples[.., idx]
     ladder.chains_F .= ladder.samples_F[idx]
@@ -300,27 +310,18 @@ function _propose_exchange(ladder::TrajectoryLadder, model)
     Fx = _free_energies(last(ladder.checkpoints), x)
     Fθx = _free_energies(model, x)
     Δ = (Fθx - Fx) - (_free_energies(model, y) - Fy)
-    return (; idx, y, Fx, Fy, Fθx, Δ)
+    return (; idx, y, Fx, Fθx, Δ)
 end
 
 # applies the exchange `proposal` by the Metropolis rule; returns the accepted swaps
 function _exchange!(ladder::TrajectoryLadder, proposal::NamedTuple)
-    (; idx, y, Fx, Fy, Δ) = proposal
-    accept = map((u, d) -> log(u) < d, rand(length(Δ)), Δ)
-    _swap!(ladder.chains, y, accept)
-    ladder.reservoir[.., idx] = y
-    ladder.reservoir_F[idx] = ifelse.(accept, Fx, Fy)
+    (; idx, y, Fx, Δ) = proposal
+    accept = log.(rand(length(Δ))) .< Δ
+    swapped = findall(accept)
+    ladder.reservoir[.., idx[swapped]] = ladder.chains[.., swapped]
+    ladder.reservoir_F[idx[swapped]] = Fx[swapped]
+    ladder.chains[.., swapped] = y[.., swapped]
     return accept
-end
-
-# swaps the samples `x[.., n]` and `y[.., n]` where `accept[n]` holds
-function _swap!(x::AbstractArray, y::AbstractArray, accept::AbstractVector)
-    mask = copyto!(similar(x, Bool, length(accept)), accept) # on the device of `x`
-    mask = reshape(mask, ntuple(Returns(1), ndims(x) - 1)..., length(accept))
-    x′ = ifelse.(mask, y, x)
-    y .= ifelse.(mask, x, y)
-    x .= x′
-    return nothing
 end
 
 #= Freezes a copy of `model` as a new checkpoint. Its chains are thermalized by exchanges
@@ -343,32 +344,25 @@ behind the moving model are not at equilibrium, and, when Gibbs sampling cannot 
 modes, the swaps conserve the number of configurations of each mode in chains and reservoir
 together, so that a shift of the model's mode weights is partly absorbed by the reservoir. =#
 function _push_checkpoint!(ladder::TrajectoryLadder, model; steps::Int, minsweeps::Int = 20, maxsweeps::Int = 10_000)
-    checkpoint = _copy_model(model)
-    ladder.reservoir .= ladder.samples
-    ladder.reservoir_F .= ladder.samples_F
+    checkpoint = deepcopy(model)
+    _reset_reservoir!(ladder)
+    sweeps(n) = stack(_sweep!(ladder, checkpoint; steps) for _ in 1:n) # accepted swaps, chains × sweeps
 
-    # returns the exchanges accepted in the sweep
-    function sweep!()
-        accept = _exchange!(ladder, _propose_exchange(ladder, checkpoint))
-        ladder.chains .= sample_v_from_v(checkpoint, ladder.chains; steps)
-        return accept
-    end
-
-    swaps = reduce(hcat, sweep!() for _ in 1:minsweeps)
+    swaps = sweeps(minsweeps)
     τint, τexp = _autocorrelation_times(swaps)
-    while size(swaps, 2) < 20max(τint, τexp)
-        _late_mean(swaps) ≥ ladder.αmin && size(swaps, 2) < maxsweeps || return false
-        swaps = hcat(swaps, reduce(hcat, sweep!() for _ in axes(swaps, 2))) # doubles the run
+    while _late_mean(swaps) ≥ ladder.αmin && size(swaps, 2) < 20max(τint, τexp)
+        size(swaps, 2) < maxsweeps || return false
+        swaps = hcat(swaps, sweeps(size(swaps, 2))) # doubles the run
         τint, τexp = _autocorrelation_times(swaps)
     end
     _late_mean(swaps) ≥ ladder.αmin || return false
 
     samples = similar(ladder.samples)
-    nchains, nsamples = _nsamples(ladder.chains), _nsamples(samples)
-    for n in 1:nchains:nsamples
-        foreach(_ -> sweep!(), 1:ceil(Int, 2τint))
-        m = min(nchains, nsamples - n + 1)
-        samples[.., n:(n + m - 1)] .= view(ladder.chains, .., 1:m)
+    for block in Iterators.partition(1:_nsamples(samples), _nsamples(ladder.chains))
+        for _ in 1:ceil(Int, 2τint)
+            _sweep!(ladder, checkpoint; steps)
+        end
+        samples[.., block] = ladder.chains[.., 1:length(block)]
     end
 
     samples_F = _free_energies(checkpoint, samples)
@@ -393,7 +387,7 @@ whose weights are those of `ladder.rbm` scaled by β ∈ [0, 1], in `nsteps` ste
 rejected). `ladder.rbm` is frozen as the last checkpoint, so that rejected training updates
 never move back further than the initial model. =#
 function _anneal!(ladder::TrajectoryLadder; steps::Int, nsteps::Int)
-    model = _copy_model(ladder.rbm)
+    model = deepcopy(ladder.rbm)
     β = β₀ = 0.0 # current β, and β of the last checkpoint
     δ = 1 / nsteps
     while β₀ < 1
@@ -463,11 +457,8 @@ _nsamples(x::AbstractArray) = size(x, ndims(x))
 _logmeanexp(x::AbstractArray) = logsumexp(x) - log(length(x))
 
 # free energies of the samples `x` under `model`, on the host in double precision
-_free_energies(model, x::AbstractArray) = convert(Vector{Float64}, Array(free_energy(model, x)))
 
-# deep copy of a model (layers, weights, offsets and scales), preserving the array backend
-_copy_model(x::AbstractArray) = copy(x)
-_copy_model(x::T) where {T} = T.name.wrapper(map(f -> _copy_model(getfield(x, f)), fieldnames(T))...)
+_free_energies(model, x::AbstractArray) = convert(Vector{Float64}, Array(free_energy(model, x)))
 
 # copies the parameters of `src` into those of `dst`, a model of the same type
 _copyto_model!(dst::AbstractArray, src::AbstractArray) = copyto!(dst, src)
