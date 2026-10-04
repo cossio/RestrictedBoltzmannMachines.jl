@@ -17,7 +17,7 @@ using RestrictedBoltzmannMachines: RBM, CenteredRBM, StandardizedRBM, BinaryRBM,
     sample_from_inputs, mean_from_inputs, var_from_inputs, std_from_inputs,
     mode_from_inputs, meanvar_from_inputs,
     inputs_h_from_v, inputs_v_from_h, mean_h_from_v, mean_v_from_h,
-    sample_h_from_v, sample_v_from_h, sample_v_from_v, reconstruction_error,
+    sample_h_from_v, sample_v_from_h, sample_v_from_v, reconstruction_error, metropolis,
     log_pseudolikelihood, log_pseudolikelihood_stoch,
     initialize!, pcd!, ∂free_energy, zerosum!, rescale_weights!, weight_norms, aise, raise
 
@@ -162,6 +162,12 @@ end
     @test jl_v_sampled isa JLArray
     @test size(jl_v_sampled) == size(jl_v)
     @test all(adapt(Array, reconstruction_error(jl_rbm, jl_v)) .≥ 0)
+
+    for β in (0.5, 2.0), x in (jl_v, jl_v[:, :, 1]) # batched and single configuration
+        jl_v_met = metropolis(jl_rbm, x; β, steps = 3)
+        @test jl_v_met isa JLArray
+        @test size(jl_v_met) == size(x)
+    end
 
     ∂ = ∂free_energy(jl_rbm, jl_v)
     @test ∂.w isa JLArray

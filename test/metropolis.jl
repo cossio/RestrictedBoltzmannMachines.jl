@@ -32,6 +32,22 @@ end
     check_metropolis_histogram(rbm, v, β)
 end
 
+@testset "metropolis accepts a single unbatched configuration" begin
+    N = 5
+    M = 3
+    rbm = BinaryRBM(randn(N), randn(M), randn(N, M) / √N)
+    v = bitrand(N)
+    v1 = metropolis(rbm, v; β = 0.5, steps = 3)
+    @test v1 isa BitVector
+    @test size(v1) == (N,)
+    # a chain of unbatched steps samples the same distribution as the batched sampler
+    vt = bitrand(N, 1, 100_000)
+    for t in 2:size(vt, 3)
+        vt[:, 1, t] .= metropolis(rbm, vt[:, 1, t - 1]; β = 0.5)
+    end
+    check_metropolis_histogram(rbm, vt, 0.5)
+end
+
 @testset "cold_metropolis converges to fixed point" begin
     #= The zero-temperature dynamics v -> mode_v(mean_h(v)) is deterministic but can in
     principle land on a 2-cycle instead of a fixed point for an unlucky random RBM, so
