@@ -41,7 +41,7 @@ end
     @test v1 isa BitVector
     @test size(v1) == (N,)
     # a chain of unbatched steps samples the same distribution as the batched sampler
-    vt = bitrand(N, 1, 20000)
+    vt = bitrand(N, 1, 100_000)
     for t in 2:size(vt, 3)
         vt[:, 1, t] .= metropolis(rbm, vt[:, 1, t - 1]; β = 0.5)
     end

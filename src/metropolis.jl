@@ -15,14 +15,10 @@ end
 function metropolis_once(rbm::RBM, v::AbstractArray; β::Real = 1)
     v_new = sample_v_from_v_once(rbm, v)
     ΔE = (β - 1) * (free_energy(rbm, v_new) - free_energy(rbm, v))
-    #= Accept each proposal with probability min(1, exp(-ΔE)). The batch is broadcast
-    instead of looped over, so this works on device arrays and also when `v` is a single
-    configuration without batch dimensions, where `ΔE` is a scalar. =#
-    bsz = batch_size(rbm.visible, v)
-    sz = (ntuple(Returns(1), ndims(rbm.visible))..., bsz...) # aligned with the batch dims of v
-    α = exp.(-(ΔE isa Number ? ΔE : reshape(ΔE, sz))) # acceptance probability (≥ 1 accepts)
+    sz = (ntuple(Returns(1), ndims(rbm.visible))..., batch_size(rbm.visible, v)...)
+    α = exp.(-(ΔE isa Number ? ΔE : reshape(ΔE, sz))) # accept with probability min(1, α)
     u = rand!(similar(v, float(eltype(ΔE)), sz))
-    return ifelse.(u .< α, v_new, eltype(v_new).(v)) # one eltype keeps the broadcast type-stable
+    return ifelse.(u .< α, v_new, eltype(v_new).(v)) # same eltype for a type-stable broadcast
 end
 
 """
