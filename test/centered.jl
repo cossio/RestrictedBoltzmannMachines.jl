@@ -3,11 +3,10 @@ using RestrictedBoltzmannMachines: ∂free_energy
 using RestrictedBoltzmannMachines: ∂regularize!
 using RestrictedBoltzmannMachines: batchmean
 using RestrictedBoltzmannMachines: BinaryRBM
-using RestrictedBoltzmannMachines: center
-using RestrictedBoltzmannMachines: center!
-using RestrictedBoltzmannMachines: center_from_data!
-using RestrictedBoltzmannMachines: center_hidden_from_data!
-using RestrictedBoltzmannMachines: center_visible_from_data!
+using RestrictedBoltzmannMachines: standardize
+using RestrictedBoltzmannMachines: standardize!
+using RestrictedBoltzmannMachines: standardize_hidden_from_v!
+using RestrictedBoltzmannMachines: standardize_visible_from_data!
 using RestrictedBoltzmannMachines: CenteredBinaryRBM
 using RestrictedBoltzmannMachines: CenteredRBM
 using RestrictedBoltzmannMachines: ReLU
@@ -25,7 +24,7 @@ using RestrictedBoltzmannMachines: mirror
 using RestrictedBoltzmannMachines: pcd!
 using RestrictedBoltzmannMachines: sample_h_from_h
 using RestrictedBoltzmannMachines: sample_h_from_v
-using RestrictedBoltzmannMachines: uncenter
+using RestrictedBoltzmannMachines: unstandardize
 using Statistics: mean
 using LinearAlgebra: norm
 using Test: @inferred
@@ -46,29 +45,29 @@ using Zygote: gradient
     rbm_ = deepcopy(rbm)
     offset_v = randn(size(rbm.visible)...)
     offset_h = randn(size(rbm.hidden)...)
-    center!(rbm_, offset_v, offset_h)
-    @test rbm_.visible.θ == center(rbm, offset_v, offset_h).visible.θ
-    @test rbm_.hidden.θ == center(rbm, offset_v, offset_h).hidden.θ
-    @test rbm_.w == center(rbm, offset_v, offset_h).w
-    @test rbm_.offset_v == center(rbm, offset_v, offset_h).offset_v == offset_v
+    standardize!(rbm_, offset_v, offset_h)
+    @test rbm_.visible.θ == standardize(rbm, offset_v, offset_h).visible.θ
+    @test rbm_.hidden.θ == standardize(rbm, offset_v, offset_h).hidden.θ
+    @test rbm_.w == standardize(rbm, offset_v, offset_h).w
+    @test rbm_.offset_v == standardize(rbm, offset_v, offset_h).offset_v == offset_v
 end
 
-@testset "center / uncenter" begin
+@testset "standardize / unstandardize to a CenteredRBM" begin
     rbm = BinaryRBM(randn(3), randn(2), randn(3, 2))
     offset_v = randn(3)
     offset_h = randn(2)
-    centered_rbm = @inferred center(rbm, offset_v, offset_h)
+    centered_rbm = @inferred standardize(rbm, offset_v, offset_h)
     @test centered_rbm.offset_v ≈ offset_v
     @test centered_rbm.offset_h ≈ offset_h
-    @test @inferred(uncenter(centered_rbm)).visible.θ ≈ rbm.visible.θ
-    @test @inferred(uncenter(centered_rbm)).hidden.θ ≈ rbm.hidden.θ
-    @test @inferred(uncenter(centered_rbm)).w ≈ rbm.w
-    @test uncenter(rbm) === rbm # a plain RBM is already uncentered
+    @test @inferred(unstandardize(centered_rbm)).visible.θ ≈ rbm.visible.θ
+    @test @inferred(unstandardize(centered_rbm)).hidden.θ ≈ rbm.hidden.θ
+    @test @inferred(unstandardize(centered_rbm)).w ≈ rbm.w
+    @test unstandardize(rbm) === rbm # a plain RBM is already unstandardized
 end
 
 @testset "rbm energy invariance" begin
     centered_rbm = CenteredBinaryRBM(randn(3), randn(2), randn(3, 2), randn(3), randn(2))
-    rbm = uncenter(centered_rbm)
+    rbm = unstandardize(centered_rbm)
     ΔE = interaction_energy(rbm, centered_rbm.offset_v, centered_rbm.offset_h)::Number
     v = bitrand(size(rbm.visible)..., 100)
     h = bitrand(size(rbm.hidden)..., 100)
@@ -99,7 +98,7 @@ using RestrictedBoltzmannMachines: free_energy_h, free_energy_v, ∂free_energy_
 
 @testset "free_energy_h of CenteredRBM" begin
     centered_rbm = CenteredBinaryRBM(randn(3), randn(2), randn(3, 2), randn(3), randn(2))
-    rbm = uncenter(centered_rbm)
+    rbm = unstandardize(centered_rbm)
     ΔE = interaction_energy(rbm, centered_rbm.offset_v, centered_rbm.offset_h)::Number
     h = bitrand(size(centered_rbm.hidden)..., 100)
     # consistent with the equivalent uncentered RBM, up to the constant energy shift
@@ -145,7 +144,7 @@ end
 end
 
 @testset "centered pcd" begin
-    rbm = center(BinaryRBM((28, 28), 100))
+    rbm = CenteredRBM(BinaryRBM((28, 28), 100))
     train_x = bitrand(28, 28, 1024)
 
     initialize!(rbm, train_x) # fit independent site statistics and center
@@ -161,40 +160,33 @@ end
     # not exact because offset is updated after having updated the parameters!
 end
 
-@testset "center_from_data! helpers" begin
-    rbm = center(BinaryRBM(randn(3), randn(2), randn(3, 2)))
+@testset "standardize_*_from_* of a CenteredRBM fit only the offsets" begin
+    rbm = CenteredRBM(BinaryRBM(randn(3), randn(2), randn(3, 2)))
     data = bitrand(3, 7)
     wts = rand(7)
 
     rbm_visible = deepcopy(rbm)
-    @test center_visible_from_data!(rbm_visible, data; wts) === rbm_visible
+    @test standardize_visible_from_data!(rbm_visible, data; wts) === rbm_visible
     expected_offset_v = batchmean(rbm.visible, data; wts)
     @test rbm_visible.offset_v ≈ expected_offset_v
 
-    expected_hidden = center(rbm, expected_offset_v, rbm.offset_h)
+    expected_hidden = standardize(rbm, expected_offset_v, rbm.offset_h)
     expected_offset_h = batchmean(expected_hidden.hidden, mean_h_from_v(expected_hidden, data); wts)
 
     rbm_hidden = deepcopy(expected_hidden)
-    @test center_hidden_from_data!(rbm_hidden, data; wts) === rbm_hidden
+    @test standardize_hidden_from_v!(rbm_hidden, data; wts) === rbm_hidden
     @test rbm_hidden.offset_h ≈ expected_offset_h
-
-    rbm_data = deepcopy(rbm)
-    @test center_from_data!(rbm_data, data; wts) === rbm_data
-    @test rbm_data.visible.par == rbm_hidden.visible.par
-    @test rbm_data.hidden.par == rbm_hidden.hidden.par
-    @test rbm_data.w == rbm_hidden.w
-    @test rbm_data.offset_v == rbm_hidden.offset_v
-    @test rbm_data.offset_h == rbm_hidden.offset_h
+    @test rbm_hidden isa CenteredRBM
 end
 
 @testset "centered pcd uses weighted initial centering" begin
-    rbm = center(BinaryRBM(2, 3))
+    rbm = CenteredRBM(BinaryRBM(2, 3))
     data = falses(2, 4)
     data[:, 3:4] .= true
     wts = [100.0, 100.0, 1.0, 1.0]
 
     weighted_offset_v = batchmean(rbm.visible, data; wts)
-    weighted_hidden = center(rbm, weighted_offset_v, rbm.offset_h)
+    weighted_hidden = standardize(rbm, weighted_offset_v, rbm.offset_h)
     weighted_offset_h = batchmean(weighted_hidden.hidden, mean_h_from_v(weighted_hidden, data); wts)
 
     initial_offset_v = Ref{Any}()
@@ -208,7 +200,7 @@ end
         batchsize = 2,
         iters = 1,
         steps = 0,
-        hidden_offset_damping = 0,
+        damping = 0,
         callback = (; rbm, iter, kwargs...) -> begin
             if iter == 1 && !seen[]
                 initial_offset_v[] = copy(rbm.offset_v)
@@ -225,7 +217,7 @@ end
 end
 
 @testset "sample_h_from_h centered RBM" begin
-    rbm = center(BinaryRBM(randn(3), randn(2), zeros(3, 2)))
+    rbm = CenteredRBM(BinaryRBM(randn(3), randn(2), zeros(3, 2)))
     h = bitrand(2, 10^5)
     v = falses(3, 10^5)
     sample = @inferred sample_h_from_h(rbm, h)
@@ -259,7 +251,7 @@ end
     rbm = CenteredBinaryRBM(randn(3), randn(2), randn(3, 2), randn(3), randn(2))
     l2_fields, l1_weights, l2_weights, l2l1_weights = rand(4)
     @test regularization_penalty(rbm; l2_fields, l1_weights, l2_weights, l2l1_weights) ≈
-        regularization_penalty(uncenter(rbm); l2_fields, l1_weights, l2_weights, l2l1_weights)
+        regularization_penalty(unstandardize(rbm); l2_fields, l1_weights, l2_weights, l2l1_weights)
     @test regularization_penalty(rbm; regularize_unstandardized = false, l2_fields, l1_weights, l2_weights, l2l1_weights) ≈
         regularization_penalty(RBM(rbm); l2_fields, l1_weights, l2_weights, l2l1_weights)
 end
@@ -283,7 +275,7 @@ using RestrictedBoltzmannMachines: Potts, PottsGumbel, potts_to_gumbel, gumbel_t
 
 @testset "potts_to_gumbel / gumbel_to_potts CenteredRBM" begin
     q = 3
-    crbm = center(RBM(Potts(; θ = randn(q, 2)), Binary(; θ = randn(2)), randn(q, 2, 2)), randn(q, 2), randn(2))
+    crbm = standardize(RBM(Potts(; θ = randn(q, 2)), Binary(; θ = randn(2)), randn(q, 2, 2)), randn(q, 2), randn(2))
 
     grbm = potts_to_gumbel(crbm)
     @test grbm isa CenteredRBM
@@ -302,18 +294,18 @@ end
 
 @testset "conditional means of CenteredRBM" begin
     centered_rbm = CenteredBinaryRBM(randn(3), randn(2), randn(3, 2), randn(3), randn(2))
-    rbm = uncenter(centered_rbm)
+    rbm = unstandardize(centered_rbm)
     v = bitrand(3, 5)
     h = bitrand(2, 5)
     @test @inferred(mean_h_from_v(centered_rbm, v)) ≈ mean_h_from_v(rbm, v)
     @test @inferred(mean_v_from_h(centered_rbm, h)) ≈ mean_v_from_h(rbm, h)
 end
 
-@testset "center! without arguments resets offsets" begin
+@testset "standardize! without arguments resets the offsets of a CenteredRBM" begin
     rbm = CenteredBinaryRBM(randn(3), randn(2), randn(3, 2), randn(3), randn(2))
     v = bitrand(3, 7)
     F0 = free_energy(rbm, v)
-    @test center!(rbm) === rbm
+    @test standardize!(rbm) === rbm
     @test iszero(rbm.offset_v)
     @test iszero(rbm.offset_h)
     F1 = free_energy(rbm, v)
@@ -325,9 +317,9 @@ end
     # and centering must not change the pseudolikelihood.
     rbm = CenteredBinaryRBM(randn(1), randn(2), randn(1, 2), randn(1), randn(2))
     v = bitrand(1, 7)
-    @test log_pseudolikelihood(rbm, v) ≈ log_pseudolikelihood(uncenter(rbm), v)
+    @test log_pseudolikelihood(rbm, v) ≈ log_pseudolikelihood(unstandardize(rbm), v)
     @test log_pseudolikelihood(rbm, v; exact = true) ≈
-        log_pseudolikelihood(uncenter(rbm), v; exact = true)
+        log_pseudolikelihood(unstandardize(rbm), v; exact = true)
 
     # Gaussian visible and hidden layers use the closed-form conditionals.
     # Keep the conditionals normalizable: |γv| must exceed Σ_μ w_iμ² / |γh_μ|.
@@ -339,7 +331,7 @@ end
     )
     v = randn(3, 7)
     @test log_pseudolikelihood(rbm, v; exact = true) ≈
-        log_pseudolikelihood(uncenter(rbm), v; exact = true)
+        log_pseudolikelihood(unstandardize(rbm), v; exact = true)
     @test all(isfinite, log_pseudolikelihood(rbm, v))
 end
 

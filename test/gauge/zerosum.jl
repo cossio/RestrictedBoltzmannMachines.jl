@@ -4,7 +4,7 @@ using Statistics: mean
 using RestrictedBoltzmannMachines: zerosum, zerosum!, zerosum_weights, free_energy,
     RBM, Potts, Binary, Spin, Gaussian, ReLU, dReLU, pReLU, xReLU, sample_from_inputs,
     PottsGumbel, potts_to_gumbel, gumbel_to_potts, ∂free_energy, ∂regularize!,
-    standardize, unstandardize, CenteredRBM, center, uncenter
+    standardize, unstandardize, CenteredRBM
 
 @testset "zerosum (visible Potts)" begin
     N = (3, 2, 3)
@@ -402,7 +402,7 @@ end
     @test crbm1.offset_v == crbm.offset_v
     @test crbm1.offset_h == crbm.offset_h
     # the equivalent uncentered RBM is in zerosum gauge
-    urbm = uncenter(crbm1)
+    urbm = unstandardize(crbm1)
     @test norm(mean(urbm.w; dims = 1)) < 1.0e-10
     @test norm(mean(urbm.visible.θ; dims = 1)) < 1.0e-10
 
@@ -650,7 +650,7 @@ end
     crbm.visible.par .-= 0.1 * ∂.visible
     crbm.hidden.par .-= 0.1 * ∂.hidden
     crbm.w .-= 0.1 * ∂.w
-    urbm = uncenter(crbm)
+    urbm = unstandardize(crbm)
     @test norm(mean(urbm.w; dims = 1)) < 1.0e-10
     @test norm(mean(urbm.visible.θ; dims = 1)) < 1.0e-10
 end
@@ -675,7 +675,7 @@ end
     crbm.visible.par .-= 0.1 * ∂.visible
     crbm.hidden.par .-= 0.1 * ∂.hidden
     crbm.w .-= 0.1 * ∂.w
-    urbm = uncenter(crbm)
+    urbm = unstandardize(crbm)
     @test norm(mean(urbm.w; dims = 1)) < 1.0e-10
     @test norm(mean(urbm.visible.θ; dims = 1)) < 1.0e-10
 end
@@ -697,7 +697,7 @@ end
     @test crbm1.offset_v == crbm.offset_v
     @test crbm1.offset_h == crbm.offset_h
     # the equivalent uncentered RBM is in zerosum gauge
-    urbm = uncenter(crbm1)
+    urbm = unstandardize(crbm1)
     @test norm(mean(urbm.w; dims = ndims(crbm.visible) + 1)) < 1.0e-10
     @test norm(mean(urbm.hidden.θ; dims = 1)) < 1.0e-10
 

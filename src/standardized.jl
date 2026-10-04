@@ -73,8 +73,7 @@ standardize_h(rbm::StandardizedRBM, h::AbstractArray) = _maybe_div(h .- rbm.offs
     RBM(rbm::StandardizedRBM)
 
 Plain `RBM` sharing the layers and weights of `rbm` but ignoring its offsets and scales, so
-it is *not* equivalent to `rbm`. For an equivalent model use [`unstandardize`](@ref) (or
-[`uncenter`](@ref) for a [`CenteredRBM`](@ref)).
+it is *not* equivalent to `rbm`. For an equivalent model use [`unstandardize`](@ref).
 """
 RBM(rbm::StandardizedRBM) = RBM(rbm.visible, rbm.hidden, rbm.w)
 
@@ -255,8 +254,11 @@ end
 """
     rescale_hidden_activations!(rbm::StandardizedRBM)
 
-Absorbs `scale_h` into the hidden layer if it has a scale parameter, returning `true`
-if this was done. The modified RBM is equivalent to the original one.
+Fixes the scale gauge of hidden units that have a scale parameter, returning `true` if
+they do. A `StandardizedRBM` absorbs `scale_h` into the hidden layer, so that `scale_h`
+becomes one and `var(h) ≈ 1`. The scales of a [`CenteredRBM`](@ref) are fixed to one, so it
+normalizes the weights of each hidden unit instead (see [`rescale_weights!`](@ref)). The
+modified RBM is equivalent to the original one.
 """
 function rescale_hidden_activations!(rbm::StandardizedRBM)
     return rescale_hidden!(rbm, copy(rbm.scale_h))
@@ -272,11 +274,17 @@ unstandardize(rbm::StandardizedRBM) = RBM(standardize(rbm))
 unstandardize(rbm::RBM) = rbm
 
 @doc raw"""
-    standardize(rbm, offset_v = 0, offset_h = 0, scale_v = 1, scale_h = 1)
+    standardize(rbm)
+    standardize(rbm, offset_v, offset_h)
+    standardize(rbm, offset_v, offset_h, scale_v, scale_h)
 
 Constructs a `StandardizedRBM` equivalent to the given `rbm` (a plain `RBM` or another
 `StandardizedRBM`), with the given offsets and scales. The energies assigned by the two
 models differ by a constant amount, so the modeled distribution is unchanged.
+
+Omitted offsets are zero. Omitted scales are one, except that the three-argument form
+keeps the scales of `rbm`: those of a `StandardizedRBM`, or unit scales for a plain `RBM`,
+which gives a [`CenteredRBM`](@ref).
 
 This is the inverse operation of [`unstandardize`](@ref). To construct a
 `StandardizedRBM` that simply adopts these offsets and scales *without* preserving the
@@ -284,6 +292,9 @@ distribution, call `StandardizedRBM(rbm, offset_v, offset_h, scale_v, scale_h)` 
 """
 standardize(rbm::RBM) = StandardizedRBM(rbm)
 standardize(rbm::StandardizedRBM) = standardize(rbm, Zeros(rbm.offset_v), Zeros(rbm.offset_h), Ones(rbm.scale_v), Ones(rbm.scale_h))
+standardize(rbm::RBM, offset_v::AbstractArray, offset_h::AbstractArray) = standardize(CenteredRBM(rbm), offset_v, offset_h)
+standardize(rbm::StandardizedRBM, offset_v::AbstractArray, offset_h::AbstractArray) =
+    standardize(rbm, offset_v, offset_h, rbm.scale_v, rbm.scale_h)
 
 function standardize(
         rbm::StandardizedRBM,
@@ -340,12 +351,15 @@ standardize_visible(rbm::RBM) = standardize(rbm)
 standardize_hidden(rbm::RBM) = standardize(rbm)
 
 """
+    standardize!(rbm::StandardizedRBM)
+    standardize!(rbm::StandardizedRBM, offset_v, offset_h)
     standardize!(rbm::StandardizedRBM, offset_v, offset_h, scale_v, scale_h)
 
 Transforms the offsets and scales of `rbm` in place. The transformed model is equivalent
 to the original one (energies differ by a constant). In-place analogue of
-[`standardize`](@ref). The scales of a [`CenteredRBM`](@ref) are fixed to one, so other
-scales throw an error; use [`standardize`](@ref) instead.
+[`standardize`](@ref): omitted offsets are zero, and omitted scales are one, or are kept
+by the three-argument form. The scales of a [`CenteredRBM`](@ref) are fixed to one, so
+other scales throw an error; use [`standardize`](@ref) instead.
 """
 function standardize!(rbm::StandardizedRBM, offset_v::AbstractArray, offset_h::AbstractArray, scale_v::AbstractArray, scale_h::AbstractArray)
     @assert size(rbm.visible) == size(offset_v) == size(scale_v)
@@ -354,6 +368,11 @@ function standardize!(rbm::StandardizedRBM, offset_v::AbstractArray, offset_h::A
     standardize_hidden!(rbm, offset_h, scale_h)
     return rbm
 end
+
+standardize!(rbm::StandardizedRBM, offset_v::AbstractArray, offset_h::AbstractArray) =
+    standardize!(rbm, offset_v, offset_h, rbm.scale_v, rbm.scale_h)
+standardize!(rbm::StandardizedRBM) =
+    standardize!(rbm, Zeros(rbm.offset_v), Zeros(rbm.offset_h), Ones(rbm.scale_v), Ones(rbm.scale_h))
 
 function standardize_visible!(rbm::StandardizedRBM, offset_v::AbstractArray, scale_v::AbstractArray)
     @assert size(rbm.visible) == size(offset_v) == size(scale_v)
@@ -386,8 +405,9 @@ end
 """
     standardize_visible_from_data!(rbm::StandardizedRBM, data; [wts], ϵ = 0)
 
-Sets the visible offsets and scales to the mean and standard deviation of `data`.
-The model is unchanged (energies differ by a constant).
+Sets the visible offsets and scales to the mean and standard deviation of `data`; the
+scales of a [`CenteredRBM`](@ref) stay fixed to one. The model is unchanged (energies
+differ by a constant).
 """
 function standardize_visible_from_data!(
         rbm::StandardizedRBM, data::AbstractArray;
@@ -404,7 +424,7 @@ end
 
 function standardize_hidden_from_inputs!(
         rbm::StandardizedRBM, inputs::AbstractArray;
-        wts::AbstractArray{<:Real} = uniform_wts(rbm.hidden, inputs), damping::Real = 0, ϵ::Real = 0
+        wts::AbstractArray{<:Real} = uniform_wts(rbm.hidden, inputs), damping::Real = 1, ϵ::Real = 0
     )
     μ, ν = total_meanvar_from_inputs(rbm.hidden, inputs; wts)
     offset_h = (1 - damping) .* rbm.offset_h + damping .* μ
@@ -413,30 +433,43 @@ function standardize_hidden_from_inputs!(
 end
 
 """
-    standardize_hidden_from_v!(rbm::StandardizedRBM, v; [wts], damping = 0, ϵ = 0)
+    standardize_hidden_from_v!(rbm::StandardizedRBM, v; [wts], damping = 1, ϵ = 0)
 
-Sets the hidden offsets and scales to the mean and standard deviation of hidden unit
-activations conditioned on `v`. The model is unchanged (energies differ by a constant).
+Moves the hidden offsets and scales towards the mean and standard deviation of hidden
+unit activations conditioned on `v`, by a fraction `damping` (`1` sets them); the scales of
+a [`CenteredRBM`](@ref) stay fixed to one. The model is unchanged (energies differ by a
+constant).
 """
 function standardize_hidden_from_v!(
         rbm::StandardizedRBM, v::AbstractArray;
-        wts::AbstractArray{<:Real} = uniform_wts(rbm.visible, v), damping::Real = 0, ϵ::Real = 0
+        wts::AbstractArray{<:Real} = uniform_wts(rbm.visible, v), damping::Real = 1, ϵ::Real = 0
     )
     inputs = inputs_h_from_v(rbm, v)
     return standardize_hidden_from_inputs!(rbm, inputs; damping, wts, ϵ)
 end
 
+function initialize!(
+        rbm::StandardizedRBM, data::AbstractArray;
+        ϵ::Real = 1.0e-6, wts::AbstractVector{<:Real} = uniform_wts(rbm.visible, data)
+    )
+    initialize!(RBM(rbm), data; ϵ, wts)
+    standardize_visible_from_data!(rbm, data; wts)
+    standardize_hidden_from_v!(rbm, data; wts)
+    return rbm
+end
+
 """
     pcd!(rbm::StandardizedRBM, data; damping = 1 // 100, ϵv = 0, ϵh = 0,
-         regularize_unstandardized = true, rescale_hidden = true, kwargs...)
+         regularize_unstandardized = true, kwargs...)
 
-[`pcd!`](@ref) for a `StandardizedRBM`, with the same keywords as for a plain `RBM` except
-`rescale`. The visible offsets and scales are set from `data` before training, and after
-every update the hidden offsets and scales move towards the minibatch conditional
-statistics by a fraction `damping`; `ϵv`, `ϵh` are pseudocounts added to the variances.
-If `rescale_hidden`, `scale_h` is absorbed into hidden units that have a scale parameter,
-so that `var(h) ≈ 1`. Regularization applies to the equivalent plain `RBM` if
-`regularize_unstandardized`, otherwise to the standardized parameters.
+[`pcd!`](@ref) for a `StandardizedRBM` (including a [`CenteredRBM`](@ref)), with the same
+keywords as for a plain `RBM`. The offsets and scales of both layers are set from `data`
+before training, and after every update the hidden ones move towards the minibatch
+conditional statistics by a fraction `damping`; `ϵv`, `ϵh` are pseudocounts added to the
+variances. The scales of a `CenteredRBM` stay fixed to one. If `rescale`, the scale gauge
+of the hidden units is fixed by [`rescale_hidden_activations!`](@ref). Regularization
+applies to the equivalent plain `RBM` if `regularize_unstandardized`, otherwise to the
+standardized parameters.
 """
 function pcd!(
         rbm::StandardizedRBM,
@@ -455,7 +488,7 @@ function pcd!(
         l2_weights::Real = 0,
         l2l1_weights::Real = 0,
         zerosum::Bool = true,
-        rescale_hidden::Bool = true, # absorb scale_h into hidden units with a scale parameter, so var(h) ~ 1
+        rescale::Bool = true,
         callback = Returns(nothing),
         vm::AbstractArray = _default_fantasy_chains(rbm, min(batchsize, size(data)[end])),
         shuffle::Bool = true,
@@ -466,7 +499,10 @@ function pcd!(
     wts_mean, batchsize = _pcd_check_args(rbm, data, wts, batchsize)
 
     standardize_visible_from_data!(rbm, data; wts, ϵ = ϵv)
+    standardize_hidden_from_v!(rbm, data; wts, ϵ = ϵh)
+    # zerosum! first because rescaling preserves the zero-sum gauge
     zerosum && zerosum!(rbm)
+    rescale && rescale_hidden_activations!(rbm)
 
     for (iter, (vd, wd)) in zip(1:iters, infinite_minibatches(data, wts; batchsize, shuffle))
         state, ps, ∂ = _pcd_step!(
@@ -475,11 +511,9 @@ function pcd!(
             regularize_unstandardized
         )
 
-        # update standardization
         standardize_hidden_from_v!(rbm, vd; wts = wd, damping, ϵ = ϵh)
-        # zerosum! first because absorbing scale_h preserves the zero-sum gauge
         zerosum && zerosum!(rbm)
-        rescale_hidden && rescale_hidden_activations!(rbm)
+        rescale && rescale_hidden_activations!(rbm)
 
         callback(; rbm, optim, state, ps, iter, vd, wd, ∂, vm)
     end

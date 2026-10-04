@@ -5,7 +5,7 @@ using FillArrays: Ones, Trues
 import Optimisers
 import RestrictedBoltzmannMachines as RBMs
 using RestrictedBoltzmannMachines: RBM, Binary, Gaussian, BinaryRBM,
-    CenteredRBM, StandardizedRBM, center, standardize, pcd!, initialize!
+    CenteredRBM, StandardizedRBM, standardize, pcd!, initialize!
 
 struct CountingDescent{T, R} <: Optimisers.AbstractRule
     eta::T
@@ -24,7 +24,7 @@ function base_rbm()
 end
 
 wrap_rbm(::Val{:plain}, rbm::RBM) = rbm
-wrap_rbm(::Val{:centered}, rbm::RBM) = center(rbm)
+wrap_rbm(::Val{:centered}, rbm::RBM) = CenteredRBM(rbm)
 wrap_rbm(::Val{:standardized}, rbm::RBM) = standardize(rbm)
 
 function model_state(rbm::RBM)

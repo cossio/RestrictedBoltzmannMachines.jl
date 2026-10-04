@@ -15,7 +15,7 @@ using Optimisers: Adam, Descent
 using RestrictedBoltzmannMachines: RBM, BinaryRBM, Binary, Spin, Potts, Gaussian,
     pcd!, initialize!, free_energy, log_likelihood,
     collect_states, mean_h_from_v, generate_sequences, onehot_encode,
-    center, uncenter, standardize, unstandardize, weight_norms,
+    standardize, unstandardize, weight_norms,
     CenteredRBM, StandardizedRBM
 
 all_visible_states(layer::Union{Binary, Spin}) = collect_states(layer)
@@ -47,7 +47,6 @@ function moment_gaps(rbm, data; wts = nothing)
 end
 
 plain_rbm(rbm::RBM) = rbm
-plain_rbm(rbm::CenteredRBM) = uncenter(rbm)
 plain_rbm(rbm::StandardizedRBM) = unstandardize(rbm)
 
 #= Trains `rbm` in place with `pcd!` and returns a plain `RBM` whose parameters are
@@ -244,7 +243,7 @@ end
 @testset "centered pcd moment matching" begin
     seed!(59)
     data = binary_dataset()
-    rbm = center(BinaryRBM(3, 5))
+    rbm = CenteredRBM(BinaryRBM(3, 5))
     initialize!(rbm, data)
     avg = pcd_averaged!(rbm, data; batchsize = 32, iters = 10000, steps = 5, optim = Adam(1.0e-3))
     gaps = moment_gaps(avg, data)

@@ -7,7 +7,7 @@ CurrentModule = RestrictedBoltzmannMachines
 This page describes how model training works in this package, focusing on:
 
 - [`pcd!`](@ref) for plain `RBM`,
-- specialized [`pcd!`](@ref) for `CenteredRBM` and `StandardizedRBM` (stdRBM).
+- specialized [`pcd!`](@ref) for `StandardizedRBM` (stdRBM), including `CenteredRBM`.
 
 Unbiased Contrastive Divergence (`ucd!`) for binary-binary RBMs lives in a
 separate package, [ucdRBMs.jl](https://github.com/cossio/ucdRBMs.jl).
@@ -67,24 +67,20 @@ At each training iteration, [`pcd!`](@ref) on `RBM`:
     was not given) and `∂` the gradient. Define callbacks with a trailing `_...` slurp
     (e.g. `callback(; rbm, iter, _...) = ...`) to stay robust if more keywords are added.
 
-## Specialized `pcd!` for `CenteredRBM`
-
-A `CenteredRBM` is a `StandardizedRBM` with fixed unit scales, but has its own method:
-`pcd!(rbm::CenteredRBM, data; ...)` takes the same arguments as for a plain `RBM` plus
-`hidden_offset_damping` (default `1//100`). It sets the visible offsets from `data` once
-before training, and after every update moves the hidden offsets towards the
-mini-batch conditional means by that fraction.
-
 ## Specialized `pcd!` for `StandardizedRBM` (stdRBM)
 
 `pcd!(rbm::StandardizedRBM, data; ...)` follows the same PCD backbone, with extra
-steps to keep the standardized parameterization stable during learning.
+steps to keep the standardized parameterization stable during learning. It also trains a
+`CenteredRBM`, the special case whose scales stay fixed to one, so that only its offsets
+are fitted.
 
 In addition to the standard PCD updates, it:
 
-1. updates visible standardization from data (`standardize_visible_from_data!`),
-2. updates hidden standardization from current mini-batches (`standardize_hidden_from_v!`),
-3. optionally rescales hidden activations (`rescale_hidden_activations!`),
+1. sets the visible and hidden standardization from data before training
+   (`standardize_visible_from_data!`, `standardize_hidden_from_v!`),
+2. updates the hidden standardization from current mini-batches (`standardize_hidden_from_v!`),
+3. optionally fixes the scale gauge of the hidden units (`rescale_hidden_activations!`:
+   absorbing `scale_h` for a `StandardizedRBM`, normalizing the weights for a `CenteredRBM`),
 4. can regularize either standardized or unstandardized parameters.
 
 ### stdRBM-specific arguments
@@ -94,11 +90,8 @@ In addition to the standard PCD updates, it:
   - `ϵv`, `ϵh`: pseudocount-like stabilizers for visible/hidden standardization.
 - Standardization-aware regularization:
   - `regularize_unstandardized`: if `true`, regularization is applied in the unstandardized gauge.
-- Hidden rescaling:
-  - `rescale_hidden`: absorb scale into hidden activation when relevant.
 
-Other arguments, including `callback`, are the same as for a plain `RBM`, except that
-there is no `rescale` (see `rescale_hidden` above).
+Other arguments, including `rescale` and `callback`, are the same as for a plain `RBM`.
 
 ## Practical tuning guidelines
 

@@ -40,7 +40,7 @@ This parameterization is gauge-equivalent to a plain RBM with transformed parame
 
 So both models represent exactly the same ``P(\mathbf{v},\mathbf{h})``. In practice:
 
-- use `standardize(rbm)` to introduce offsets/scales,
+- use `standardize(rbm)` to introduce offsets/scales, or `standardize(rbm, offset_v, offset_h)` to change the offsets only,
 - update them with `standardize_visible_from_data!` and `standardize_hidden_from_v!`,
 - use `unstandardize(rbm)` to recover an equivalent plain `RBM`.
 

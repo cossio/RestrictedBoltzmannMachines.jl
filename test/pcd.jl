@@ -3,11 +3,11 @@ using Test: @test, @testset
 using Statistics: mean
 using Random: bitrand
 using Optimisers: Adam
-using RestrictedBoltzmannMachines: BinaryRBM, HopfieldRBM, sample_v_from_v, initialize!, pcd!, center
+using RestrictedBoltzmannMachines: BinaryRBM, HopfieldRBM, sample_v_from_v, initialize!, pcd!, CenteredRBM
 
 Random.seed!(23)
 
-@testset "pcd ($name)" for (name, wrap) in (("plain", identity), ("centered", center))
+@testset "pcd ($name)" for (name, wrap) in (("plain", identity), ("centered", CenteredRBM))
     data = falses(2, 1000)
     data[1, 1:2:end] .= true
     data[2, 1:2:end] .= true
@@ -34,7 +34,7 @@ end
     @test all(isfinite, rbm.w)
 end
 
-@testset "pcd! shuffle, ps, state, and unified callback keywords ($name)" for (name, wrap) in (("plain", identity), ("centered", center))
+@testset "pcd! shuffle, ps, state, and unified callback keywords ($name)" for (name, wrap) in (("plain", identity), ("centered", CenteredRBM))
     data = bitrand(2, 32)
     rbm = wrap(BinaryRBM(2, 3))
     seen = Ref{Any}(nothing)

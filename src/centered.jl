@@ -2,8 +2,7 @@
     CenteredRBM{V,H,W,Ov,Oh}
 
 A [`StandardizedRBM`](@ref) whose scales are fixed to one, so in-place updates change only
-its offsets (see [`center!`](@ref)).
-See <http://jmlr.org/papers/v17/14-237.html>.
+its offsets. See <http://jmlr.org/papers/v17/14-237.html>.
 """
 const CenteredRBM{V, H, W, Ov, Oh} = StandardizedRBM{V, H, W, Ov, Oh, <:Trues, <:Trues}
 
@@ -13,6 +12,7 @@ const CenteredRBM{V, H, W, Ov, Oh} = StandardizedRBM{V, H, W, Ov, Oh, <:Trues, <
 Creates a centered RBM, with offsets `λv` (visible) and `λh` (hidden).
 See <http://jmlr.org/papers/v17/14-237.html> for details.
 The resulting model is *not* equivalent to the original `rbm`, unless `λv = 0` and `λh = 0`.
+To construct an equivalent model instead, use [`standardize`](@ref).
 """
 function CenteredRBM(rbm::RBM, offset_v::AbstractArray, offset_h::AbstractArray)
     return StandardizedRBM(rbm, offset_v, offset_h, Trues(size(rbm.visible)), Trues(size(rbm.hidden)))
@@ -53,91 +53,22 @@ function CenteredBinaryRBM(a::AbstractArray, b::AbstractArray, w::AbstractArray)
     return CenteredRBM(BinaryRBM(a, b, w))
 end
 
-"""
-    uncenter(centered_rbm::CenteredRBM)
-
-Constructs a plain `RBM` equivalent to `centered_rbm` (energies differ by the constant
-given in [`center`](@ref), whose inverse this is). To construct an `RBM` that simply
-neglects the offsets, call `RBM(centered_rbm)` instead.
-"""
-uncenter(centered_rbm::CenteredRBM) = unstandardize(centered_rbm)
-uncenter(rbm::RBM) = rbm
-
-@doc raw"""
-    center(rbm::RBM, offset_v = 0, offset_h = 0)
-
-Constructs a `CenteredRBM` equivalent to the given `rbm`.
-The energies assigned by the two models differ by a constant amount,
-
-```math
-E(v,h) - E_c(v,h) = \sum_{i\mu}w_{i\mu}\lambda_i\lambda_\mu
-```
-
-where ``E(v,h)`` is the energy assigned by the original `rbm`, and
-``E_c(v,h)`` is the energy assigned by the returned `CenteredRBM`.
-
-This is the inverse operation of [`uncenter`](@ref).
-
-To construct a `CenteredRBM` that simply includes these offsets,
-call `CenteredRBM(rbm, offset_v, offset_h)` instead.
-"""
-center(rbm::Union{RBM, CenteredRBM}, offset_v::AbstractArray, offset_h::AbstractArray) =
-    standardize(rbm, offset_v, offset_h, Trues(size(rbm.visible)), Trues(size(rbm.hidden)))
-center(rbm::CenteredRBM) = center(rbm, Zeros(rbm.offset_v), Zeros(rbm.offset_h))
-center(rbm::RBM) = CenteredRBM(rbm)
-
-"""
-    center!(centered_rbm, offset_v = 0, offset_h = 0)
-
-Transforms the offsets of `centered_rbm`. The transformed model is equivalent to
-the original one (energies differ by a constant).
-"""
-center!(rbm::CenteredRBM, offset_v::AbstractArray, offset_h::AbstractArray) =
-    standardize!(rbm, offset_v, offset_h, rbm.scale_v, rbm.scale_h)
-center!(rbm::CenteredRBM) = center!(rbm, Zeros(rbm.offset_v), Zeros(rbm.offset_h))
-
-"""
-    center_visible_from_data!(rbm::CenteredRBM, data; [wts])
-
-Sets the visible offsets to the mean of `data`. The model is unchanged (energies
-differ by a constant).
-"""
-function center_visible_from_data!(
+# The scales of a `CenteredRBM` are fixed to one, so fitting statistics from data only
+# updates its offsets.
+function standardize_visible_from_data!(
         rbm::CenteredRBM, data::AbstractArray;
-        wts::AbstractArray{<:Real} = uniform_wts(rbm.visible, data)
+        wts::AbstractArray{<:Real} = uniform_wts(rbm.visible, data), ϵ::Real = 0
     )
-    offset_v = batchmean(rbm.visible, data; wts)
-    return standardize_visible!(rbm, offset_v, rbm.scale_v)
+    return standardize_visible!(rbm, batchmean(rbm.visible, data; wts), rbm.scale_v)
 end
 
-"""
-    center_hidden_from_data!(rbm::CenteredRBM, data; [wts], damping = 1)
-
-Sets the hidden offsets to the mean hidden activations conditioned on `data`.
-The model is unchanged (energies differ by a constant).
-"""
-function center_hidden_from_data!(
-        rbm::CenteredRBM, data::AbstractArray;
-        wts::AbstractArray{<:Real} = uniform_wts(rbm.visible, data), damping::Real = 1
+function standardize_hidden_from_inputs!(
+        rbm::CenteredRBM, inputs::AbstractArray;
+        wts::AbstractArray{<:Real} = uniform_wts(rbm.hidden, inputs), damping::Real = 1, ϵ::Real = 0
     )
-    offset_h_new = total_mean_h_from_v(rbm, data; wts)
-    offset_h = (1 - damping) .* rbm.offset_h .+ damping .* offset_h_new
+    μ = total_mean_from_inputs(rbm.hidden, inputs; wts)
+    offset_h = (1 - damping) .* rbm.offset_h .+ damping .* μ
     return standardize_hidden!(rbm, offset_h, rbm.scale_h)
-end
-
-"""
-    center_from_data!(rbm::CenteredRBM, data; [wts])
-
-Sets the visible and hidden offsets from the means of `data`. The model is unchanged
-(energies differ by a constant).
-"""
-function center_from_data!(
-        rbm::CenteredRBM, data::AbstractArray;
-        wts::AbstractArray{<:Real} = uniform_wts(rbm.visible, data)
-    )
-    center_visible_from_data!(rbm, data; wts)
-    center_hidden_from_data!(rbm, data; wts)
-    return rbm
 end
 
 """
@@ -159,64 +90,5 @@ function rescale_hidden!(rbm::CenteredRBM, λ::AbstractArray)
     return false
 end
 
-function initialize!(rbm::CenteredRBM, data::AbstractArray; ϵ::Real = 1.0e-6)
-    initialize!(RBM(rbm), data; ϵ)
-    center_from_data!(rbm, data)
-    return rbm
-end
-
-"""
-    pcd!(rbm::CenteredRBM, data; hidden_offset_damping = 1 // 100, kwargs...)
-
-[`pcd!`](@ref) for a `CenteredRBM`, with the same keywords as for a plain `RBM`. The
-visible offsets are set to the data means before training, and after every update the
-hidden offsets move towards the minibatch conditional means by a fraction
-`hidden_offset_damping`.
-"""
-function pcd!(
-        rbm::CenteredRBM,
-        data::AbstractArray;
-        batchsize::Int = 1,
-        iters::Int = 1,
-        wts::AbstractVector{<:Real} = uniform_wts(rbm.visible, data),
-        steps::Int = 1,
-        optim::AbstractRule = Adam(),
-        moments = moments_from_samples(rbm.visible, data; wts),
-        hidden_offset_damping::Real = 1 // 100,
-        l2_fields::Real = 0,
-        l1_weights::Real = 0,
-        l2_weights::Real = 0,
-        l2l1_weights::Real = 0,
-        zerosum::Bool = true,
-        rescale::Bool = true,
-        callback = Returns(nothing),
-        vm::AbstractArray = _default_fantasy_chains(rbm, min(batchsize, size(data)[end])),
-        shuffle::Bool = true,
-        ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w),
-        state = setup(optim, ps),
-    )
-    wts_mean, batchsize = _pcd_check_args(rbm, data, wts, batchsize)
-
-    center_from_data!(rbm, data; wts) # initial centering from data
-    # initial gauge; zerosum! first because rescaling preserves the zero-sum gauge,
-    # while zerosum! perturbs weight norms
-    zerosum && zerosum!(rbm)
-    rescale && rescale_weights!(rbm)
-
-    for (iter, (vd, wd)) in zip(1:iters, infinite_minibatches(data, wts; batchsize, shuffle))
-        state, ps, ∂ = _pcd_step!(
-            rbm, ps, state, vd, wd, vm, wts_mean;
-            steps, moments, l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum
-        )
-
-        # damped update of the hidden offsets towards <h>_d from the minibatch
-        center_hidden_from_data!(rbm, vd; wts = wd, damping = hidden_offset_damping)
-
-        # reset gauge (zerosum! first, as above)
-        zerosum && zerosum!(rbm)
-        rescale && rescale_weights!(rbm)
-
-        callback(; rbm, optim, state, ps, iter, vd, wd, ∂, vm)
-    end
-    return state, ps
-end
+# the unit scales cannot absorb the hidden scale gauge, so normalize the weights instead
+rescale_hidden_activations!(rbm::CenteredRBM) = rescale_weights!(rbm)

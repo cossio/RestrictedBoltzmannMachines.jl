@@ -1,5 +1,5 @@
 using Optimisers: Descent
-using RestrictedBoltzmannMachines: Binary, RBM, center, cgfs, moments_from_inputs, pReLU,
+using RestrictedBoltzmannMachines: Binary, RBM, CenteredRBM, cgfs, moments_from_inputs, pReLU,
     pcd!, standardize, xReLU, ∂energy_from_moments
 using FillArrays: Trues
 using Test: @test, @testset
@@ -31,7 +31,7 @@ function boundary_rbm()
 end
 
 pcd_model(::Val{:plain}) = boundary_rbm()
-pcd_model(::Val{:centered}) = center(boundary_rbm())
+pcd_model(::Val{:centered}) = CenteredRBM(boundary_rbm())
 pcd_model(::Val{:standardized}) = standardize(boundary_rbm())
 
 function run_pcd!(
@@ -46,25 +46,13 @@ function run_pcd!(
 end
 
 function run_pcd!(
-        ::Val{:centered}, rbm, data, vm;
+        ::Union{Val{:centered}, Val{:standardized}}, rbm, data, vm;
         iters::Int, callback, wts = Trues(size(data, ndims(data))), optim = Descent(1.0e-3),
     )
     return pcd!(
         rbm, data;
         batchsize = 1, iters, steps = 0, vm, callback, wts, optim,
         rescale = false, zerosum = false,
-        hidden_offset_damping = 0,
-    )
-end
-
-function run_pcd!(
-        ::Val{:standardized}, rbm, data, vm;
-        iters::Int, callback, wts = Trues(size(data, ndims(data))), optim = Descent(1.0e-3),
-    )
-    return pcd!(
-        rbm, data;
-        batchsize = 1, iters, steps = 0, vm, callback, wts, optim,
-        rescale_hidden = false, zerosum = false,
         shuffle = false, damping = 0, ϵv = 1,
     )
 end
@@ -77,20 +65,11 @@ function run_pcd_with_default_vm!(::Val{:plain}, rbm, data; callback)
     )
 end
 
-function run_pcd_with_default_vm!(::Val{:centered}, rbm, data; callback)
+function run_pcd_with_default_vm!(::Union{Val{:centered}, Val{:standardized}}, rbm, data; callback)
     return pcd!(
         rbm, data;
         batchsize = 1, iters = 0, steps = 0, callback,
         rescale = false, zerosum = false,
-        hidden_offset_damping = 0,
-    )
-end
-
-function run_pcd_with_default_vm!(::Val{:standardized}, rbm, data; callback)
-    return pcd!(
-        rbm, data;
-        batchsize = 1, iters = 0, steps = 0, callback,
-        rescale_hidden = false, zerosum = false,
         shuffle = false, damping = 0, ϵv = 1,
     )
 end
@@ -149,7 +128,7 @@ end
     name in (:plain, :centered, :standardized)
 
     rbm = RBM(unit_prelu(0.0), Binary((1,)), ones(1, 1))
-    name === :centered && (rbm = center(rbm))
+    name === :centered && (rbm = CenteredRBM(rbm))
     name === :standardized && (rbm = standardize(rbm))
     rbm.visible.η .= Inf
     callback_called = Ref(false)

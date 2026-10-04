@@ -7,9 +7,26 @@ All notable changes to this project will be documented in this file. The format 
 - **Breaking**: `CenteredRBM` is now an alias for a `StandardizedRBM` whose scales are
   fixed to one, instead of a separate struct. Centered models are thus
   `StandardizedRBM`s (code dispatching on `StandardizedRBM` now receives them too) and
-  support its methods, e.g. `standardize` to other scales and `unstandardize`. The
-  centered API and the HDF5 format are unchanged. In-place standardization of a centered
-  model to other scales throws.
+  use its methods, which keep their scales fixed: in-place standardization to other
+  scales throws, and fitting statistics from data only updates their offsets. The HDF5
+  format is unchanged.
+- **Breaking**: the centered API is replaced by the `StandardizedRBM` one: `center` and
+  `uncenter` by `standardize` and `unstandardize`, `center!` by `standardize!`, and
+  `center_visible_from_data!`, `center_hidden_from_data!` and `center_from_data!` by
+  `standardize_visible_from_data!` and `standardize_hidden_from_v!`. The new
+  `standardize(rbm, offset_v, offset_h)` and `standardize!(rbm, offset_v, offset_h)` change
+  the offsets and keep the scales (`standardize(rbm::RBM, offset_v, offset_h)` returns a
+  `CenteredRBM`), and `standardize!(rbm)` resets the offsets to zero and the scales to one.
+- **Breaking**: a single `pcd!` trains both `StandardizedRBM` and `CenteredRBM`. Its
+  `rescale_hidden` keyword is renamed `rescale`, and the centered `hidden_offset_damping`
+  becomes `damping`. Training now also sets the hidden standardization of a
+  `StandardizedRBM` from the data before the first update, as it already did for the
+  offsets of a `CenteredRBM`. `rescale_hidden_activations!` on a `CenteredRBM` normalizes
+  the hidden weights (its scales cannot absorb the gauge), as the centered `pcd!` did.
+- **Breaking**: `standardize_hidden_from_v!` defaults to `damping = 1`, so it sets the
+  hidden standardization as documented; the previous default, `0`, changed nothing.
+- `initialize!(rbm, data)` now also accepts any `StandardizedRBM`, setting its offsets and
+  scales from `data` after initializing the parameters.
 - `log_partition` (by exhaustive enumeration) and `log_likelihood` now also accept a
   `CenteredRBM`. They dispatch on the generic `free_energy` interface instead of
   carrying separate `RBM` and `StandardizedRBM` methods.
