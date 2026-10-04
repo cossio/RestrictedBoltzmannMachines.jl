@@ -4,7 +4,8 @@ using Statistics: mean
 using Random: bitrand
 using Optimisers: Adam
 using RestrictedBoltzmannMachines: BinaryRBM, HopfieldRBM, sample_v_from_v, initialize!, pcd!, CenteredRBM
-using RestrictedBoltzmannMachines: RBM, Potts, Gaussian, StandardizedRBM, inputs_h_from_v, free_energy
+using RestrictedBoltzmannMachines: RBM, Potts, Gaussian, StandardizedRBM, inputs_h_from_v, free_energy, free_energy_h
+using RestrictedBoltzmannMachines: standardize_hidden_from_inputs!, sample_h_from_v
 using RestrictedBoltzmannMachines: standardize_visible_from_data!, standardize_hidden_from_v!, unstandardize, standardize
 using RestrictedBoltzmannMachines: PlainStandardizedRBM
 using FillArrays: Falses, Trues
@@ -78,11 +79,14 @@ end
     @test inputs_h_from_v(std_rbm, data) == inputs_h_from_v(rbm, data)
     @test eltype(inputs_h_from_v(std_rbm, data)) === eltype(inputs_h_from_v(rbm, data)) === Float32
     @test free_energy(std_rbm, data) == free_energy(rbm, data)
+    h = sample_h_from_v(rbm, data)
+    @test free_energy_h(std_rbm, h) == free_energy_h(rbm, h)
 
     # fitting statistics from data changes nothing
     pars = (copy(rbm.visible.par), copy(rbm.hidden.par), copy(rbm.w))
     standardize_visible_from_data!(std_rbm, data)
     standardize_hidden_from_v!(std_rbm, data)
+    standardize_hidden_from_inputs!(std_rbm, inputs_h_from_v(rbm, data))
     @test (rbm.visible.par, rbm.hidden.par, rbm.w) == pars
 
     # the standardization keywords are accepted (and irrelevant) for a plain RBM; the
