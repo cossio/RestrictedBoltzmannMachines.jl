@@ -219,6 +219,16 @@ end
     @test_throws ArgumentError ptt!(other, data; ladder, batchsize = 100)
 end
 
+#= ptt! draws every minibatch independently: consecutive minibatches of half the data
+overlap by 5 samples on average, while those of an epoch are disjoint. =#
+@testset "ptt! minibatches" begin
+    data = reshape(1:20, 1, 20)
+    batches = collect(Iterators.take(RBMs._random_minibatches(data, 1.0:20.0; batchsize = 10), 1000))
+    @test all(((x, w),) -> size(x) == (1, 10) && allunique(x) && w == vec(x), batches)
+    @test 4.5 < mean(length(intersect(batches[n][1], batches[n + 1][1])) for n in 1:999) < 5.5
+    @test sort(vec(first(RBMs._random_minibatches(data, 1.0:20.0; batchsize = 20))[1])) == 1:20
+end
+
 #= The chains lag behind `model` at the independent-site model `base`, so that the online
 acceptance (≈ 0.61) overestimates the overlap of the two models at equilibrium (≈ 0.054). =#
 @testset "PTT rejects checkpoints that do not equilibrate" begin

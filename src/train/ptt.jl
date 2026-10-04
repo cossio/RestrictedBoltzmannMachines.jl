@@ -130,7 +130,11 @@ such as `Nesterov` or `Adam`, can make the model oscillate across a phase transi
 each crossing being rejected, whatever its initial learning rate; plain gradient
 descent (`Descent`) can then train through.
 
-`data` must have shape `(size(rbm.visible)..., nsamples)`.
+`data` must have shape `(size(rbm.visible)..., nsamples)`. As in the reference
+implementation, and unlike [`pcd!`](@ref), every minibatch is drawn at random from `data`,
+independently of the others, rather than by epochs. The minibatches of an epoch have
+anticorrelated noise, which makes the learning rate of [`CossimDescent`](@ref) collapse
+when an epoch has few minibatches.
 
 # Keyword arguments
 - `ladder`: the [`TrajectoryLadder`](@ref) of `rbm`, by default a new one with
@@ -143,7 +147,7 @@ descent (`Descent`) can then train through.
   `callback(; rbm, optim, state, ps, iter, vd, wd, ∂, vm, ladder)`, where `vm` are the
   chains of the ladder. Slurp unused keywords with a trailing `_...`.
 - `batchsize`, `iters`, `wts`, `moments`, `l2_fields`, `l1_weights`, `l2_weights`,
-  `l2l1_weights`, `zerosum`, `rescale`, `shuffle`, `ps`, `state`: as for [`pcd!`](@ref).
+  `l2l1_weights`, `zerosum`, `rescale`, `ps`, `state`: as for [`pcd!`](@ref).
 
 Returns `(state, ps)`.
 """
@@ -170,8 +174,6 @@ function ptt!(
 
         callback = Returns(nothing), # called for every batch
 
-        shuffle::Bool = true,
-
         # parameters to optimize
         ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w),
         state = setup(optim, ps),
@@ -185,7 +187,7 @@ function ptt!(
     rescale && rescale_weights!(rbm)
 
     halvings = 0 # of the learning rate, by rejected updates
-    for (iter, (vd, wd)) in zip(1:iters, infinite_minibatches(data, wts; batchsize, shuffle))
+    for (iter, (vd, wd)) in zip(1:iters, _random_minibatches(data, wts; batchsize))
         # negative phase first, since a rejected update restores the parameters
         status = _ptt_update!(ladder, rbm; steps)
         if status === :rejected
@@ -219,6 +221,21 @@ function ptt!(
         callback(; rbm, optim, state, ps, iter, vd, wd, ∂, vm = ladder.chains, ladder)
     end
     return state, ps
+end
+
+#= Infinite iterator over minibatches of `batchsize` distinct samples of `data` and their
+weights `wts`, each drawn at random independently of the others, by a partial
+Fisher-Yates shuffle of a persistent permutation, in O(batchsize) time. =#
+function _random_minibatches(data::AbstractArray, wts::AbstractVector; batchsize::Int)
+    perm = collect(1:length(wts))
+    return Iterators.map(Iterators.repeated(nothing)) do _
+        for i in 1:batchsize
+            j = rand(i:length(perm))
+            perm[i], perm[j] = perm[j], perm[i]
+        end
+        idx = perm[1:batchsize]
+        return data[.., idx], wts[idx]
+    end
 end
 
 #= One PTT update of the chains of `model`, which moved along its trajectory since the last
