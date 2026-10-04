@@ -35,7 +35,7 @@ using LinearAlgebra: norm
 using Test: @inferred
 using Test: @test
 using Test: @testset
-using RestrictedBoltzmannMachines: regularization_penalty
+using RestrictedBoltzmannMachines: RBM, regularization_penalty
 using Zygote: gradient
 
 @testset "CenteredBinaryRBM" begin
@@ -378,7 +378,7 @@ end
     @test all(isfinite, log_pseudolikelihood(rbm, v))
 end
 
-using RestrictedBoltzmannMachines: RBM, rescale_hidden!, rescale_weights!, weight_norms
+using RestrictedBoltzmannMachines: rescale_hidden!, rescale_weights!, weight_norms
 
 @testset "rescale_hidden! and rescale_weights! of CenteredRBM" begin
     #= rescale_hidden! reparameterizes the hidden units so that activations are divided
