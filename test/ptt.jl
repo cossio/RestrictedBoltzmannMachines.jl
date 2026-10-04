@@ -1,6 +1,6 @@
 import Random
 import RestrictedBoltzmannMachines as RBMs
-using Test: @test, @testset, @test_throws
+using Test: @test, @testset, @test_logs, @test_throws
 using Statistics: mean
 using LogExpFunctions: softmax
 using StatsBase: sample, Weights
@@ -266,4 +266,12 @@ end
     @test mean(RBMs.log_likelihood(rbm, data)) > ll₀ + 0.5
     # the checkpoints stay consistent (with steps this large, the chains can lag behind)
     @test all(isapprox.(ladder.logZ, log_partition.(ladder.checkpoints); atol = 0.2))
+
+    # a learning rate this large takes over 10 halvings, which may stall training
+    rbm = BinaryRBM(8, 4)
+    initialize!(rbm, data)
+    ladder = TrajectoryLadder(rbm; nchains = 500)
+    @test_logs (:warn, r"rejected 10 updates") match_mode = :any ptt!(
+        rbm, data; ladder, batchsize = 100, iters = 100, optim = Descent(1.0e4)
+    )
 end
