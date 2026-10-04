@@ -42,13 +42,13 @@ tv_noise(p::AbstractVector, n::Int) = sum(sqrt.(p .* (1 .- p) ./ n)) / 2
 exact_samples(states::AbstractArray, p::AbstractVector, n::Int) =
     states[.., sample(1:length(p), Weights(p), n)]
 
-# a ladder with a single checkpoint, `base`, without freezing or rejecting updates
-function fixed_ladder(model, base, states; nchains::Int, nreservoir::Int)
+# a ladder with a single checkpoint, `base`, without freezing or rejecting updates, which run `sweeps` sweeps
+function fixed_ladder(model, base, states; nchains::Int, nreservoir::Int, sweeps::Int)
     chains = exact_samples(states, softmax(-free_energy(model, states)), nchains)
     samples = exact_samples(states, softmax(-free_energy(base, states)), nreservoir)
     return TrajectoryLadder(;
         rbm = model, checkpoints = [base], logZ = [0.0], chains, chains_F = free_energy(model, chains),
-        samples, samples_F = free_energy(base, samples), sweeps = 1, α = 0.0, αmin = 0.0
+        samples, samples_F = free_energy(base, samples), sweeps, α = 0.0, αmin = 0.0
     )
 end
 
@@ -100,7 +100,8 @@ end
 
 #= Replica exchange with the reservoir, followed by Gibbs sampling, must leave the joint
 distribution of the chains and the reservoir invariant: starting both exactly at
-equilibrium, they must stay at equilibrium within Monte-Carlo error. =#
+equilibrium, they must stay at equilibrium within Monte-Carlo error, through updates of
+two sweeps each. =#
 @testset "no drift: PTT update, $V visible, standardized = $standardized" for (V, vsz) in ((Binary, (6,)), (Potts, (3, 3))), standardized in (false, true)
     model = RBM(random_layer(V, vsz), Binary(; θ = randn(3) / 2), randn(vsz..., 3) * 0.6)
     base = RBM(model.visible, model.hidden, model.w .+ randn(vsz..., 3) * 0.3)
@@ -111,7 +112,7 @@ equilibrium, they must stay at equilibrium within Monte-Carlo error. =#
     states = enumerate_states(model.visible)
     p = softmax(-free_energy(model, states))
     p₀ = softmax(-free_energy(base, states))
-    ladder = fixed_ladder(model, base, states; nchains = 20_000, nreservoir = 40_000)
+    ladder = fixed_ladder(model, base, states; nchains = 20_000, nreservoir = 40_000, sweeps = 2)
     for _ in 1:4
         @test RBMs._ptt_update!(ladder, model; steps = 1) === :accepted
         @test total_variation(empirical_distribution(ladder.chains, states), p) < 4tv_noise(p, 20_000)
