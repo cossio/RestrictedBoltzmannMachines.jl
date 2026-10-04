@@ -41,7 +41,6 @@ include("pseudolikelihood.jl")
 include("partition.jl")
 include("ais.jl")
 
-include("train/infinite_minibatches.jl")
 include("train/initialization.jl")
 include("train/pcd.jl")
 include("train/gradient.jl")
@@ -104,7 +103,7 @@ public standardize, standardize!, unstandardize
 public mirror, zerosum, zerosum!
 public cpu, gpu, save_rbm, load_rbm
 public ∂free_energy, ∂regularize!, sample_from_inputs, moments_from_samples
-public infinite_minibatches, uniform_wts, validate_wts, wmean, wsum
+public uniform_wts, validate_wts, wmean, wsum
 public rescale_weights!, rescale_hidden_activations!
 public standardize_visible_from_data!, standardize_hidden_from_v!
 

@@ -34,13 +34,13 @@ end
     @test all(isfinite, rbm.w)
 end
 
-@testset "pcd! shuffle, ps, state, and unified callback keywords ($name)" for (name, wrap) in (("plain", identity), ("centered", CenteredRBM))
+@testset "pcd! ps, state, and unified callback keywords ($name)" for (name, wrap) in (("plain", identity), ("centered", CenteredRBM))
     data = bitrand(2, 32)
     rbm = wrap(BinaryRBM(2, 3))
     seen = Ref{Any}(nothing)
     state, ps = pcd!(
         rbm, data;
-        iters = 2, batchsize = 8, shuffle = false,
+        iters = 2, batchsize = 8,
         callback = (; kwargs...) -> (seen[] = kwargs),
     )
     @test issubset((:rbm, :optim, :state, :ps, :iter, :vd, :wd, :∂, :vm), keys(seen[]))
