@@ -66,8 +66,6 @@ function StandardizedRBM(rbm::RBM)
     return StandardizedRBM(rbm, offset_v, offset_h, scale_v, scale_h)
 end
 
-# `_maybe_div` / `_maybe_mul` skip the lazy unit scales of a `CenteredRBM`, keeping its hot
-# paths free of divisions by one
 standardize_v(rbm::StandardizedRBM, v::AbstractArray) = _maybe_div(v .- rbm.offset_v, rbm.scale_v)
 standardize_h(rbm::StandardizedRBM, h::AbstractArray) = _maybe_div(h .- rbm.offset_h, rbm.scale_h)
 
@@ -80,9 +78,6 @@ it is *not* equivalent to `rbm`. For an equivalent model use [`unstandardize`](@
 """
 RBM(rbm::StandardizedRBM) = RBM(rbm.visible, rbm.hidden, rbm.w)
 
-# same offsets and scales as `rbm`, with `plain` as the underlying RBM
-_with_offsets(rbm::StandardizedRBM, plain::RBM) = StandardizedRBM(plain, rbm.offset_v, rbm.offset_h, rbm.scale_v, rbm.scale_h)
-
 # scales of the weights of the equivalent plain RBM, shaped like `rbm.w` (lazy for a CenteredRBM)
 _scale_w(rbm::StandardizedRBM) = _along_visible(rbm, rbm.scale_v) .* _along_hidden(rbm, rbm.scale_h)
 
@@ -92,10 +87,12 @@ _scale_w(rbm::StandardizedRBM) = _along_visible(rbm, rbm.scale_v) .* _along_hidd
 The constant energy shift of `rbm` with respect to its equivalent plain `RBM`.
 """
 delta_energy(rbm::RBM) = 0
-delta_energy(rbm::StandardizedRBM) = interaction_energy(rbm, Zeros(rbm.offset_v), Zeros(rbm.offset_h))
+delta_energy(rbm::StandardizedRBM) = interaction_energy(rbm, Falses(size(rbm.visible)), Falses(size(rbm.hidden)))
 
-potts_to_gumbel(rbm::StandardizedRBM) = _with_offsets(rbm, potts_to_gumbel(RBM(rbm)))
-gumbel_to_potts(rbm::StandardizedRBM) = _with_offsets(rbm, gumbel_to_potts(RBM(rbm)))
+potts_to_gumbel(rbm::StandardizedRBM) =
+    StandardizedRBM(potts_to_gumbel(RBM(rbm)), rbm.offset_v, rbm.offset_h, rbm.scale_v, rbm.scale_h)
+gumbel_to_potts(rbm::StandardizedRBM) =
+    StandardizedRBM(gumbel_to_potts(RBM(rbm)), rbm.offset_v, rbm.offset_h, rbm.scale_v, rbm.scale_h)
 
 """
     zerosum(rbm::StandardizedRBM)
