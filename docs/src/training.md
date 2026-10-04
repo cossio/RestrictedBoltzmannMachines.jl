@@ -161,12 +161,11 @@ The size of the updates sets how often checkpoints are frozen, each of which cos
 tens of sweeps, so a smaller learning rate trades slower learning for fewer checkpoints.
 Repeated rejections at the same checkpoint can mean that the chains lag behind the model,
 so that the acceptance overestimates its overlap with the checkpoint. A larger `steps`
-helps only if that many Gibbs steps move the chains between the modes of the model: when
-resuming the training of a sharply multimodal model, the rejections can persist at
-`steps = 10`. Every checkpoint is kept in `ladder.checkpoints`, with its log-partition
-function in `ladder.logZ`. The log-partition functions accumulate the errors of the
-successive estimates, from a few hundredths to about a tenth of a nat per checkpoint, so
-fewer checkpoints give more accurate estimates. For an `rbm` that is already trained and
+helps if that many Gibbs steps move the chains between the modes of the model. Every
+checkpoint is kept in `ladder.checkpoints`, with its log-partition function in
+`ladder.logZ`. The log-partition functions accumulate the errors of the successive
+estimates, from a few hundredths to about a tenth of a nat per checkpoint, so fewer
+checkpoints give more accurate estimates. For an `rbm` that is already trained and
 multimodal, the initial ladder can misjudge the weights of the modes unless the `anneal`
 steps of the `TrajectoryLadder` are many. For a final, independent estimate, build a new
 `TrajectoryLadder` for a copy of the trained model.
