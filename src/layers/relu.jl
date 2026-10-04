@@ -48,20 +48,28 @@ function meanvar_from_inputs(layer::ReLU, inputs::AbstractArray = Falses(size(la
     return μ + σ .* tμ, ν .* tν
 end
 
-function ∂energy_from_moments(layer::ReLU, moments::AbstractArray)
-    return ∂energy_from_moments(Gaussian(layer.par), moments)
+# the moments interface is shared with Gaussian, which has the same parameters
+function ∂energy_from_moments(layer::Union{Gaussian, ReLU}, moments::AbstractArray)
+    _check_moments(layer, moments)
+    x1 = @view moments[1, ..]
+    x2 = @view moments[2, ..]
+    ∂θ = -x1
+    ∂γ = @. sign(layer.γ) * x2 / 2
+    return stack([∂θ, ∂γ]; dims = 1)
 end
 
 """
-    moments_from_samples(layer::ReLU, data; [wts])
+    moments_from_samples(layer::Union{Gaussian, ReLU}, data; [wts])
 
-Two moment slots: `<x>` and `<x^2>` (same as `Gaussian`).
+Two moment slots: `<x>` and `<x^2>`.
 """
 function moments_from_samples(
-        layer::ReLU, data::AbstractArray;
+        layer::Union{Gaussian, ReLU}, data::AbstractArray;
         wts::AbstractArray{<:Real} = uniform_wts(layer, data)
     )
-    return moments_from_samples(Gaussian(layer.par), data; wts)
+    x1 = batchmean(layer, data; wts)
+    x2 = batchmean(layer, data .^ 2; wts)
+    return stack([x1, x2]; dims = 1)
 end
 
 function relu_energy(θ::Real, γ::Real, x::Real)

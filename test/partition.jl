@@ -2,7 +2,7 @@ using Test: @test, @testset
 using Random: randn!
 import Random
 import Zygote
-using NNlib: sigmoid
+using LogExpFunctions: logistic
 import RestrictedBoltzmannMachines as RBMs
 using RestrictedBoltzmannMachines: RBM, BinaryRBM, Binary
 
@@ -24,8 +24,8 @@ using RestrictedBoltzmannMachines: RBM, BinaryRBM, Binary
     gs = Zygote.gradient(rbm) do rbm
         RBMs.log_partition(rbm)
     end
-    @test only(gs).visible.par ≈ sigmoid.(rbm.visible.par)
-    @test only(gs).hidden.par ≈ sigmoid.(rbm.hidden.par)
+    @test only(gs).visible.par ≈ logistic.(rbm.visible.par)
+    @test only(gs).hidden.par ≈ logistic.(rbm.hidden.par)
 end
 
 @testset "Spin-Binary RBM partition function (brute force)" begin
@@ -48,7 +48,7 @@ end
         RBMs.log_partition(rbm)
     end
     @test only(gs).visible.par ≈ tanh.(rbm.visible.par)
-    @test only(gs).hidden.par ≈ sigmoid.(rbm.hidden.par)
+    @test only(gs).hidden.par ≈ logistic.(rbm.hidden.par)
 end
 
 @testset "collect_states of zero-sized layers" begin

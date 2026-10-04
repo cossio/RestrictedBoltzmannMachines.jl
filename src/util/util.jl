@@ -64,7 +64,7 @@ end
 """
     generate_sequences(n, A = 0:1)
 
-Retruns an iterator over all sequences of length `n` out of the alphabet `A`.
+Returns an iterator over all sequences of length `n` out of the alphabet `A`.
 """
 function generate_sequences(n::Int, A = 0:1)
     return (collect(seq) for seq in Iterators.product(ntuple(_ -> A, n)...))
@@ -90,10 +90,10 @@ _maybe_div(x::AbstractArray, s::AbstractArray) = x ./ s
 _maybe_mul(x::AbstractArray, ::Ones) = x
 _maybe_mul(x::AbstractArray, s::AbstractArray) = x .* s
 
-zeros_like(A::AbstractArray) = zeros_like(A, size(A))
-zeros_like(A::AbstractArray, size) = zero(similar(A, size))
+# zeros / ones with the array backend of `A` (e.g. CuArray)
+zeros_like(A::AbstractArray, sz = size(A)) = fill!(similar(A, sz), 0)
+ones_like(A::AbstractArray, sz = size(A)) = fill!(similar(A, sz), 1)
 
 # mutable copy preserving the array backend (e.g. CuArray), materializing
 # immutable/lazy arrays such as FillArrays.Zeros
 _mutable_copy(A::AbstractArray) = copyto!(similar(A), A)
-ones_like(A::AbstractArray, size) = one.(similar(A, size))

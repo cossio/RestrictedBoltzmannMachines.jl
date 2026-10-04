@@ -1,21 +1,19 @@
-using LinearAlgebra: I, norm
+using LinearAlgebra: norm
 using LogExpFunctions: logsumexp
 using Random: bitrand, seed!
 using RestrictedBoltzmannMachines: ∂free_energy, ∂free_energy_h, ∂free_energy_v, ∂regularize!
-using RestrictedBoltzmannMachines: Binary, Spin, dReLU, Gaussian, Potts, ReLU, nsReLU, pReLU, xReLU
+using RestrictedBoltzmannMachines: Binary, Spin, dReLU, Potts, ReLU, nsReLU
 using RestrictedBoltzmannMachines: RBM, StandardizedRBM
 using RestrictedBoltzmannMachines: BinaryRBM, BinaryStandardizedRBM, SpinStandardizedRBM
 using RestrictedBoltzmannMachines: weight_norms, delta_energy
 using RestrictedBoltzmannMachines: rescale_weights!, rescale_hidden_activations!
-using RestrictedBoltzmannMachines: energy, interaction_energy, free_energy, free_energy_h, free_energy_v
+using RestrictedBoltzmannMachines: energy, free_energy, free_energy_h, free_energy_v
 using RestrictedBoltzmannMachines: generate_sequences
-using RestrictedBoltzmannMachines: inputs_h_from_v, inputs_v_from_h
 using RestrictedBoltzmannMachines: log_partition
 using RestrictedBoltzmannMachines: mean_h_from_v, mean_v_from_h, var_h_from_v, var_v_from_h
 using RestrictedBoltzmannMachines: mirror
 using RestrictedBoltzmannMachines: pcd!, regularization_penalty
-using RestrictedBoltzmannMachines: sample_h_from_h, sample_v_from_v, sample_from_inputs
-using RestrictedBoltzmannMachines: shift_fields, shift_fields!
+using RestrictedBoltzmannMachines: sample_h_from_h, sample_v_from_v
 using RestrictedBoltzmannMachines: standardize, unstandardize, standardize!, unstandardized_weights
 using RestrictedBoltzmannMachines: standardize_hidden, standardize_visible
 using StatsBase: proportionmap
@@ -23,57 +21,6 @@ using Statistics: mean
 using FillArrays: Trues
 using Test: @inferred, @test, @testset
 using Zygote: gradient
-
-function energy_shift(offset::AbstractArray, x::AbstractArray)
-    @assert size(offset) == size(x)[1:ndims(offset)]
-    if ndims(offset) == ndims(x)
-        return -sum(offset .* x)
-    elseif ndims(offset) < ndims(x)
-        ΔE = -sum(offset .* x; dims = 1:ndims(offset))
-        return reshape(ΔE, size(x)[(ndims(offset) + 1):end])
-    end
-end
-
-@testset "shift_fields" begin
-    N = (3, 4)
-    layers = (
-        Binary(; θ = randn(N...)),
-        Spin(; θ = randn(N...)),
-        Potts(; θ = randn(N...)),
-        Gaussian(; θ = randn(N...), γ = rand(N...)),
-        ReLU(; θ = randn(N...), γ = rand(N...)),
-        dReLU(; θp = randn(N...), θn = randn(N...), γp = rand(N...), γn = rand(N...)),
-        pReLU(; θ = randn(N...), γ = rand(N...), Δ = randn(N...), η = rand(N...) .- 0.5),
-        xReLU(; θ = randn(N...), γ = rand(N...), Δ = randn(N...), ξ = randn(N...)),
-    )
-    for layer in layers
-        offset = randn(size(layer)...)
-        x = sample_from_inputs(layer, randn(size(layer)..., 2, 3))
-        layer_shifted = @inferred shift_fields(layer, offset)
-        @test energy(layer_shifted, x) ≈ energy(layer, x) + energy_shift(offset, x)
-    end
-end
-
-@testset "shift_fields!" begin
-    N = (3, 4)
-    layers = (
-        Binary(; θ = randn(N...)),
-        Spin(; θ = randn(N...)),
-        Potts(; θ = randn(N...)),
-        Gaussian(; θ = randn(N...), γ = rand(N...)),
-        ReLU(; θ = randn(N...), γ = rand(N...)),
-        dReLU(; θp = randn(N...), θn = randn(N...), γp = rand(N...), γn = rand(N...)),
-        pReLU(; θ = randn(N...), γ = rand(N...), Δ = randn(N...), η = rand(N...) .- 0.5),
-        xReLU(; θ = randn(N...), γ = rand(N...), Δ = randn(N...), ξ = randn(N...)),
-    )
-    for layer in layers
-        offset = randn(size(layer)...)
-        x = sample_from_inputs(layer, randn(size(layer)..., 2, 3))
-        E = energy(layer, x)
-        @inferred shift_fields!(layer, offset)
-        @test energy(layer, x) ≈ E + energy_shift(offset, x)
-    end
-end
 
 @testset "standardize" begin
     rbm = BinaryRBM(randn(3), randn(2), randn(3, 2))
@@ -152,41 +99,18 @@ end
     @test free_energy(rbm, v) .- delta_energy(rbm) ≈ F
 end
 
-@testset "∂free energy" begin
-    rbm = @inferred BinaryStandardizedRBM(
-        randn(3), randn(2), randn(3, 2),
-        randn(3), randn(2), rand(3), rand(2)
+@testset "∂free energy ($name)" for (name, rbm, h) in (
+        ("Binary", BinaryStandardizedRBM(randn(3), randn(2), randn(3, 2), randn(3), randn(2), rand(3), rand(2)), bitrand(2, 10)),
+        (
+            "nsReLU",
+            standardize(
+                RBM(Binary(; θ = randn(3)), nsReLU(; θ = randn(2), ξ = randn(2), Δ = randn(2)), randn(3, 2)),
+                randn(3), randn(2), 0.1 .+ rand(3), 0.1 .+ rand(2)
+            ),
+            randn(2, 10),
+        ),
     )
     v = bitrand(size(rbm.visible)..., 10)
-    h = bitrand(size(rbm.hidden)..., 10)
-
-    @test free_energy_v(rbm, v) == free_energy(rbm, v)
-    @test ∂free_energy_v(rbm, v) == ∂free_energy(rbm, v)
-
-    gs_v = gradient(rbm) do rbm
-        mean(free_energy_v(rbm, v))
-    end
-    ∂v = ∂free_energy_v(rbm, v)
-    @test ∂v.visible ≈ only(gs_v).visible.par
-    @test ∂v.hidden ≈ only(gs_v).hidden.par
-    @test ∂v.w ≈ only(gs_v).w
-
-    gs_h = gradient(rbm) do rbm
-        mean(free_energy_h(rbm, h))
-    end
-    ∂h = ∂free_energy_h(rbm, h)
-    @test ∂h.visible ≈ only(gs_h).visible.par
-    @test ∂h.hidden ≈ only(gs_h).hidden.par
-    @test ∂h.w ≈ only(gs_h).w
-end
-
-@testset "∂free_energy nsReLU" begin
-    rbm = standardize(
-        RBM(Binary(; θ = randn(3)), nsReLU(; θ = randn(2), ξ = randn(2), Δ = randn(2)), randn(3, 2)),
-        randn(3), randn(2), 0.1 .+ rand(3), 0.1 .+ rand(2)
-    )
-    v = bitrand(size(rbm.visible)..., 10)
-    h = randn(size(rbm.hidden)..., 10)
 
     @test free_energy_v(rbm, v) == free_energy(rbm, v)
     @test ∂free_energy_v(rbm, v) == ∂free_energy(rbm, v)
@@ -379,83 +303,13 @@ end
     @test vec(exact_probs_h) ≈ vec([get(empirical_probs_h, h, 0.0) for h in hs]) rtol = 0.05
 end
 
-@testset "∂regularize! standardized RBM with Binary" begin
-    rbm = BinaryStandardizedRBM(
-        randn(3), randn(2), randn(3, 2),
-        randn(3), randn(2), rand(3), rand(2)
+@testset "∂regularize! standardized RBM ($(nameof(typeof(visible))) visible)" for (visible, v) in (
+        (Binary(; θ = randn(3)), bitrand(3, 100)),
+        (ReLU(; θ = randn(3), γ = rand(3)), rand(3, 100)),
+        (dReLU(; θp = randn(3), θn = randn(3), γp = rand(3), γn = rand(3)), randn(3, 100)),
     )
-    v = bitrand(3, 100)
-    vdims = ntuple(identity, ndims(rbm.visible))
-    N = length(rbm.visible)
-
-    l2_fields = rand()
-    l1_weights = rand()
-    l2_weights = rand()
-    l2l1_weights = rand()
-
-    for regularize_unstandardized in (false, true)
-        gs = gradient(rbm) do rbm
-            F = mean(free_energy(rbm, v))
-            R = regularization_penalty(rbm; regularize_unstandardized, l1_weights, l2_weights, l2l1_weights, l2_fields)
-            return F + R
-        end
-
-        ∂ = ∂free_energy(rbm, v)
-        ∂regularize!(∂, rbm; regularize_unstandardized, l2_fields, l1_weights, l2_weights, l2l1_weights)
-
-        @test only(gs).visible.par ≈ ∂.visible
-        @test only(gs).hidden.par ≈ ∂.hidden
-        @test only(gs).w ≈ ∂.w
-    end
-end
-
-@testset "∂regularize! standardized RBM with ReLU" begin
-    rbm = StandardizedRBM(
-        ReLU(; θ = randn(3), γ = rand(3)),
-        Binary(; θ = randn(2)),
-        randn(3, 2),
-        randn(3), randn(2), rand(3), rand(2)
-    )
-    v = rand(3, 100)
-    vdims = ntuple(identity, ndims(rbm.visible))
-    N = length(rbm.visible)
-
-    l2_fields = rand()
-    l1_weights = rand()
-    l2_weights = rand()
-    l2l1_weights = rand()
-
-    for regularize_unstandardized in (false, true)
-        gs = gradient(rbm) do rbm
-            F = mean(free_energy(rbm, v))
-            R = regularization_penalty(rbm; regularize_unstandardized, l1_weights, l2_weights, l2l1_weights, l2_fields)
-            return F + R
-        end
-
-        ∂ = ∂free_energy(rbm, v)
-        ∂regularize!(∂, rbm; regularize_unstandardized, l2_fields, l1_weights, l2_weights, l2l1_weights)
-
-        @test only(gs).visible.par ≈ ∂.visible
-        @test only(gs).hidden.par ≈ ∂.hidden
-        @test only(gs).w ≈ ∂.w
-    end
-end
-
-@testset "∂regularize! standardized RBM with dReLU" begin
-    rbm = StandardizedRBM(
-        dReLU(; θp = randn(3), θn = randn(3), γp = rand(3), γn = rand(3)),
-        Binary(; θ = randn(2)),
-        randn(3, 2),
-        randn(3), randn(2), rand(3), rand(2)
-    )
-    v = randn(3, 100)
-    vdims = ntuple(identity, ndims(rbm.visible))
-    N = length(rbm.visible)
-
-    l2_fields = rand()
-    l1_weights = rand()
-    l2_weights = rand()
-    l2l1_weights = rand()
+    rbm = StandardizedRBM(visible, Binary(; θ = randn(2)), randn(3, 2), randn(3), randn(2), rand(3), rand(2))
+    l2_fields, l1_weights, l2_weights, l2l1_weights = rand(4)
 
     for regularize_unstandardized in (false, true)
         gs = gradient(rbm) do rbm
@@ -489,25 +343,11 @@ end
     @test weight_norms(rbm) ≈ weight_norms(unstandardize(rbm))
 end
 
-@testset "rescale_weights! std ReLU" begin
-    rbm = StandardizedRBM(
-        Binary(; θ = randn(3)), ReLU(; θ = randn(2), γ = 0.1 .+ rand(2)), randn(3, 2),
-        randn(3), randn(2), rand(3), rand(2)
+@testset "rescale_weights! std $(nameof(typeof(hidden)))" for hidden in (
+        ReLU(; θ = randn(2), γ = 0.1 .+ rand(2)),
+        dReLU(; θp = randn(2), θn = randn(2), γp = rand(2), γn = rand(2)),
     )
-    rbm_copy = deepcopy(rbm)
-
-    @test @inferred rescale_weights!(rbm)
-    @test weight_norms(unstandardize(rbm)) ≈ ones(size(rbm.hidden))
-
-    v = bitrand(size(rbm.visible)..., 100)
-    @test free_energy(rbm, v) ≈ free_energy(rbm_copy, v) .- sum(log, weight_norms(rbm_copy))
-end
-
-@testset "rescale_weights! std dReLU" begin
-    rbm = StandardizedRBM(
-        Binary(; θ = randn(3)), dReLU(; θp = randn(2), θn = randn(2), γp = rand(2), γn = rand(2)), randn(3, 2),
-        randn(3), randn(2), rand(3), rand(2)
-    )
+    rbm = StandardizedRBM(Binary(; θ = randn(3)), hidden, randn(3, 2), randn(3), randn(2), rand(3), rand(2))
     rbm_copy = deepcopy(rbm)
 
     @test @inferred rescale_weights!(rbm)

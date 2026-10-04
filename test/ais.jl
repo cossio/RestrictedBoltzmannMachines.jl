@@ -18,55 +18,26 @@ end
 @testset "anneal layer" begin
     β = 0.3
     N = 11
-
-    init = Binary(; θ = randn(N))
-    final = Binary(; θ = randn(N))
-    x = sample_from_inputs(final)
-    @test energy(anneal(init, final; β), x) ≈ (1 - β) * energy(init, x) + β * energy(final, x)
-
-    init = Spin(; θ = randn(N))
-    final = Spin(; θ = randn(N))
-    x = sample_from_inputs(final)
-    @test energy(anneal(init, final; β), x) ≈ (1 - β) * energy(init, x) + β * energy(final, x)
-
-    init = Potts(; θ = randn(N))
-    final = Potts(; θ = randn(N))
-    x = sample_from_inputs(final)
-    @test energy(anneal(init, final; β), x) ≈ (1 - β) * energy(init, x) + β * energy(final, x)
-
-    init = Gaussian(; θ = randn(N), γ = rand(N))
-    final = Gaussian(; θ = randn(N), γ = rand(N))
-    x = sample_from_inputs(final)
-    @test energy(anneal(init, final; β), x) ≈ (1 - β) * energy(init, x) + β * energy(final, x)
-
-    init = ReLU(; θ = randn(N), γ = rand(N))
-    final = ReLU(; θ = randn(N), γ = rand(N))
-    x = sample_from_inputs(final)
-    @test energy(anneal(init, final; β), x) ≈ (1 - β) * energy(init, x) + β * energy(final, x)
-
-    init = dReLU(; θp = randn(N), θn = randn(N), γp = rand(N), γn = rand(N))
-    final = dReLU(; θp = randn(N), θn = randn(N), init.γp, init.γn)
-    x = sample_from_inputs(final)
-    @test energy(anneal(init, final; β), x) ≈ (1 - β) * energy(init, x) + β * energy(final, x)
-
-    init = pReLU(; θ = randn(N), γ = rand(N), Δ = randn(N), η = rand(N) .- 0.5)
-    final = pReLU(; θ = randn(N), init.γ, Δ = randn(N), init.η)
-    x = sample_from_inputs(final)
-    @test energy(anneal(init, final; β), x) ≈ (1 - β) * energy(init, x) + β * energy(final, x)
-
-    init = xReLU(; θ = randn(N), γ = rand(N), Δ = randn(N), ξ = randn(N))
-    final = xReLU(; θ = randn(N), init.γ, Δ = randn(N), init.ξ)
-    x = sample_from_inputs(final)
-    @test energy(anneal(init, final; β), x) ≈ (1 - β) * energy(init, x) + β * energy(final, x)
-
-    init = nsReLU(; θ = randn(N), Δ = randn(N), ξ = randn(N))
-    final = nsReLU(; θ = randn(N), Δ = randn(N), init.ξ)
-    x = sample_from_inputs(final)
-    @test energy(anneal(init, final; β), x) ≈ (1 - β) * energy(init, x) + β * energy(final, x)
+    # the energy interpolates linearly only in parameters it is linear in, so the
+    # asymmetry parameters η and ξ are shared between `init` and `final`
+    γ, η, ξ = rand(N), rand(N) .- 0.5, randn(N)
+    for (init, final) in (
+            (Binary(; θ = randn(N)), Binary(; θ = randn(N))),
+            (Spin(; θ = randn(N)), Spin(; θ = randn(N))),
+            (Potts(; θ = randn(N)), Potts(; θ = randn(N))),
+            (Gaussian(; θ = randn(N), γ = rand(N)), Gaussian(; θ = randn(N), γ = rand(N))),
+            (ReLU(; θ = randn(N), γ = rand(N)), ReLU(; θ = randn(N), γ = rand(N))),
+            (dReLU(; θp = randn(N), θn = randn(N), γp = rand(N), γn = rand(N)), dReLU(; θp = randn(N), θn = randn(N), γp = rand(N), γn = rand(N))),
+            (pReLU(; θ = randn(N), γ, Δ = randn(N), η), pReLU(; θ = randn(N), γ, Δ = randn(N), η)),
+            (xReLU(; θ = randn(N), γ, Δ = randn(N), ξ), xReLU(; θ = randn(N), γ, Δ = randn(N), ξ)),
+            (nsReLU(; θ = randn(N), Δ = randn(N), ξ), nsReLU(; θ = randn(N), Δ = randn(N), ξ)),
+        )
+        x = sample_from_inputs(final)
+        @test energy(anneal(init, final; β), x) ≈ (1 - β) * energy(init, x) + β * energy(final, x)
+    end
 end
 
 @testset "anneal_zero" begin
-    β = 0.3
     N = 11
     M = 5
     rbm = BinaryRBM(randn(N), randn(M), randn(N, M))
@@ -77,45 +48,28 @@ end
     @test energy(anneal_zero(init, rbm), v, h) ≈ energy(anneal(null, rbm; β = 0), v, h)
     @test iszero(anneal_zero(init, rbm).w)
 
-    layer = Binary(; θ = randn(N))
-    @test iszero(anneal_zero(layer).θ)
-
-    layer = Spin(; θ = randn(N))
-    @test iszero(anneal_zero(layer).θ)
-
-    layer = Potts(; θ = randn(N))
-    @test iszero(anneal_zero(layer).θ)
-
-    layer = Gaussian(; θ = randn(N), γ = rand(N))
-    @test iszero(anneal_zero(layer).θ)
-    @test anneal_zero(layer).γ == layer.γ
-
-    layer = ReLU(; θ = randn(N), γ = rand(N))
-    @test iszero(anneal_zero(layer).θ)
-    @test anneal_zero(layer).γ == layer.γ
-
-    layer = dReLU(; θp = randn(N), θn = randn(N), γp = rand(N), γn = rand(N))
-    @test iszero(anneal_zero(layer).θp)
-    @test iszero(anneal_zero(layer).θn)
-    @test anneal_zero(layer).γp == layer.γp
-    @test anneal_zero(layer).γn == layer.γn
-
-    layer = pReLU(; θ = randn(N), γ = rand(N), Δ = randn(N), η = rand(N) .- 0.5)
-    @test iszero(anneal_zero(layer).θ)
-    @test iszero(anneal_zero(layer).Δ)
-    @test anneal_zero(layer).γ == layer.γ
-    @test anneal_zero(layer).η == layer.η
-
-    layer = xReLU(; θ = randn(N), γ = rand(N), Δ = randn(N), ξ = randn(N))
-    @test iszero(anneal_zero(layer).θ)
-    @test iszero(anneal_zero(layer).Δ)
-    @test anneal_zero(layer).γ == layer.γ
-    @test anneal_zero(layer).ξ == layer.ξ
-
-    layer = nsReLU(; θ = randn(N), Δ = randn(N), ξ = randn(N))
-    @test iszero(anneal_zero(layer).θ)
-    @test iszero(anneal_zero(layer).Δ)
-    @test anneal_zero(layer).ξ == layer.ξ
+    # the field-like parameters are zeroed, the others kept
+    for (layer, zeroed) in (
+            (Binary(; θ = randn(N)), (:θ,)),
+            (Spin(; θ = randn(N)), (:θ,)),
+            (Potts(; θ = randn(N)), (:θ,)),
+            (Gaussian(; θ = randn(N), γ = rand(N)), (:θ,)),
+            (ReLU(; θ = randn(N), γ = rand(N)), (:θ,)),
+            (dReLU(; θp = randn(N), θn = randn(N), γp = rand(N), γn = rand(N)), (:θp, :θn)),
+            (pReLU(; θ = randn(N), γ = rand(N), Δ = randn(N), η = rand(N) .- 0.5), (:θ, :Δ)),
+            (xReLU(; θ = randn(N), γ = rand(N), Δ = randn(N), ξ = randn(N)), (:θ, :Δ)),
+            (nsReLU(; θ = randn(N), Δ = randn(N), ξ = randn(N)), (:θ, :Δ)),
+        )
+        z = anneal_zero(layer)
+        @test typeof(z) === typeof(layer)
+        for f in propertynames(layer)
+            if f in zeroed
+                @test iszero(getproperty(z, f))
+            else
+                @test getproperty(z, f) == getproperty(layer, f)
+            end
+        end
+    end
 end
 
 @testset "anneal" begin

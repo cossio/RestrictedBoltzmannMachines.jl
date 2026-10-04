@@ -62,29 +62,12 @@ end
 
 Free energy of visible configuration (after marginalizing hidden configurations).
 """
-function free_energy(rbm, v)
-    E = energy(rbm.visible, v)
-    Γ = hidden_cgf(rbm, v)
-    return E - Γ
-end
-
+free_energy(rbm, v) = energy(rbm.visible, v) - hidden_cgf(rbm, v)
 free_energy_v(rbm, v) = free_energy(rbm, v)
+free_energy_h(rbm, h) = energy(rbm.hidden, h) - visible_cgf(rbm, h)
 
-function free_energy_h(rbm, h)
-    E = energy(rbm.hidden, h)
-    Γ = visible_cgf(rbm, h)
-    return E - Γ
-end
-
-function hidden_cgf(rbm, v)
-    inputs = inputs_h_from_v(rbm, v)
-    return cgf(rbm.hidden, inputs)
-end
-
-function visible_cgf(rbm, h)
-    inputs = inputs_v_from_h(rbm, h)
-    return cgf(rbm.visible, inputs)
-end
+hidden_cgf(rbm, v) = cgf(rbm.hidden, inputs_h_from_v(rbm, v))
+visible_cgf(rbm, h) = cgf(rbm.visible, inputs_v_from_h(rbm, h))
 
 """
     energy(rbm, v, h)
@@ -134,20 +117,14 @@ end
 
 Samples a hidden configuration conditional on the visible configuration `v`.
 """
-function sample_h_from_v(rbm, v)
-    inputs = inputs_h_from_v(rbm, v)
-    return sample_from_inputs(rbm.hidden, inputs)
-end
+sample_h_from_v(rbm, v) = sample_from_inputs(rbm.hidden, inputs_h_from_v(rbm, v))
 
 """
     sample_v_from_h(rbm, h)
 
 Samples a visible configuration conditional on the hidden configuration `h`.
 """
-function sample_v_from_h(rbm, h)
-    inputs = inputs_v_from_h(rbm, h)
-    return sample_from_inputs(rbm.visible, inputs)
-end
+sample_v_from_h(rbm, h) = sample_from_inputs(rbm.visible, inputs_v_from_h(rbm, h))
 
 """
     sample_v_from_v(rbm, v; steps=1)
@@ -177,77 +154,50 @@ function sample_h_from_h(rbm, h; steps = 1)
     return h
 end
 
-function sample_v_from_v_once(rbm, v)
-    h = sample_h_from_v(rbm, v)
-    v = sample_v_from_h(rbm, h)
-    return v
-end
-
-function sample_h_from_h_once(rbm, h)
-    v = sample_v_from_h(rbm, h)
-    h = sample_h_from_v(rbm, v)
-    return h
-end
+sample_v_from_v_once(rbm, v) = sample_v_from_h(rbm, sample_h_from_v(rbm, v))
+sample_h_from_h_once(rbm, h) = sample_h_from_v(rbm, sample_v_from_h(rbm, h))
 
 """
     mean_h_from_v(rbm, v)
 
 Mean unit activation values, conditioned on the other layer, <h | v>.
 """
-function mean_h_from_v(rbm, v)
-    inputs = inputs_h_from_v(rbm, v)
-    return mean_from_inputs(rbm.hidden, inputs)
-end
+mean_h_from_v(rbm, v) = mean_from_inputs(rbm.hidden, inputs_h_from_v(rbm, v))
 
 """
     mean_v_from_h(rbm, h)
 
 Mean unit activation values, conditioned on the other layer, <v | h>.
 """
-function mean_v_from_h(rbm, h)
-    inputs = inputs_v_from_h(rbm, h)
-    return mean_from_inputs(rbm.visible, inputs)
-end
+mean_v_from_h(rbm, h) = mean_from_inputs(rbm.visible, inputs_v_from_h(rbm, h))
 
 """
     var_v_from_h(rbm, h)
 
 Variance of unit activation values, conditioned on the other layer, var(v | h).
 """
-function var_v_from_h(rbm, h)
-    inputs = inputs_v_from_h(rbm, h)
-    return var_from_inputs(rbm.visible, inputs)
-end
+var_v_from_h(rbm, h) = var_from_inputs(rbm.visible, inputs_v_from_h(rbm, h))
 
 """
     var_h_from_v(rbm, v)
 
 Variance of unit activation values, conditioned on the other layer, var(h | v).
 """
-function var_h_from_v(rbm, v)
-    inputs = inputs_h_from_v(rbm, v)
-    return var_from_inputs(rbm.hidden, inputs)
-end
+var_h_from_v(rbm, v) = var_from_inputs(rbm.hidden, inputs_h_from_v(rbm, v))
 
 """
     mode_v_from_h(rbm, h)
 
 Mode unit activations, conditioned on the other layer.
 """
-function mode_v_from_h(rbm, h)
-    inputs = inputs_v_from_h(rbm, h)
-    return mode_from_inputs(rbm.visible, inputs)
-end
+mode_v_from_h(rbm, h) = mode_from_inputs(rbm.visible, inputs_v_from_h(rbm, h))
 
 """
     mode_h_from_v(rbm, v)
 
 Mode unit activations, conditioned on the other layer.
 """
-function mode_h_from_v(rbm, v)
-    inputs = inputs_h_from_v(rbm, v)
-    return mode_from_inputs(rbm.hidden, inputs)
-end
+mode_h_from_v(rbm, v) = mode_from_inputs(rbm.hidden, inputs_h_from_v(rbm, v))
 
 """
     batch_size(rbm, v, h)
@@ -256,21 +206,15 @@ Returns the batch size if `energy(rbm, v, h)` were computed.
 """
 batch_size(rbm, v, h) = join_batch_size(batch_size(rbm.visible, v), batch_size(rbm.hidden, h))
 
-# broadcast-style join of two batch sizes (either may be empty)
+# broadcast-style join of two batch sizes (either may be empty); at most one tail is nonempty
 function join_batch_size(bsz_1::Dims, bsz_2::Dims)
-    if length(bsz_1) > length(bsz_2)
-        D = length(bsz_2)
-        sz2 = bsz_1[(D + 1):end]
-    else
-        D = length(bsz_1)
-        sz2 = bsz_2[(D + 1):end]
-    end
-    sz1 = map(bsz_1[1:D], bsz_2[1:D]) do b1, b2
-        bmin, bmax = minmax(b1, b2)
+    D = min(length(bsz_1), length(bsz_2))
+    head = ntuple(D) do d
+        bmin, bmax = minmax(bsz_1[d], bsz_2[d])
         @assert bmin == 1 || bmin == bmax
         bmax
     end
-    return (sz1..., sz2...)
+    return (head..., bsz_1[(D + 1):end]..., bsz_2[(D + 1):end]...)
 end
 
 """

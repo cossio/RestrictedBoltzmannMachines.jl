@@ -10,7 +10,6 @@ using RestrictedBoltzmannMachines: dReLU
 using RestrictedBoltzmannMachines: free_energy
 using RestrictedBoltzmannMachines: Gaussian
 using RestrictedBoltzmannMachines: pReLU
-using RestrictedBoltzmannMachines: ReLU
 using RestrictedBoltzmannMachines: xReLU
 using RestrictedBoltzmannMachines: regularization_penalty
 using Statistics: mean
@@ -39,45 +38,21 @@ end
 
 @testset "∂regularize_fields" begin
     l2_fields = rand()
-
-    layer = Binary(; θ = randn(3, 5))
-    gs = Zygote.gradient(layer) do layer
-        l2_fields / 2 * sum(abs2, layer.θ)
+    # (layer, field parameters, rows of `par` that get no regularization gradient)
+    for (layer, fields, other_rows) in (
+            (Binary(; θ = randn(3, 5)), (:θ,), 2:1),
+            (Gaussian(; θ = randn(3, 5), γ = rand(3, 5)), (:θ,), 2:2),
+            (dReLU(; θp = randn(3, 5), θn = randn(3, 5), γp = rand(3, 5), γn = rand(3, 5)), (:θp, :θn), 3:4),
+            (pReLU(; θ = randn(3, 5), γ = rand(3, 5), Δ = randn(3, 5), η = rand(3, 5) .- 0.5), (:θ,), 2:4),
+            (xReLU(; θ = randn(3, 5), γ = rand(3, 5), Δ = randn(3, 5), ξ = randn(3, 5)), (:θ,), 2:4),
+        )
+        gs = Zygote.gradient(layer) do layer
+            l2_fields / 2 * sum(sum(abs2, getproperty(layer, f)) for f in fields)
+        end
+        ∂ = ∂regularize_fields(layer; l2_fields)
+        @test only(gs).par ≈ ∂
+        @test iszero(∂[other_rows, ..])
     end
-    ∂ = ∂regularize_fields(layer; l2_fields)
-    @test only(gs).par ≈ ∂
-
-    layer = Gaussian(; θ = randn(3, 5), γ = rand(3, 5))
-    gs = Zygote.gradient(layer) do layer
-        l2_fields / 2 * sum(abs2, layer.θ)
-    end
-    ∂ = ∂regularize_fields(layer; l2_fields)
-    @test only(gs).par ≈ ∂
-    @test iszero(∂[2, ..]) # ∂γ
-
-    layer = dReLU(; θp = randn(3, 5), θn = randn(3, 5), γp = rand(3, 5), γn = rand(3, 5))
-    gs = Zygote.gradient(layer) do layer
-        l2_fields / 2 * (sum(abs2, layer.θp) + sum(abs2, layer.θn))
-    end
-    ∂ = ∂regularize_fields(layer; l2_fields)
-    @test only(gs).par ≈ ∂
-    @test iszero(∂[3:4, ..]) # ∂γp, ∂γn
-
-    layer = pReLU(; θ = randn(3, 5), γ = rand(3, 5), Δ = randn(3, 5), η = rand(3, 5) .- 0.5)
-    gs = Zygote.gradient(layer) do layer
-        l2_fields / 2 * sum(abs2, layer.θ)
-    end
-    ∂ = ∂regularize_fields(layer; l2_fields)
-    @test only(gs).par ≈ ∂
-    @test iszero(∂[2:4, ..]) # ∂γ, ∂Δ, ∂η
-
-    layer = xReLU(; θ = randn(3, 5), γ = rand(3, 5), Δ = randn(3, 5), ξ = randn(3, 5))
-    gs = Zygote.gradient(layer) do layer
-        l2_fields / 2 * sum(abs2, layer.θ)
-    end
-    ∂ = ∂regularize_fields(layer; l2_fields)
-    @test only(gs).par ≈ ∂
-    @test iszero(∂[2:4, ..]) # ∂γ, ∂Δ, ∂ξ
 end
 
 using FillArrays: Ones

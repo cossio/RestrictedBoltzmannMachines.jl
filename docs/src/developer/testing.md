@@ -13,7 +13,7 @@ julia --project=test test/pcd.jl
 Tests in `test/runtests.jl` are organized as independent modules (each file is
 wrapped in its own `module`), so each test file can also be run standalone.
 Tests use property-based checks across dimensions, and gradient checking with
-Zygote and FiniteDifferences.
+Zygote.
 
 ## GPU testing without a GPU
 
@@ -27,54 +27,20 @@ those locally only.
 
 During development the version in `Project.toml` carries a `-DEV` suffix
 (e.g. `5.4.0-DEV`), and changes accumulate under an `## Unreleased` section in
-`CHANGELOG.md`. Choose the release number using
+`CHANGELOG.md`. Release numbers follow
 [ColPrac's Julia package guidance](https://docs.sciml.ai/ColPrac/stable/#Guidance-on-Package-Releases):
-for this post-1.0 package, use a major bump for breaking changes, a minor bump
-for non-breaking features (including ordinary dependency or Julia compatibility
-changes), and a patch bump for bug fixes (including compatibility changes made
-solely to fix a bug). Treat documented unexported names as public API,
-corrections to clearly broken behavior as bug fixes, introducing deprecations
-as non-breaking, and removing deprecations as breaking. The release agent
-checks the diff since the last registered version for consistency with `CHANGELOG.md`
-(which covers only user-facing changes) and resolves any mismatches with the
-user first, then prints a succinct summary of the user-facing changes and
-suggests one version with a brief explanation, but the user always makes the
-final decision. Do not change release files or begin registration until the
-user explicitly chooses the version. Then:
+for this post-1.0 package, a major bump for breaking changes, a minor bump for
+non-breaking features, and a patch bump for bug fixes.
 
-1. Make a single commit titled `vX.Y.Z` that drops the `-DEV` suffix from
-   `version` in `Project.toml` and renames the `## Unreleased` CHANGELOG
-   section to `## X.Y.Z`. Land it on `master` (directly, or via a PR).
-2. Push the release commit, open that exact commit on GitHub (the merge commit
-   if the release landed via PR), and comment `@JuliaRegistrator register`
-   directly on it. Include a `Release notes:` section containing the CHANGELOG
-   entries for this version in the same comment. The commit comment pins the
-   registered SHA, so no release branch is needed. Registrator replies on the
-   commit with the General registry PR. Post the literal trigger phrase only
-   in this commit comment, never in other PR or issue text: the bot matches
-   it in any issue or PR comment, even inside backticks, and replies with an
-   error there, so release-PR descriptions should say "a Registrator comment
-   on the merge commit" instead. Repository files like this page may quote
-   the phrase; only posted comments reach the bot.
-3. Monitor the registration PR until it merges — AutoMerge usually takes
-   ~15–30 minutes. If AutoMerge fails or a registry maintainer requests
-   changes, commit the fixes to `master` while keeping `Project.toml` at
-   `X.Y.Z`, then post a new Registrator comment on the corrected commit.
-4. Once the registry PR merges, TagBot creates the `vX.Y.Z` tag at the
-   registered commit and the GitHub release with the supplied notes
-   automatically.
-5. Right after the release (registry PR merged, tag created), open a
-   follow-up PR in the same run — the release is unfinished until it exists —
-   that bumps `Project.toml` to the next `-DEV` version and adds a fresh
-   `## Unreleased` section to `CHANGELOG.md`, so development commits never
-   accumulate under a released version number. Default to the patch bump
-   (e.g. `5.7.1-DEV` after releasing `5.7.0`); the number is only a hint,
-   re-derived from the accumulated changes at the next release. The cycle
-   has started only once the bump PR merges and `master` carries the `-DEV`
-   version.
+A release is one commit `vX.Y.Z` on `master` that drops the `-DEV` suffix and
+renames `## Unreleased` to `## X.Y.Z`, followed by a `@JuliaRegistrator register`
+comment on that commit (with the CHANGELOG entries under `Release notes:`).
+Once the General registry PR merges, TagBot tags the commit and creates the
+GitHub release, and a follow-up PR bumps `Project.toml` to the next `-DEV`
+version with a fresh `## Unreleased` section. Post the trigger phrase only in
+that commit comment: the bot matches it in any issue or PR comment, even inside
+backticks.
 
-The canonical, more detailed version of this procedure lives in the shared
-`register-new-version` skill. It is available to Claude at
-`.claude/skills/register-new-version/SKILL.md` and to Codex at
-`.agents/skills/register-new-version/SKILL.md`; keep this page in sync with the
-skill.
+The authoritative step-by-step procedure lives in the `register-new-version`
+skill (`.claude/skills/register-new-version/SKILL.md`, mirrored for Codex at
+`.agents/skills/register-new-version/SKILL.md`).

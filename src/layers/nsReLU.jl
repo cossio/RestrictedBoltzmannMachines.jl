@@ -20,7 +20,7 @@ corresponding unit. This is the `xReLU` potential with ``\gamma = 1``.
 @declare_layer nsReLU (θ = zeros, Δ = zeros, ξ = zeros) # there is no γ
 
 function ∂energy_from_moments(layer::nsReLU, moments::AbstractArray)
-    @assert ntuple(d -> size(moments, d), ndims(layer) + 1) == (4, size(layer)...)
+    _check_moments(layer, moments, 4)
     ∂ = ∂energy_from_moments(xReLU(layer), moments)
     return ∂[[1, 3, 4], ..] # skip γ
 end

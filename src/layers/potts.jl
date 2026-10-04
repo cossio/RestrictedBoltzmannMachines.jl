@@ -30,10 +30,7 @@ function mode_from_inputs(layer::_PottsLayers, inputs::AbstractArray = Falses(si
     return θ .== maximum(θ; dims = 1)
 end
 
-function var_from_inputs(layer::_PottsLayers, inputs::AbstractArray = Falses(size(layer)))
-    μ = mean_from_inputs(layer, inputs)
-    return μ .* (1 .- μ)
-end
+var_from_inputs(layer::_PottsLayers, inputs::AbstractArray = Falses(size(layer))) = last(meanvar_from_inputs(layer, inputs))
 
 function meanvar_from_inputs(layer::_PottsLayers, inputs::AbstractArray = Falses(size(layer)))
     μ = mean_from_inputs(layer, inputs)
@@ -45,7 +42,5 @@ end
 # encoding). Returning floats here, to avoid the BitArray -> float conversion later in
 # inputs_h_from_v / inputs_v_from_h, is not worth it; see the benchmarks in the
 # "Design and performance notes" page of the developer docs.
-function sample_from_inputs(layer::Potts, inputs::AbstractArray = Falses(size(layer)))
-    c = categorical_sample_from_logits(layer.θ .+ inputs)
-    return onehot_encode(c, 1:size(layer, 1))
-end
+sample_from_inputs(layer::Potts, inputs::AbstractArray = Falses(size(layer))) =
+    onehot_encode(categorical_sample_from_logits(layer.θ .+ inputs), 1:size(layer, 1))

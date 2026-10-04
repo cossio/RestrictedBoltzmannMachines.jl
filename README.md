@@ -59,16 +59,11 @@ RBMs can be constructed from any combination of the following visible and hidden
 | `xReLU` | ℝ | θ, γ, Δ, ξ | Extended ReLU |
 | `nsReLU` | ℝ | θ, Δ, ξ | Fixed-scale xReLU (γ = 1) |
 
-`dReLU`, `pReLU`, `xReLU`, and `nsReLU` are closely related asymmetric piecewise-quadratic layer types:
-
-- `dReLU`, `pReLU`, and `xReLU` can be converted to each other without loss of information.
-- `dReLU` uses separate parameters for the positive and negative parts.
-- `pReLU` and `xReLU` use a shared scale γ with asymmetry parameters (η bounded in (-1,1) for `pReLU`; ξ unbounded for `xReLU`).
-- `nsReLU` is the fixed-scale variant, removing the invariance between hidden-unit scale and weights.
-
-Every `pReLU.η` value must be finite and strictly inside `(-1, 1)`. For
-unconstrained learned asymmetry, prefer `xReLU`, or `nsReLU` when a fixed scale
-is desired.
+`dReLU`, `pReLU`, and `xReLU` are interconvertible parameterizations of the same
+asymmetric piecewise-quadratic unit; `nsReLU` is `xReLU` with the scale fixed at γ = 1,
+which removes the gauge freedom between hidden-unit scale and weights. Every `pReLU.η`
+must be finite and strictly inside `(-1, 1)`; for unconstrained learned asymmetry, prefer
+`xReLU` or `nsReLU`.
 
 Construct an RBM with any pair of layer types using `RBM(visible, hidden, weights)`, or use convenience constructors like `BinaryRBM`, `HopfieldRBM`, etc.
 

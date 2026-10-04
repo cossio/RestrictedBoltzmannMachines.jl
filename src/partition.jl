@@ -32,15 +32,8 @@ function log_likelihood(rbm, v::AbstractArray)
     return -F .- logZ
 end
 
-function iterate_states(layer::Binary)
-    itr = generate_sequences(length(layer), false:true)
-    return map(x -> reshape(x, size(layer)..., 1), itr)
-end
-
-function iterate_states(layer::Spin)
-    itr = generate_sequences(length(layer), (-Int8(1), Int8(1)))
-    return map(x -> reshape(x, size(layer)..., 1), itr)
-end
+_unit_states(::Binary) = false:true
+_unit_states(::Spin) = (-Int8(1), Int8(1))
 
 """
     collect_states(layer)
@@ -53,6 +46,6 @@ Only defined for discrete layers.
     For large layers, the exponential number of states will not fit in memory.
 """
 function collect_states(layer::Union{Binary, Spin})
-    states = iterate_states(layer)
+    states = Iterators.product(ntuple(Returns(_unit_states(layer)), length(layer))...)
     return reshape(stack(states), size(layer)..., length(states))
 end

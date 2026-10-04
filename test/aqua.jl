@@ -7,6 +7,5 @@ using Test: @testset
         RestrictedBoltzmannMachines;
         stale_deps = (ignore = [:Adapt],),
         ambiguities = (exclude = [reshape],),
-        #project_toml_formatting = false
     )
 end

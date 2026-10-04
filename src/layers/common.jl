@@ -33,10 +33,8 @@ function moments_from_inputs(layer::_FieldLayers, inputs::AbstractArray = Falses
 end
 
 function ∂energy_from_moments(layer::_FieldLayers, moments::AbstractArray)
-    @assert ntuple(d -> size(moments, d), ndims(layer.par)) == size(layer.par)
-    x1 = moments[1, ..]
-    ∂θ = -x1
-    return stack([∂θ]; dims = 1)
+    _check_moments(layer, moments)
+    return -moments
 end
 
 """
@@ -83,9 +81,11 @@ Potts(layer::PottsGumbel) = Potts(layer.par)
 
 # location `θ`, scale `γ`, and offset `Δ` shared by the pReLU and xReLU parameterizations
 function _drelu_shared_params(layer::dReLU)
-    γ = @. 2abs(layer.γp) * abs(layer.γn) / (abs(layer.γp) + abs(layer.γn))
-    θ = @. (layer.θp * abs(layer.γn) + layer.θn * abs(layer.γp)) / (abs(layer.γp) + abs(layer.γn))
-    Δ = @. γ * (layer.θp - layer.θn) / (abs(layer.γp) + abs(layer.γn))
+    ap, an = abs.(layer.γp), abs.(layer.γn)
+    s = ap .+ an
+    γ = @. 2ap * an / s
+    θ = @. (layer.θp * an + layer.θn * ap) / s
+    Δ = @. γ * (layer.θp - layer.θn) / s
     return θ, γ, Δ
 end
 
@@ -172,13 +172,13 @@ function moments_from_inputs(layer::Union{Gaussian, ReLU}, inputs::AbstractArray
     return stack([μ, μ .^ 2 .+ ν]; dims = 1)
 end
 
-mean_from_moments(::Union{Binary, Spin, Potts, PottsGumbel, Gaussian, ReLU}, moments::AbstractArray) = moments[1, ..]
-mean_from_moments(::_dReLUFamily, moments::AbstractArray) = moments[1, ..] + moments[2, ..]
+mean_from_moments(::Union{_FieldLayers, Gaussian, ReLU}, moments::AbstractArray) = moments[1, ..]
+mean_from_moments(::_dReLUFamily, moments::AbstractArray) = @views moments[1, ..] .+ moments[2, ..]
 
-var_from_moments(::Union{Binary, Potts, PottsGumbel}, moments::AbstractArray) = moments[1, ..] .* (1 .- moments[1, ..])
-var_from_moments(::Union{Gaussian, ReLU}, moments::AbstractArray) = moments[2, ..] - moments[1, ..] .^ 2
+var_from_moments(::Union{Binary, Potts, PottsGumbel}, moments::AbstractArray) = @views moments[1, ..] .* (1 .- moments[1, ..])
+var_from_moments(::Spin, moments::AbstractArray) = @views (1 .- moments[1, ..]) .* (1 .+ moments[1, ..])
+var_from_moments(::Union{Gaussian, ReLU}, moments::AbstractArray) = @views moments[2, ..] .- moments[1, ..] .^ 2
 
-function var_from_moments(::_dReLUFamily, moments::AbstractArray)
-    # xp and xn cannot be nonzero simultaneously, so <x^2> = <xp^2> + <xn^2>
-    return moments[3, ..] + moments[4, ..] - (moments[1, ..] + moments[2, ..]) .^ 2
-end
+# xp and xn cannot be nonzero simultaneously, so <x^2> = <xp^2> + <xn^2>
+var_from_moments(::_dReLUFamily, moments::AbstractArray) =
+    @views moments[3, ..] .+ moments[4, ..] .- (moments[1, ..] .+ moments[2, ..]) .^ 2

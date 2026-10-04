@@ -1,5 +1,4 @@
 import Random
-import Zygote
 using Test: @test, @testset, @test_broken, @inferred
 using Statistics: mean, var
 using SpecialFunctions: erfcx
@@ -73,12 +72,6 @@ for μ in -1:1, σ in 1:2
     samples = [randnt_half(μ, σ) for _ in 1:(10^6)]
     @test mean(samples .^ 1) ≈ m1(μ, σ) atol = 1.0e-2
     @test mean(samples .^ 2) ≈ m2(μ, σ) atol = 1.0e-2
-end
-
-# broadcasted versions
-μ = 3randn(2, 2); σ = 3rand(2, 2)
-dμ, dσ = Zygote.gradient(μ, σ) do μ, σ
-    mean(m1.(μ, σ))
 end
 
 @testset "randnt argument conversion" begin

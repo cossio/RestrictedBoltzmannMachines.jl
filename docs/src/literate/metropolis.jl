@@ -26,10 +26,10 @@ and run Metropolis sampling at inverse temperature ``\beta = 0.5``.
 
 import Makie
 import CairoMakie
-using Statistics: mean, std, var, cor
-using Random: randn!, bitrand
+using Statistics: cor
+using Random: bitrand
 using LogExpFunctions: logsumexp
-using RestrictedBoltzmannMachines: BinaryRBM, energy, free_energy, metropolis!
+using RestrictedBoltzmannMachines: BinaryRBM, free_energy, metropolis!
 
 N = 5
 M = 2

@@ -3,7 +3,6 @@ import RestrictedBoltzmannMachines as RBMs
 
 using Test: @test, @testset, @inferred
 using Statistics: mean, std
-using LinearAlgebra, Statistics
 using LogExpFunctions: softmax
 
 @testset "onehot" begin

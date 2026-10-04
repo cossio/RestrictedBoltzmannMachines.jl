@@ -13,7 +13,6 @@ function metropolis(rbm::RBM, v::AbstractArray; β::Real = 1, steps::Int = 1)
 end
 
 function metropolis_once(rbm::RBM, v::AbstractArray; β::Real = 1)
-    @assert size(v)[1:ndims(rbm.visible)] == size(rbm.visible)
     v_new = sample_v_from_v_once(rbm, v)
     ΔE = (β - 1) * (free_energy(rbm, v_new) - free_energy(rbm, v))
     ℐ = CartesianIndices(size(rbm.visible)) # index span of visible layer
@@ -56,8 +55,4 @@ function cold_metropolis(rbm::RBM, v::AbstractArray; steps::Int = 1)
     return v
 end
 
-function cold_metropolis_once(rbm::RBM, v::AbstractArray)
-    @assert size(v)[1:ndims(rbm.visible)] == size(rbm.visible)
-    h = mean_h_from_v(rbm, v)
-    return mode_v_from_h(rbm, h)
-end
+cold_metropolis_once(rbm::RBM, v::AbstractArray) = mode_v_from_h(rbm, mean_h_from_v(rbm, v))

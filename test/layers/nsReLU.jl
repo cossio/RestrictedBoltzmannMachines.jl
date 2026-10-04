@@ -19,7 +19,6 @@ using RestrictedBoltzmannMachines: std_from_inputs
 using RestrictedBoltzmannMachines: var_from_inputs
 using RestrictedBoltzmannMachines: xReLU
 using RestrictedBoltzmannMachines: shift_fields
-using Statistics: mean
 using Test: @inferred
 using Test: @test
 using Test: @testset

@@ -15,29 +15,16 @@ pseudolikelihood has a closed form. If some site is not normalizable given the o
 (its conditional precision is not positive), the result is `-Inf`.
 """
 function log_pseudolikelihood(rbm::RBM, v::AbstractArray; exact::Bool = false)
-    if exact
-        return log_pseudolikelihood_exact(rbm, v)
-    else
-        return log_pseudolikelihood_stoch(rbm, v)
-    end
+    return exact ? log_pseudolikelihood_exact(rbm, v) : log_pseudolikelihood_stoch(rbm, v)
 end
 
 """
     log_pseudolikelihood_stoch(rbm, v)
 
-Log-pseudolikelihood of `v`. This function computes an stochastic approximation, by doing
-a trace over random sites for each sample. For large number of samples, this is in average
-close to the exact value of the pseudolikelihood.
+Stochastic variant of [`log_pseudolikelihood`](@ref), evaluating one random site per sample.
 """
 function log_pseudolikelihood_stoch(rbm::RBM, v::AbstractArray)
-    @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
-    batch_sz = batch_size(rbm.visible, v)
-    sites = reshape(
-        [
-            rand(CartesianIndices(sitesize(rbm.visible)))
-                for _ in 1:prod(batch_sz)
-        ], batch_sz
-    )
+    sites = rand(CartesianIndices(sitesize(rbm.visible)), batch_size(rbm.visible, v))
     return log_pseudolikelihood_sites(rbm, v, sites)
 end
 
@@ -55,10 +42,8 @@ function log_pseudolikelihood_sites end
 """
     log_pseudolikelihood_exact(rbm, v)
 
-Log-pseudolikelihood of `v`. This function computes the exact pseudolikelihood, doing
-traces over all sites. Note that this can be slow for large number of samples.
-Implemented for `Binary`, `Spin`, `Potts`, and `PottsGumbel` visible layers, and for
-`Gaussian` visible layers with `Gaussian` hidden layers.
+Exact variant of [`log_pseudolikelihood`](@ref), averaging the conditionals over all sites.
+Implemented for the same layers as [`log_pseudolikelihood_sites`](@ref).
 """
 function log_pseudolikelihood_exact end
 
@@ -70,6 +55,7 @@ _on_device(template::AbstractArray, x::AbstractArray) =
     copyto!(similar(template, eltype(x), size(x)), x)
 
 function _pseudolikelihood_context(rbm::RBM, v::AbstractArray)
+    @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
     batch_sz = batch_size(rbm.visible, v)
     B = prod(batch_sz)
     vB = reshape(v, size(rbm.visible)..., B)
@@ -85,7 +71,6 @@ end
 function _log_pseudolikelihood_sites_2states(
         rbm::RBM, v::AbstractArray, sites::AbstractArray{<:CartesianIndex}, flip::Integer
     )
-    @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
     @assert size(sites) == batch_size(rbm.visible, v)
     batch_sz, B, vB, Iflat, Γ0 = _pseudolikelihood_context(rbm, v)
     site_linear = LinearIndices(size(rbm.visible))
@@ -114,7 +99,6 @@ end
 function log_pseudolikelihood_sites(
         rbm::RBM{<:Potts}, v::AbstractArray, sites::AbstractArray{<:CartesianIndex}
     )
-    @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
     @assert size(sites) == batch_size(rbm.visible, v)
     batch_sz, B, vB, Iflat, Γ0 = _pseudolikelihood_context(rbm, v)
     q = colors(rbm.visible)
@@ -148,6 +132,7 @@ end
 function _gaussian_hidden_pseudolikelihood_context(
         rbm::RBM{<:AbstractLayer, <:Gaussian}, v::AbstractArray
     )
+    @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
     batch_sz = batch_size(rbm.visible, v)
     B = prod(batch_sz)
     vflat = reshape(v, length(rbm.visible), B)
@@ -174,7 +159,6 @@ function _gaussian_hidden_pseudolikelihood_context(
 end
 
 function _log_pseudolikelihood_exact_2states(rbm::RBM, v::AbstractArray, flip::Integer)
-    @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
     batch_sz, B, vB, Iflat, Γ0 = _pseudolikelihood_context(rbm, v)
     vflat = reshape(vB, length(rbm.visible), B)
     wflat = flat_w(rbm)
@@ -196,7 +180,6 @@ end
 function _log_pseudolikelihood_exact_2states(
         rbm::RBM{<:Union{Binary, Spin}, <:Gaussian}, v::AbstractArray, flip::Integer
     )
-    @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
     batch_sz, _, vflat, wflat, invγ, hidden_mean =
         _gaussian_hidden_pseudolikelihood_context(rbm, v)
     T = eltype(wflat)
@@ -227,7 +210,6 @@ function log_pseudolikelihood_exact(rbm::RBM{<:Spin}, v::AbstractArray)
 end
 
 function log_pseudolikelihood_exact(rbm::RBM{<:Potts}, v::AbstractArray)
-    @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
     batch_sz, B, vB, Iflat, Γ0 = _pseudolikelihood_context(rbm, v)
     q = colors(rbm.visible)
     nsites = prod(sitesize(rbm.visible))
@@ -259,7 +241,6 @@ end
 function log_pseudolikelihood_exact(
         rbm::RBM{<:Potts, <:Gaussian}, v::AbstractArray
     )
-    @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
     batch_sz, B, vflat, wflat, invγ, hidden_mean =
         _gaussian_hidden_pseudolikelihood_context(rbm, v)
     q = colors(rbm.visible)
@@ -333,7 +314,6 @@ end
 function _gaussian_visible_pseudolikelihood_context(
         rbm::RBM{<:Gaussian, <:Gaussian}, v::AbstractArray
     )
-    @assert size(rbm.visible) == size(v)[1:ndims(rbm.visible)]
     batch_sz, B, vflat, wflat, invγ, hidden_mean =
         _gaussian_hidden_pseudolikelihood_context(rbm, v)
     T = eltype(wflat)

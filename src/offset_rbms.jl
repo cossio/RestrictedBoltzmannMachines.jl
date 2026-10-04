@@ -9,6 +9,22 @@ divisions by one. =#
 
 const OffsetRBM = Union{CenteredRBM, StandardizedRBM}
 
+"""
+    RBM(rbm::Union{CenteredRBM, StandardizedRBM})
+
+Plain `RBM` sharing the layers and weights of `rbm` but ignoring its offsets and scales, so
+it is *not* equivalent to `rbm`. For an equivalent model use [`uncenter`](@ref) or
+[`unstandardize`](@ref).
+"""
+RBM(rbm::OffsetRBM) = RBM(rbm.visible, rbm.hidden, rbm.w)
+
+# same type as `rbm`, with `plain` as the underlying RBM and the offsets (and scales) of `rbm`
+_with_offsets(rbm::CenteredRBM, plain::RBM) = CenteredRBM(plain, rbm.offset_v, rbm.offset_h)
+_with_offsets(rbm::StandardizedRBM, plain::RBM) = StandardizedRBM(plain, rbm.offset_v, rbm.offset_h, rbm.scale_v, rbm.scale_h)
+# the model equivalent to `plain`, with the offsets (and scales) of `rbm`
+_reoffset(rbm::CenteredRBM, plain::RBM) = center(plain, rbm.offset_v, rbm.offset_h)
+_reoffset(rbm::StandardizedRBM, plain::RBM) = standardize(plain, rbm.offset_v, rbm.offset_h, rbm.scale_v, rbm.scale_h)
+
 standardize_v(rbm::CenteredRBM, v::AbstractArray) = v .- rbm.offset_v
 standardize_h(rbm::CenteredRBM, h::AbstractArray) = h .- rbm.offset_h
 
@@ -24,6 +40,41 @@ _scale_w(rbm::CenteredRBM) = Ones{eltype(rbm.w)}(size(rbm.w))
 # equivalent plain `RBM` modeling the same distribution
 _equivalent_rbm(rbm::CenteredRBM) = uncenter(rbm)
 _equivalent_rbm(rbm::StandardizedRBM) = unstandardize(rbm)
+
+"""
+    delta_energy(rbm)
+
+The constant energy shift of `rbm` with respect to its equivalent plain `RBM`.
+"""
+delta_energy(rbm::RBM) = 0
+delta_energy(rbm::OffsetRBM) = interaction_energy(rbm, Zeros(rbm.offset_v), Zeros(rbm.offset_h))
+
+potts_to_gumbel(rbm::OffsetRBM) = _with_offsets(rbm, potts_to_gumbel(RBM(rbm)))
+gumbel_to_potts(rbm::OffsetRBM) = _with_offsets(rbm, gumbel_to_potts(RBM(rbm)))
+
+"""
+    zerosum(rbm::Union{CenteredRBM, StandardizedRBM})
+
+Returns an equivalent model, with the same offsets (and scales), whose equivalent plain
+`RBM` ([`uncenter`](@ref) / [`unstandardize`](@ref)) is in the zerosum gauge. The gauge
+condition applies to the plain parameters, since the interaction involves the offset (and
+scaled) activations rather than `v` and `h` themselves. Does nothing without Potts layers.
+"""
+function zerosum(rbm::OffsetRBM)
+    has_potts_layers(rbm) || return rbm
+    return _reoffset(rbm, zerosum(_equivalent_rbm(rbm)))
+end
+
+# weights of the equivalent plain RBM (`rbm.w` itself for a CenteredRBM)
+unstandardized_weights(rbm::OffsetRBM) = _maybe_div(rbm.w, _scale_w(rbm))
+
+"""
+    weight_norms(rbm::Union{CenteredRBM, StandardizedRBM})
+
+Norms of the unstandardized weights attached to each hidden unit. For the norms of the
+standardized weights, use `weight_norms(RBM(rbm))`.
+"""
+weight_norms(rbm::OffsetRBM) = weight_norms(RBM(rbm.visible, rbm.hidden, unstandardized_weights(rbm)))
 
 function interaction_energy(rbm::OffsetRBM, v::AbstractArray, h::AbstractArray)
     return interaction_energy(RBM(rbm), standardize_v(rbm, v), standardize_h(rbm, h))
@@ -94,15 +145,8 @@ function ∂regularize!(
     return ∂
 end
 
-function regularization_penalty(
-        rbm::OffsetRBM; regularize_unstandardized::Bool = true,
-        l1_weights::Real = 0, l2_weights::Real = 0, l2l1_weights::Real = 0, l2_fields::Real = 0,
-    )
-    if regularize_unstandardized
-        return regularization_penalty(_equivalent_rbm(rbm); l1_weights, l2_weights, l2l1_weights, l2_fields)
-    else
-        return regularization_penalty(RBM(rbm); l1_weights, l2_weights, l2l1_weights, l2_fields)
-    end
+function regularization_penalty(rbm::OffsetRBM; regularize_unstandardized::Bool = true, kwargs...)
+    return regularization_penalty(regularize_unstandardized ? _equivalent_rbm(rbm) : RBM(rbm); kwargs...)
 end
 
 """
@@ -143,13 +187,9 @@ end
 
 Projects the gradient so that it doesn't modify the zerosum gauge of the equivalent
 plain `RBM` (see [`uncenter`](@ref), [`unstandardize`](@ref)), with offsets and scales
-held fixed.
-
-The gauge condition applies to the parameters of the equivalent plain RBM: for the
-weights it reads `sum(w ./ scale_v; dims = 1) == 0` over Potts colors (and similarly for
-hidden Potts with `scale_h`), so the gradient component removed here is the corresponding
-gauge direction `ξ .* scale_v`. For a `CenteredRBM` the scales are one and these
-conditions coincide with the plain `RBM` ones.
+held fixed. The gauge condition on the weights reads `sum(w ./ scale_v; dims = 1) == 0`
+over Potts colors (similarly for hidden Potts with `scale_h`), so the component removed
+is the gauge direction `ξ .* scale_v`.
 """
 function zerosum!(∂::∂RBM, rbm::OffsetRBM)
     if rbm.visible isa _PottsLayers
