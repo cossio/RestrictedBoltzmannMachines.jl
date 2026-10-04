@@ -151,7 +151,11 @@ minibatches. The optimiser must have a learning rate `eta`. To resume training, 
 ladder of the previous run: without it, `ptt!` builds a new one. A `TrajectoryLadder` can also be built for a `CenteredRBM` or
 `StandardizedRBM`, to sample it or estimate its partition function. The paper uses
 [`CossimDescent`](@ref), a gradient descent whose learning rate adapts to the alignment
-of successive gradients; the default optimiser is `Adam()`, as for `pcd!`.
+of successive gradients. The default optimiser is `Adam(1e-4)`, a tenth of the learning
+rate of `pcd!`'s `Adam()`, whose larger steps can be rejected from the first update. On
+four protein and RNA families, it reached the best or tied best validation
+log-likelihood after 100k updates, compared with `Descent(1e-2)` and `CossimDescent`, at
+the cost of more checkpoints.
 
 The size of the updates sets how often checkpoints are frozen, each of which costs some
 tens of sweeps, so a smaller learning rate trades slower learning for fewer checkpoints.

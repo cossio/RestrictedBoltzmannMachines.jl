@@ -153,8 +153,10 @@ when an epoch has few minibatches.
   `nchains = min(batchsize, nsamples)` chains. To resume training, pass the ladder of the
   previous run.
 - `steps::Int=1`: Gibbs steps per sweep.
-- `optim::AbstractRule=Adam()`: optimizer rule from `Optimisers.jl`, with a learning rate
-  `eta`. [`CossimDescent`](@ref) is the optimiser used in the paper.
+- `optim::AbstractRule=Adam(1e-4)`: optimizer rule from `Optimisers.jl`, with a learning
+  rate `eta`. The default learning rate is a tenth of that of `Adam()`, whose larger steps
+  can be rejected from the first update and freeze a checkpoint every few updates.
+  [`CossimDescent`](@ref) is the optimiser used in the paper.
 - `callback=Returns(nothing)`: called after every update as
   `callback(; rbm, optim, state, ps, iter, vd, wd, ∂, vm, ladder)`, where `vm` are the
   chains of the ladder. Slurp unused keywords with a trailing `_...`.
@@ -171,7 +173,7 @@ function ptt!(
         wts::AbstractVector{<:Real} = uniform_wts(rbm.visible, data), # data weights
         steps::Int = 1, # Gibbs steps per sweep
         ladder::TrajectoryLadder = TrajectoryLadder(rbm; nchains = min(batchsize, size(data)[end]), steps),
-        optim::AbstractRule = Adam(), # optimizer rule
+        optim::AbstractRule = Adam(1.0e-4), # optimizer rule
         moments = moments_from_samples(rbm.visible, data; wts), # sufficient statistics for visible layer
 
         # regularization
