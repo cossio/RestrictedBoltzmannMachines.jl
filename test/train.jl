@@ -13,7 +13,7 @@ using Random: seed!
 using LogExpFunctions: softmax
 using Optimisers: Adam, Descent
 using RestrictedBoltzmannMachines: RBM, BinaryRBM, Binary, Spin, Potts, Gaussian,
-    pcd!, initialize!, free_energy, log_likelihood, log_partition,
+    pcd!, initialize!, free_energy, log_likelihood,
     collect_states, mean_h_from_v, generate_sequences, onehot_encode,
     center, uncenter, standardize, unstandardize, weight_norms,
     CenteredRBM, StandardizedRBM

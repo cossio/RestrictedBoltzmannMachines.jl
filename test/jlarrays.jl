@@ -11,7 +11,7 @@ using Adapt: adapt
 using JLArrays: JLArray, JLArrays
 using FillArrays: Trues
 import RestrictedBoltzmannMachines as RBMs
-using RestrictedBoltzmannMachines: RBM, CenteredRBM, StandardizedRBM, ∂RBM, BinaryRBM,
+using RestrictedBoltzmannMachines: RBM, CenteredRBM, StandardizedRBM, BinaryRBM,
     Binary, Spin, Potts, Gaussian, ReLU, dReLU, pReLU, xReLU, nsReLU, PottsGumbel,
     energy, energies, free_energy, cgfs, ∂cgfs,
     sample_from_inputs, mean_from_inputs, var_from_inputs, std_from_inputs,

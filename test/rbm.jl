@@ -237,20 +237,12 @@ end
         @test size(@inferred sample_h_from_h(rbm, h[:, :, 1]; steps = k)) == size(rbm.hidden)
     end
 
-    @test size(@inferred mean_h_from_v(rbm, v)) == size(h)
-    @test size(@inferred mean_v_from_h(rbm, h)) == size(v)
-    @test size(@inferred mean_h_from_v(rbm, v[:, :, 1])) == size(rbm.hidden)
-    @test size(@inferred mean_v_from_h(rbm, h[:, :, 1])) == size(rbm.visible)
-
-    @test size(@inferred mode_h_from_v(rbm, v)) == size(h)
-    @test size(@inferred mode_v_from_h(rbm, h)) == size(v)
-    @test size(@inferred mode_h_from_v(rbm, v[:, :, 1])) == size(rbm.hidden)
-    @test size(@inferred mode_v_from_h(rbm, h[:, :, 1])) == size(rbm.visible)
-
-    @test size(@inferred var_h_from_v(rbm, v)) == size(h)
-    @test size(@inferred var_v_from_h(rbm, h)) == size(v)
-    @test size(@inferred var_h_from_v(rbm, v[:, :, 1])) == size(rbm.hidden)
-    @test size(@inferred var_v_from_h(rbm, h[:, :, 1])) == size(rbm.visible)
+    for (h_from_v, v_from_h) in ((mean_h_from_v, mean_v_from_h), (mode_h_from_v, mode_v_from_h), (var_h_from_v, var_v_from_h))
+        @test size(@inferred h_from_v(rbm, v)) == size(h)
+        @test size(@inferred v_from_h(rbm, h)) == size(v)
+        @test size(@inferred h_from_v(rbm, v[:, :, 1])) == size(rbm.hidden)
+        @test size(@inferred v_from_h(rbm, h[:, :, 1])) == size(rbm.visible)
+    end
 
     @test size(@inferred free_energy(rbm, v)) == (7,)
     @test size(@inferred reconstruction_error(rbm, v)) == (7,)
@@ -506,19 +498,20 @@ end
     @test ν ≈ total_var_v_from_h(rbm, h)
 end
 
-@testset "SpinRBM convenience constructors" begin
-    rbm = SpinRBM(Float32, 5, 3)
-    @test rbm.visible isa Spin
-    @test rbm.hidden isa Spin
+@testset "$Constructor type/dims constructors" for (Constructor, V, H) in ((SpinRBM, Spin, Spin), (HopfieldRBM, Spin, Gaussian))
+    rbm = Constructor(Float32, 5, 3)
+    @test rbm.visible isa V
+    @test rbm.hidden isa H
     @test size(rbm.w) == (5, 3)
-    @test eltype(rbm.w) == Float32
+    @test eltype(rbm.w) == eltype(rbm.visible.par) == eltype(rbm.hidden.par) == Float32
     @test iszero(rbm.visible.θ)
     @test iszero(rbm.hidden.θ)
     @test iszero(rbm.w)
+    rbm.hidden isa Gaussian && @test rbm.hidden.γ == ones(Float32, 3)
 
-    rbm = SpinRBM(5, 3)
-    @test rbm.visible isa Spin
-    @test rbm.hidden isa Spin
+    rbm = Constructor(5, 3)
+    @test rbm.visible isa V
+    @test rbm.hidden isa H
     @test size(rbm.w) == (5, 3)
     @test eltype(rbm.w) == Float64
 end
@@ -546,23 +539,6 @@ end
     @test iszero(rbm2.hidden.θ)
     @test rbm2.hidden.γ == ones(3)
     @test rbm2.w ≈ w
-end
-
-@testset "HopfieldRBM type/dims constructors" begin
-    rbm = HopfieldRBM(Float32, 5, 3)
-    @test rbm.visible isa Spin
-    @test rbm.hidden isa Gaussian
-    @test size(rbm.w) == (5, 3)
-    @test eltype(rbm.w) == Float32
-    @test iszero(rbm.visible.θ)
-    @test iszero(rbm.hidden.θ)
-    @test rbm.hidden.γ == ones(Float32, 3)
-
-    rbm = HopfieldRBM(5, 3)
-    @test rbm.visible isa Spin
-    @test rbm.hidden isa Gaussian
-    @test size(rbm.w) == (5, 3)
-    @test eltype(rbm.w) == Float64
 end
 
 @testset "reconstruction_error exact value for a deterministic RBM" begin

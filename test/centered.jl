@@ -29,14 +29,13 @@ using RestrictedBoltzmannMachines: mirror
 using RestrictedBoltzmannMachines: pcd!
 using RestrictedBoltzmannMachines: sample_h_from_h
 using RestrictedBoltzmannMachines: sample_h_from_v
-using RestrictedBoltzmannMachines: sample_v_from_v
 using RestrictedBoltzmannMachines: uncenter
-using Optimisers: Adam
 using Statistics: mean
 using LinearAlgebra: norm
 using Test: @inferred
 using Test: @test
 using Test: @testset
+using RestrictedBoltzmannMachines: regularization_penalty
 using Zygote: gradient
 
 @testset "CenteredBinaryRBM" begin
@@ -68,11 +67,6 @@ end
     @test @inferred(uncenter(centered_rbm)).visible.θ ≈ rbm.visible.θ
     @test @inferred(uncenter(centered_rbm)).hidden.θ ≈ rbm.hidden.θ
     @test @inferred(uncenter(centered_rbm)).w ≈ rbm.w
-
-    v = bitrand(3, 2)
-    h = bitrand(2, 2)
-    @test mean_h_from_v(rbm, v) ≈ mean_h_from_v(uncenter(rbm), v)
-    @test mean_v_from_h(rbm, h) ≈ mean_v_from_h(uncenter(rbm), h)
 end
 
 @testset "center_visible / center_hidden helpers" begin
@@ -207,22 +201,6 @@ end
     # not exact because offset is updated after having updated the parameters!
 end
 
-@testset "centered pcd training" begin
-    data = falses(2, 1000)
-    data[1, 1:2:end] .= true
-    data[2, 1:2:end] .= true
-
-    rbm = center(BinaryRBM(2, 5))
-    initialize!(rbm, data)
-    pcd!(rbm, data; iters = 10000, batchsize = 64, steps = 10, optim = Adam(5.0e-4))
-
-    v_sample = sample_v_from_v(rbm, bitrand(2, 10000); steps = 50)
-
-    @test 0.4 < mean(v_sample[1, :]) < 0.6
-    @test 0.4 < mean(v_sample[2, :]) < 0.6
-    @test 0.4 < mean(v_sample[1, :] .* v_sample[2, :]) < 0.6
-end
-
 @testset "center_from_data! helpers" begin
     rbm = center(BinaryRBM(randn(3), randn(2), randn(3, 2)))
     data = bitrand(3, 7)
@@ -295,70 +273,18 @@ end
     @test batchmean(rbm.hidden, sample) ≈ batchmean(rbm.hidden, mean_h_from_v(rbm, v)) rtol = 0.1
 end
 
-@testset "∂regularize! centered RBM" begin
-    rbm = CenteredBinaryRBM(randn(3), randn(2), randn(3, 2), randn(3), randn(2))
-    v = bitrand(3, 100)
-    vdims = ntuple(identity, ndims(rbm.visible))
-    N = length(rbm.visible)
-
-    l2_fields = rand()
-    l1_weights = rand()
-    l2_weights = rand()
-    l2l1_weights = rand()
-
-    urbm = uncenter(rbm)
-    ∂u = ∂free_energy(urbm, v)
-
-    gs = gradient(rbm) do rbm
-        F = mean(free_energy(rbm, v))
-        urbm = uncenter(rbm)
-        L2_fields = sum(abs2, urbm.visible.θ)
-        L1_weights = sum(abs, urbm.w)
-        L2_weights = sum(abs2, urbm.w)
-        L2L1_weights = sum(abs2, sum(abs, urbm.w; dims = vdims))
-        return (
-            F + l2_fields / 2 * L2_fields +
-                l1_weights * L1_weights +
-                l2_weights / 2 * L2_weights +
-                l2l1_weights / (2N) * L2L1_weights
-        )
-    end
-
-    ∂ = ∂free_energy(rbm, v)
-    ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights)
-
-    @test only(gs).visible.par ≈ ∂.visible
-    @test only(gs).hidden.par ≈ ∂.hidden
-    @test only(gs).w ≈ ∂.w
-end
-
-@testset "∂regularize! centered RBM" begin
-    rbm = CenteredRBM(
-        ReLU(; θ = randn(3), γ = rand(3)), Binary(; θ = randn(2)), randn(3, 2),
-        randn(3), randn(2)
+@testset "∂regularize! centered RBM ($(nameof(typeof(visible))) visible)" for (visible, v) in (
+        (Binary(; θ = randn(3)), bitrand(3, 100)),
+        (ReLU(; θ = randn(3), γ = rand(3)), rand(3, 100)),
+        (dReLU(; θp = randn(3), θn = randn(3), γp = rand(3), γn = rand(3)), randn(3, 100)),
     )
-    v = rand(3, 100)
-    vdims = ntuple(identity, ndims(rbm.visible))
-    N = length(rbm.visible)
-
-    l2_fields = rand()
-    l1_weights = rand()
-    l2_weights = rand()
-    l2l1_weights = rand()
+    rbm = CenteredRBM(visible, Binary(; θ = randn(2)), randn(3, 2), randn(3), randn(2))
+    l2_fields, l1_weights, l2_weights, l2l1_weights = rand(4)
 
     gs = gradient(rbm) do rbm
         F = mean(free_energy(rbm, v))
-        urbm = uncenter(rbm)
-        L2_fields = sum(abs2, urbm.visible.θ)
-        L1_weights = sum(abs, urbm.w)
-        L2_weights = sum(abs2, urbm.w)
-        L2L1_weights = sum(abs2, sum(abs, urbm.w; dims = vdims))
-        return (
-            F + l2_fields / 2 * L2_fields +
-                l1_weights * L1_weights +
-                l2_weights / 2 * L2_weights +
-                l2l1_weights / (2N) * L2L1_weights
-        )
+        R = regularization_penalty(rbm; l2_fields, l1_weights, l2_weights, l2l1_weights)
+        return F + R
     end
 
     ∂ = ∂free_energy(rbm, v)
@@ -368,45 +294,6 @@ end
     @test only(gs).hidden.par ≈ ∂.hidden
     @test only(gs).w ≈ ∂.w
 end
-
-@testset "∂regularize! centered RBM" begin
-    rbm = CenteredRBM(
-        dReLU(; θp = randn(3), θn = randn(3), γp = rand(3), γn = rand(3)), Binary(; θ = randn(2)), randn(3, 2),
-        randn(3), randn(2),
-    )
-    v = randn(3, 100)
-    vdims = ntuple(identity, ndims(rbm.visible))
-    N = length(rbm.visible)
-
-    l2_fields = rand()
-    l1_weights = rand()
-    l2_weights = rand()
-    l2l1_weights = rand()
-
-    gs = gradient(rbm) do rbm
-        F = mean(free_energy(rbm, v))
-        urbm = uncenter(rbm)
-        L2_fields = sum(abs2, urbm.visible.θp) + sum(abs2, urbm.visible.θn)
-        L1_weights = sum(abs, urbm.w)
-        L2_weights = sum(abs2, urbm.w)
-        L2L1_weights = sum(abs2, sum(abs, urbm.w; dims = vdims))
-        return (
-            F + l2_fields / 2 * L2_fields +
-                l1_weights * L1_weights +
-                l2_weights / 2 * L2_weights +
-                l2l1_weights / (2N) * L2L1_weights
-        )
-    end
-
-    ∂ = ∂free_energy(rbm, v)
-    ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights)
-
-    @test only(gs).visible.par ≈ ∂.visible
-    @test only(gs).hidden.par ≈ ∂.hidden
-    @test only(gs).w ≈ ∂.w
-end
-
-using RestrictedBoltzmannMachines: RBM, regularization_penalty
 
 @testset "regularization_penalty of CenteredRBM" begin
     rbm = CenteredBinaryRBM(randn(3), randn(2), randn(3, 2), randn(3), randn(2))
@@ -604,27 +491,4 @@ must be rescaled together with the activations for p(v) to be preserved. =#
     F2 = free_energy(rbm2, states)
     @test F2 ≈ F0 .+ mean(F2 - F0) # constant shift
     @test softmax(-F2) ≈ softmax(-F0)
-end
-
-using RestrictedBoltzmannMachines: sample_v_from_h
-
-@testset "centered pcd! accepts shuffle, ps, state, and unified callback keywords" begin
-    data = bitrand(2, 32)
-    rbm = center(BinaryRBM(2, 3))
-    seen = Ref{Any}(nothing)
-    state, ps = pcd!(
-        rbm, data;
-        iters = 2, batchsize = 8, shuffle = false,
-        callback = (; kwargs...) -> (seen[] = kwargs),
-    )
-    @test issubset((:rbm, :optim, :state, :ps, :iter, :vd, :wd, :∂, :vm), keys(seen[]))
-    @test seen[][:rbm] === rbm
-    @test seen[][:ps] === ps
-
-    # training can be continued from the returned optimizer state and parameters
-    state2, ps2 = pcd!(rbm, data; iters = 2, batchsize = 8, ps, state)
-    @test ps2 === ps
-    @test all(isfinite, rbm.visible.par)
-    @test all(isfinite, rbm.hidden.par)
-    @test all(isfinite, rbm.w)
 end

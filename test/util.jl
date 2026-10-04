@@ -1,8 +1,7 @@
-import Statistics
 import RestrictedBoltzmannMachines as RBMs
 using Test: @test, @testset, @inferred, @test_throws
-using Statistics: mean, var, cov
-using LinearAlgebra: Diagonal, dot
+using Statistics: mean
+using LinearAlgebra: dot
 using FillArrays: Trues
 using RestrictedBoltzmannMachines: convert_eltype
 

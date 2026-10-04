@@ -3,7 +3,7 @@ using LinearAlgebra: norm
 using Statistics: mean
 using RestrictedBoltzmannMachines: zerosum, zerosum!, zerosum_weights, free_energy,
     RBM, Potts, Binary, Spin, Gaussian, ReLU, dReLU, pReLU, xReLU, sample_from_inputs,
-    PottsGumbel, potts_to_gumbel, gumbel_to_potts, ∂RBM, ∂free_energy, ∂regularize!,
+    PottsGumbel, potts_to_gumbel, gumbel_to_potts, ∂free_energy, ∂regularize!,
     standardize, unstandardize, CenteredRBM, center, uncenter
 
 @testset "zerosum (visible Potts)" begin
@@ -86,7 +86,7 @@ end
         rbm1 = zerosum(rbm)
         @test norm(mean(rbm1.w; dims = 1)) < 1.0e-13
         @test norm(mean(rbm1.visible.θ; dims = 1)) < 1.0e-13
-        v = v = sample_from_inputs(rbm.visible, zeros(N..., 1000))
+        v = sample_from_inputs(rbm.visible, zeros(N..., 1000))
         F0 = free_energy(rbm, v)
         F1 = free_energy(rbm1, v)
         @test all(F0 - F1 .≈ mean(F0 - F1))
