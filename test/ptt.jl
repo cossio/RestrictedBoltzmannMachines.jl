@@ -238,14 +238,18 @@ end
     @test_throws ArgumentError ptt!(rbm, data; ladder, batchsize = 100, optim = ClipGrad()) # no learning rate
 end
 
-#= ptt! draws every minibatch independently: consecutive minibatches of half the data
-overlap by 5 samples on average, while those of an epoch are disjoint. =#
-@testset "ptt! minibatches" begin
-    data = reshape(1:20, 1, 20)
-    batches = collect(Iterators.take(RBMs._random_minibatches(data, 1.0:20.0; batchsize = 10), 1000))
-    @test all(((x, w),) -> size(x) == (1, 10) && allunique(x) && w == vec(x), batches)
-    @test 4.5 < mean(length(intersect(batches[n][1], batches[n + 1][1])) for n in 1:999) < 5.5
-    @test sort(vec(first(RBMs._random_minibatches(data, 1.0:20.0; batchsize = 20))[1])) == 1:20
+#= ptt! draws every minibatch independently, reusing one permutation: consecutive draws of
+half the samples overlap by 5 on average, while the minibatches of an epoch are disjoint. =#
+@testset "PTT random subsets" begin
+    perm = collect(1:20)
+    draws = [RBMs._randsubset!(perm, 10) for _ in 1:1000]
+    @test all(idx -> length(idx) == 10 && allunique(idx) && all(∈(1:20), idx), draws)
+    @test 4.5 < mean(length(intersect(draws[n], draws[n + 1])) for n in 1:999) < 5.5
+    @test all(i -> abs(count(idx -> i ∈ idx, draws) - 500) < 80, 1:20) # uniform
+    @test sort(perm) == 1:20
+    @test sort(RBMs._randsubset!(perm, 20)) == 1:20
+    idx = RBMs._randsubset(10, 3)
+    @test length(idx) == 3 && allunique(idx) && idx ⊆ 1:10
 end
 
 #= The chains lag behind `model` at the independent-site model `base`, so that the online

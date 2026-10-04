@@ -199,8 +199,12 @@ function ptt!(
     zerosum && zerosum!(rbm)
     rescale && rescale_weights!(rbm)
 
+    perm = collect(1:_nsamples(data)) # reshuffled in part for every minibatch
     halvings = 0 # of the learning rate, by rejected updates
-    for (iter, (vd, wd)) in zip(1:iters, _random_minibatches(data, wts; batchsize))
+    for iter in 1:iters
+        idx = _randsubset!(perm, batchsize) # independent of the other minibatches
+        vd, wd = data[.., idx], wts[idx]
+
         # negative phase first, since a rejected update restores the parameters
         if _ptt_update!(ladder, rbm; steps) === :rejected
             ladder.rejections ≤ PTT_MAX_REJECTIONS ||
@@ -252,20 +256,17 @@ function _restart_optimiser(o::AbstractRule, state, x::AbstractArray)
     return o, Optimisers.init(o, x)
 end
 
-#= Infinite iterator over minibatches of `batchsize` distinct samples of `data` and their
-weights `wts`, each drawn at random independently of the others, by a partial
-Fisher-Yates shuffle of a persistent permutation, in O(batchsize) time. =#
-function _random_minibatches(data::AbstractArray, wts::AbstractVector; batchsize::Int)
-    perm = collect(1:length(wts))
-    return Iterators.map(Iterators.repeated(nothing)) do _
-        for i in 1:batchsize
-            j = rand(i:length(perm))
-            perm[i], perm[j] = perm[j], perm[i]
-        end
-        idx = perm[1:batchsize]
-        return data[.., idx], wts[idx]
+#= `k` distinct entries of `perm` drawn at random, in random order, by a partial
+Fisher-Yates shuffle in O(k) time. `perm` stays a permutation, so that it can be reused:
+every call draws independently of the previous ones. =#
+function _randsubset!(perm::Vector{Int}, k::Int)
+    for i in 1:k
+        j = rand(i:length(perm))
+        perm[i], perm[j] = perm[j], perm[i]
     end
+    return perm[1:k]
 end
+_randsubset(n::Int, k::Int) = _randsubset!(collect(1:n), k) # `k` distinct indices in 1:n
 
 #= One PTT update of the chains of `model`, which moved along its trajectory since the last
 update. Returns `:rejected` if `model` lost overlap with the last checkpoint, in which case
@@ -321,7 +322,7 @@ end
 function _reject!(ladder::TrajectoryLadder, model)
     _copyto_model!(model, last(ladder.checkpoints))
     _reset_reservoir!(ladder)
-    idx = randperm(_nsamples(ladder.samples))[1:_nsamples(ladder.chains)]
+    idx = _randsubset(_nsamples(ladder.samples), _nsamples(ladder.chains))
     ladder.chains .= ladder.samples[.., idx]
     ladder.chains_F .= ladder.samples_F[idx]
     ladder.since_checkpoint = 0
@@ -333,7 +334,7 @@ end
 sample of the last checkpoint. `Δ` holds the log Metropolis ratios. =#
 function _propose_exchange(ladder::TrajectoryLadder, model)
     x = ladder.chains
-    idx = randperm(_nsamples(ladder.reservoir))[1:_nsamples(x)]
+    idx = _randsubset(_nsamples(ladder.reservoir), _nsamples(x))
     y = ladder.reservoir[.., idx]
     Fy = ladder.reservoir_F[idx]
     Fx = _free_energies(last(ladder.checkpoints), x)
