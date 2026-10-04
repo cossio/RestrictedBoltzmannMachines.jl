@@ -160,6 +160,17 @@ end
     # not exact because offset is updated after having updated the parameters!
 end
 
+@testset "initialize! CenteredRBM without data" begin
+    rbm = CenteredBinaryRBM(randn(3), randn(2), randn(3, 2), randn(3), randn(2))
+    @test initialize!(rbm) === rbm
+    @test rbm isa CenteredRBM
+    @test iszero(rbm.offset_v)
+    @test iszero(rbm.offset_h)
+    @test iszero(rbm.visible.θ)
+    @test iszero(rbm.hidden.θ)
+    @test !iszero(rbm.w)
+end
+
 @testset "standardize_*_from_* of a CenteredRBM fit only the offsets" begin
     rbm = CenteredRBM(BinaryRBM(randn(3), randn(2), randn(3, 2)))
     data = bitrand(3, 7)

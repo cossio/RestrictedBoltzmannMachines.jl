@@ -20,7 +20,8 @@ The usual training workflow is:
 
 1. Build an RBM (`BinaryRBM`, `GaussianRBM`, `HopfieldRBM`, or `RBM(visible, hidden, w)` for any pair of layers).
 2. Prepare data with shape `(size(rbm.visible)..., nsamples)`.
-3. Call [`initialize!`](@ref) (for plain RBMs) or `standardize(...)` if using stdRBM.
+3. Call [`initialize!`](@ref) once on the data. For a stdRBM this also sets the offsets and
+   scales from the data (`standardize(...)` to choose them instead).
 4. Train with [`pcd!`](@ref).
 5. Monitor training with [`log_pseudolikelihood`](@ref), [`reconstruction_error`](@ref), or a callback.
 
