@@ -66,8 +66,6 @@ function StandardizedRBM(rbm::RBM)
     return StandardizedRBM(rbm, offset_v, offset_h, scale_v, scale_h)
 end
 
-RBM(rbm::StandardizedRBM) = RBM(rbm.visible, rbm.hidden, rbm.w)
-
 standardize_v(rbm::StandardizedRBM, v::AbstractArray) = (v .- rbm.offset_v) ./ rbm.scale_v
 standardize_h(rbm::StandardizedRBM, h::AbstractArray) = (h .- rbm.offset_h) ./ rbm.scale_h
 
@@ -84,36 +82,6 @@ if this was done. The modified RBM is equivalent to the original one.
 """
 function rescale_hidden_activations!(rbm::StandardizedRBM)
     return rescale_hidden!(rbm, copy(rbm.scale_h))
-end
-
-"""
-    zerosum(rbm::StandardizedRBM)
-
-Returns an equivalent `StandardizedRBM`, with the same offsets and scales, whose
-equivalent unstandardized `RBM` (see [`unstandardize`](@ref)) is in the zerosum gauge.
-Only affects Potts layers. If the `rbm` doesn't have `Potts` layers, does nothing.
-
-Note that the gauge condition applies to the unstandardized parameters: the standardized
-weights and fields need not sum to zero over Potts colors, because the interaction energy
-involves the standardized `(v - offset_v) / scale_v`, for which sums over colors are not
-constant when the offsets and scales vary across colors.
-"""
-function zerosum(rbm::StandardizedRBM)
-    has_potts_layers(rbm) || return rbm
-    plain = zerosum(unstandardize(rbm))
-    return standardize(plain, rbm.offset_v, rbm.offset_h, rbm.scale_v, rbm.scale_h)
-end
-
-"""
-    delta_energy(rbm)
-
-Compute the (constant) energy shift with respect to the equivalent normal RBM.
-"""
-delta_energy(rbm::RBM) = 0
-function delta_energy(rbm::StandardizedRBM)
-    v = Zeros(rbm.offset_v)
-    h = Zeros(rbm.offset_h)
-    return interaction_energy(rbm, v, h)
 end
 
 """
@@ -137,13 +105,7 @@ This is the inverse operation of [`unstandardize`](@ref). To construct a
 distribution, call `StandardizedRBM(rbm, offset_v, offset_h, scale_v, scale_h)` instead.
 """
 standardize(rbm::RBM) = StandardizedRBM(rbm)
-function standardize(rbm::StandardizedRBM)
-    offset_v = Zeros(rbm.offset_v)
-    offset_h = Zeros(rbm.offset_h)
-    scale_v = Ones(rbm.scale_v)
-    scale_h = Ones(rbm.scale_h)
-    return standardize(rbm, offset_v, offset_h, scale_v, scale_h)
-end
+standardize(rbm::StandardizedRBM) = standardize(rbm, Zeros(rbm.offset_v), Zeros(rbm.offset_h), Ones(rbm.scale_v), Ones(rbm.scale_h))
 
 function standardize(
         rbm::StandardizedRBM,
@@ -285,52 +247,41 @@ function standardize_hidden_from_v!(
     return standardize_hidden_from_inputs!(rbm, inputs; damping, wts, ϵ)
 end
 
-unstandardized_weights(rbm::StandardizedRBM) = rbm.w ./ _scale_w(rbm)
+"""
+    pcd!(rbm::StandardizedRBM, data; damping = 1 // 100, ϵv = 0, ϵh = 0,
+         regularize_unstandardized = true, rescale_hidden = true, kwargs...)
 
-potts_to_gumbel(rbm::StandardizedRBM) = StandardizedRBM(potts_to_gumbel(RBM(rbm)), rbm.offset_v, rbm.offset_h, rbm.scale_v, rbm.scale_h)
-gumbel_to_potts(rbm::StandardizedRBM) = StandardizedRBM(gumbel_to_potts(RBM(rbm)), rbm.offset_v, rbm.offset_h, rbm.scale_v, rbm.scale_h)
-
+[`pcd!`](@ref) for a `StandardizedRBM`, with the same keywords as for a plain `RBM` except
+`rescale`. The visible offsets and scales are set from `data` before training, and after
+every update the hidden offsets and scales move towards the minibatch conditional
+statistics by a fraction `damping`; `ϵv`, `ϵh` are pseudocounts added to the variances.
+If `rescale_hidden`, `scale_h` is absorbed into hidden units that have a scale parameter,
+so that `var(h) ≈ 1`. Regularization applies to the equivalent plain `RBM` if
+`regularize_unstandardized`, otherwise to the standardized parameters.
+"""
 function pcd!(
         rbm::StandardizedRBM,
         data::AbstractArray;
-
         batchsize::Int = 1,
-        shuffle::Bool = true,
-
-        iters::Int = 1, # number of gradient updates
-        wts::AbstractVector{<:Real} = uniform_wts(rbm.visible, data), # data weights
-
+        iters::Int = 1,
+        wts::AbstractVector{<:Real} = uniform_wts(rbm.visible, data),
         steps::Int = 1,
-        vm::AbstractArray = _default_fantasy_chains(rbm, min(batchsize, size(data)[end])),
-
-        moments = moments_from_samples(rbm.visible, data; wts), # sufficient statistics for visible layer
-
-        # regularization
-        l2_fields::Real = 0, # visible fields L2 regularization
-        l1_weights::Real = 0, # weights L1 regularization
-        l2_weights::Real = 0, # weights L2 regularization
-        l2l1_weights::Real = 0, # weights L2/L1 regularization
-
-        # "pseudocount" for estimating variances of v and h and damping
-        damping::Real = 1 // 100, ϵv::Real = 0, ϵh::Real = 0,
-
-        # whether regularization applies to unstandardized model parameters (default),
-        # or to the parameters of the standardized model
-        regularize_unstandardized::Bool = true,
-
-        # optimiser
         optim::AbstractRule = Adam(),
+        moments = moments_from_samples(rbm.visible, data; wts),
+        damping::Real = 1 // 100, # of the hidden standardization updates
+        ϵv::Real = 0, ϵh::Real = 0, # pseudocounts for the visible and hidden variances
+        regularize_unstandardized::Bool = true, # regularize the equivalent plain RBM, or this one
+        l2_fields::Real = 0,
+        l1_weights::Real = 0,
+        l2_weights::Real = 0,
+        l2l1_weights::Real = 0,
+        zerosum::Bool = true,
+        rescale_hidden::Bool = true, # absorb scale_h into hidden units with a scale parameter, so var(h) ~ 1
+        callback = Returns(nothing),
+        vm::AbstractArray = _default_fantasy_chains(rbm, min(batchsize, size(data)[end])),
+        shuffle::Bool = true,
         ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w),
         state = setup(optim, ps),
-
-        # Absorb the scale_h into the hidden unit activation (for hidden units with scale parameter).
-        # Results in hidden units with var(h) ~ 1.
-        rescale_hidden::Bool = true,
-
-        zerosum::Bool = true, # zerosum gauge for Potts layers
-
-        # called for every gradient update
-        callback = Returns(nothing)
     )
     @assert 0 ≤ damping ≤ 1
     wts_mean, batchsize = _pcd_check_args(rbm, data, wts, batchsize)
@@ -413,11 +364,3 @@ function rescale_hidden!(rbm::StandardizedRBM, λ::AbstractArray)
     end
     return false
 end
-
-"""
-    weight_norms(std_rbm::StandardizedRBM)
-
-Computes the norms of the unstandardized weights for each hidden unit. If you want the norms
-of the standardized weights, use `weight_norms(RBM(std_rbm))`.
-"""
-weight_norms(rbm::StandardizedRBM) = weight_norms(RBM(rbm.visible, rbm.hidden, unstandardized_weights(rbm)))

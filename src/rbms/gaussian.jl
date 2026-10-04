@@ -7,7 +7,6 @@ Equivalent to `RBM(Gaussian(θv, γv), Gaussian(θh, γh), w)`.
 function GaussianRBM(θv::AbstractArray, γv::AbstractArray, θh::AbstractArray, γh::AbstractArray, w::AbstractArray)
     @assert size(θv) == size(γv)
     @assert size(θh) == size(γh)
-    @assert size(w) == (size(θv)..., size(θh)...)
     return RBM(Gaussian(; θ = θv, γ = γv), Gaussian(; θ = θh, γ = γh), w)
 end
 
@@ -34,9 +33,7 @@ function log_partition(rbm::RBM{<:Gaussian, <:Gaussian})
     F = LinearAlgebra.cholesky(A; check = false)
     logZ0 = length(θ) / 2 * log(2π)
 
-    if !LinearAlgebra.issuccess(F)
-        return oftype(logZ0 + zero(eltype(F)) + zero(eltype(θ)), Inf)
-    end
+    LinearAlgebra.issuccess(F) || return promote_type(typeof(logZ0), eltype(F), eltype(θ))(Inf)
 
     return logZ0 + dot(θ, F \ θ) / 2 - logdet(F) / 2
 end

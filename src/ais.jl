@@ -1,25 +1,12 @@
 #=
-Annealed importance sampling (AIS) to estimate the partition function (and hence
-the log-likelihood).
-A nice explanation of AIS in general can be found in Goodfellow et al Deep Learning book.
-Salakhutdinov et al (10.1145/1390156.1390266, http://www.cs.utoronto.ca/~rsalakhu/papers/bm.pdf)
-discusses AIS for RBMs specifically.
+Annealed importance sampling (AIS) to estimate the partition function, and hence the
+log-likelihood. AIS tends to underestimate log(Z) (in probability), while reverse AIS
+(RAISE) gives a stochastic upper bound, so the two sandwich the true value.
 
-AIS tends to understimate the log of the partition function (in probability).
-In contrast, Reverse AIS estimator (RAISE) can be used to obtain a stochastic upper bound.
-See http://proceedings.mlr.press/v38/burda15.html.
-Combining the two we can "sandwiches" the true value to have an idea if the Monte Carlo
-chains have converged.
-
-Addendum: I think Burda's paper has a typo. The correct expression for the weights In
-reverse AIS (which I use here) can be found in Upadhya et al 2015, Equation 10
-(https://link.springer.com/chapter/10.1007/978-3-319-26535-3_62).
-
-Bonus: A discussion of estimating partition function in RBMs, comparing several algorithms:
-
-https://www.sciencedirect.com/science/article/pii/S0004370219301948
-
-For a variant or RAISE: https://arxiv.org/abs/1511.02543
+References: Salakhutdinov & Murray (10.1145/1390156.1390266) for AIS in RBMs; Burda et
+al (http://proceedings.mlr.press/v38/burda15.html) for RAISE, whose weights are stated
+correctly in Upadhya et al 2015, Eq. 10 (10.1007/978-3-319-26535-3_62); a comparison of
+partition-function estimators for RBMs in 10.1016/j.artint.2019.103195.
 =#
 
 """
@@ -37,14 +24,11 @@ function ais(rbm0::RBM, rbm1::RBM, v::AbstractArray, βs::AbstractVector)
     @assert issorted(βs) && 0 == first(βs) ≤ last(βs) == 1
     F = free_energy(rbm0, v)
     for β in βs
-        if iszero(β) || isone(β)
-            continue
-        else
-            rbm = anneal(rbm0, rbm1; β)
-            F -= free_energy(rbm, v)
-            v = sample_v_from_v(rbm, v)
-            F += free_energy(rbm, v)
-        end
+        (iszero(β) || isone(β)) && continue
+        rbm = anneal(rbm0, rbm1; β)
+        F -= free_energy(rbm, v)
+        v = sample_v_from_v(rbm, v)
+        F += free_energy(rbm, v)
     end
     F -= free_energy(rbm1, v)
     return F
@@ -121,10 +105,7 @@ end
 
 anneal_zero(init::AbstractLayer, rbm::RBM) = RBM(init, anneal_zero(rbm.hidden), Zeros(rbm.w))
 
-anneal_zero(l::Binary) = Binary(; θ = zero(l.θ))
-anneal_zero(l::Spin) = Spin(; θ = zero(l.θ))
-anneal_zero(l::Potts) = Potts(; θ = zero(l.θ))
-anneal_zero(l::PottsGumbel) = PottsGumbel(; θ = zero(l.θ))
+anneal_zero(l::_FieldLayers) = _construct_like(l, zero(l.par))
 anneal_zero(l::Gaussian) = Gaussian(; θ = zero(l.θ), l.γ)
 anneal_zero(l::ReLU) = ReLU(; θ = zero(l.θ), l.γ)
 anneal_zero(l::dReLU) = dReLU(; θp = zero(l.θp), θn = zero(l.θn), l.γp, l.γn)

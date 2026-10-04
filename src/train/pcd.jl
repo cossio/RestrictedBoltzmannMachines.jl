@@ -59,7 +59,7 @@ parameters with an `Optimisers.jl` rule.
 - `iters::Int=1`: number of parameter updates.
 - `wts::AbstractVector{<:Real}`: finite, positive per-sample
   weights, lazy uniform weights by default. Zero or negative weights raise an
-  `ArgumentError` — drop observations meant to be excluded (and their weights)
+  `AssertionError` — drop observations meant to be excluded (and their weights)
   beforehand. Callbacks receive the minibatch weights as `wd`.
 - `steps::Int=1`: Gibbs steps used to update persistent chains each iteration.
 - `optim::AbstractRule=Adam()`: optimizer rule from `Optimisers.jl`.
@@ -87,30 +87,20 @@ function pcd!(
         rbm::RBM,
         data::AbstractArray;
         batchsize::Int = 1,
-        iters::Int = 1, # number of gradient updates
-        wts::AbstractVector{<:Real} = uniform_wts(rbm.visible, data), # data weights
-        steps::Int = 1, # MC steps to update fantasy chains
-        optim::AbstractRule = Adam(), # optimizer rule
-        moments = moments_from_samples(rbm.visible, data; wts), # sufficient statistics for visible layer
-
-        # regularization
-        l2_fields::Real = 0, # visible fields L2 regularization
-        l1_weights::Real = 0, # weights L1 regularization
-        l2_weights::Real = 0, # weights L2 regularization
-        l2l1_weights::Real = 0, # weights L2/L1 regularization
-
-        # gauge
-        zerosum::Bool = true, # zerosum gauge for Potts layers
-        rescale::Bool = true, # normalize weights to unit norm (for continuous hidden units only)
-
-        callback = Returns(nothing), # called for every batch
-
-        # init fantasy chains
+        iters::Int = 1,
+        wts::AbstractVector{<:Real} = uniform_wts(rbm.visible, data),
+        steps::Int = 1,
+        optim::AbstractRule = Adam(),
+        moments = moments_from_samples(rbm.visible, data; wts),
+        l2_fields::Real = 0,
+        l1_weights::Real = 0,
+        l2_weights::Real = 0,
+        l2l1_weights::Real = 0,
+        zerosum::Bool = true,
+        rescale::Bool = true,
+        callback = Returns(nothing),
         vm::AbstractArray = _default_fantasy_chains(rbm, min(batchsize, size(data)[end])),
-
         shuffle::Bool = true,
-
-        # parameters to optimize
         ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w),
         state = setup(optim, ps),
     )

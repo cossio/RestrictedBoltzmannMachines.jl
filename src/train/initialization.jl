@@ -34,40 +34,19 @@ function initialize!(
     return rbm
 end
 
-function initialize!(
-        layer::Binary, data::AbstractArray;
-        ϵ::Real = 1.0e-6, wts::AbstractArray{<:Real} = uniform_wts(layer, data)
-    )
-    @assert 0 < ϵ < 1 / 2
-    validate_wts(wts)
-    μ = batchmean(layer, data; wts)
-    μϵ = clamp.(μ, ϵ, 1 - ϵ)
-    layer.θ .= logit.(μϵ)
-    return layer
-end
+# fields matching mean activities `μ`, clamped away from the boundary by `ϵ`
+_θ_from_mean(::Binary, μ, ϵ) = logit.(clamp.(μ, ϵ, 1 - ϵ))
+_θ_from_mean(::Spin, μ, ϵ) = atanh.(clamp.(μ, ϵ - 1, 1 - ϵ))
+_θ_from_mean(::_PottsLayers, μ, ϵ) = log.(clamp.(μ, ϵ, 1 - ϵ)) # not in zerosum gauge
 
 function initialize!(
-        layer::Spin, data::AbstractArray;
+        layer::_FieldLayers, data::AbstractArray;
         ϵ::Real = 1.0e-6, wts::AbstractArray{<:Real} = uniform_wts(layer, data)
     )
     @assert 0 < ϵ < 1 / 2
     validate_wts(wts)
-    μ = batchmean(layer, data; wts)
-    μϵ = clamp.(μ, ϵ - 1, 1 - ϵ)
-    layer.θ .= atanh.(μϵ)
+    layer.θ .= _θ_from_mean(layer, batchmean(layer, data; wts), ϵ)
     return layer
-end
-
-function initialize!(
-        layer::_PottsLayers, data::AbstractArray;
-        ϵ::Real = 1.0e-6, wts::AbstractArray{<:Real} = uniform_wts(layer, data)
-    )
-    @assert 0 < ϵ < 1 / 2
-    validate_wts(wts)
-    μ = batchmean(layer, data; wts)
-    μϵ = clamp.(μ, ϵ, 1 - ϵ)
-    layer.θ .= log.(μϵ)
-    return layer # does not do zerosum!
 end
 
 # Gaussian moment-matching of `θ` and `γ`, shared by the layers initialized as Gaussians.

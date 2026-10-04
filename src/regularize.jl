@@ -4,17 +4,14 @@
 Updates RBM gradients `∂`, with the regularization gradient.
 """
 function ∂regularize!(
-        ∂::∂RBM, # unregularized gradient
-        rbm::RBM;
-        l2_fields::Real = 0, # L2 regularization of visible unit fields
-        l1_weights::Real = 0, # L1 regularization of weights
-        l2_weights::Real = 0, # L2 regularization of weights
-        l2l1_weights::Real = 0, # L2/L1 regularziation of weights (10.7554/eLife.39397, Eq. 8)
+        ∂::∂RBM, rbm::RBM;
+        l2_fields::Real = 0,
+        l1_weights::Real = 0,
+        l2_weights::Real = 0,
+        l2l1_weights::Real = 0, # 10.7554/eLife.39397, Eq. 8
         zerosum::Bool = false # whether to zerosum gradients
     )
-    if !iszero(l2_fields)
-        ∂regularize_fields!(∂.visible, rbm.visible; l2_fields)
-    end
+    ∂regularize_fields!(∂.visible, rbm.visible; l2_fields)
     _∂regularize_weights!(∂.w, rbm; l1_weights, l2_weights, l2l1_weights)
     zerosum && zerosum!(∂, rbm)
     return ∂

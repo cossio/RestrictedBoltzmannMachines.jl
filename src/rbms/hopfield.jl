@@ -11,7 +11,6 @@ E(v, h) = -g'v - θ'h + \sum_\mu \frac{γ_\mu}{2} h_\mu^2 - v'wh
 """
 function HopfieldRBM(g::AbstractArray, θ::AbstractArray, γ::AbstractArray, w::AbstractArray)
     @assert size(θ) == size(γ)
-    @assert size(w) == (size(g)..., size(θ)...)
     return RBM(Spin(; θ = g), Gaussian(; θ, γ), w)
 end
 
