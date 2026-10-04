@@ -1,10 +1,11 @@
 """
     CenteredRBM{V,H,W,Ov,Oh}
 
-A [`StandardizedRBM`](@ref) whose scales are fixed to one, so in-place updates change only
-its offsets. See <http://jmlr.org/papers/v17/14-237.html>.
+A [`StandardizedRBM`](@ref) whose scales are lazy ones (`FillArrays.Ones`, usually `Trues`),
+so they are fixed and in-place updates change only its offsets.
+See <http://jmlr.org/papers/v17/14-237.html>.
 """
-const CenteredRBM{V, H, W, Ov, Oh} = StandardizedRBM{V, H, W, Ov, Oh, <:Trues, <:Trues}
+const CenteredRBM{V, H, W, Ov, Oh} = StandardizedRBM{V, H, W, Ov, Oh, <:Ones, <:Ones}
 
 """
     CenteredRBM(rbm, λv, λh)
@@ -96,11 +97,11 @@ rescale_hidden_activations!(rbm::CenteredRBM) = rescale_weights!(rbm)
 """
     PlainStandardizedRBM{V,H,W}
 
-A [`CenteredRBM`](@ref) whose offsets are also fixed to zero (lazy `Falses`), so it is
-equivalent to the plain `RBM` with the same layers and weights. [`pcd!`](@ref) trains a
-plain `RBM` through it.
+A [`CenteredRBM`](@ref) whose offsets are also lazy zeros (`FillArrays.Zeros`, usually
+`Falses`), so it is equivalent to the plain `RBM` with the same layers and weights.
+[`pcd!`](@ref) trains a plain `RBM` through it.
 """
-const PlainStandardizedRBM{V, H, W} = StandardizedRBM{V, H, W, <:Falses, <:Falses, <:Trues, <:Trues}
+const PlainStandardizedRBM{V, H, W} = StandardizedRBM{V, H, W, <:Zeros, <:Zeros, <:Ones, <:Ones}
 
 # shares the layers and weights of `rbm`
 PlainStandardizedRBM(rbm::RBM) = StandardizedRBM(

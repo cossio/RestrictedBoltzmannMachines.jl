@@ -5,7 +5,7 @@ using Random: bitrand
 using Optimisers: Adam
 using RestrictedBoltzmannMachines: BinaryRBM, HopfieldRBM, sample_v_from_v, initialize!, pcd!, CenteredRBM
 using RestrictedBoltzmannMachines: RBM, Potts, Gaussian, StandardizedRBM, inputs_h_from_v, free_energy
-using RestrictedBoltzmannMachines: standardize_visible_from_data!, standardize_hidden_from_v!, unstandardize
+using RestrictedBoltzmannMachines: standardize_visible_from_data!, standardize_hidden_from_v!, unstandardize, standardize
 using RestrictedBoltzmannMachines: PlainStandardizedRBM
 using FillArrays: Falses, Trues
 
@@ -68,6 +68,7 @@ end
     @test std_rbm.offset_v isa Falses && std_rbm.offset_h isa Falses
     @test std_rbm.scale_v isa Trues && std_rbm.scale_h isa Trues
     @test unstandardize(std_rbm) isa RBM
+    @test standardize(StandardizedRBM(rbm)) isa PlainStandardizedRBM # lazy Zeros and Ones
 
     # Bool (one-hot) data: no promotion, and the same values as the plain RBM
     data = falses(3, 2, 8)
