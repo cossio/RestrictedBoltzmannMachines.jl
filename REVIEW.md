@@ -71,7 +71,8 @@ found is a Nit, lead the summary with "No blocking issues."
 
 - New or changed layer types implement the full interface: `energy`,
   `cgfs`, `sample_from_inputs`, `mean_from_inputs`, `var_from_inputs`,
-  `mode_from_inputs`.
+  `mode_from_inputs`, plus the moments interface `moments_from_samples`,
+  `moments_from_inputs`, `∂energy_from_moments`.
 - New tests do not require a physical GPU (GitHub CI has none); GPU
   compatibility belongs in `test/jlarrays.jl` via JLArrays.
 - Changes to `public`/`export`ed functions keep docstrings and tests in

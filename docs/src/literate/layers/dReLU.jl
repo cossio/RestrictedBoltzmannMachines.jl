@@ -47,7 +47,7 @@ combinations, illustrating how the curvature parameters shape the distribution.
 Samples are generated per-parameter combination to avoid materializing a large tensor.
 =#
 
-fig = Makie.Figure(resolution = (1000, 700))
+fig = Makie.Figure(size = (1000, 700))
 for (iθp, θp) in enumerate(θps), (iθn, θn) in enumerate(θns)
     ax = Makie.Axis(fig[iθp, iθn], title = "θ⁺=$θp, θ⁻=$θn", xlabel = "h", ylabel = "P(h)")
     for (iγp, γp) in enumerate(γps), (iγn, γn) in enumerate(γns)

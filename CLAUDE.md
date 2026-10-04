@@ -11,7 +11,6 @@ CUDA.jl, and HDF5 persistence. It requires Julia 1.12 or later.
 
 ## Repository workflow
 
-- This is a Julia package supporting Julia 1.12 and later.
 - Run commands from the repository root. Use `--project=.` for the package,
   `--project=test` for standalone test files, and `--project=docs` for docs.
 - Run the narrowest relevant test file first, then
@@ -37,8 +36,7 @@ CUDA.jl, and HDF5 persistence. It requires Julia 1.12 or later.
 - Test GPU semantics in `test/jlarrays.jl` with JLArrays and
   `allowscalar(false)`. Do not commit tests that require physical GPU hardware.
 - Tests in `test/runtests.jl` are organized as independent modules. Test files
-  can run standalone with `--project=test`; the suite uses property-based tests
-  across dimensions and gradient checks with Zygote and FiniteDifferences.
+  can run standalone with `--project=test`.
 
 ## Package architecture and invariants
 
@@ -46,8 +44,11 @@ CUDA.jl, and HDF5 persistence. It requires Julia 1.12 or later.
   `import RestrictedBoltzmannMachines as RBMs` or explicit
   `using RestrictedBoltzmannMachines: ...`.
 - Layer dimensions come first and trailing dimensions are batch dimensions. A
-  layer of size `(N,)` accepts `(N,)` or `(N, B)` data; a Potts layer with `Q`
-  classes and `N` sites accepts `(Q, N)` or `(Q, N, B)`.
+  layer of size `(N,)` accepts `(N,)` or `(N, B)` data. For Potts layers the
+  first layer dimension indexes the `Q` classes and the remaining layer
+  dimensions index sites: a Potts layer with spatial shape `N...` has size
+  `(Q, N...)`, `par` has shape `(1, Q, N...)`, and sampling and reductions
+  must preserve this distinction while allowing trailing batch dimensions.
 - `RBM.w` has shape `(size(visible)..., size(hidden)...)`; preserve this
   convention for higher-dimensional layers rather than assuming matrices.
 - `AbstractLayer{N}` records the number of layer dimensions. Layer parameters
@@ -59,13 +60,9 @@ CUDA.jl, and HDF5 persistence. It requires Julia 1.12 or later.
   moments interface: `moments_from_samples`, `moments_from_inputs`, and
   `∂energy_from_moments`, which share one canonical moments-array layout
   (first axis = moment index, then `size(layer)`, then batch dimensions).
-- Binary, Spin, and Potts layers have one parameter (`θ`); Gaussian layers have
-  two (`θ` and `γ`); dReLU layers have four.
-- For Potts layers, the first layer dimension indexes classes and the remaining
-  layer dimensions index sites. Sampling and reductions must preserve this
-  distinction while allowing trailing batch dimensions. Thus a Potts layer
-  with spatial shape `N...` has size `(Q, N...)`, while `par` has shape
-  `(1, Q, N...)`.
+- Binary, Spin, and Potts layers have one parameter (`θ`); Gaussian and ReLU
+  layers have two (`θ` and `γ`); dReLU, pReLU, and xReLU have four; nsReLU has
+  three.
 - `RBM{V,H,W}` stores the `visible` layer, `hidden` layer, and weights `w`.
   `CenteredRBM` adds offset parameters; `StandardizedRBM` adds offsets and
   scales.
@@ -84,16 +81,11 @@ CUDA.jl, and HDF5 persistence. It requires Julia 1.12 or later.
 
 ## Changes and pull requests
 
-- Add `CHANGELOG.md` entries only for user-facing changes: those a package
-  user would notice through the API defined by the `public` and `export`ed
-  symbols — names, signatures, behavior, results — or through other observable
-  effects such as performance, dependencies, or supported Julia versions. A
-  major internal overhaul may merit a brief entry when its effects reach
-  users. Judge by what a user observes, not by how much code changed:
-  touching `src/` does not by itself warrant an entry. Do not add entries for
-  internal refactors with unchanged observable behavior, test-only changes,
-  docs, formatting, CI, workflows, agent plumbing, or other repository
-  tooling.
+- Add `CHANGELOG.md` entries under `## Unreleased` only for changes a user
+  observes through the `public`/`export`ed API (names, signatures, behavior,
+  results) or through performance, dependencies, or supported Julia versions.
+  Not for internal refactors, tests, docs, formatting, CI, workflows, or other
+  repository tooling: touching `src/` does not by itself warrant an entry.
 - PR reviews are not automatic, and requesting one is not your call: the
   repository owner triggers a Claude or Codex Cloud review when they want
   one. Never trigger a review yourself, and do not ask for one. When review

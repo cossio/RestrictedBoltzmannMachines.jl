@@ -33,10 +33,10 @@ dimension indexes the parameters of the layer type (1 for `Binary` / `Spin` /
 `layer.γ` are views into `.par`. Storing everything in one array makes
 optimizer updates and GPU transfers simple (one array per layer).
 
-`Potts` is special: it is an `AbstractLayer{2}` whose first dimension is the
-one-hot (categorical) dimension with `Q` classes and whose second dimension is
-the number of sites. So `size(potts_layer) == (Q, N)` and `par` has size
-`(1, Q, N)`.
+`Potts` (and `PottsGumbel`) treat the first layer dimension as the one-hot class
+dimension with `Q` classes; the remaining layer dimensions index sites, so a
+layer with spatial shape `N...` has `size == (Q, N...)` and `par` has size
+`(1, Q, N...)`.
 
 `RBM{V,H,W}` holds the `visible` layer, `hidden` layer and weights `w`. It is
 extended by `CenteredRBM` (offsets) and `StandardizedRBM` (offsets and

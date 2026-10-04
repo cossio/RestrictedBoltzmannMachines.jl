@@ -18,7 +18,7 @@ See also the [MNIST example](@ref MNIST) for an end-to-end runnable script.
 
 The usual training workflow is:
 
-1. Build an RBM (`BinaryRBM`, `GaussianRBM`, `PottsRBM`, ...).
+1. Build an RBM (`BinaryRBM`, `GaussianRBM`, `HopfieldRBM`, or `RBM(visible, hidden, w)` for any pair of layers).
 2. Prepare data with shape `(size(rbm.visible)..., nsamples)`.
 3. Call [`initialize!`](@ref) (for plain RBMs) or `standardize(...)` if using stdRBM.
 4. Train with [`pcd!`](@ref).
@@ -28,11 +28,8 @@ The usual training workflow is:
 
 Plain, centered, and standardized [`pcd!`](@ref) accept optional per-sample
 weights through `wts`. Weights must be finite, positive reals: zero or
-negative weights raise an `ArgumentError`. Observations meant to be excluded
-must be dropped (with their weights) before calling [`pcd!`](@ref).
-
-The `iters` argument always counts completed parameter updates, and callbacks
-receive consecutive `iter` values from `1` through `iters`.
+negative weights fail validation with an `AssertionError`. Drop observations
+meant to be excluded (with their weights) before calling [`pcd!`](@ref).
 
 ## How `pcd!` works (plain `RBM`)
 
@@ -48,7 +45,7 @@ At each training iteration, [`pcd!`](@ref) on `RBM`:
 ### Important arguments for `pcd!(rbm::RBM, data; ...)`
 
 - Optimization:
-  - `iters`: number of completed parameter updates,
+  - `iters`: number of completed parameter updates (callbacks see `iter = 1:iters`),
   - `batchsize`: mini-batch size,
   - `optim`: optimizer rule (default `Adam()`),
   - `state`, `ps`: optimizer internals/state containers.
@@ -65,7 +62,17 @@ At each training iteration, [`pcd!`](@ref) on `RBM`:
   - `zerosum` (Potts-family gauge),
   - `rescale` (weight normalization, mainly relevant for continuous hidden units).
 - Monitoring:
-  - `callback`: called at every update as `callback(; rbm, optim, state, iter, vm, vd, wd)`.
+  - `callback`: called at every update as `callback(; rbm, optim, state, ps, iter, vd, wd, ∂, vm)`,
+    where `wd` are the weights of the current mini-batch (lazy uniform weights if `wts`
+    was not given) and `∂` the gradient. Define callbacks with a trailing `_...` slurp
+    (e.g. `callback(; rbm, iter, _...) = ...`) to stay robust if more keywords are added.
+
+## Specialized `pcd!` for `CenteredRBM`
+
+`pcd!(rbm::CenteredRBM, data; ...)` takes the same arguments plus
+`hidden_offset_damping` (default `1//100`). It sets the visible offsets from `data` once
+before training, and after every update moves the hidden offsets towards the
+mini-batch conditional means by that fraction.
 
 ## Specialized `pcd!` for `StandardizedRBM` (stdRBM)
 
@@ -89,17 +96,8 @@ In addition to the standard PCD updates, it:
 - Hidden rescaling:
   - `rescale_hidden`: absorb scale into hidden activation when relevant.
 
-Other common arguments remain the same (`iters`, `batchsize`, `steps`, `optim`,
-`wts`, `l1_weights`, `l2_weights`, `l2_fields`, `l2l1_weights`, `zerosum`,
-`callback`, `vm`).
-
-The stdRBM callback is called as:
-
-`callback(; rbm, optim, state, ps, iter, vm, vd, wd, ∂)`
-
-where `wd` are the weights of the current mini-batch (lazy uniform `Ones` if
-`wts` was not given). Define callbacks with a trailing `_...` slurp (e.g.
-`callback(; rbm, iter, _...) = ...`) to stay robust if more keywords are added.
+Other arguments, including `callback`, are the same as for a plain `RBM`, except that
+there is no `rescale` (see `rescale_hidden` above).
 
 ## Practical tuning guidelines
 

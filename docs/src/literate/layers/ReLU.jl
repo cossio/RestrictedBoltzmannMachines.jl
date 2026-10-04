@@ -40,7 +40,7 @@ Note the characteristic spike at ``x = 0`` from the rectification,
 and the Gaussian-like tail for positive values.
 =#
 
-fig = Figure(resolution = (700, 500))
+fig = Figure(size = (700, 500))
 ax = Axis(fig[1, 1], xlabel = "x", ylabel = "P(x)")
 xs = repeat(reshape(range(minimum(data), maximum(data), 100), 1, 1, 100), size(layer)...)
 ps = exp.(-RBMs.cgfs(layer) .- RBMs.energies(layer, xs))
