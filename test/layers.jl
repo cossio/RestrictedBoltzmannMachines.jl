@@ -54,7 +54,7 @@ _layers = (
     @test_throws MethodError cgfs(layer, 0) # inputs must be an AbstractArray
     @test std_from_inputs(layer) ≈ sqrt.(var_from_inputs(layer))
 
-    if layer isa Potts
+    if layer isa Union{Potts, PottsGumbel}
         @test size(@inferred cgfs(layer)) == (1, tail(size(layer))...)
     else
         @test size(@inferred cgfs(layer)) == size(layer)
@@ -83,7 +83,7 @@ _layers = (
         @test mean_from_moments(layer, moments) ≈ μ
         @test var_from_moments(layer, moments) ≈ ν
 
-        if layer isa Potts
+        if layer isa Union{Potts, PottsGumbel}
             @test size(@inferred cgfs(layer, x)) == (1, tail(size(x))...)
         else
             @test size(@inferred cgfs(layer, x)) == size(x)
