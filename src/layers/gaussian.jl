@@ -28,34 +28,11 @@ function sample_from_inputs(layer::Gaussian, inputs::AbstractArray = Falses(size
 end
 
 mean_from_inputs(l::Gaussian, inputs::AbstractArray = Falses(size(l))) = (l.θ .+ inputs) ./ abs.(l.γ)
-var_from_inputs(l::Gaussian, inputs::AbstractArray = Falses(size(l))) = inv.(abs.(l.γ .+ zero(inputs)))
+var_from_inputs(l::Gaussian, inputs::AbstractArray = Falses(size(l))) = inv.(abs.(l.γ .+ zero.(inputs)))
 mode_from_inputs(l::Gaussian, inputs::AbstractArray = Falses(size(l))) = mean_from_inputs(l, inputs)
 
 function mean_abs_from_inputs(layer::Gaussian, inputs::AbstractArray = Falses(size(layer)))
     μ = mean_from_inputs(layer, inputs)
     ν = var_from_inputs(layer, inputs)
     return @. √(2ν / π) * exp(-μ^2 / (2ν)) + μ * erf(μ / √(2ν))
-end
-
-function ∂energy_from_moments(layer::Gaussian, moments::AbstractArray)
-    @assert ntuple(d -> size(moments, d), ndims(layer.par)) == size(layer.par)
-    x1 = @view moments[1, ..]
-    x2 = @view moments[2, ..]
-    ∂θ = -x1
-    ∂γ = @. sign(layer.γ) * x2 / 2
-    return stack([∂θ, ∂γ]; dims = 1)
-end
-
-"""
-    moments_from_samples(layer::Gaussian, data; [wts])
-
-Two moment slots: `<x>` and `<x^2>`.
-"""
-function moments_from_samples(
-        layer::Gaussian, data::AbstractArray;
-        wts::AbstractArray{<:Real} = uniform_wts(layer, data)
-    )
-    x1 = batchmean(layer, data; wts)
-    x2 = batchmean(layer, data .^ 2; wts)
-    return stack([x1, x2]; dims = 1)
 end

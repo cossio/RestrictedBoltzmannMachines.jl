@@ -20,7 +20,7 @@ the corresponding unit. This is the `pReLU` potential with the bounded asymmetry
 @declare_layer xReLU (θ = zeros, γ = ones, Δ = zeros, ξ = zeros)
 
 function ∂energy_from_moments(layer::xReLU, moments::AbstractArray)
-    @assert ntuple(d -> size(moments, d), ndims(layer.par)) == size(layer.par)
+    _check_moments(layer, moments)
 
     xp1 = @view moments[1, ..]
     xn1 = @view moments[2, ..]

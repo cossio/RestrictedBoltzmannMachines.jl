@@ -33,10 +33,8 @@ function moments_from_inputs(layer::_FieldLayers, inputs::AbstractArray = Falses
 end
 
 function ∂energy_from_moments(layer::_FieldLayers, moments::AbstractArray)
-    @assert ntuple(d -> size(moments, d), ndims(layer.par)) == size(layer.par)
-    x1 = moments[1, ..]
-    ∂θ = -x1
-    return stack([∂θ]; dims = 1)
+    _check_moments(layer, moments)
+    return -moments
 end
 
 """
@@ -83,9 +81,11 @@ Potts(layer::PottsGumbel) = Potts(layer.par)
 
 # location `θ`, scale `γ`, and offset `Δ` shared by the pReLU and xReLU parameterizations
 function _drelu_shared_params(layer::dReLU)
-    γ = @. 2abs(layer.γp) * abs(layer.γn) / (abs(layer.γp) + abs(layer.γn))
-    θ = @. (layer.θp * abs(layer.γn) + layer.θn * abs(layer.γp)) / (abs(layer.γp) + abs(layer.γn))
-    Δ = @. γ * (layer.θp - layer.θn) / (abs(layer.γp) + abs(layer.γn))
+    ap, an = abs.(layer.γp), abs.(layer.γn)
+    s = ap .+ an
+    γ = @. 2ap * an / s
+    θ = @. (layer.θp * an + layer.θn * ap) / s
+    Δ = @. γ * (layer.θp - layer.θn) / s
     return θ, γ, Δ
 end
 
@@ -157,14 +157,12 @@ end
 
 # The statistics of the dReLU reparameterizations are those of the equivalent dReLU layer.
 energies(layer::_dReLUReparam, x::AbstractArray) = energies(dReLU(layer), x)
-cgfs(layer::_dReLUReparam, inputs::AbstractArray = Falses(size(layer))) = cgfs(dReLU(layer), inputs)
-sample_from_inputs(layer::_dReLUReparam, inputs::AbstractArray = Falses(size(layer))) = sample_from_inputs(dReLU(layer), inputs)
-mean_from_inputs(layer::_dReLUReparam, inputs::AbstractArray = Falses(size(layer))) = mean_from_inputs(dReLU(layer), inputs)
-var_from_inputs(layer::_dReLUReparam, inputs::AbstractArray = Falses(size(layer))) = var_from_inputs(dReLU(layer), inputs)
-meanvar_from_inputs(layer::_dReLUReparam, inputs::AbstractArray = Falses(size(layer))) = meanvar_from_inputs(dReLU(layer), inputs)
-mode_from_inputs(layer::_dReLUReparam, inputs::AbstractArray = Falses(size(layer))) = mode_from_inputs(dReLU(layer), inputs)
-mean_abs_from_inputs(layer::_dReLUReparam, inputs::AbstractArray = Falses(size(layer))) = mean_abs_from_inputs(dReLU(layer), inputs)
-moments_from_inputs(layer::_dReLUReparam, inputs::AbstractArray = Falses(size(layer))) = moments_from_inputs(dReLU(layer), inputs)
+for f in (
+        :cgfs, :sample_from_inputs, :mean_from_inputs, :var_from_inputs, :meanvar_from_inputs,
+        :mode_from_inputs, :mean_abs_from_inputs, :moments_from_inputs,
+    )
+    @eval $f(layer::_dReLUReparam, inputs::AbstractArray = Falses(size(layer))) = $f(dReLU(layer), inputs)
+end
 
 # Two moment slots `<x>`, `<x^2>` from the conditional mean and variance.
 function moments_from_inputs(layer::Union{Gaussian, ReLU}, inputs::AbstractArray = Falses(size(layer)))
@@ -172,13 +170,13 @@ function moments_from_inputs(layer::Union{Gaussian, ReLU}, inputs::AbstractArray
     return stack([μ, μ .^ 2 .+ ν]; dims = 1)
 end
 
-mean_from_moments(::Union{Binary, Spin, Potts, PottsGumbel, Gaussian, ReLU}, moments::AbstractArray) = moments[1, ..]
-mean_from_moments(::_dReLUFamily, moments::AbstractArray) = moments[1, ..] + moments[2, ..]
+mean_from_moments(::Union{_FieldLayers, Gaussian, ReLU}, moments::AbstractArray) = moments[1, ..]
+mean_from_moments(::_dReLUFamily, moments::AbstractArray) = @views moments[1, ..] .+ moments[2, ..]
 
-var_from_moments(::Union{Binary, Potts, PottsGumbel}, moments::AbstractArray) = moments[1, ..] .* (1 .- moments[1, ..])
-var_from_moments(::Union{Gaussian, ReLU}, moments::AbstractArray) = moments[2, ..] - moments[1, ..] .^ 2
+var_from_moments(::Union{Binary, Potts, PottsGumbel}, moments::AbstractArray) = @views moments[1, ..] .* (1 .- moments[1, ..])
+var_from_moments(::Spin, moments::AbstractArray) = @views (1 .- moments[1, ..]) .* (1 .+ moments[1, ..])
+var_from_moments(::Union{Gaussian, ReLU}, moments::AbstractArray) = @views moments[2, ..] .- moments[1, ..] .^ 2
 
-function var_from_moments(::_dReLUFamily, moments::AbstractArray)
-    # xp and xn cannot be nonzero simultaneously, so <x^2> = <xp^2> + <xn^2>
-    return moments[3, ..] + moments[4, ..] - (moments[1, ..] + moments[2, ..]) .^ 2
-end
+# xp and xn cannot be nonzero simultaneously, so <x^2> = <xp^2> + <xn^2>
+var_from_moments(::_dReLUFamily, moments::AbstractArray) =
+    @views moments[3, ..] .+ moments[4, ..] .- (moments[1, ..] .+ moments[2, ..]) .^ 2

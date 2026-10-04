@@ -60,9 +60,34 @@ include("offset_rbms.jl")
 
 include("adapt.jl")
 
+"""
+    cpu(x)
+
+Moves `x` (an array, layer, or RBM) to the CPU. Requires CUDA to be loaded.
+"""
 function cpu end
+
+"""
+    gpu(x)
+
+Moves `x` (an array, layer, or RBM) to the GPU. Requires CUDA to be loaded.
+"""
 function gpu end
+
+"""
+    save_rbm(path, rbm; overwrite = false)
+
+Saves `rbm` to an HDF5 file at `path`. Errors if the file exists, unless `overwrite` is
+`true`. Requires HDF5 to be loaded.
+"""
 function save_rbm end
+
+"""
+    load_rbm(path)
+
+Loads an RBM saved by [`save_rbm`](@ref) from the HDF5 file at `path`. Requires HDF5 to
+be loaded.
+"""
 function load_rbm end
 
 public RBM, CenteredRBM, StandardizedRBM

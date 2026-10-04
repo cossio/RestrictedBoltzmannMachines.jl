@@ -88,12 +88,8 @@ end
 Returns a vectorized version of `x`.
 """
 function flatten(layer::AbstractLayer, x::AbstractArray)
-    @assert size(layer) == size(x)[1:ndims(layer)]
-    if ndims(layer) == ndims(x)
-        return vec(x)
-    else
-        return reshape(x, length(layer), prod(size(x, d) for d in (ndims(layer) + 1):ndims(x)))
-    end
+    bsz = batch_size(layer, x)
+    return isempty(bsz) ? vec(x) : reshape(x, length(layer), prod(bsz))
 end
 
 """
@@ -165,10 +161,7 @@ end
 
 Batch sizes of `x`, with respect to `layer`.
 """
-function batch_size(layer::AbstractLayer, x::AbstractArray)
-    @assert size(layer) == size(x)[1:ndims(layer)]
-    return size(x)[batchdims(layer, x)]
-end
+batch_size(layer::AbstractLayer, x::AbstractArray) = size(x)[batchdims(layer, x)]
 
 """
     uniform_wts(layer, x)
@@ -180,7 +173,7 @@ uniform_wts(layer::AbstractLayer, x::AbstractArray) = Trues(batch_size(layer, x)
 """
     batchmean(layer, x; [wts])
 
-Mean of `x` over batch dimensions, weigthed by `wts`.
+Mean of `x` over batch dimensions, weighted by `wts`.
 """
 function batchmean(
         layer::AbstractLayer, x::AbstractArray; wts::AbstractArray{<:Real} = uniform_wts(layer, x)
@@ -192,7 +185,7 @@ end
 """
     batchvar(layer, x; [wts], [mean])
 
-Variance of `x` over batch dimensions, weigthed by `wts`.
+Variance of `x` over batch dimensions, weighted by `wts`.
 """
 function batchvar(
         layer::AbstractLayer, x::AbstractArray;
@@ -205,7 +198,7 @@ end
 """
     batchstd(layer, x; [wts], [mean])
 
-Standard deviation of `x` over batch dimensions, weigthed by `wts`.
+Standard deviation of `x` over batch dimensions, weighted by `wts`.
 """
 function batchstd(
         layer::AbstractLayer, x::AbstractArray;
@@ -218,7 +211,7 @@ end
 """
     batchcov(layer, x; [wts], [mean])
 
-Covariance of `x` over batch dimensions, weigthed by `wts`.
+Covariance of `x` over batch dimensions, weighted by `wts`.
 """
 function batchcov(
         layer::AbstractLayer, x::AbstractArray;
@@ -226,7 +219,7 @@ function batchcov(
         mean::AbstractArray = batchmean(layer, x; wts)
     )
     @assert size(wts) == batch_size(layer, x)
-    ξ = reshape(flatten(layer, x .- mean), length(layer), :)
+    ξ = reshape(x .- mean, length(layer), prod(batch_size(layer, x)))
     C = _weighted_outer(ξ, wts, ξ) / sum(wts)
     return reshape(C, size(layer)..., size(layer)...)
 end
@@ -253,10 +246,7 @@ function total_var_from_inputs(
         layer::AbstractLayer, inputs::AbstractArray = Falses(size(layer));
         wts::AbstractArray{<:Real} = uniform_wts(layer, inputs)
     )
-    h_ave, h_var = meanvar_from_inputs(layer, inputs)
-    ν_int = batchmean(layer, h_var; wts) # intrinsic noise
-    ν_ext = batchvar(layer, h_ave; wts) # extrinsic noise
-    return ν_int + ν_ext # law of total variance
+    return total_meanvar_from_inputs(layer, inputs; wts).ν
 end
 
 """
@@ -293,6 +283,12 @@ layout while having 3 parameters).
 `∂energy_from_moments` consumes it.
 """
 function moments_from_samples end
+
+# `moments` must have `nmoments` slots followed by the layer dimensions
+function _check_moments(layer::AbstractLayer, moments::AbstractArray, nmoments::Int = size(getfield(layer, :par), 1))
+    @assert ntuple(d -> size(moments, d), ndims(layer) + 1) == (nmoments, size(layer)...)
+    return nothing
+end
 
 """
     ∂energy_from_moments(layer, moments)
@@ -377,7 +373,7 @@ end
 
 Unit activation moments, conjugate to layer parameters.
 These are obtained by differentiating `cgfs` with respect to the layer parameters.
-Averages over configurations (weigthed by `wts`).
+Averages over configurations (weighted by `wts`).
 """
 function ∂cgf(
         layer::AbstractLayer, inputs::AbstractArray = Falses(size(layer));

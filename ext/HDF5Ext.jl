@@ -3,19 +3,9 @@ module HDF5Ext
 import HDF5
 import RestrictedBoltzmannMachines
 using HDF5: h5open
-using RestrictedBoltzmannMachines: Binary
-using RestrictedBoltzmannMachines: CenteredRBM
-using RestrictedBoltzmannMachines: Gaussian
-using RestrictedBoltzmannMachines: Potts
-using RestrictedBoltzmannMachines: PottsGumbel
-using RestrictedBoltzmannMachines: RBM
-using RestrictedBoltzmannMachines: ReLU
-using RestrictedBoltzmannMachines: Spin
-using RestrictedBoltzmannMachines: StandardizedRBM
-using RestrictedBoltzmannMachines: dReLU
-using RestrictedBoltzmannMachines: pReLU
-using RestrictedBoltzmannMachines: xReLU
-using RestrictedBoltzmannMachines: nsReLU
+using RestrictedBoltzmannMachines: RBM, CenteredRBM, StandardizedRBM
+using RestrictedBoltzmannMachines: Binary, Spin, Potts, PottsGumbel, Gaussian, ReLU,
+    dReLU, pReLU, xReLU, nsReLU
 
 # Version of the file format used to save/load RBMs
 const FILE_FORMAT_VERSION = v"1.0.0"
@@ -23,33 +13,21 @@ const FILE_FORMAT_VERSION = v"1.0.0"
 # Header used to identify the file format in the HDF5 file structure
 const FILE_FORMAT_HEADER = "rbm_hdf5_file_format_version"
 
-"""
-    load_rbm(path)
-
-Load an RBM from an HDF5 file at `path`.
-"""
 RestrictedBoltzmannMachines.load_rbm(path::AbstractString) = h5open(path, "r") do file
     format_version = read(file, FILE_FORMAT_HEADER)
-    if format_version == string(FILE_FORMAT_VERSION)
-        rbm_type = read(file, "rbm_type")
-        return _load_rbm(file, Val(Symbol(rbm_type)))
-    else
+    format_version == string(FILE_FORMAT_VERSION) ||
         error("Unsupported format version: $format_version")
-    end
+    T = construct_rbm(read(file, "rbm_type"))
+    visible = construct_layer(read(file, "visible_type"), read(file, "visible_par"))
+    hidden = construct_layer(read(file, "hidden_type"), read(file, "hidden_par"))
+    extras = (read(file, string(f)) for f in extra_fields(T))
+    return T(visible, hidden, read(file, "weights"), extras...)
 end
 
-"""
-    save_rbm(path, rbm; overwrite=false)
-
-Save an RBM to an HDF5 file at `path`. If `overwrite` is `false` (the default),
-an error is thrown if the file already exists.
-"""
 function RestrictedBoltzmannMachines.save_rbm(
         path::AbstractString, rbm::Union{RBM, StandardizedRBM, CenteredRBM}; overwrite::Bool = false
     )
-    if !overwrite && isfile(path)
-        error("File already exists: $path")
-    end
+    !overwrite && isfile(path) && error("File already exists: $path")
     h5open(path, "w") do file
         write(file, FILE_FORMAT_HEADER, string(FILE_FORMAT_VERSION))
         write(file, "rbm_type", rbm_type(rbm))
@@ -58,77 +36,29 @@ function RestrictedBoltzmannMachines.save_rbm(
         write(file, "hidden_par", rbm.hidden.par)
         write(file, "visible_type", layer_type(rbm.visible))
         write(file, "hidden_type", layer_type(rbm.hidden))
-        save_extras(file, rbm)
+        for f in extra_fields(typeof(rbm))
+            write(file, string(f), getfield(rbm, f))
+        end
     end
     return path
 end
 
-rbm_type(::RBM) = "RBM"
-rbm_type(::StandardizedRBM) = "StandardizedRBM"
-rbm_type(::CenteredRBM) = "CenteredRBM"
+# fields saved besides the layers and weights, in constructor order
+extra_fields(::Type{<:RBM}) = ()
+extra_fields(::Type{<:CenteredRBM}) = (:offset_v, :offset_h)
+extra_fields(::Type{<:StandardizedRBM}) = (:offset_v, :offset_h, :scale_v, :scale_h)
 
-save_extras(file, ::RBM) = nothing
-
-function save_extras(file, rbm::StandardizedRBM)
-    write(file, "offset_v", rbm.offset_v)
-    write(file, "offset_h", rbm.offset_h)
-    write(file, "scale_v", rbm.scale_v)
-    write(file, "scale_h", rbm.scale_h)
-    return nothing
+# The type names stored in the file are an explicit allow-list: only these can be loaded.
+for T in (RBM, CenteredRBM, StandardizedRBM)
+    @eval rbm_type(::$T) = $(string(nameof(T)))
+    @eval construct_rbm(::Val{$(QuoteNode(nameof(T)))}) = $T
 end
+construct_rbm(rbm_type::AbstractString) = construct_rbm(Val(Symbol(rbm_type)))
 
-function save_extras(file, rbm::CenteredRBM)
-    write(file, "offset_v", rbm.offset_v)
-    write(file, "offset_h", rbm.offset_h)
-    return nothing
+for T in (Binary, Spin, Potts, PottsGumbel, Gaussian, ReLU, dReLU, pReLU, xReLU, nsReLU)
+    @eval layer_type(::$T) = $(string(nameof(T)))
+    @eval construct_layer(::Val{$(QuoteNode(nameof(T)))}, par::AbstractArray) = $T(par)
 end
-
-layer_type(::Binary) = "Binary"
-layer_type(::Spin) = "Spin"
-layer_type(::Potts) = "Potts"
-layer_type(::Gaussian) = "Gaussian"
-layer_type(::ReLU) = "ReLU"
-layer_type(::dReLU) = "dReLU"
-layer_type(::pReLU) = "pReLU"
-layer_type(::xReLU) = "xReLU"
-layer_type(::nsReLU) = "nsReLU"
-layer_type(::PottsGumbel) = "PottsGumbel"
-
 construct_layer(layer_type::AbstractString, par::AbstractArray) = construct_layer(Val(Symbol(layer_type)), par)
-
-construct_layer(::Val{:Binary}, par::AbstractArray) = Binary(par)
-construct_layer(::Val{:Spin}, par::AbstractArray) = Spin(par)
-construct_layer(::Val{:Potts}, par::AbstractArray) = Potts(par)
-construct_layer(::Val{:Gaussian}, par::AbstractArray) = Gaussian(par)
-construct_layer(::Val{:ReLU}, par::AbstractArray) = ReLU(par)
-construct_layer(::Val{:dReLU}, par::AbstractArray) = dReLU(par)
-construct_layer(::Val{:pReLU}, par::AbstractArray) = pReLU(par)
-construct_layer(::Val{:xReLU}, par::AbstractArray) = xReLU(par)
-construct_layer(::Val{:nsReLU}, par::AbstractArray) = nsReLU(par)
-construct_layer(::Val{:PottsGumbel}, par::AbstractArray) = PottsGumbel(par)
-
-# the layers and weights shared by every RBM type
-function _load_base(file)
-    w = read(file, "weights")
-    visible = construct_layer(read(file, "visible_type"), read(file, "visible_par"))
-    hidden = construct_layer(read(file, "hidden_type"), read(file, "hidden_par"))
-    return visible, hidden, w
-end
-
-_load_rbm(file, ::Val{:RBM}) = RBM(_load_base(file)...)
-
-function _load_rbm(file, ::Val{:StandardizedRBM})
-    offset_v = read(file, "offset_v")
-    offset_h = read(file, "offset_h")
-    scale_v = read(file, "scale_v")
-    scale_h = read(file, "scale_h")
-    return StandardizedRBM(_load_base(file)..., offset_v, offset_h, scale_v, scale_h)
-end
-
-function _load_rbm(file, ::Val{:CenteredRBM})
-    offset_v = read(file, "offset_v")
-    offset_h = read(file, "offset_h")
-    return CenteredRBM(_load_base(file)..., offset_v, offset_h)
-end
 
 end

@@ -47,7 +47,7 @@ end
 
 function ∂energy_from_moments(layer::pReLU, moments::AbstractArray)
     _validate_layer_parameters(layer)
-    @assert ntuple(d -> size(moments, d), ndims(layer.par)) == size(layer.par)
+    _check_moments(layer, moments)
 
     xp1 = @view moments[1, ..]
     xn1 = @view moments[2, ..]

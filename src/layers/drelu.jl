@@ -23,23 +23,9 @@ function energies(layer::dReLU, x::AbstractArray)
     return drelu_energy.(layer.θp, layer.θn, layer.γp, layer.γn, x)
 end
 
-function cgfs(layer::dReLU, inputs::AbstractArray = Falses(size(layer)))
-    θp = layer.θp .+ inputs
-    θn = layer.θn .+ inputs
-    return drelu_cgf.(θp, θn, layer.γp, layer.γn)
-end
-
-function sample_from_inputs(layer::dReLU, inputs::AbstractArray = Falses(size(layer)))
-    θp = layer.θp .+ inputs
-    θn = layer.θn .+ inputs
-    return drelu_rand.(θp, θn, layer.γp, layer.γn)
-end
-
-function mode_from_inputs(layer::dReLU, inputs::AbstractArray = Falses(size(layer)))
-    θp = layer.θp .+ inputs
-    θn = layer.θn .+ inputs
-    return drelu_mode.(θp, θn, layer.γp, layer.γn)
-end
+cgfs(layer::dReLU, inputs::AbstractArray = Falses(size(layer))) = drelu_cgf.(layer.θp .+ inputs, layer.θn .+ inputs, layer.γp, layer.γn)
+sample_from_inputs(layer::dReLU, inputs::AbstractArray = Falses(size(layer))) = drelu_rand.(layer.θp .+ inputs, layer.θn .+ inputs, layer.γp, layer.γn)
+mode_from_inputs(layer::dReLU, inputs::AbstractArray = Falses(size(layer))) = drelu_mode.(layer.θp .+ inputs, layer.θn .+ inputs, layer.γp, layer.γn)
 
 #=
 A dReLU unit is a two-sided mixture of truncated Gaussians: a positive-side ReLU with
@@ -88,24 +74,17 @@ function moments_from_inputs(layer::dReLU, inputs::AbstractArray = Falses(size(l
 end
 
 function ∂energy_from_moments(layer::dReLU, moments::AbstractArray)
-    @assert ntuple(d -> size(moments, d), ndims(layer.par)) == size(layer.par)
-    ∂θp = -moments[1, ..]
-    ∂θn = -moments[2, ..]
-    ∂γp = sign.(layer.γp) .* moments[3, ..] / 2
-    ∂γn = sign.(layer.γn) .* moments[4, ..] / 2
+    _check_moments(layer, moments)
+    ∂θp = @views -moments[1, ..]
+    ∂θn = @views -moments[2, ..]
+    ∂γp = @views sign.(layer.γp) .* moments[3, ..] / 2
+    ∂γn = @views sign.(layer.γn) .* moments[4, ..] / 2
     return stack([∂θp, ∂θn, ∂γp, ∂γn]; dims = 1)
 end
 
 function drelu_energy(θp::Real, θn::Real, γp::Real, γn::Real, x::Real)
-    return drelu_energy(promote(θp, θn)..., promote(γp, γn)..., x)
-end
-
-function drelu_energy(θp::T, θn::T, γp::S, γn::S, x::Real) where {T <: Real, S <: Real}
-    if x ≥ 0
-        return gauss_energy(θp, γp, x)
-    else
-        return gauss_energy(θn, γn, x)
-    end
+    Ep, En = promote(gauss_energy(θp, γp, x), gauss_energy(θn, γn, x))
+    return ifelse(x ≥ 0, Ep, En)
 end
 
 function drelu_cgf(θp::Real, θn::Real, γp::Real, γn::Real)
