@@ -143,12 +143,9 @@ The [`TrajectoryLadder`](@ref) holds the checkpoints and the persistent chains:
    can then train through.
 
 `ptt!` trains plain `RBM`s from scratch, starting from [`initialize!`](@ref), and
-accepts the keywords of [`pcd!`](@ref) for `RBM` except `shuffle`, plus the `ladder`; its
-callback also receives the ladder as `ladder`. Unlike `pcd!`, and as in the reference
-implementation, it draws every minibatch at random, independently of the others: the
-minibatches of an epoch have anticorrelated noise, which makes the learning rate of
-`CossimDescent` collapse when epochs have few minibatches. The optimiser must have a
-learning rate `eta`. To continue training, pass the ladder of the previous run: without
+accepts the keywords of [`pcd!`](@ref) for `RBM`, plus the `ladder`; its callback also
+receives the ladder as `ladder`. The optimiser must have a learning rate `eta`. To
+continue training, pass the ladder of the previous run: without
 it, `ptt!` builds a new one. A `TrajectoryLadder` can also be built for a `CenteredRBM` or
 `StandardizedRBM`, to sample it or estimate its partition function. The paper uses
 [`CossimDescent`](@ref), a gradient descent whose learning rate adapts to the alignment

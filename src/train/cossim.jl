@@ -7,8 +7,8 @@ similarity between the current and previous gradient is positive (capped at `ηm
 `1 - δ` when it is negative. Each parameter array adapts its own learning rate, starting
 from `η`.
 
-The rule assumes that the minibatches are drawn independently, as [`ptt!`](@ref) does. The
-minibatches of an epoch, drawn without replacement as in [`pcd!`](@ref), have
+The rule assumes that the minibatches are drawn independently, as [`ptt!`](@ref) and
+[`pcd!`](@ref) do. The minibatches of an epoch, drawn without replacement, have
 anticorrelated noise, which makes successive gradients anti-aligned more often than not
 once the noise dominates: with few minibatches per epoch, the learning rate then decays
 geometrically.

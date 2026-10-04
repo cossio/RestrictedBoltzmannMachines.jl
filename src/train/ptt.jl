@@ -139,11 +139,9 @@ such as `Nesterov` or `Adam`, can make the model oscillate across a phase transi
 each crossing being rejected, whatever its initial learning rate; plain gradient
 descent (`Descent`) can then train through.
 
-`data` must have shape `(size(rbm.visible)..., nsamples)`. As in the reference
-implementation, and unlike [`pcd!`](@ref), every minibatch is drawn at random from `data`,
-independently of the others, rather than by epochs. The minibatches of an epoch have
-anticorrelated noise, which makes the learning rate of [`CossimDescent`](@ref) collapse
-when an epoch has few minibatches.
+`data` must have shape `(size(rbm.visible)..., nsamples)`. As in [`pcd!`](@ref) and the
+reference implementation, every minibatch is drawn at random from `data`, independently of
+the others.
 
 # Keyword arguments
 - `ladder`: the [`TrajectoryLadder`](@ref) of `rbm`, by default a new one with
@@ -198,10 +196,9 @@ function ptt!(
     zerosum && zerosum!(rbm)
     rescale && rescale_weights!(rbm)
 
-    perm = collect(1:_nsamples(data)) # reshuffled in part for every minibatch
     halvings = 0 # of the learning rate, by rejected updates
     for iter in 1:iters
-        idx = _randsubset!(perm, batchsize) # independent of the other minibatches
+        idx = sample(1:_nsamples(data), batchsize; replace = false)
         vd, wd = data[.., idx], wts[idx]
 
         # negative phase first, since a rejected update restores the parameters
@@ -254,18 +251,6 @@ function _restart_optimiser(o::AbstractRule, state, x::AbstractArray)
     o = Optimisers.adjust(o, o.eta / 2)
     return o, Optimisers.init(o, x)
 end
-
-#= `k` distinct entries of `perm` drawn at random, in random order, by a partial
-Fisher-Yates shuffle in O(k) time. `perm` stays a permutation, so that it can be reused:
-every call draws independently of the previous ones. =#
-function _randsubset!(perm::Vector{Int}, k::Int)
-    for i in 1:k
-        j = rand(i:length(perm))
-        perm[i], perm[j] = perm[j], perm[i]
-    end
-    return perm[1:k]
-end
-_randsubset(n::Int, k::Int) = _randsubset!(collect(1:n), k) # `k` distinct indices in 1:n
 
 #= One PTT update of the chains of `model`, which moved along its trajectory since the last
 update. Returns `:rejected` if `model` lost overlap with the last checkpoint, in which case
@@ -321,7 +306,7 @@ end
 function _reject!(ladder::TrajectoryLadder, model)
     _copyto_model!(model, last(ladder.checkpoints))
     _reset_reservoir!(ladder)
-    idx = _randsubset(_nsamples(ladder.samples), _nsamples(ladder.chains))
+    idx = sample(1:_nsamples(ladder.samples), _nsamples(ladder.chains); replace = false)
     ladder.chains .= ladder.samples[.., idx]
     ladder.chains_F .= ladder.samples_F[idx]
     ladder.since_checkpoint = 0
@@ -333,7 +318,7 @@ end
 sample of the last checkpoint. `Δ` holds the log Metropolis ratios. =#
 function _propose_exchange(ladder::TrajectoryLadder, model)
     x = ladder.chains
-    idx = _randsubset(_nsamples(ladder.reservoir), _nsamples(x))
+    idx = sample(1:_nsamples(ladder.reservoir), _nsamples(x); replace = false)
     y = ladder.reservoir[.., idx]
     Fy = ladder.reservoir_F[idx]
     Fx = _free_energies(last(ladder.checkpoints), x)
