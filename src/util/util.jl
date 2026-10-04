@@ -87,6 +87,9 @@ reshape_maybe(x::Union{Number, AbstractArray}, sz::Int...) = reshape(x, sz)
 # divide / multiply by a scale array, skipping the no-op for lazy unit scales
 _maybe_div(x::AbstractArray, ::Ones) = x
 _maybe_div(x::AbstractArray, s::AbstractArray) = x ./ s
+# subtract an offset array, skipping the no-op for lazy zero offsets
+_maybe_sub(x::AbstractArray, ::Zeros) = x
+_maybe_sub(x::AbstractArray, o::AbstractArray) = x .- o
 _maybe_mul(x::AbstractArray, ::Ones) = x
 _maybe_mul(x::AbstractArray, s::AbstractArray) = x .* s
 _maybe_mul!(x::AbstractArray, ::Ones) = x

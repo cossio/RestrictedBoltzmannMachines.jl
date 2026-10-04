@@ -7,7 +7,10 @@ CurrentModule = RestrictedBoltzmannMachines
 This page describes how model training works in this package, focusing on:
 
 - [`pcd!`](@ref) for plain `RBM`,
-- specialized [`pcd!`](@ref) for `StandardizedRBM` (stdRBM), including `CenteredRBM`.
+- [`pcd!`](@ref) for `StandardizedRBM` (stdRBM), including `CenteredRBM`.
+
+There is one trainer: a plain `RBM` is trained as the equivalent stdRBM whose offsets and
+scales are fixed to zero and one, so the extra stdRBM steps below reduce to nothing for it.
 
 Unbiased Contrastive Divergence (`ucd!`) for binary-binary RBMs lives in a
 separate package, [ucdRBMs.jl](https://github.com/cossio/ucdRBMs.jl).
@@ -92,6 +95,7 @@ In addition to the standard PCD updates, it:
   - `regularize_unstandardized`: if `true`, regularization is applied in the unstandardized gauge.
 
 Other arguments, including `rescale` and `callback`, are the same as for a plain `RBM`.
+A plain `RBM` also accepts the stdRBM-specific arguments, which have no effect on it.
 
 ## Practical tuning guidelines
 

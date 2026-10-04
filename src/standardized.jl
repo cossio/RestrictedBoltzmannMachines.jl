@@ -66,8 +66,8 @@ function StandardizedRBM(rbm::RBM)
     return StandardizedRBM(rbm, offset_v, offset_h, scale_v, scale_h)
 end
 
-standardize_v(rbm::StandardizedRBM, v::AbstractArray) = _maybe_div(v .- rbm.offset_v, rbm.scale_v)
-standardize_h(rbm::StandardizedRBM, h::AbstractArray) = _maybe_div(h .- rbm.offset_h, rbm.scale_h)
+standardize_v(rbm::StandardizedRBM, v::AbstractArray) = _maybe_div(_maybe_sub(v, rbm.offset_v), rbm.scale_v)
+standardize_h(rbm::StandardizedRBM, h::AbstractArray) = _maybe_div(_maybe_sub(h, rbm.offset_h), rbm.scale_h)
 
 """
     RBM(rbm::StandardizedRBM)
@@ -485,6 +485,9 @@ variances. The scales of a `CenteredRBM` stay fixed to one. If `rescale`, the sc
 of the hidden units is fixed by [`rescale_hidden_activations!`](@ref). Regularization
 applies to the equivalent plain `RBM` if `regularize_unstandardized`, otherwise to the
 standardized parameters.
+
+This is the trainer of the package: a plain `RBM` is trained through it, as the equivalent
+`StandardizedRBM` whose offsets and scales are fixed to zero and one.
 """
 function pcd!(
         rbm::StandardizedRBM,
