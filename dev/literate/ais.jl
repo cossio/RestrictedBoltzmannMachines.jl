@@ -17,10 +17,8 @@ As the number of interpolating distributions increases, the estimates converge.
 import MLDatasets
 import Makie
 import CairoMakie
-import RestrictedBoltzmannMachines as RBMs
 using Statistics: mean, std, middle
-using ValueHistories: MVHistory
-using LogStatFunctions: logmeanexp, logstdexp
+using LogStatFunctions: logmeanexp
 using RestrictedBoltzmannMachines: Binary, BinaryRBM, initialize!, pcd!,
     aise, raise, sample_v_from_v
 

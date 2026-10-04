@@ -17,11 +17,9 @@ using RestrictedBoltzmannMachines: free_energy
 using RestrictedBoltzmannMachines: initialize!
 using RestrictedBoltzmannMachines: log_pseudolikelihood
 using RestrictedBoltzmannMachines: pcd!
-using RestrictedBoltzmannMachines: sample_from_inputs
 using RestrictedBoltzmannMachines: sample_v_from_v
 using Statistics: mean
 using Statistics: std
-using Statistics: var
 using ValueHistories: @trace
 using ValueHistories: MVHistory
 nothing #hide
@@ -56,7 +54,7 @@ nothing #hide
 # Let's visualize some random digits from the training set.
 
 nrows, ncols = 10, 15
-fig = Makie.Figure(resolution = (40ncols, 40nrows))
+fig = Makie.Figure(size = (40ncols, 40nrows))
 ax = Makie.Axis(fig[1, 1], yreversed = true)
 idx = rand(1:size(train_x, 3), nrows * ncols) # random indices of digits
 digits = reshape(train_x[:, :, idx], 28, 28, ncols, nrows)
@@ -87,19 +85,8 @@ PCD maintains a set of persistent Markov chains (fantasy particles)
 across training iterations, which provides a better estimate of
 the model distribution's gradient than standard CD.
 
-Important `pcd!` arguments used in practice:
-
-- `iters`: total number of parameter updates.
-- `batchsize`: number of data points in each mini-batch.
-- `steps`: number of Gibbs steps for updating persistent chains at each update.
-- `optim`: optimizer rule (defaults to `Adam()`; any `Optimisers.jl` rule works).
-- `callback`: function called after each update, useful for logging metrics.
-
-Common workflow:
-1. Call `initialize!` once before training.
-2. Start with `steps=1`, then increase only if mixing is poor.
-3. Use a callback to monitor pseudolikelihood or reconstruction error while training.
-4. Tune regularization (`l1_weights`, `l2_weights`, `l2_fields`, `l2l1_weights`) if overfitting appears.
+See the [Training](@ref training) page for the full list of `pcd!` arguments; here we
+use `iters`, `batchsize`, and a `callback` for logging.
 
 We monitor training progress using the **pseudolikelihood**, a tractable
 approximation to the log-likelihood. The pseudolikelihood evaluates how
@@ -133,7 +120,7 @@ After training, the pseudolikelihood improves significantly,
 indicating that the model has learned the structure of the data.
 =#
 
-fig = Makie.Figure(resolution = (500, 300))
+fig = Makie.Figure(size = (500, 300))
 ax = Makie.Axis(fig[1, 1], xlabel = "iteration", ylabel = "log-pseudolikelihood")
 Makie.lines!(ax, get(history, :lpl)...)
 fig
@@ -164,7 +151,7 @@ nothing #hide
 
 # The free energy decreases and stabilizes, indicating equilibration.
 
-fig = Makie.Figure(resolution = (400, 300))
+fig = Makie.Figure(size = (400, 300))
 ax = Makie.Axis(fig[1, 1], xlabel = "sampling step", ylabel = "free energy")
 fantasy_F_μ = vec(mean(fantasy_F; dims = 1))
 fantasy_F_σ = vec(std(fantasy_F; dims = 1))
@@ -174,7 +161,7 @@ fig
 
 # The sampled digits resemble the training data:
 
-fig = Makie.Figure(resolution = (40ncols, 40nrows))
+fig = Makie.Figure(size = (40ncols, 40nrows))
 ax = Makie.Axis(fig[1, 1], yreversed = true)
 Makie.image!(ax, imggrid(reshape(fantasy_x, 28, 28, ncols, nrows)), colorrange = (1, 0))
 Makie.hidedecorations!(ax)
