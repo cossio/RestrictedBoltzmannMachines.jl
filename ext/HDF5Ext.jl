@@ -43,8 +43,7 @@ function RestrictedBoltzmannMachines.save_rbm(
     return path
 end
 
-# fields saved besides the layers and weights, in constructor order; a `CenteredRBM` (a
-# `StandardizedRBM` with unit scales) is saved without its scales
+# fields saved besides the layers and weights, in constructor order
 extra_fields(::Type{<:RBM}) = ()
 extra_fields(::Type{<:CenteredRBM}) = (:offset_v, :offset_h)
 extra_fields(::Type{<:StandardizedRBM}) = (:offset_v, :offset_h, :scale_v, :scale_h)

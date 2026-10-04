@@ -44,7 +44,7 @@ So both models represent exactly the same ``P(\mathbf{v},\mathbf{h})``. In pract
 - update them with `standardize_visible_from_data!` and `standardize_hidden_from_v!`,
 - use `unstandardize(rbm)` to recover an equivalent plain `RBM`.
 
-A `CenteredRBM` is the special case with scales fixed to one (lazy `FillArrays.Trues`).
+A `CenteredRBM` is the special case with scales fixed to one.
 
 ## Features
 

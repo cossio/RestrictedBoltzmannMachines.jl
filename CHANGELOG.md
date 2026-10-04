@@ -5,11 +5,11 @@ All notable changes to this project will be documented in this file. The format 
 ## Unreleased
 
 - **Breaking**: `CenteredRBM` is now an alias for a `StandardizedRBM` whose scales are
-  lazy `FillArrays.Trues`, instead of a separate struct. Centered models are thus
+  fixed to one, instead of a separate struct. Centered models are thus
   `StandardizedRBM`s (code dispatching on `StandardizedRBM` now receives them too) and
   support its methods, e.g. `standardize` to other scales and `unstandardize`. The
-  centered API and the HDF5 format are unchanged. Unit scales are immutable, so in-place
-  standardization of a centered model to other scales throws.
+  centered API and the HDF5 format are unchanged. In-place standardization of a centered
+  model to other scales throws.
 - `log_partition` (by exhaustive enumeration) and `log_likelihood` now also accept a
   `CenteredRBM`. They dispatch on the generic `free_energy` interface instead of
   carrying separate `RBM` and `StandardizedRBM` methods.

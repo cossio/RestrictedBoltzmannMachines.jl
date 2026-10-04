@@ -11,7 +11,7 @@ E(v,h) = E_v(v) + E_h(h) - \sum_{i\mu} w_{i\mu}
 ```
 
 where ``\lambda`` are the offsets and ``\sigma`` the scales. A [`CenteredRBM`](@ref) is
-the special case whose scales are fixed to one, stored lazily as `FillArrays.Trues`.
+the special case whose scales are fixed to one.
 See <http://jmlr.org/papers/v17/14-237.html>.
 """
 struct StandardizedRBM{V, H, W, Ov, Oh, Sv, Sh}
@@ -347,8 +347,8 @@ standardize_hidden(rbm::RBM) = standardize(rbm)
 
 Transforms the offsets and scales of `rbm` in place. The transformed model is equivalent
 to the original one (energies differ by a constant). In-place analogue of
-[`standardize`](@ref). The lazy unit scales of a [`CenteredRBM`](@ref) are immutable, so
-other scales throw an error; use [`standardize`](@ref) instead.
+[`standardize`](@ref). The scales of a [`CenteredRBM`](@ref) are fixed to one, so other
+scales throw an error; use [`standardize`](@ref) instead.
 """
 function standardize!(rbm::StandardizedRBM, offset_v::AbstractArray, offset_h::AbstractArray, scale_v::AbstractArray, scale_h::AbstractArray)
     @assert size(rbm.visible) == size(offset_v) == size(scale_v)

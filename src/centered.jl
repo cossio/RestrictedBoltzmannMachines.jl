@@ -1,8 +1,8 @@
 """
     CenteredRBM{V,H,W,Ov,Oh}
 
-A [`StandardizedRBM`](@ref) whose scales are fixed to one, stored lazily (and immutably) as
-`FillArrays.Trues`, so in-place updates change only its offsets (see [`center!`](@ref)).
+A [`StandardizedRBM`](@ref) whose scales are fixed to one, so in-place updates change only
+its offsets (see [`center!`](@ref)).
 See <http://jmlr.org/papers/v17/14-237.html>.
 """
 const CenteredRBM{V, H, W, Ov, Oh} = StandardizedRBM{V, H, W, Ov, Oh, <:Trues, <:Trues}
@@ -81,10 +81,8 @@ This is the inverse operation of [`uncenter`](@ref).
 To construct a `CenteredRBM` that simply includes these offsets,
 call `CenteredRBM(rbm, offset_v, offset_h)` instead.
 """
-center(rbm::RBM, offset_v::AbstractArray, offset_h::AbstractArray) = center(center(rbm), offset_v, offset_h)
-# centering is standardization that keeps the unit scales
-center(rbm::CenteredRBM, offset_v::AbstractArray, offset_h::AbstractArray) =
-    standardize(rbm, offset_v, offset_h, rbm.scale_v, rbm.scale_h)
+center(rbm::Union{RBM, CenteredRBM}, offset_v::AbstractArray, offset_h::AbstractArray) =
+    standardize(rbm, offset_v, offset_h, Trues(size(rbm.visible)), Trues(size(rbm.hidden)))
 center(rbm::CenteredRBM) = center(rbm, Zeros(rbm.offset_v), Zeros(rbm.offset_h))
 center(rbm::RBM) = CenteredRBM(rbm)
 
