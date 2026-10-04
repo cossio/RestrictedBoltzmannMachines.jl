@@ -49,16 +49,36 @@ extra_fields(::Type{<:CenteredRBM}) = (:offset_v, :offset_h)
 extra_fields(::Type{<:StandardizedRBM}) = (:offset_v, :offset_h, :scale_v, :scale_h)
 
 # The type names stored in the file are an explicit allow-list: only these can be loaded.
-for T in (RBM, CenteredRBM, StandardizedRBM)
-    @eval rbm_type(::$T) = $(string(nameof(T)))
-    @eval construct_rbm(::Val{$(QuoteNode(nameof(T)))}) = $T
-end
-construct_rbm(rbm_type::AbstractString) = construct_rbm(Val(Symbol(rbm_type)))
+rbm_type(::RBM) = "RBM"
+rbm_type(::CenteredRBM) = "CenteredRBM"
+rbm_type(::StandardizedRBM) = "StandardizedRBM"
 
-for T in (Binary, Spin, Potts, PottsGumbel, Gaussian, ReLU, dReLU, pReLU, xReLU, nsReLU)
-    @eval layer_type(::$T) = $(string(nameof(T)))
-    @eval construct_layer(::Val{$(QuoteNode(nameof(T)))}, par::AbstractArray) = $T(par)
-end
+construct_rbm(rbm_type::AbstractString) = construct_rbm(Val(Symbol(rbm_type)))
+construct_rbm(::Val{:RBM}) = RBM
+construct_rbm(::Val{:CenteredRBM}) = CenteredRBM
+construct_rbm(::Val{:StandardizedRBM}) = StandardizedRBM
+
+layer_type(::Binary) = "Binary"
+layer_type(::Spin) = "Spin"
+layer_type(::Potts) = "Potts"
+layer_type(::PottsGumbel) = "PottsGumbel"
+layer_type(::Gaussian) = "Gaussian"
+layer_type(::ReLU) = "ReLU"
+layer_type(::dReLU) = "dReLU"
+layer_type(::pReLU) = "pReLU"
+layer_type(::xReLU) = "xReLU"
+layer_type(::nsReLU) = "nsReLU"
+
 construct_layer(layer_type::AbstractString, par::AbstractArray) = construct_layer(Val(Symbol(layer_type)), par)
+construct_layer(::Val{:Binary}, par::AbstractArray) = Binary(par)
+construct_layer(::Val{:Spin}, par::AbstractArray) = Spin(par)
+construct_layer(::Val{:Potts}, par::AbstractArray) = Potts(par)
+construct_layer(::Val{:PottsGumbel}, par::AbstractArray) = PottsGumbel(par)
+construct_layer(::Val{:Gaussian}, par::AbstractArray) = Gaussian(par)
+construct_layer(::Val{:ReLU}, par::AbstractArray) = ReLU(par)
+construct_layer(::Val{:dReLU}, par::AbstractArray) = dReLU(par)
+construct_layer(::Val{:pReLU}, par::AbstractArray) = pReLU(par)
+construct_layer(::Val{:xReLU}, par::AbstractArray) = xReLU(par)
+construct_layer(::Val{:nsReLU}, par::AbstractArray) = nsReLU(par)
 
 end

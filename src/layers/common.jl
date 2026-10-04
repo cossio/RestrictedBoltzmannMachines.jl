@@ -157,12 +157,14 @@ end
 
 # The statistics of the dReLU reparameterizations are those of the equivalent dReLU layer.
 energies(layer::_dReLUReparam, x::AbstractArray) = energies(dReLU(layer), x)
-for f in (
-        :cgfs, :sample_from_inputs, :mean_from_inputs, :var_from_inputs, :meanvar_from_inputs,
-        :mode_from_inputs, :mean_abs_from_inputs, :moments_from_inputs,
-    )
-    @eval $f(layer::_dReLUReparam, inputs::AbstractArray = Falses(size(layer))) = $f(dReLU(layer), inputs)
-end
+cgfs(layer::_dReLUReparam, inputs::AbstractArray = Falses(size(layer))) = cgfs(dReLU(layer), inputs)
+sample_from_inputs(layer::_dReLUReparam, inputs::AbstractArray = Falses(size(layer))) = sample_from_inputs(dReLU(layer), inputs)
+mean_from_inputs(layer::_dReLUReparam, inputs::AbstractArray = Falses(size(layer))) = mean_from_inputs(dReLU(layer), inputs)
+var_from_inputs(layer::_dReLUReparam, inputs::AbstractArray = Falses(size(layer))) = var_from_inputs(dReLU(layer), inputs)
+meanvar_from_inputs(layer::_dReLUReparam, inputs::AbstractArray = Falses(size(layer))) = meanvar_from_inputs(dReLU(layer), inputs)
+mode_from_inputs(layer::_dReLUReparam, inputs::AbstractArray = Falses(size(layer))) = mode_from_inputs(dReLU(layer), inputs)
+mean_abs_from_inputs(layer::_dReLUReparam, inputs::AbstractArray = Falses(size(layer))) = mean_abs_from_inputs(dReLU(layer), inputs)
+moments_from_inputs(layer::_dReLUReparam, inputs::AbstractArray = Falses(size(layer))) = moments_from_inputs(dReLU(layer), inputs)
 
 # Two moment slots `<x>`, `<x^2>` from the conditional mean and variance.
 function moments_from_inputs(layer::Union{Gaussian, ReLU}, inputs::AbstractArray = Falses(size(layer)))

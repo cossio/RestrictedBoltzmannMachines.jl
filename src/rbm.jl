@@ -268,30 +268,74 @@ function gumbel_to_potts(rbm::RBM)
     return RBM(visible, hidden, rbm.w)
 end
 
-# total_{mean,var,meanvar}_{h_from_v,v_from_h}: batch-averaged conditional statistics
-for (stat, what) in ((:mean, "mean"), (:var, "variance"), (:meanvar, "mean and variance"))
-    from_inputs = Symbol(:total_, stat, :_from_inputs)
-    h_from_v = Symbol(:total_, stat, :_h_from_v)
-    v_from_h = Symbol(:total_, stat, :_v_from_h)
-    @eval begin
-        """
-            $($h_from_v)(rbm, v; [wts])
+"""
+    total_mean_h_from_v(rbm, v; [wts])
 
-        Total $($what) of hidden unit activations given the visible activities `v`,
-        averaged over the batch with weights `wts`.
-        """
-        function $h_from_v(rbm, v::AbstractArray; wts::AbstractArray{<:Real} = uniform_wts(rbm.visible, v))
-            return $from_inputs(rbm.hidden, inputs_h_from_v(rbm, v); wts)
-        end
+Total mean of hidden unit activations from visible activities.
+"""
+function total_mean_h_from_v(
+        rbm, v::AbstractArray; wts::AbstractArray{<:Real} = uniform_wts(rbm.visible, v)
+    )
+    inputs = inputs_h_from_v(rbm, v)
+    return total_mean_from_inputs(rbm.hidden, inputs; wts)
+end
 
-        """
-            $($v_from_h)(rbm, h; [wts])
+"""
+    total_mean_v_from_h(rbm, h; [wts])
 
-        Total $($what) of visible unit activations given the hidden activities `h`,
-        averaged over the batch with weights `wts`.
-        """
-        function $v_from_h(rbm, h::AbstractArray; wts::AbstractArray{<:Real} = uniform_wts(rbm.hidden, h))
-            return $from_inputs(rbm.visible, inputs_v_from_h(rbm, h); wts)
-        end
-    end
+Total mean of visible unit activations from given hidden activities.
+"""
+function total_mean_v_from_h(
+        rbm, h::AbstractArray; wts::AbstractArray{<:Real} = uniform_wts(rbm.hidden, h)
+    )
+    inputs = inputs_v_from_h(rbm, h)
+    return total_mean_from_inputs(rbm.visible, inputs; wts)
+end
+
+"""
+    total_var_h_from_v(rbm, v; [wts])
+
+Total variance of hidden unit activations from given visible activities.
+"""
+function total_var_h_from_v(
+        rbm, v::AbstractArray; wts::AbstractArray{<:Real} = uniform_wts(rbm.visible, v)
+    )
+    inputs = inputs_h_from_v(rbm, v)
+    return total_var_from_inputs(rbm.hidden, inputs; wts)
+end
+
+"""
+    total_var_v_from_h(rbm, h; [wts])
+
+Total variance of unit activations from given hidden activities.
+"""
+function total_var_v_from_h(
+        rbm, h::AbstractArray; wts::AbstractArray{<:Real} = uniform_wts(rbm.hidden, h)
+    )
+    inputs = inputs_v_from_h(rbm, h)
+    return total_var_from_inputs(rbm.visible, inputs; wts)
+end
+
+"""
+    total_meanvar_h_from_v(rbm, v; [wts])
+
+Total mean and total variance of hidden unit activations from visible activities.
+"""
+function total_meanvar_h_from_v(
+        rbm, v::AbstractArray; wts::AbstractArray{<:Real} = uniform_wts(rbm.visible, v)
+    )
+    inputs = inputs_h_from_v(rbm, v)
+    return total_meanvar_from_inputs(rbm.hidden, inputs; wts)
+end
+
+"""
+    total_meanvar_v_from_h(rbm, h; [wts])
+
+Total mean and total variance of visible unit activations from hidden activities.
+"""
+function total_meanvar_v_from_h(
+        rbm, h::AbstractArray; wts::AbstractArray{<:Real} = uniform_wts(rbm.hidden, h)
+    )
+    inputs = inputs_v_from_h(rbm, h)
+    return total_meanvar_from_inputs(rbm.visible, inputs; wts)
 end
