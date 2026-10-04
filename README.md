@@ -125,7 +125,7 @@ $$
 
 In the code this correspondence is available via `unstandardize(rbm)`, which converts a `StandardizedRBM` to an equivalent plain `RBM`.
 
-Both `CenteredRBM` and `StandardizedRBM` support all standard RBM operations (training, sampling, and evaluation).
+A `CenteredRBM` is the special case of a `StandardizedRBM` whose scales are fixed to one (stored lazily as `FillArrays.Trues`). Both support all standard RBM operations (training, sampling, and evaluation).
 
 ## Documentation
 

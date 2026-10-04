@@ -1,20 +1,11 @@
-struct CenteredRBM{V, H, W, Ov, Oh}
-    visible::V
-    hidden::H
-    w::W
-    offset_v::Ov
-    offset_h::Oh
-    function CenteredRBM(
-            visible::AbstractLayer, hidden::AbstractLayer, w::AbstractArray,
-            offset_v::AbstractArray, offset_h::AbstractArray
-        )
-        @assert size(w) == (size(visible)..., size(hidden)...)
-        @assert size(visible) == size(offset_v)
-        @assert size(hidden) == size(offset_h)
-        V, H, W, Ov, Oh = typeof(visible), typeof(hidden), typeof(w), typeof(offset_v), typeof(offset_h)
-        return new{V, H, W, Ov, Oh}(visible, hidden, w, offset_v, offset_h)
-    end
-end
+"""
+    CenteredRBM{V,H,W,Ov,Oh}
+
+A [`StandardizedRBM`](@ref) whose scales are fixed to one, stored lazily (and immutably) as
+`FillArrays.Trues`, so in-place updates change only its offsets (see [`center!`](@ref)).
+See <http://jmlr.org/papers/v17/14-237.html>.
+"""
+const CenteredRBM{V, H, W, Ov, Oh} = StandardizedRBM{V, H, W, Ov, Oh, <:Trues, <:Trues}
 
 """
     CenteredRBM(rbm, λv, λh)
@@ -24,7 +15,14 @@ See <http://jmlr.org/papers/v17/14-237.html> for details.
 The resulting model is *not* equivalent to the original `rbm`, unless `λv = 0` and `λh = 0`.
 """
 function CenteredRBM(rbm::RBM, offset_v::AbstractArray, offset_h::AbstractArray)
-    return CenteredRBM(rbm.visible, rbm.hidden, rbm.w, offset_v, offset_h)
+    return StandardizedRBM(rbm, offset_v, offset_h, Trues(size(rbm.visible)), Trues(size(rbm.hidden)))
+end
+
+function CenteredRBM(
+        visible::AbstractLayer, hidden::AbstractLayer, w::AbstractArray,
+        offset_v::AbstractArray, offset_h::AbstractArray
+    )
+    return CenteredRBM(RBM(visible, hidden, w), offset_v, offset_h)
 end
 
 """
@@ -55,8 +53,6 @@ function CenteredBinaryRBM(a::AbstractArray, b::AbstractArray, w::AbstractArray)
     return CenteredRBM(BinaryRBM(a, b, w))
 end
 
-mirror(rbm::CenteredRBM) = CenteredRBM(mirror(RBM(rbm)), rbm.offset_h, rbm.offset_v)
-
 """
     uncenter(centered_rbm::CenteredRBM)
 
@@ -64,7 +60,7 @@ Constructs a plain `RBM` equivalent to `centered_rbm` (energies differ by the co
 given in [`center`](@ref), whose inverse this is). To construct an `RBM` that simply
 neglects the offsets, call `RBM(centered_rbm)` instead.
 """
-uncenter(centered_rbm::CenteredRBM) = RBM(center(centered_rbm))
+uncenter(centered_rbm::CenteredRBM) = unstandardize(centered_rbm)
 uncenter(rbm::RBM) = rbm
 
 @doc raw"""
@@ -85,33 +81,12 @@ This is the inverse operation of [`uncenter`](@ref).
 To construct a `CenteredRBM` that simply includes these offsets,
 call `CenteredRBM(rbm, offset_v, offset_h)` instead.
 """
-function center(rbm::RBM, offset_v::AbstractArray, offset_h::AbstractArray)
-    centered_rbm = center(rbm)
-    return center(centered_rbm, offset_v, offset_h)
-end
-
-function center(rbm::CenteredRBM, offset_v::AbstractArray, offset_h::AbstractArray)
-    rbm1 = center_visible(rbm, offset_v)
-    return center_hidden(rbm1, offset_h)
-end
-
+center(rbm::RBM, offset_v::AbstractArray, offset_h::AbstractArray) = center(center(rbm), offset_v, offset_h)
+# centering is standardization that keeps the unit scales
+center(rbm::CenteredRBM, offset_v::AbstractArray, offset_h::AbstractArray) =
+    standardize(rbm, offset_v, offset_h, rbm.scale_v, rbm.scale_h)
 center(rbm::CenteredRBM) = center(rbm, Zeros(rbm.offset_v), Zeros(rbm.offset_h))
-
-function center_visible(rbm::CenteredRBM, offset_v::AbstractArray)
-    inputs = inputs_h_from_v(rbm, offset_v)
-    hidden = shift_fields(rbm.hidden, inputs)
-    return CenteredRBM(rbm.visible, hidden, rbm.w, offset_v, rbm.offset_h)
-end
-
-function center_hidden(rbm::CenteredRBM, offset_h::AbstractArray)
-    inputs = inputs_v_from_h(rbm, offset_h)
-    visible = shift_fields(rbm.visible, inputs)
-    return CenteredRBM(visible, rbm.hidden, rbm.w, rbm.offset_v, offset_h)
-end
-
 center(rbm::RBM) = CenteredRBM(rbm)
-center_visible(rbm::RBM, offset_v::AbstractArray) = center_visible(center(rbm), offset_v)
-center_hidden(rbm::RBM, offset_h::AbstractArray) = center_hidden(center(rbm), offset_h)
 
 """
     center!(centered_rbm, offset_v = 0, offset_h = 0)
@@ -119,27 +94,9 @@ center_hidden(rbm::RBM, offset_h::AbstractArray) = center_hidden(center(rbm), of
 Transforms the offsets of `centered_rbm`. The transformed model is equivalent to
 the original one (energies differ by a constant).
 """
-function center!(rbm::CenteredRBM, offset_v::AbstractArray, offset_h::AbstractArray)
-    center_visible!(rbm, offset_v)
-    center_hidden!(rbm, offset_h)
-    return rbm
-end
-
+center!(rbm::CenteredRBM, offset_v::AbstractArray, offset_h::AbstractArray) =
+    standardize!(rbm, offset_v, offset_h, rbm.scale_v, rbm.scale_h)
 center!(rbm::CenteredRBM) = center!(rbm, Zeros(rbm.offset_v), Zeros(rbm.offset_h))
-
-function center_visible!(rbm::CenteredRBM, offset_v::AbstractArray)
-    inputs = inputs_h_from_v(rbm, offset_v)
-    shift_fields!(rbm.hidden, inputs)
-    rbm.offset_v .= offset_v
-    return rbm
-end
-
-function center_hidden!(rbm::CenteredRBM, offset_h::AbstractArray)
-    inputs = inputs_v_from_h(rbm, offset_h)
-    shift_fields!(rbm.visible, inputs)
-    rbm.offset_h .= offset_h
-    return rbm
-end
 
 """
     center_visible_from_data!(rbm::CenteredRBM, data; [wts])
@@ -152,7 +109,7 @@ function center_visible_from_data!(
         wts::AbstractArray{<:Real} = uniform_wts(rbm.visible, data)
     )
     offset_v = batchmean(rbm.visible, data; wts)
-    return center_visible!(rbm, offset_v)
+    return standardize_visible!(rbm, offset_v, rbm.scale_v)
 end
 
 """
@@ -167,7 +124,7 @@ function center_hidden_from_data!(
     )
     offset_h_new = total_mean_h_from_v(rbm, data; wts)
     offset_h = (1 - damping) .* rbm.offset_h .+ damping .* offset_h_new
-    return center_hidden!(rbm, offset_h)
+    return standardize_hidden!(rbm, offset_h, rbm.scale_h)
 end
 
 """
@@ -191,7 +148,8 @@ end
 Scales parameters such that hidden unit activations are divided by `λ`, preserving
 the modeled distribution. This assumes the hidden units have a scale parameter,
 otherwise it does nothing and returns `false`. Since the interaction involves
-`h - offset_h`, the hidden offsets are divided by `λ` together with the activations.
+`h - offset_h`, the hidden offsets are divided by `λ` together with the activations, and
+since the unit scales stay fixed, the weights absorb the factor `λ`.
 """
 function rescale_hidden!(rbm::CenteredRBM, λ::AbstractArray)
     @assert size(rbm.hidden) == size(λ)

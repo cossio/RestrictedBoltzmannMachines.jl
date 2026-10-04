@@ -6,11 +6,7 @@ using RestrictedBoltzmannMachines: BinaryRBM
 using RestrictedBoltzmannMachines: center
 using RestrictedBoltzmannMachines: center!
 using RestrictedBoltzmannMachines: center_from_data!
-using RestrictedBoltzmannMachines: center_hidden
-using RestrictedBoltzmannMachines: center_hidden!
 using RestrictedBoltzmannMachines: center_hidden_from_data!
-using RestrictedBoltzmannMachines: center_visible
-using RestrictedBoltzmannMachines: center_visible!
 using RestrictedBoltzmannMachines: center_visible_from_data!
 using RestrictedBoltzmannMachines: CenteredBinaryRBM
 using RestrictedBoltzmannMachines: CenteredRBM
@@ -68,43 +64,6 @@ end
     @test @inferred(uncenter(centered_rbm)).hidden.θ ≈ rbm.hidden.θ
     @test @inferred(uncenter(centered_rbm)).w ≈ rbm.w
     @test uncenter(rbm) === rbm # a plain RBM is already uncentered
-end
-
-@testset "center_visible / center_hidden helpers" begin
-    rbm = center(BinaryRBM(randn(3), randn(2), randn(3, 2)))
-    offset_v = randn(3)
-    offset_h = randn(2)
-
-    rbm_visible = @inferred center_visible(rbm, offset_v)
-    rbm_hidden = @inferred center_hidden(rbm, offset_h)
-    rbm_visible_ref = center(rbm, offset_v, rbm.offset_h)
-    rbm_hidden_ref = center(rbm, rbm.offset_v, offset_h)
-    @test rbm_visible.visible.par == rbm_visible_ref.visible.par
-    @test rbm_visible.hidden.par == rbm_visible_ref.hidden.par
-    @test rbm_visible.w == rbm_visible_ref.w
-    @test rbm_visible.offset_v == rbm_visible_ref.offset_v
-    @test rbm_visible.offset_h == rbm_visible_ref.offset_h
-    @test rbm_hidden.visible.par == rbm_hidden_ref.visible.par
-    @test rbm_hidden.hidden.par == rbm_hidden_ref.hidden.par
-    @test rbm_hidden.w == rbm_hidden_ref.w
-    @test rbm_hidden.offset_v == rbm_hidden_ref.offset_v
-    @test rbm_hidden.offset_h == rbm_hidden_ref.offset_h
-
-    rbm_visible_mut = deepcopy(rbm)
-    @test center_visible!(rbm_visible_mut, offset_v) === rbm_visible_mut
-    @test rbm_visible_mut.visible.par == rbm_visible.visible.par
-    @test rbm_visible_mut.hidden.par == rbm_visible.hidden.par
-    @test rbm_visible_mut.w == rbm_visible.w
-    @test rbm_visible_mut.offset_v == rbm_visible.offset_v
-    @test rbm_visible_mut.offset_h == rbm_visible.offset_h
-
-    rbm_hidden_mut = deepcopy(rbm)
-    @test center_hidden!(rbm_hidden_mut, offset_h) === rbm_hidden_mut
-    @test rbm_hidden_mut.visible.par == rbm_hidden.visible.par
-    @test rbm_hidden_mut.hidden.par == rbm_hidden.hidden.par
-    @test rbm_hidden_mut.w == rbm_hidden.w
-    @test rbm_hidden_mut.offset_v == rbm_hidden.offset_v
-    @test rbm_hidden_mut.offset_h == rbm_hidden.offset_h
 end
 
 @testset "rbm energy invariance" begin
@@ -212,7 +171,7 @@ end
     expected_offset_v = batchmean(rbm.visible, data; wts)
     @test rbm_visible.offset_v ≈ expected_offset_v
 
-    expected_hidden = center_visible(rbm, expected_offset_v)
+    expected_hidden = center(rbm, expected_offset_v, rbm.offset_h)
     expected_offset_h = batchmean(expected_hidden.hidden, mean_h_from_v(expected_hidden, data); wts)
 
     rbm_hidden = deepcopy(expected_hidden)
@@ -235,7 +194,7 @@ end
     wts = [100.0, 100.0, 1.0, 1.0]
 
     weighted_offset_v = batchmean(rbm.visible, data; wts)
-    weighted_hidden = center_visible(rbm, weighted_offset_v)
+    weighted_hidden = center(rbm, weighted_offset_v, rbm.offset_h)
     weighted_offset_h = batchmean(weighted_hidden.hidden, mean_h_from_v(weighted_hidden, data); wts)
 
     initial_offset_v = Ref{Any}()
@@ -348,25 +307,6 @@ end
     h = bitrand(2, 5)
     @test @inferred(mean_h_from_v(centered_rbm, v)) ≈ mean_h_from_v(rbm, v)
     @test @inferred(mean_v_from_h(centered_rbm, h)) ≈ mean_v_from_h(rbm, h)
-end
-
-@testset "center_visible / center_hidden from a plain RBM" begin
-    rbm = BinaryRBM(randn(3), randn(2), randn(3, 2))
-    offset_v = randn(3)
-    offset_h = randn(2)
-    crbm_v = @inferred center_visible(rbm, offset_v)
-    crbm_h = @inferred center_hidden(rbm, offset_h)
-    @test crbm_v.offset_v == offset_v
-    @test iszero(crbm_v.offset_h)
-    @test crbm_h.offset_h == offset_h
-    @test iszero(crbm_h.offset_v)
-    # centering is a gauge transformation: free energies shift by a constant
-    v = bitrand(3, 7)
-    F0 = free_energy(rbm, v)
-    for crbm in (crbm_v, crbm_h)
-        F = free_energy(crbm, v)
-        @test F ≈ F0 .+ mean(F - F0)
-    end
 end
 
 @testset "center! without arguments resets offsets" begin
@@ -516,4 +456,33 @@ must be rescaled together with the activations for p(v) to be preserved. =#
     F2 = free_energy(rbm2, states)
     @test F2 ≈ F0 .+ mean(F2 - F0) # constant shift
     @test softmax(-F2) ≈ softmax(-F0)
+end
+
+using FillArrays: Trues
+using RestrictedBoltzmannMachines: StandardizedRBM, zerosum, standardize, standardize!
+using Test: @test_throws
+
+@testset "CenteredRBM is a StandardizedRBM with Trues scales" begin
+    rbm = CenteredBinaryRBM(randn(3), randn(2), randn(3, 2), randn(3), randn(2))
+    @test rbm isa StandardizedRBM
+    @test rbm.scale_v isa Trues && rbm.scale_h isa Trues
+    vs = reduce(hcat, [a, b, c] for a in 0:1, b in 0:1, c in 0:1)
+    # same model as with materialized unit scales
+    @test free_energy(rbm, vs) ≈ free_energy(StandardizedRBM(RBM(rbm), rbm.offset_v, rbm.offset_h, ones(3), ones(2)), vs)
+
+    # transformations keep the model centered
+    potts_rbm = CenteredRBM(Potts(; θ = randn(3, 4)), Binary(; θ = randn(2)), randn(3, 4, 2), rand(3, 4), rand(2))
+    @test mirror(rbm) isa CenteredRBM
+    @test zerosum(potts_rbm) isa CenteredRBM
+
+    # standardizing to other scales gives an equivalent, non-centered model
+    srbm = standardize(rbm, randn(3), randn(2), 0.5 .+ rand(3), 0.5 .+ rand(2))
+    @test !(srbm isa CenteredRBM)
+    ΔF = free_energy(srbm, vs) - free_energy(rbm, vs)
+    @test ΔF ≈ fill(ΔF[1], length(ΔF))
+
+    # unit scales are immutable: in-place standardization to other scales throws, unmodified
+    rbm0 = deepcopy(rbm)
+    @test_throws ArgumentError standardize!(rbm, randn(3), randn(2), 0.5 .+ rand(3), 0.5 .+ rand(2))
+    @test rbm.w == rbm0.w && rbm.hidden.par == rbm0.hidden.par && rbm.offset_v == rbm0.offset_v
 end

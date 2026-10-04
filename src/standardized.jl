@@ -1,18 +1,18 @@
 @doc raw"""
     StandardizedRBM{V,H,W,Ov,Oh,Sv,Sh}
 
-RBM with standardized layer activations. Like [`CenteredRBM`](@ref) it subtracts the
-offsets `offset_v`, `offset_h` from the visible and hidden activations entering the
-interaction, and additionally divides them by the scales `scale_v`, `scale_h`. The
-energy is
+RBM with standardized layer activations. It subtracts the offsets `offset_v`, `offset_h`
+from the visible and hidden activations entering the interaction, and divides them by the
+scales `scale_v`, `scale_h`. The energy is
 
 ```math
 E(v,h) = E_v(v) + E_h(h) - \sum_{i\mu} w_{i\mu}
     \frac{v_i - \lambda_i}{\sigma_i} \frac{h_\mu - \lambda_\mu}{\sigma_\mu}
 ```
 
-where ``\lambda`` are the offsets and ``\sigma`` the scales. A `CenteredRBM` is the
-special case with unit scales. See <http://jmlr.org/papers/v17/14-237.html>.
+where ``\lambda`` are the offsets and ``\sigma`` the scales. A [`CenteredRBM`](@ref) is
+the special case whose scales are fixed to one, stored lazily as `FillArrays.Trues`.
+See <http://jmlr.org/papers/v17/14-237.html>.
 """
 struct StandardizedRBM{V, H, W, Ov, Oh, Sv, Sh}
     visible::V
@@ -66,8 +66,8 @@ function StandardizedRBM(rbm::RBM)
     return StandardizedRBM(rbm, offset_v, offset_h, scale_v, scale_h)
 end
 
-standardize_v(rbm::StandardizedRBM, v::AbstractArray) = (v .- rbm.offset_v) ./ rbm.scale_v
-standardize_h(rbm::StandardizedRBM, h::AbstractArray) = (h .- rbm.offset_h) ./ rbm.scale_h
+standardize_v(rbm::StandardizedRBM, v::AbstractArray) = _maybe_div(v .- rbm.offset_v, rbm.scale_v)
+standardize_h(rbm::StandardizedRBM, h::AbstractArray) = _maybe_div(h .- rbm.offset_h, rbm.scale_h)
 
 function mirror(rbm::StandardizedRBM)
     _rbm = mirror(RBM(rbm))
@@ -123,18 +123,18 @@ function standardize(
         offset_v::AbstractArray, offset_h::AbstractArray,
         scale_v::AbstractArray, scale_h::AbstractArray
     )
-    std_rbm = standardize(rbm)
-    return standardize(std_rbm, offset_v, offset_h, scale_v, scale_h)
+    # both scales are replaced, so start from the lazy unit scales of a `CenteredRBM`
+    return standardize(CenteredRBM(rbm), offset_v, offset_h, scale_v, scale_h)
 end
 
 function standardize_visible(std_rbm::StandardizedRBM, offset_v::AbstractArray, scale_v::AbstractArray)
     @assert size(std_rbm.visible) == size(offset_v) == size(scale_v)
 
-    cv = scale_v ./ std_rbm.scale_v
+    cv = _maybe_div(scale_v, std_rbm.scale_v)
     Δθ = inputs_h_from_v(std_rbm, offset_v)
 
     hid = shift_fields(std_rbm.hidden, Δθ)
-    w = std_rbm.w .* cv
+    w = _maybe_mul(std_rbm.w, cv)
     rbm = RBM(std_rbm.visible, hid, w)
 
     return StandardizedRBM(rbm, offset_v, std_rbm.offset_h, scale_v, std_rbm.scale_h)
@@ -143,11 +143,11 @@ end
 function standardize_hidden(std_rbm::StandardizedRBM, offset_h::AbstractArray, scale_h::AbstractArray)
     @assert size(std_rbm.hidden) == size(offset_h) == size(scale_h)
 
-    ch = _along_hidden(std_rbm, scale_h ./ std_rbm.scale_h)
+    ch = _along_hidden(std_rbm, _maybe_div(scale_h, std_rbm.scale_h))
     Δθ = inputs_v_from_h(std_rbm, offset_h)
 
     vis = shift_fields(std_rbm.visible, Δθ)
-    w = std_rbm.w .* ch
+    w = _maybe_mul(std_rbm.w, ch)
     rbm = RBM(vis, std_rbm.hidden, w)
 
     return StandardizedRBM(rbm, std_rbm.offset_v, offset_h, std_rbm.scale_v, scale_h)
@@ -166,7 +166,8 @@ standardize_hidden(rbm::RBM) = standardize(rbm)
 
 Transforms the offsets and scales of `rbm` in place. The transformed model is equivalent
 to the original one (energies differ by a constant). In-place analogue of
-[`standardize`](@ref).
+[`standardize`](@ref). The lazy unit scales of a [`CenteredRBM`](@ref) are immutable, so
+other scales throw an error; use [`standardize`](@ref) instead.
 """
 function standardize!(rbm::StandardizedRBM, offset_v::AbstractArray, offset_h::AbstractArray, scale_v::AbstractArray, scale_h::AbstractArray)
     @assert size(rbm.visible) == size(offset_v) == size(scale_v)
@@ -179,13 +180,13 @@ end
 function standardize_visible!(rbm::StandardizedRBM, offset_v::AbstractArray, scale_v::AbstractArray)
     @assert size(rbm.visible) == size(offset_v) == size(scale_v)
 
-    cv = scale_v ./ rbm.scale_v
+    cv = _maybe_div(scale_v, rbm.scale_v)
     Δθ = inputs_h_from_v(rbm, offset_v)
 
+    rbm.scale_v .= scale_v # first: lazy unit scales (`Trues`) throw unless set to one
     shift_fields!(rbm.hidden, Δθ)
-    rbm.w .= rbm.w .* cv
+    _maybe_mul!(rbm.w, cv)
     rbm.offset_v .= offset_v
-    rbm.scale_v .= scale_v
 
     return rbm
 end
@@ -193,13 +194,13 @@ end
 function standardize_hidden!(rbm::StandardizedRBM, offset_h::AbstractArray, scale_h::AbstractArray)
     @assert size(rbm.hidden) == size(offset_h) == size(scale_h)
 
-    ch = _along_hidden(rbm, scale_h ./ rbm.scale_h)
+    ch = _along_hidden(rbm, _maybe_div(scale_h, rbm.scale_h))
     Δθ = inputs_v_from_h(rbm, offset_h)
 
+    rbm.scale_h .= scale_h # first: lazy unit scales (`Trues`) throw unless set to one
     shift_fields!(rbm.visible, Δθ)
-    rbm.w .= rbm.w .* ch
+    _maybe_mul!(rbm.w, ch)
     rbm.offset_h .= offset_h
-    rbm.scale_h .= scale_h
 
     return rbm
 end

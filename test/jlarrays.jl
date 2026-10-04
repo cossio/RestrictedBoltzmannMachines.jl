@@ -65,6 +65,9 @@ random_layers() = (
     jl_centered = adapt(JLArray, centered)
     @test jl_centered.offset_v isa JLArray
     @test jl_centered.offset_h isa JLArray
+    # the lazy unit scales stay lazy, so the model stays centered in both directions
+    @test jl_centered isa CenteredRBM
+    @test adapt(Array, jl_centered) isa CenteredRBM
 
     standardized = StandardizedRBM(
         rbm.visible, rbm.hidden, rbm.w,
@@ -409,6 +412,13 @@ end
     @test all(isfinite, adapt(Array, jl_standardized_rbm.hidden.par))
     @test all(isfinite, adapt(Array, jl_standardized_rbm.w))
     @test all(isfinite, adapt(Array, free_energy(jl_standardized_rbm, jl_standardized_data)))
+
+    # centered pcd! updates the offsets in place, keeping the lazy unit scales
+    jl_centered_rbm = adapt(JLArray, CenteredRBM(BinaryRBM(zeros(Float32, N...), zeros(Float32, 2), fill(0.1f0, N..., 2))))
+    pcd!(jl_centered_rbm, jl_standardized_data; iters = 2, batchsize = 16, shuffle = false)
+    @test jl_centered_rbm isa CenteredRBM
+    @test adapt(Array, jl_centered_rbm.offset_v) ≈ dropdims(mean(standardized_data; dims = 3); dims = 3)
+    @test all(isfinite, adapt(Array, jl_centered_rbm.w))
 
     wts = JLArray(vcat(fill(1.0, 256), fill(2.0, 256)))
     pcd!(

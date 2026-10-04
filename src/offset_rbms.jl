@@ -1,45 +1,21 @@
-#= Shared implementations for `CenteredRBM` and `StandardizedRBM`.
-
-Both models subtract offsets from the layer activations entering the interaction energy;
-`StandardizedRBM` additionally divides by scales. A `CenteredRBM` therefore behaves like a
-`StandardizedRBM` with unit scales, which the `_scale_v` / `_scale_h` accessors expose as
-`Ones` so that each method can be written once. The `_maybe_div` / `_maybe_mul` helpers
-skip the scaling no-op in the `CenteredRBM` case, keeping its hot paths free of spurious
-divisions by one. =#
-
-const OffsetRBM = Union{CenteredRBM, StandardizedRBM}
+#= Methods shared by every `StandardizedRBM`, including a `CenteredRBM` (the special case
+with lazy unit `Trues` scales). The `_maybe_div` / `_maybe_mul` helpers skip the scaling
+no-op for lazy unit scales, keeping the centered hot paths free of divisions by one. =#
 
 """
-    RBM(rbm::Union{CenteredRBM, StandardizedRBM})
+    RBM(rbm::StandardizedRBM)
 
 Plain `RBM` sharing the layers and weights of `rbm` but ignoring its offsets and scales, so
-it is *not* equivalent to `rbm`. For an equivalent model use [`uncenter`](@ref) or
-[`unstandardize`](@ref).
+it is *not* equivalent to `rbm`. For an equivalent model use [`unstandardize`](@ref) (or
+[`uncenter`](@ref) for a [`CenteredRBM`](@ref)).
 """
-RBM(rbm::OffsetRBM) = RBM(rbm.visible, rbm.hidden, rbm.w)
+RBM(rbm::StandardizedRBM) = RBM(rbm.visible, rbm.hidden, rbm.w)
 
-# same type as `rbm`, with `plain` as the underlying RBM and the offsets (and scales) of `rbm`
-_with_offsets(rbm::CenteredRBM, plain::RBM) = CenteredRBM(plain, rbm.offset_v, rbm.offset_h)
+# same offsets and scales as `rbm`, with `plain` as the underlying RBM
 _with_offsets(rbm::StandardizedRBM, plain::RBM) = StandardizedRBM(plain, rbm.offset_v, rbm.offset_h, rbm.scale_v, rbm.scale_h)
-# the model equivalent to `plain`, with the offsets (and scales) of `rbm`
-_reoffset(rbm::CenteredRBM, plain::RBM) = center(plain, rbm.offset_v, rbm.offset_h)
-_reoffset(rbm::StandardizedRBM, plain::RBM) = standardize(plain, rbm.offset_v, rbm.offset_h, rbm.scale_v, rbm.scale_h)
 
-standardize_v(rbm::CenteredRBM, v::AbstractArray) = v .- rbm.offset_v
-standardize_h(rbm::CenteredRBM, h::AbstractArray) = h .- rbm.offset_h
-
-_scale_v(rbm::StandardizedRBM) = rbm.scale_v
-_scale_h(rbm::StandardizedRBM) = rbm.scale_h
-_scale_v(rbm::CenteredRBM) = Ones{eltype(rbm.w)}(size(rbm.visible))
-_scale_h(rbm::CenteredRBM) = Ones{eltype(rbm.w)}(size(rbm.hidden))
-
-# scales of the weights of the equivalent plain RBM, shaped like `rbm.w`
+# scales of the weights of the equivalent plain RBM, shaped like `rbm.w` (lazy for a CenteredRBM)
 _scale_w(rbm::StandardizedRBM) = _along_visible(rbm, rbm.scale_v) .* _along_hidden(rbm, rbm.scale_h)
-_scale_w(rbm::CenteredRBM) = Ones{eltype(rbm.w)}(size(rbm.w))
-
-# equivalent plain `RBM` modeling the same distribution
-_equivalent_rbm(rbm::CenteredRBM) = uncenter(rbm)
-_equivalent_rbm(rbm::StandardizedRBM) = unstandardize(rbm)
 
 """
     delta_energy(rbm)
@@ -47,50 +23,50 @@ _equivalent_rbm(rbm::StandardizedRBM) = unstandardize(rbm)
 The constant energy shift of `rbm` with respect to its equivalent plain `RBM`.
 """
 delta_energy(rbm::RBM) = 0
-delta_energy(rbm::OffsetRBM) = interaction_energy(rbm, Zeros(rbm.offset_v), Zeros(rbm.offset_h))
+delta_energy(rbm::StandardizedRBM) = interaction_energy(rbm, Zeros(rbm.offset_v), Zeros(rbm.offset_h))
 
-potts_to_gumbel(rbm::OffsetRBM) = _with_offsets(rbm, potts_to_gumbel(RBM(rbm)))
-gumbel_to_potts(rbm::OffsetRBM) = _with_offsets(rbm, gumbel_to_potts(RBM(rbm)))
+potts_to_gumbel(rbm::StandardizedRBM) = _with_offsets(rbm, potts_to_gumbel(RBM(rbm)))
+gumbel_to_potts(rbm::StandardizedRBM) = _with_offsets(rbm, gumbel_to_potts(RBM(rbm)))
 
 """
-    zerosum(rbm::Union{CenteredRBM, StandardizedRBM})
+    zerosum(rbm::StandardizedRBM)
 
-Returns an equivalent model, with the same offsets (and scales), whose equivalent plain
-`RBM` ([`uncenter`](@ref) / [`unstandardize`](@ref)) is in the zerosum gauge. The gauge
-condition applies to the plain parameters, since the interaction involves the offset (and
-scaled) activations rather than `v` and `h` themselves. Does nothing without Potts layers.
+Returns an equivalent model, with the same offsets and scales, whose equivalent plain
+`RBM` ([`unstandardize`](@ref)) is in the zerosum gauge. The gauge condition applies to the
+plain parameters, since the interaction involves the offset and scaled activations rather
+than `v` and `h` themselves. Does nothing without Potts layers.
 """
-function zerosum(rbm::OffsetRBM)
+function zerosum(rbm::StandardizedRBM)
     has_potts_layers(rbm) || return rbm
-    return _reoffset(rbm, zerosum(_equivalent_rbm(rbm)))
+    return standardize(zerosum(unstandardize(rbm)), rbm.offset_v, rbm.offset_h, rbm.scale_v, rbm.scale_h)
 end
 
 # weights of the equivalent plain RBM (`rbm.w` itself for a CenteredRBM)
-unstandardized_weights(rbm::OffsetRBM) = _maybe_div(rbm.w, _scale_w(rbm))
+unstandardized_weights(rbm::StandardizedRBM) = _maybe_div(rbm.w, _scale_w(rbm))
 
 """
-    weight_norms(rbm::Union{CenteredRBM, StandardizedRBM})
+    weight_norms(rbm::StandardizedRBM)
 
 Norms of the unstandardized weights attached to each hidden unit. For the norms of the
 standardized weights, use `weight_norms(RBM(rbm))`.
 """
-weight_norms(rbm::OffsetRBM) = weight_norms(RBM(rbm.visible, rbm.hidden, unstandardized_weights(rbm)))
+weight_norms(rbm::StandardizedRBM) = weight_norms(RBM(rbm.visible, rbm.hidden, unstandardized_weights(rbm)))
 
-function interaction_energy(rbm::OffsetRBM, v::AbstractArray, h::AbstractArray)
+function interaction_energy(rbm::StandardizedRBM, v::AbstractArray, h::AbstractArray)
     return interaction_energy(RBM(rbm), standardize_v(rbm, v), standardize_h(rbm, h))
 end
 
-function inputs_h_from_v(rbm::OffsetRBM, v::AbstractArray)
+function inputs_h_from_v(rbm::StandardizedRBM, v::AbstractArray)
     inputs = inputs_h_from_v(RBM(rbm), standardize_v(rbm, v))
-    return _maybe_div(inputs, _scale_h(rbm))
+    return _maybe_div(inputs, rbm.scale_h)
 end
 
-function inputs_v_from_h(rbm::OffsetRBM, h::AbstractArray)
+function inputs_v_from_h(rbm::StandardizedRBM, h::AbstractArray)
     inputs = inputs_v_from_h(RBM(rbm), standardize_h(rbm, h))
-    return _maybe_div(inputs, _scale_v(rbm))
+    return _maybe_div(inputs, rbm.scale_v)
 end
 
-function free_energy(rbm::OffsetRBM, v::AbstractArray)
+function free_energy(rbm::StandardizedRBM, v::AbstractArray)
     E = energy(rbm.visible, v)
     inputs = inputs_h_from_v(rbm, v)
     F = -cgf(rbm.hidden, inputs)
@@ -98,7 +74,7 @@ function free_energy(rbm::OffsetRBM, v::AbstractArray)
     return E + F - ΔE
 end
 
-function free_energy_h(rbm::OffsetRBM, h::AbstractArray)
+function free_energy_h(rbm::StandardizedRBM, h::AbstractArray)
     E = energy(rbm.hidden, h)
     inputs = inputs_v_from_h(rbm, h)
     F = -cgf(rbm.visible, inputs)
@@ -106,16 +82,16 @@ function free_energy_h(rbm::OffsetRBM, h::AbstractArray)
     return E + F - ΔE
 end
 
-function ∂interaction_energy(rbm::OffsetRBM, v::AbstractArray, h::AbstractArray; kwargs...)
+function ∂interaction_energy(rbm::StandardizedRBM, v::AbstractArray, h::AbstractArray; kwargs...)
     return ∂interaction_energy(RBM(rbm), standardize_v(rbm, v), standardize_h(rbm, h); kwargs...)
 end
 
-function log_pseudolikelihood(rbm::OffsetRBM, v::AbstractArray; kwargs...)
-    return log_pseudolikelihood(_equivalent_rbm(rbm), v; kwargs...)
+function log_pseudolikelihood(rbm::StandardizedRBM, v::AbstractArray; kwargs...)
+    return log_pseudolikelihood(unstandardize(rbm), v; kwargs...)
 end
 
 function ∂regularize!(
-        ∂::∂RBM, offset_rbm::OffsetRBM;
+        ∂::∂RBM, offset_rbm::StandardizedRBM;
         l2_fields::Real = 0,
         l1_weights::Real = 0,
         l2_weights::Real = 0,
@@ -129,7 +105,7 @@ function ∂regularize!(
     elseif !all(iszero, (l2_fields, l1_weights, l2_weights, l2l1_weights))
         # regularization applies to the parameters of the equivalent plain RBM, whose
         # weights are `w / scale_w` and whose visible fields absorb `w * offset_h`
-        rbm = _equivalent_rbm(offset_rbm)
+        rbm = unstandardize(offset_rbm)
         scale_w = _scale_w(offset_rbm)
         if !iszero(l2_fields)
             visible_reg = ∂regularize_fields(rbm.visible; l2_fields)
@@ -145,62 +121,60 @@ function ∂regularize!(
     return ∂
 end
 
-function regularization_penalty(rbm::OffsetRBM; regularize_unstandardized::Bool = true, kwargs...)
-    return regularization_penalty(regularize_unstandardized ? _equivalent_rbm(rbm) : RBM(rbm); kwargs...)
+function regularization_penalty(rbm::StandardizedRBM; regularize_unstandardized::Bool = true, kwargs...)
+    return regularization_penalty(regularize_unstandardized ? unstandardize(rbm) : RBM(rbm); kwargs...)
 end
 
 """
-    zerosum!(rbm::Union{CenteredRBM, StandardizedRBM})
+    zerosum!(rbm::StandardizedRBM)
 
-In-place version of `zerosum(rbm)`. Offsets (and scales) are not modified.
+In-place version of `zerosum(rbm)`. Offsets and scales are not modified.
 """
-function zerosum!(rbm::OffsetRBM)
+function zerosum!(rbm::StandardizedRBM)
     if rbm.visible isa _PottsLayers
         # Gauge move on the weights of the equivalent plain RBM, w̃ = w / (scale_v ⊗ scale_h):
         # subtract their mean over visible colors (scale_h cancels out of the w update).
-        scale_v = _scale_v(rbm)
-        ξ = mean(_maybe_div(rbm.w, scale_v); dims = 1)
-        rbm.w .-= _maybe_mul(ξ, scale_v)
+        ξ = mean(_maybe_div(rbm.w, rbm.scale_v); dims = 1)
+        rbm.w .-= _maybe_mul(ξ, rbm.scale_v)
         zerosum!(rbm.visible.θ; dims = 1)
         # Compensate hidden fields. Unlike a plain RBM, the interaction involves
         # v - offset_v, so the color-sum of the visible offsets enters the shift.
         vdims = ntuple(identity, ndims(rbm.visible))
         Ov = sum(rbm.offset_v; dims = 1)
-        Δθh = _maybe_div(reshape(sum(ξ .* (1 .- Ov); dims = vdims), size(rbm.hidden)), _scale_h(rbm))
+        Δθh = _maybe_div(reshape(sum(ξ .* (1 .- Ov); dims = vdims), size(rbm.hidden)), rbm.scale_h)
         shift_fields!(rbm.hidden, Δθh)
     end
     if rbm.hidden isa _PottsLayers
-        scale_h = _along_hidden(rbm, _scale_h(rbm))
+        scale_h = _along_hidden(rbm, rbm.scale_h)
         ζ = mean(_maybe_div(rbm.w, scale_h); dims = ndims(rbm.visible) + 1)
         rbm.w .-= _maybe_mul(ζ, scale_h)
         zerosum!(rbm.hidden.θ; dims = 1)
         hdims = ntuple(d -> d + ndims(rbm.visible), ndims(rbm.hidden))
         Oh = reshape(sum(rbm.offset_h; dims = 1), map(one, size(rbm.visible))..., 1, size(rbm.hidden)[2:end]...)
-        Δθv = _maybe_div(reshape(sum(ζ .* (1 .- Oh); dims = hdims), size(rbm.visible)), _scale_v(rbm))
+        Δθv = _maybe_div(reshape(sum(ζ .* (1 .- Oh); dims = hdims), size(rbm.visible)), rbm.scale_v)
         shift_fields!(rbm.visible, Δθv)
     end
     return rbm
 end
 
 """
-    zerosum!(∂, rbm::Union{CenteredRBM, StandardizedRBM})
+    zerosum!(∂, rbm::StandardizedRBM)
 
 Projects the gradient so that it doesn't modify the zerosum gauge of the equivalent
-plain `RBM` (see [`uncenter`](@ref), [`unstandardize`](@ref)), with offsets and scales
+plain `RBM` (see [`unstandardize`](@ref)), with offsets and scales
 held fixed. The gauge condition on the weights reads `sum(w ./ scale_v; dims = 1) == 0`
 over Potts colors (similarly for hidden Potts with `scale_h`), so the component removed
 is the gauge direction `ξ .* scale_v`.
 """
-function zerosum!(∂::∂RBM, rbm::OffsetRBM)
+function zerosum!(∂::∂RBM, rbm::StandardizedRBM)
     if rbm.visible isa _PottsLayers
         zerosum!(∂.visible; dims = 2) # dim 1 of `par` is the (singleton) parameter type
-        scale_v = _scale_v(rbm)
-        ξ = mean(_maybe_div(∂.w, scale_v); dims = 1)
-        ∂.w .-= _maybe_mul(ξ, scale_v)
+        ξ = mean(_maybe_div(∂.w, rbm.scale_v); dims = 1)
+        ∂.w .-= _maybe_mul(ξ, rbm.scale_v)
     end
     if rbm.hidden isa _PottsLayers
         zerosum!(∂.hidden; dims = 2)
-        scale_h = _along_hidden(rbm, _scale_h(rbm))
+        scale_h = _along_hidden(rbm, rbm.scale_h)
         ζ = mean(_maybe_div(∂.w, scale_h); dims = ndims(rbm.visible) + 1)
         ∂.w .-= _maybe_mul(ζ, scale_h)
     end

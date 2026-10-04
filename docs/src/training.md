@@ -69,7 +69,8 @@ At each training iteration, [`pcd!`](@ref) on `RBM`:
 
 ## Specialized `pcd!` for `CenteredRBM`
 
-`pcd!(rbm::CenteredRBM, data; ...)` takes the same arguments plus
+A `CenteredRBM` is a `StandardizedRBM` with fixed unit scales, but has its own method:
+`pcd!(rbm::CenteredRBM, data; ...)` takes the same arguments as for a plain `RBM` plus
 `hidden_offset_damping` (default `1//100`). It sets the visible offsets from `data` once
 before training, and after every update moves the hidden offsets towards the
 mini-batch conditional means by that fraction.

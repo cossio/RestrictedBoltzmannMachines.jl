@@ -39,8 +39,9 @@ layer with spatial shape `N...` has `size == (Q, N...)` and `par` has size
 `(1, Q, N...)`.
 
 `RBM{V,H,W}` holds the `visible` layer, `hidden` layer and weights `w`. It is
-extended by `CenteredRBM` (offsets) and `StandardizedRBM` (offsets and
-scales).
+extended by `StandardizedRBM` (offsets and scales). `CenteredRBM` is an alias
+for a `StandardizedRBM` whose scales are lazy `FillArrays.Trues`; the shared
+methods skip them through `_maybe_div` / `_maybe_mul`.
 
 ## Module organization
 

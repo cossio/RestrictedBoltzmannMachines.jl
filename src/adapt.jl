@@ -11,6 +11,9 @@ Adapt.@adapt_structure xReLU
 Adapt.@adapt_structure nsReLU
 Adapt.@adapt_structure PottsGumbel
 Adapt.@adapt_structure RBM
-Adapt.@adapt_structure CenteredRBM
 Adapt.@adapt_structure StandardizedRBM
+# keep the lazy unit scales of a `CenteredRBM`, which some adaptors (e.g. `adapt(Array, _)`)
+# would materialize, turning it into a general `StandardizedRBM`
+Adapt.adapt_structure(to, rbm::CenteredRBM) =
+    CenteredRBM(Adapt.adapt(to, RBM(rbm)), Adapt.adapt(to, rbm.offset_v), Adapt.adapt(to, rbm.offset_h))
 Adapt.@adapt_structure ∂RBM
