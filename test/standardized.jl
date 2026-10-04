@@ -16,8 +16,9 @@ using RestrictedBoltzmannMachines: pcd!, regularization_penalty
 using RestrictedBoltzmannMachines: sample_h_from_h, sample_v_from_v
 using RestrictedBoltzmannMachines: standardize, unstandardize, standardize!, unstandardized_weights
 using RestrictedBoltzmannMachines: standardize_hidden, standardize_visible
+using RestrictedBoltzmannMachines: initialize!
 using StatsBase: proportionmap
-using Statistics: mean
+using Statistics: mean, std, var
 using FillArrays: Trues
 using Test: @inferred, @test, @testset
 using Zygote: gradient
@@ -97,6 +98,38 @@ end
 
     @test energy(rbm, v, h) .- delta_energy(rbm) ≈ E
     @test free_energy(rbm, v) .- delta_energy(rbm) ≈ F
+end
+
+@testset "initialize! StandardizedRBM without data" begin
+    rbm = BinaryStandardizedRBM(randn(3), randn(2), randn(3, 2), randn(3), randn(2), rand(3), rand(2))
+    @test initialize!(rbm) === rbm
+    @test iszero(rbm.offset_v)
+    @test iszero(rbm.offset_h)
+    @test all(isone, rbm.scale_v)
+    @test all(isone, rbm.scale_h)
+    @test iszero(rbm.visible.θ)
+    @test iszero(rbm.hidden.θ)
+    @test !iszero(rbm.w)
+end
+
+@testset "initialize! StandardizedRBM with data" begin
+    data = bitrand(3, 20)
+    # the result is the standardized form of the initialized plain RBM, independent of the
+    # previous offsets and scales
+    rbm = BinaryStandardizedRBM(randn(3), randn(2), randn(3, 2), randn(3), randn(2), rand(3), rand(2))
+    plain = BinaryRBM(randn(3), randn(2), randn(3, 2))
+    seed!(1)
+    @test initialize!(rbm, data) === rbm
+    seed!(1)
+    initialize!(plain, data)
+    @test unstandardize(rbm).visible.θ ≈ plain.visible.θ
+    @test unstandardize(rbm).hidden.θ ≈ plain.hidden.θ atol = 1.0e-12
+    @test unstandardize(rbm).w ≈ plain.w
+    @test rbm.offset_v ≈ vec(mean(data; dims = 2))
+    @test rbm.scale_v ≈ vec(std(data; dims = 2, corrected = false))
+    @test rbm.offset_h ≈ vec(mean(mean_h_from_v(rbm, data); dims = 2))
+    ν = vec(mean(var_h_from_v(rbm, data); dims = 2) + var(mean_h_from_v(rbm, data); dims = 2, corrected = false))
+    @test rbm.scale_h ≈ sqrt.(ν)
 end
 
 @testset "∂free energy ($name)" for (name, rbm, h) in (

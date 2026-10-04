@@ -25,8 +25,11 @@ All notable changes to this project will be documented in this file. The format 
   the hidden weights (its scales cannot absorb the gauge), as the centered `pcd!` did.
 - **Breaking**: `standardize_hidden_from_v!` defaults to `damping = 1`, so it sets the
   hidden standardization as documented; the previous default, `0`, changed nothing.
-- `initialize!(rbm, data)` now also accepts any `StandardizedRBM`, setting its offsets and
-  scales from `data` after initializing the parameters.
+- `initialize!(rbm, [data])` now also accepts any `StandardizedRBM`, with and without
+  `data`. It initializes the parameters as for the equivalent plain `RBM` and sets the
+  offsets and scales from `data`, or to zero and one without `data`, discarding the
+  previous offsets and scales (previously only the `CenteredRBM` method with `data`
+  existed, and the result depended on the previous offsets).
 - Requires Adapt 4.7 or later.
 - `log_partition` (by exhaustive enumeration) and `log_likelihood` now also accept a
   `CenteredRBM`. They dispatch on the generic `free_energy` interface instead of

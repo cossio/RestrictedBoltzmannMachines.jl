@@ -3,6 +3,8 @@
 
 Initializes the RBM and returns it.
 If provided, matches average visible unit activities from `data`.
+A `StandardizedRBM` also gets its offsets and scales set from `data`
+(zero offsets and unit scales without `data`).
 
     initialize!(layer, [data]; ϵ = 1e-6)
 

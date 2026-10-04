@@ -447,10 +447,26 @@ function standardize_hidden_from_v!(
     return standardize_hidden_from_inputs!(rbm, inputs; damping, wts, ϵ)
 end
 
+"""
+    initialize!(rbm::StandardizedRBM, [data]; ϵ = 1e-6)
+
+Initializes `rbm` to the standardized form of the plain `RBM` that
+[`initialize!`](@ref) would produce from its layers and weights: the offsets and scales
+are set from `data` (see [`standardize_visible_from_data!`](@ref) and
+[`standardize_hidden_from_v!`](@ref)), or to zero and one if `data` is omitted. The
+previous offsets and scales are discarded.
+"""
+function initialize!(rbm::StandardizedRBM; ϵ::Real = 1.0e-6)
+    standardize!(rbm) # zero offsets and unit scales; the parameters are overwritten next
+    initialize!(RBM(rbm); ϵ)
+    return rbm
+end
+
 function initialize!(
         rbm::StandardizedRBM, data::AbstractArray;
         ϵ::Real = 1.0e-6, wts::AbstractVector{<:Real} = uniform_wts(rbm.visible, data)
     )
+    standardize!(rbm) # zero offsets and unit scales; the parameters are overwritten next
     initialize!(RBM(rbm), data; ϵ, wts)
     standardize_visible_from_data!(rbm, data; wts)
     standardize_hidden_from_v!(rbm, data; wts)
