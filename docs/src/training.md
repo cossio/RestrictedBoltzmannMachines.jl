@@ -54,7 +54,6 @@ At each training iteration, [`pcd!`](@ref) on `RBM`:
   - `steps`: Gibbs steps for fantasy-chain updates per iteration,
   - `vm`: initial fantasy particles.
 - Data handling:
-  - `shuffle`: reshuffle data between epochs,
   - `wts`: optional finite, positive sample weights,
   - `moments`: data sufficient statistics (defaults to layer moments from `data`).
 - Regularization:

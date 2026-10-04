@@ -41,7 +41,7 @@ function run_pcd!(
     return pcd!(
         rbm, data;
         batchsize = 1, iters, steps = 0, vm, callback, wts, optim,
-        rescale = false, zerosum = false, shuffle = false,
+        rescale = false, zerosum = false,
     )
 end
 
@@ -53,7 +53,7 @@ function run_pcd!(
         rbm, data;
         batchsize = 1, iters, steps = 0, vm, callback, wts, optim,
         rescale = false, zerosum = false,
-        shuffle = false, damping = 0, ϵv = 1,
+        damping = 0, ϵv = 1,
     )
 end
 
@@ -61,7 +61,7 @@ function run_pcd_with_default_vm!(::Val{:plain}, rbm, data; callback)
     return pcd!(
         rbm, data;
         batchsize = 1, iters = 0, steps = 0, callback,
-        rescale = false, zerosum = false, shuffle = false,
+        rescale = false, zerosum = false,
     )
 end
 
@@ -70,7 +70,7 @@ function run_pcd_with_default_vm!(::Union{Val{:centered}, Val{:standardized}}, r
         rbm, data;
         batchsize = 1, iters = 0, steps = 0, callback,
         rescale = false, zerosum = false,
-        shuffle = false, damping = 0, ϵv = 1,
+        damping = 0, ϵv = 1,
     )
 end
 

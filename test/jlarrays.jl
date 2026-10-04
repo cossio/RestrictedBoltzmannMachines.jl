@@ -408,7 +408,7 @@ end
     jl_standardized_rbm = adapt(JLArray, standardized_rbm)
     pcd!(
         jl_standardized_rbm, jl_standardized_data;
-        iters = 1, batchsize = 16, steps = 1, shuffle = false,
+        iters = 1, batchsize = 16, steps = 1,
     )
     scale_v = adapt(Array, jl_standardized_rbm.scale_v)
     @test jl_standardized_rbm.scale_v isa JLArray
@@ -421,7 +421,7 @@ end
 
     # centered pcd! updates the offsets in place, keeping the lazy unit scales
     jl_centered_rbm = adapt(JLArray, CenteredRBM(BinaryRBM(zeros(Float32, N...), zeros(Float32, 2), fill(0.1f0, N..., 2))))
-    pcd!(jl_centered_rbm, jl_standardized_data; iters = 2, batchsize = 16, shuffle = false)
+    pcd!(jl_centered_rbm, jl_standardized_data; iters = 2, batchsize = 16)
     @test jl_centered_rbm isa CenteredRBM
     @test adapt(Array, jl_centered_rbm.offset_v) ≈ dropdims(mean(standardized_data; dims = 3); dims = 3)
     @test all(isfinite, adapt(Array, jl_centered_rbm.w))
@@ -429,7 +429,7 @@ end
     wts = JLArray(vcat(fill(1.0, 256), fill(2.0, 256)))
     pcd!(
         jl_rbm, jl_data;
-        wts, iters = 2, batchsize = 32, steps = 0, shuffle = false,
+        wts, iters = 2, batchsize = 32, steps = 0,
     )
     @test all(isfinite, adapt(Array, jl_rbm.w))
     @test all(isfinite, adapt(Array, jl_rbm.visible.par))

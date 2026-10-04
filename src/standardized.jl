@@ -506,7 +506,6 @@ function pcd!(
         rescale::Bool = true,
         callback = Returns(nothing),
         vm::AbstractArray = _default_fantasy_chains(rbm, min(batchsize, size(data)[end])),
-        shuffle::Bool = true,
         ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w),
         state = setup(optim, ps),
     )
@@ -519,7 +518,9 @@ function pcd!(
     zerosum && zerosum!(rbm)
     rescale && rescale_hidden_activations!(rbm)
 
-    for (iter, (vd, wd)) in zip(1:iters, infinite_minibatches(data, wts; batchsize, shuffle))
+    for iter in 1:iters
+        idx = sample(1:size(data)[end], batchsize; replace = false)
+        vd, wd = data[.., idx], wts[idx]
         state, ps, ∂ = _pcd_step!(
             rbm, ps, state, vd, wd, vm, wts_mean;
             steps, moments, l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum,

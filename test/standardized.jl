@@ -257,7 +257,7 @@ end
         binary_rbm = standardize(BinaryRBM(zeros(2), zeros(1), fill(0.1, 2, 1)))
         pcd!(
             binary_rbm, data_binary;
-            wts, iters = 1, batchsize = 4, steps = 1, shuffle = false,
+            wts, iters = 1, batchsize = 4, steps = 1,
         )
         @test binary_rbm.offset_v ≈ binary_offset
         @test binary_rbm.scale_v ≈ binary_scale
@@ -267,7 +267,7 @@ end
         )
         pcd!(
             potts_rbm, data_potts;
-            wts, iters = 1, batchsize = 4, steps = 1, shuffle = false,
+            wts, iters = 1, batchsize = 4, steps = 1,
         )
         @test potts_rbm.offset_v ≈ potts_offset
         @test potts_rbm.scale_v ≈ potts_scale
@@ -287,7 +287,7 @@ end
     rbm = standardize(BinaryRBM(zeros(2), zeros(1), fill(0.1, 2, 1)))
     pcd!(
         rbm, binary_data;
-        ϵv = 0.04, iters = 1, batchsize = 4, steps = 1, shuffle = false,
+        ϵv = 0.04, iters = 1, batchsize = 4, steps = 1,
     )
     @test rbm.scale_v ≈ [0.2, √0.29]
     @test all(isfinite, rbm.visible.par)

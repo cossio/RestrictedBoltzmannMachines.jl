@@ -113,7 +113,7 @@ end
 @testset "pcd binary moment matching: $name" for (name, kwargs) in [
         ("Adam", (; batchsize = 32, iters = 10000, steps = 5, optim = Adam(1.0e-3))),
         # 1-step chains fall behind the sharpening model over longer runs, so 5000 updates
-        ("steps=1, no shuffle", (; batchsize = 16, iters = 5000, steps = 1, shuffle = false, optim = Adam(1.0e-3))),
+        ("steps=1", (; batchsize = 16, iters = 5000, steps = 1, optim = Adam(1.0e-3))),
         ("SGD", (; batchsize = 32, iters = 10000, steps = 5, optim = Descent(2.0e-2))),
     ]
     seed!(7)

@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+- **Breaking**: `pcd!` draws each minibatch as an independent uniformly random subset of
+  the data (without replacement within the minibatch) instead of cycling through a fresh
+  permutation of the data per epoch. Its `shuffle` keyword and the `infinite_minibatches`
+  iterator are removed. MLUtils is no longer a dependency; StatsBase is a new one.
 - **Breaking**: `CenteredRBM` is now an alias for a `StandardizedRBM` whose scales are
   fixed to one, instead of a separate struct. Centered models are thus
   `StandardizedRBM`s (code dispatching on `StandardizedRBM` now receives them too) and

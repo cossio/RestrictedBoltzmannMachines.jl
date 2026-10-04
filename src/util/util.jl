@@ -99,3 +99,15 @@ ones_like(A::AbstractArray, sz = size(A)) = fill!(similar(A, sz), 1)
 # mutable copy preserving the array backend (e.g. CuArray), materializing
 # immutable/lazy arrays such as FillArrays.Zeros
 _mutable_copy(A::AbstractArray) = copyto!(similar(A), A)
+
+"""
+    validate_wts(wts)
+
+Asserts that the data weights `wts` are finite and positive.
+"""
+validate_wts(::Ones{<:Real}) = nothing
+
+function validate_wts(wts::AbstractArray{<:Real})
+    @assert all(w -> isfinite(w) && w > 0, wts) "wts must contain only finite, positive values"
+    return nothing
+end

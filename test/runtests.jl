@@ -16,9 +16,6 @@ end
 module pseudolikelihood_tests
     include("pseudolikelihood.jl")
 end
-module infinite_minibatches_tests
-    include("infinite_minibatches.jl")
-end
 module initialization_tests
     include("initialization.jl")
 end
