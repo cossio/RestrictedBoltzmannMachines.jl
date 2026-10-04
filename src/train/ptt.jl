@@ -13,6 +13,17 @@ independent-site model (`w = 0`), which is sampled exactly and whose partition f
 known; partition functions of later checkpoints follow by the Bennett acceptance ratio
 between the equilibrium samples of consecutive checkpoints. =#
 
+# chains of a new checkpoint are thermalized for this many autocorrelation times (as in the paper),
+const PTT_THERMALIZATION = 20
+# and then collected every this many integrated autocorrelation times (as in the paper)
+const PTT_DECORRELATION = 2
+# consecutive rejected updates after which `ptt!` gives up
+const PTT_MAX_REJECTIONS = 30
+# learning rate halvings after which `ptt!` warns that training may stall
+const PTT_WARN_HALVINGS = 10
+# smallest step in the weight scale β by which the initial ladder is annealed
+const PTT_MIN_ANNEAL_STEP = 1.0e-6
+
 """
     TrajectoryLadder(rbm; nchains, nreservoir = 10nchains, α = 0.3, αmin = 0.1, sweeps = 1, steps = 1, anneal = 100)
 
@@ -37,11 +48,13 @@ inaccurate unless `anneal` is large.
 
 The checkpoints and their log-partition functions are kept in `ladder.checkpoints` and
 `ladder.logZ`, the persistent chains in `ladder.chains`, equilibrium samples of the last
-checkpoint in `ladder.samples`, and the last swap acceptance in `ladder.acceptance`. See
-also [`log_partition(ladder)`](@ref log_partition(::TrajectoryLadder)) and
-[`log_likelihood(ladder, v)`](@ref log_likelihood(::TrajectoryLadder, ::AbstractArray)).
+checkpoint in `ladder.samples`, and the last swap acceptance in `ladder.acceptance`. As
+diagnostics of the thermalization of the last checkpoint, `ladder.τint` and `ladder.τexp`
+hold the integrated and exponential autocorrelation times, in sweeps, of the ladder level
+of its chains. See also [`log_partition(ladder)`](@ref log_partition(::TrajectoryLadder))
+and [`log_likelihood(ladder, v)`](@ref log_likelihood(::TrajectoryLadder, ::AbstractArray)).
 """
-mutable struct TrajectoryLadder{M, A <: AbstractArray}
+Base.@kwdef mutable struct TrajectoryLadder{M, A <: AbstractArray}
     const rbm::M # model being trained (not a copy)
     const checkpoints::Vector{M} # frozen copies of `rbm` along its training trajectory
     const logZ::Vector{Float64} # log-partition functions of the checkpoints
@@ -49,13 +62,13 @@ mutable struct TrajectoryLadder{M, A <: AbstractArray}
     chains_F::Vector{Float64} # their free energies under the model they were last sampled from
     samples::A # equilibrium samples of the last checkpoint
     samples_F::Vector{Float64} # their free energies under the last checkpoint
-    reservoir::A # working copy of `samples`, exchanged with `chains`
-    reservoir_F::Vector{Float64}
-    acceptance::Float64 # last swap acceptance between the last checkpoint and `rbm`
-    since_checkpoint::Int # updates since the last checkpoint was frozen or restored
-    rejections::Int # consecutive rejected updates
-    τint::Float64 # integrated and exponential autocorrelation times (in sweeps) of the
-    τexp::Float64 # chains' ladder level, measured when building the last reservoir
+    reservoir::A = copy(samples) # working copy of `samples`, exchanged with `chains`
+    reservoir_F::Vector{Float64} = copy(samples_F)
+    acceptance::Float64 = 1.0 # last swap acceptance between the last checkpoint and `rbm`
+    since_checkpoint::Int = 0 # updates since the last checkpoint was frozen or restored
+    rejections::Int = 0 # consecutive rejected updates
+    τint::Float64 = NaN # integrated and exponential autocorrelation times (in sweeps) of the
+    τexp::Float64 = NaN # chains' ladder level, measured when building the last reservoir
     const sweeps::Int
     const α::Float64
     const αmin::Float64
@@ -74,10 +87,9 @@ function TrajectoryLadder(
     samples = _default_fantasy_chains(independent, nreservoir) # exact samples
     samples_F = _free_energies(independent, samples)
     chains = _default_fantasy_chains(independent, nchains)
-    ladder = TrajectoryLadder(
-        rbm, [independent], [Float64(log_partition_zero_weight(independent))],
-        chains, _free_energies(independent, chains), samples, samples_F, copy(samples),
-        copy(samples_F), 1.0, 0, 0, NaN, NaN, sweeps, α, αmin
+    ladder = TrajectoryLadder(;
+        rbm, checkpoints = [independent], logZ = [Float64(log_partition_zero_weight(independent))],
+        chains, chains_F = _free_energies(independent, chains), samples, samples_F, sweeps, α, αmin
     )
     _anneal!(ladder; steps, nsteps = anneal)
     return ladder
@@ -179,6 +191,7 @@ function ptt!(
         state = setup(optim, ps),
     )
     ladder.rbm === rbm || throw(ArgumentError("the ladder was built for another model"))
+    hasproperty(optim, :eta) || throw(ArgumentError("ptt! halves the learning rate `eta` of the optimiser, which $optim lacks"))
     wts_mean, batchsize = _pcd_check_args(rbm, data, wts, batchsize)
 
     # initial gauge; zerosum! first because rescaling preserves the zero-sum gauge,
@@ -189,13 +202,15 @@ function ptt!(
     halvings = 0 # of the learning rate, by rejected updates
     for (iter, (vd, wd)) in zip(1:iters, _random_minibatches(data, wts; batchsize))
         # negative phase first, since a rejected update restores the parameters
-        status = _ptt_update!(ladder, rbm; steps)
-        if status === :rejected
-            ladder.rejections ≤ 30 || error("PTT lost equilibrium after 30 consecutive learning rate halvings")
-            # without its stale momenta, the optimiser does not repeat the rejected step
-            _halve_learning_rate!(state)
-            _reset_optimiser!(state, ps)
-            (halvings += 1) == 10 && @warn "PTT rejected 10 updates, so the learning rate is down to 1/1024 of its initial value; training may stall. Optimisers with momentum can oscillate across phase transitions of the model; plain gradient descent (Descent) may train better."
+        if _ptt_update!(ladder, rbm; steps) === :rejected
+            ladder.rejections ≤ PTT_MAX_REJECTIONS ||
+                error("PTT lost equilibrium after $PTT_MAX_REJECTIONS consecutive learning rate halvings")
+            _restart_optimiser!(state, ps)
+            halvings += 1
+            halvings == PTT_WARN_HALVINGS && @warn """
+            PTT rejected $halvings updates, so the learning rate is down to 1/$(2^halvings) of its \
+            initial value; training may stall. Optimisers with momentum can oscillate across phase \
+            transitions of the model; plain gradient descent (Descent) may train better."""
         end
         ∂m = ∂free_energy(rbm, ladder.chains)
 
@@ -221,6 +236,20 @@ function ptt!(
         callback(; rbm, optim, state, ps, iter, vd, wd, ∂, vm = ladder.chains, ladder)
     end
     return state, ps
+end
+
+#= Restarts the optimiser after a rejected update: halves the learning rate of every
+parameter array in the optimiser state tree of the parameters `ps`, and discards the memory
+of past gradients (momenta, moment estimates), which would otherwise repeat the rejected
+step. =#
+_restart_optimiser!(tree::Union{Tuple, NamedTuple}, ps) = foreach(_restart_optimiser!, tree, ps)
+_restart_optimiser!(::Tuple{}, ps) = nothing # parameters without optimiser state
+# `leaf` is the `Optimisers.Leaf` of the parameters `x`
+_restart_optimiser!(leaf, x) = ((leaf.rule, leaf.state) = _restart_optimiser(leaf.rule, leaf.state, x); nothing)
+_restart_optimiser(o::CossimDescent, (g, η), x::AbstractArray) = o, (zero(g), η / 2)
+function _restart_optimiser(o::AbstractRule, state, x::AbstractArray)
+    o = Optimisers.adjust(o, o.eta / 2)
+    return o, Optimisers.init(o, x)
 end
 
 #= Infinite iterator over minibatches of `batchsize` distinct samples of `data` and their
@@ -350,7 +379,7 @@ function _push_checkpoint!(ladder::TrajectoryLadder, model; steps::Int, minsweep
 
     swaps = sweeps(minsweeps)
     τint, τexp = _autocorrelation_times(swaps)
-    while _late_mean(swaps) ≥ ladder.αmin && size(swaps, 2) < 20max(τint, τexp)
+    while _late_mean(swaps) ≥ ladder.αmin && size(swaps, 2) < PTT_THERMALIZATION * max(τint, τexp)
         size(swaps, 2) < maxsweeps || return false
         swaps = hcat(swaps, sweeps(size(swaps, 2))) # doubles the run
         τint, τexp = _autocorrelation_times(swaps)
@@ -359,7 +388,7 @@ function _push_checkpoint!(ladder::TrajectoryLadder, model; steps::Int, minsweep
 
     samples = similar(ladder.samples)
     for block in Iterators.partition(1:_nsamples(samples), _nsamples(ladder.chains))
-        for _ in 1:ceil(Int, 2τint)
+        for _ in 1:ceil(Int, PTT_DECORRELATION * τint)
             _sweep!(ladder, checkpoint; steps)
         end
         samples[.., block] = ladder.chains[.., 1:length(block)]
@@ -397,7 +426,7 @@ function _anneal!(ladder::TrajectoryLadder; steps::Int, nsteps::Int)
         if status === :rejected
             β = β₀
             δ = δ / 2
-            δ > 1.0e-6 || error("PTT failed to anneal from the independent-site model")
+            δ > PTT_MIN_ANNEAL_STEP || error("PTT failed to anneal from the independent-site model")
         elseif status === :frozen
             β₀ = β
         end
@@ -427,13 +456,20 @@ end
 
 #= Bennett acceptance ratio estimate of log(Z₁ / Z₀) from equilibrium samples `x₀` of `m₀`,
 with free energies `F₀x₀` under `m₀`, and samples `x₁` of `m₁`, with free energies `F₁x₁`
-under `m₁` (Bennett, J. Comput. Phys. 22, 245 (1976); Shirts et al., Phys. Rev. Lett. 91,
-140601 (2003)). Samples `x₁` can carry importance log-weights `logw`, entering through their
-normalized weights and effective number. Solves the self-consistent equation for
-Δf = log(Z₀ / Z₁) by bisection. =#
+under `m₁`, which can carry importance log-weights `logw`. =#
 function _log_partition_ratio(m₀, x₀, F₀x₀, m₁, x₁, F₁x₁; logw = Zeros(length(F₁x₁)))
     W₀ = _free_energies(m₁, x₀) - F₀x₀ # forward "work"
     W₁ = _free_energies(m₀, x₁) - F₁x₁ # reverse "work"
+    return _bennett(W₀, W₁; logw)
+end
+
+#= Bennett acceptance ratio estimate of log(Z₁ / Z₀) from the works `W₀ = F₁ - F₀` of
+equilibrium samples of model 0 and `W₁ = F₀ - F₁` of samples of model 1 (Bennett,
+J. Comput. Phys. 22, 245 (1976); Shirts et al., Phys. Rev. Lett. 91, 140601 (2003)). The
+samples of model 1 can carry importance log-weights `logw`, entering through their
+normalized weights and effective number. Solves the self-consistent equation for
+Δf = log(Z₀ / Z₁) by bisection. =#
+function _bennett(W₀::AbstractVector, W₁::AbstractVector; logw = Zeros(length(W₁)))
     p₁ = softmax(Array{Float64}(logw))
     n₁ = 1 / sum(abs2, p₁) # effective number of samples x₁
     M = log(length(W₀) / n₁)
@@ -457,7 +493,6 @@ _nsamples(x::AbstractArray) = size(x, ndims(x))
 _logmeanexp(x::AbstractArray) = logsumexp(x) - log(length(x))
 
 # free energies of the samples `x` under `model`, on the host in double precision
-
 _free_energies(model, x::AbstractArray) = convert(Vector{Float64}, Array(free_energy(model, x)))
 
 # copies the parameters of `src` into those of `dst`, a model of the same type

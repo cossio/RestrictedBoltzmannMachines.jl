@@ -5,7 +5,7 @@ using Statistics: mean
 using LogExpFunctions: softmax
 using StatsBase: sample, Weights
 using EllipsisNotation: (..)
-using Optimisers: Adam, Descent, Nesterov, setup, update!
+using Optimisers: Adam, ClipGrad, Descent, Nesterov, setup, update!
 using RestrictedBoltzmannMachines: RBM, BinaryRBM, Binary, Spin, Potts, Gaussian,
     TrajectoryLadder, CossimDescent, ptt!, initialize!, free_energy,
     log_partition, log_likelihood, collect_states, standardize
@@ -46,11 +46,20 @@ exact_samples(states::AbstractArray, p::AbstractVector, n::Int) =
 function fixed_ladder(model, base, states; nchains::Int, nreservoir::Int)
     chains = exact_samples(states, softmax(-free_energy(model, states)), nchains)
     samples = exact_samples(states, softmax(-free_energy(base, states)), nreservoir)
-    samples_F = free_energy(base, samples)
-    return TrajectoryLadder(
-        model, [base], [0.0], chains, free_energy(model, chains), samples, samples_F,
-        copy(samples), copy(samples_F), 1.0, 2, 0, NaN, NaN, 1, 0.0, 0.0
+    return TrajectoryLadder(;
+        rbm = model, checkpoints = [base], logZ = [0.0], chains, chains_F = free_energy(model, chains),
+        samples, samples_F = free_energy(base, samples), sweeps = 1, α = 0.0, αmin = 0.0
     )
+end
+
+# `n` samples of two noisy modes, a random pattern and its complement, with weights 0.7 and 0.3
+function two_modes(N::Int, n::Int)
+    ξ = rand(Bool, N)
+    data = falses(N, n)
+    for s in 1:n
+        data[:, s] .= (rand() < 0.7 ? ξ : .!ξ) .⊻ (rand(N) .< 0.1)
+    end
+    return data
 end
 
 random_layer(::Type{L}, sz::Dims) where {L <: Union{Binary, Potts}} = L(; θ = randn(sz...) / 2)
@@ -68,8 +77,10 @@ random_layer(::Type{L}, sz::Dims) where {L <: Union{Binary, Potts}} = L(; θ = r
     @test x ≈ [0.65, 1.85]
     @test_throws ArgumentError CossimDescent(0.1, 0.05)
     @test_throws ArgumentError CossimDescent(0.1, 0.2, 1.0)
+end
 
-    # after a rejected update, the optimiser restarts with half the learning rate
+# after a rejected update, the optimiser restarts with half the learning rate
+@testset "PTT restarts the optimiser" begin
     ps = (; a = [1.0, -1.0], b = [2.0])
     gs = (; a = [1.0, 0.5], b = [-1.0])
     for (optim, halved) in (
@@ -78,14 +89,12 @@ random_layer(::Type{L}, sz::Dims) where {L <: Union{Binary, Potts}} = L(; θ = r
         )
         state = setup(optim, ps)
         update!(state, deepcopy(ps), gs) # builds up momenta
-        RBMs._halve_learning_rate!(state)
-        RBMs._reset_optimiser!(state, ps)
+        RBMs._restart_optimiser!(state, ps)
         @test update!(state, deepcopy(ps), gs)[2] == update!(setup(halved, ps), deepcopy(ps), gs)[2]
     end
     ps = (; a = [1.0], b = 1) # the non-trainable `b` has an empty state
     state = setup(Adam(0.1), ps)
-    RBMs._halve_learning_rate!(state)
-    RBMs._reset_optimiser!(state, ps)
+    RBMs._restart_optimiser!(state, ps)
     @test state.a.rule.eta == 0.05
 end
 
@@ -188,12 +197,21 @@ end
     @test_throws ArgumentError TrajectoryLadder(model; nchains = 10, α = 0.1, αmin = 0.2)
 end
 
+#= Bennett's acceptance ratio is exact for models whose energies differ by a constant, c,
+whatever the importance weights, and accurate for unit Gaussians centered at 0 and μ, the
+second with energy shifted by c. =#
+@testset "Bennett acceptance ratio" begin
+    @test RBMs._bennett(fill(0.7, 100), fill(-0.7, 30)) ≈ -0.7
+    @test RBMs._bennett(fill(0.7, 100), fill(-0.7, 30); logw = randn(30)) ≈ -0.7
+    μ, c = 1.0, 0.4
+    x₀, x₁ = randn(100_000), μ .+ randn(100_000)
+    W₀ = @. (x₀ - μ)^2 / 2 + c - x₀^2 / 2
+    W₁ = @. x₁^2 / 2 - (x₁ - μ)^2 / 2 - c
+    @test RBMs._bennett(W₀, W₁) ≈ -c atol = 0.02
+end
+
 @testset "ptt!" begin
-    ξ = rand(Bool, 8)
-    data = falses(8, 1000) # two noisy modes, with weights 0.7 and 0.3
-    for n in 1:1000
-        data[:, n] .= (rand() < 0.7 ? ξ : .!ξ) .⊻ (rand(8) .< 0.1)
-    end
+    data = two_modes(8, 1000)
     rbm = BinaryRBM(8, 4)
     initialize!(rbm, data)
     ladder = TrajectoryLadder(rbm; nchains = 500, α = 0.8) # frequent checkpoints
@@ -217,6 +235,7 @@ end
 
     other = BinaryRBM(8, 4)
     @test_throws ArgumentError ptt!(other, data; ladder, batchsize = 100)
+    @test_throws ArgumentError ptt!(rbm, data; ladder, batchsize = 100, optim = ClipGrad()) # no learning rate
 end
 
 #= ptt! draws every minibatch independently: consecutive minibatches of half the data
@@ -252,11 +271,7 @@ acceptance (≈ 0.61) overestimates the overlap of the two models at equilibrium
 end
 
 @testset "ptt! halves the learning rate at rejections" begin
-    ξ = rand(Bool, 8)
-    data = falses(8, 1000)
-    for n in 1:1000
-        data[:, n] .= (rand() < 0.7 ? ξ : .!ξ) .⊻ (rand(8) .< 0.1)
-    end
+    data = two_modes(8, 1000)
     rbm = BinaryRBM(8, 4)
     initialize!(rbm, data)
     ladder = TrajectoryLadder(rbm; nchains = 500)
