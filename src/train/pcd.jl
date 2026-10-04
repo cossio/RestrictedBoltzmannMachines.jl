@@ -88,7 +88,7 @@ accepts the standardization keywords `damping`, `ϵv`, `ϵh` and
 `regularize_unstandardized`, which have no effect on it.
 """
 function pcd!(rbm::RBM, data::AbstractArray; callback = Returns(nothing), kwargs...)
-    plain_rbm = rbm # the callback receives it, rather than the standardized wrapper
-    std_callback(; rbm, kw...) = callback(; rbm = plain_rbm, kw...)
-    return pcd!(PlainStandardizedRBM(rbm), data; callback = std_callback, kwargs...)
+    std_rbm = PlainStandardizedRBM(rbm) # shares the layers and weights of `rbm`
+    # the callback receives `rbm` rather than `std_rbm` (the rightmost keyword wins)
+    return pcd!(std_rbm, data; callback = (; kw...) -> callback(; kw..., rbm), kwargs...)
 end

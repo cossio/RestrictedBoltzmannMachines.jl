@@ -485,9 +485,6 @@ variances. The scales of a `CenteredRBM` stay fixed to one. If `rescale`, the sc
 of the hidden units is fixed by [`rescale_hidden_activations!`](@ref). Regularization
 applies to the equivalent plain `RBM` if `regularize_unstandardized`, otherwise to the
 standardized parameters.
-
-This is the trainer of the package: a plain `RBM` is trained through it, as the equivalent
-`StandardizedRBM` whose offsets and scales are fixed to zero and one.
 """
 function pcd!(
         rbm::StandardizedRBM,

@@ -97,50 +97,25 @@ rescale_hidden_activations!(rbm::CenteredRBM) = rescale_weights!(rbm)
     PlainStandardizedRBM{V,H,W}
 
 A [`CenteredRBM`](@ref) whose offsets are also fixed to zero (lazy `Falses`), so it is
-equivalent to the plain `RBM` with the same layers and weights. It is how [`pcd!`](@ref)
-trains a plain `RBM`: fitting statistics from data leaves it unchanged, and the operations
-that would involve the offsets or scales are those of the plain `RBM`.
+equivalent to the plain `RBM` with the same layers and weights. [`pcd!`](@ref) trains a
+plain `RBM` through it.
 """
 const PlainStandardizedRBM{V, H, W} = StandardizedRBM{V, H, W, <:Falses, <:Falses, <:Trues, <:Trues}
 
 # shares the layers and weights of `rbm`
-function PlainStandardizedRBM(rbm::RBM)
-    offset_v, offset_h = Falses(size(rbm.visible)), Falses(size(rbm.hidden))
-    scale_v, scale_h = Trues(size(rbm.visible)), Trues(size(rbm.hidden))
-    return StandardizedRBM(rbm, offset_v, offset_h, scale_v, scale_h)
-end
+PlainStandardizedRBM(rbm::RBM) = StandardizedRBM(
+    rbm, Falses(size(rbm.visible)), Falses(size(rbm.hidden)), Trues(size(rbm.visible)), Trues(size(rbm.hidden))
+)
 
 # The offsets and scales are fixed, so fitting statistics from data changes nothing.
-function standardize_visible_from_data!(
-        rbm::PlainStandardizedRBM, data::AbstractArray;
-        wts::AbstractArray{<:Real} = uniform_wts(rbm.visible, data), ϵ::Real = 0
-    )
-    return rbm
-end
+standardize_visible_from_data!(rbm::PlainStandardizedRBM, data::AbstractArray; kwargs...) = rbm
+standardize_hidden_from_inputs!(rbm::PlainStandardizedRBM, inputs::AbstractArray; kwargs...) = rbm
+standardize_hidden_from_v!(rbm::PlainStandardizedRBM, v::AbstractArray; kwargs...) = rbm # skips the inputs
 
-function standardize_hidden_from_inputs!(
-        rbm::PlainStandardizedRBM, inputs::AbstractArray;
-        wts::AbstractArray{<:Real} = uniform_wts(rbm.hidden, inputs), damping::Real = 1, ϵ::Real = 0
-    )
-    return rbm
-end
-
-function standardize_hidden_from_v!(
-        rbm::PlainStandardizedRBM, v::AbstractArray;
-        wts::AbstractArray{<:Real} = uniform_wts(rbm.visible, v), damping::Real = 1, ϵ::Real = 0
-    )
-    return rbm # skips computing the hidden inputs
-end
-
-# With zero offsets and unit scales the model is the plain `RBM` of its layers and weights,
-# so the operations that would involve the offsets or scales reduce to those of the `RBM`.
 unstandardize(rbm::PlainStandardizedRBM) = RBM(rbm)
 free_energy(rbm::PlainStandardizedRBM, v::AbstractArray) = free_energy(RBM(rbm), v)
 free_energy_h(rbm::PlainStandardizedRBM, h::AbstractArray) = free_energy_h(RBM(rbm), h)
-zerosum!(rbm::PlainStandardizedRBM) = (zerosum!(RBM(rbm)); rbm)
-zerosum!(∂::∂RBM, rbm::PlainStandardizedRBM) = zerosum!(∂, RBM(rbm))
-rescale_hidden!(rbm::PlainStandardizedRBM, λ::AbstractArray) = rescale_hidden!(RBM(rbm), λ)
 
-function ∂regularize!(∂::∂RBM, rbm::PlainStandardizedRBM; regularize_unstandardized::Bool = true, kwargs...)
-    return ∂regularize!(∂, RBM(rbm); kwargs...) # standardized and unstandardized parameters coincide
-end
+# standardized and unstandardized parameters coincide
+∂regularize!(∂::∂RBM, rbm::PlainStandardizedRBM; regularize_unstandardized::Bool = true, kwargs...) =
+    ∂regularize!(∂, RBM(rbm); kwargs...)
