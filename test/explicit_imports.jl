@@ -16,7 +16,8 @@ end
         # mark the macro public. Base documents @__doc__ as the way for macros
         # to attach docstrings to their expansions, but does not mark it public.
         # Optimisers documents adjust for changing hyperparameters, but does not
-        # mark it public.
+        # mark it public: https://github.com/FluxML/Optimisers.jl/issues/221
+        # tracks marking its documented functions public.
         all_qualified_accesses_are_public = (
             ignore = (Symbol("@adapt_structure"), Symbol("@__doc__"), :adjust),
         ),
