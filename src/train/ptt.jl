@@ -124,10 +124,11 @@ checkpoint, the learning rate is halved, and the optimiser forgets its past grad
 (momenta, moment estimates), which would otherwise repeat the rejected step. As in the
 reference implementation, the halving is permanent: letting the learning rate grow back
 at later checkpoints gave several times more rejections, and checkpoints frozen at
-excursions of the model away from the data. Rejections can thus stall training, for
-instance when the model oscillates across a phase transition, and `ptt!` warns once it
-has halved the learning rate 10 times. A smaller initial learning rate, or more Gibbs
-`steps`, then train better.
+excursions of the model away from the data. Rejections can thus stall training, and
+`ptt!` warns once it has halved the learning rate 10 times. An optimiser with momentum,
+such as `Nesterov` or `Adam`, can make the model oscillate across a phase transition,
+each crossing being rejected, whatever its initial learning rate; plain gradient
+descent (`Descent`) can then train through.
 
 `data` must have shape `(size(rbm.visible)..., nsamples)`.
 
@@ -192,7 +193,7 @@ function ptt!(
             # without its stale momenta, the optimiser does not repeat the rejected step
             _halve_learning_rate!(state)
             _reset_optimiser!(state, ps)
-            (halvings += 1) == 10 && @warn "PTT rejected 10 updates, so the learning rate is down to 1/1024 of its initial value; training may stall. A smaller initial learning rate, or more Gibbs steps, may train better."
+            (halvings += 1) == 10 && @warn "PTT rejected 10 updates, so the learning rate is down to 1/1024 of its initial value; training may stall. Optimisers with momentum can oscillate across phase transitions of the model; plain gradient descent (Descent) may train better."
         end
         ∂m = ∂free_energy(rbm, ladder.chains)
 

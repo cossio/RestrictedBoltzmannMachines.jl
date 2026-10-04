@@ -136,9 +136,11 @@ The [`TrajectoryLadder`](@ref) holds the checkpoints and the persistent chains:
    an acceptance of `αmin` with the previous one once thermalized. The model is then
    restored to the last checkpoint, the learning rate of the optimiser is halved, and the
    optimiser forgets its momenta. As in the reference implementation, the halving is
-   permanent, and `ptt!` warns once it has halved the learning rate 10 times. A run
-   stalled this way, for instance oscillating across a phase transition of the model,
-   trains better from a smaller initial learning rate or with more Gibbs `steps`.
+   permanent, and `ptt!` warns once it has halved the learning rate 10 times. On
+   clustered data, an optimiser with momentum, such as `Nesterov` or `Adam`, can make
+   the model oscillate across a phase transition, so that its updates keep being
+   rejected, whatever its initial learning rate; plain gradient descent (`Descent`)
+   can then train through.
 
 `ptt!` trains plain `RBM`s and accepts the keywords of [`pcd!`](@ref) for `RBM`, plus the
 `ladder`; its callback also receives the ladder as `ladder`. The optimiser must have a
