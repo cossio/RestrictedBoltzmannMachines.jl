@@ -312,6 +312,7 @@ function standardize(
         offset_v::AbstractArray, offset_h::AbstractArray,
         scale_v::AbstractArray, scale_h::AbstractArray
     )
+    # both scales are replaced, so start from the lazy unit scales of a `CenteredRBM`
     return standardize(CenteredRBM(rbm), offset_v, offset_h, scale_v, scale_h)
 end
 
