@@ -67,6 +67,7 @@ end
     @test @inferred(uncenter(centered_rbm)).visible.θ ≈ rbm.visible.θ
     @test @inferred(uncenter(centered_rbm)).hidden.θ ≈ rbm.hidden.θ
     @test @inferred(uncenter(centered_rbm)).w ≈ rbm.w
+    @test uncenter(rbm) === rbm # a plain RBM is already uncentered
 end
 
 @testset "center_visible / center_hidden helpers" begin
@@ -311,9 +312,33 @@ using RestrictedBoltzmannMachines: log_pseudolikelihood, Gaussian
     rbm = @inferred CenteredBinaryRBM(a, b, w)
     @test iszero(rbm.offset_v)
     @test iszero(rbm.offset_h)
+    rbm3 = @inferred CenteredRBM(Binary(; θ = a), Binary(; θ = b), w)
+    @test iszero(rbm3.offset_v) && iszero(rbm3.offset_h)
+    @test rbm3.w === w
     v = bitrand(3, 5)
     h = bitrand(2, 5)
     @test energy(rbm, v, h) ≈ energy(BinaryRBM(a, b, w), v, h)
+end
+
+using RestrictedBoltzmannMachines: Potts, PottsGumbel, potts_to_gumbel, gumbel_to_potts
+
+@testset "potts_to_gumbel / gumbel_to_potts CenteredRBM" begin
+    q = 3
+    crbm = center(RBM(Potts(; θ = randn(q, 2)), Binary(; θ = randn(2)), randn(q, 2, 2)), randn(q, 2), randn(2))
+
+    grbm = potts_to_gumbel(crbm)
+    @test grbm isa CenteredRBM
+    @test grbm.visible isa PottsGumbel
+    @test grbm.visible.par == crbm.visible.par
+    @test grbm.hidden.par == crbm.hidden.par
+    @test grbm.w == crbm.w
+    @test grbm.offset_v == crbm.offset_v
+    @test grbm.offset_h == crbm.offset_h
+
+    back = gumbel_to_potts(grbm)
+    @test back.visible isa Potts
+    @test back.visible.par == crbm.visible.par
+    @test back.w == crbm.w
 end
 
 @testset "conditional means of CenteredRBM" begin
