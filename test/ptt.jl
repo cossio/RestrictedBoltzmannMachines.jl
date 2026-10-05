@@ -8,7 +8,7 @@ using EllipsisNotation: (..)
 using Optimisers: Adam, ClipGrad, Descent, Nesterov, setup, update!
 using RestrictedBoltzmannMachines: RBM, BinaryRBM, Binary, Spin, Potts, Gaussian,
     TrajectoryLadder, CossimDescent, ptt!, initialize!, free_energy,
-    log_partition, log_likelihood, collect_states, standardize
+    log_partition, log_likelihood, collect_states, standardize, StandardizedRBM
 
 Random.seed!(41)
 
@@ -207,9 +207,12 @@ second with energy shifted by c. =#
     @test RBMs._bennett(W₀, W₁) ≈ -c atol = 0.02
 end
 
-@testset "ptt!" begin
+@testset "ptt! of $name" for (name, rbm) in (
+        ("RBM", BinaryRBM(8, 4)),
+        ("CenteredRBM", standardize(BinaryRBM(8, 4), zeros(8), zeros(4))),
+        ("StandardizedRBM", StandardizedRBM(BinaryRBM(8, 4))),
+    )
     data = two_modes(8, 1000)
-    rbm = BinaryRBM(8, 4)
     initialize!(rbm, data)
     ladder = TrajectoryLadder(rbm; nchains = 500, α = 0.8) # frequent checkpoints
     K₀ = length(ladder.checkpoints)
@@ -217,8 +220,8 @@ end
     nfrozen = Ref(0)
     state, ps = ptt!(
         rbm, data; ladder, batchsize = 100, iters = 1000, optim = CossimDescent(0.02, 0.1),
-        callback = (; vm, ladder, _...) -> begin
-            @assert vm === ladder.chains
+        callback = (; vm, ladder, kw...) -> begin
+            @assert kw[:rbm] === rbm && vm === ladder.chains
             nfrozen[] = length(ladder.checkpoints)
         end,
     )

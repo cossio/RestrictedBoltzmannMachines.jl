@@ -38,10 +38,10 @@ equilibrium is below `αmin`, the update is rejected: `rbm` is restored to the l
 checkpoint, and [`ptt!`](@ref) halves the learning rate.
 
 `rbm` is an `RBM` or a `StandardizedRBM` (including a `CenteredRBM`), freshly initialized
-by [`initialize!`](@ref). The ladder starts at the independent-site model obtained by setting the weights of `rbm` to
-zero, whose partition function is known, and is extended along `anneal` steps scaling the
-weights up to those of `rbm`, which becomes the last checkpoint. `steps` are the Gibbs
-steps per sweep used meanwhile.
+by [`initialize!`](@ref). The ladder starts at the independent-site model obtained by
+setting the weights of `rbm` to zero, whose partition function is known, and is extended
+along `anneal` steps scaling the weights up to those of `rbm`, which becomes the last
+checkpoint. `steps` are the Gibbs steps per sweep used meanwhile.
 
 The checkpoints and their log-partition functions are kept in `ladder.checkpoints` and
 `ladder.logZ`, the persistent chains in `ladder.chains`, equilibrium samples of the last
@@ -120,8 +120,8 @@ log_likelihood(ladder::TrajectoryLadder, v::AbstractArray) =
 """
     ptt!(rbm, data; kwargs...)
 
-Train an `RBM` with Parallel Trajectory Tempering (PTT; Béreux, Decelle, Furtlehner,
-Seoane, arXiv:2607.27077).
+Train an `RBM` or a `StandardizedRBM` (including a `CenteredRBM`) with Parallel Trajectory
+Tempering (PTT; Béreux, Decelle, Furtlehner, Seoane, arXiv:2607.27077).
 
 Like [`pcd!`](@ref), but the persistent chains are kept at equilibrium by replica exchange
 with frozen checkpoints of the training trajectory, held by a [`TrajectoryLadder`](@ref).
@@ -141,7 +141,9 @@ descent (`Descent`) can then train through.
 
 `data` must have shape `(size(rbm.visible)..., nsamples)`. As in [`pcd!`](@ref) and the
 reference implementation, every minibatch is drawn at random from `data`, independently of
-the others.
+the others. The offsets and scales of a `StandardizedRBM` are set and updated as by
+[`pcd!`](@ref), which leaves its distribution unchanged; a plain `RBM` is trained as the
+equivalent `StandardizedRBM` whose offsets and scales are fixed to zero and one.
 
 # Keyword arguments
 - `ladder`: the [`TrajectoryLadder`](@ref) of `rbm`, by default a new one with
@@ -155,13 +157,20 @@ the others.
 - `callback=Returns(nothing)`: called after every update as
   `callback(; rbm, optim, state, ps, iter, vd, wd, ∂, vm, ladder)`, where `vm` are the
   chains of the ladder. Slurp unused keywords with a trailing `_...`.
-- `batchsize`, `iters`, `wts`, `moments`, `l2_fields`, `l1_weights`, `l2_weights`,
-  `l2l1_weights`, `zerosum`, `rescale`, `ps`, `state`: as for [`pcd!`](@ref).
+- `batchsize`, `iters`, `wts`, `moments`, `damping`, `ϵv`, `ϵh`,
+  `regularize_unstandardized`, `l2_fields`, `l1_weights`, `l2_weights`, `l2l1_weights`,
+  `zerosum`, `rescale`, `ps`, `state`: as for [`pcd!`](@ref).
 
 Returns `(state, ps)`.
 """
+function ptt!(rbm::RBM, data::AbstractArray; callback = Returns(nothing), kwargs...)
+    std_rbm = PlainStandardizedRBM(rbm) # shares the layers and weights of `rbm`
+    # the callback receives `rbm` rather than `std_rbm` (the rightmost keyword wins)
+    return ptt!(std_rbm, data; callback = (; kw...) -> callback(; kw..., rbm), kwargs...)
+end
+
 function ptt!(
-        rbm::RBM,
+        rbm::StandardizedRBM,
         data::AbstractArray;
         batchsize::Int = 1,
         iters::Int = 1, # number of gradient updates
@@ -170,6 +179,9 @@ function ptt!(
         ladder::TrajectoryLadder = TrajectoryLadder(rbm; nchains = min(batchsize, size(data)[end]), steps),
         optim::AbstractRule = Adam(1.0e-4), # optimizer rule
         moments = moments_from_samples(rbm.visible, data; wts), # sufficient statistics for visible layer
+        damping::Real = 1 // 100, # of the hidden standardization updates
+        ϵv::Real = 0, ϵh::Real = 0, # pseudocounts for the visible and hidden variances
+        regularize_unstandardized::Bool = true, # regularize the equivalent plain RBM, or this one
 
         # regularization
         l2_fields::Real = 0, # visible fields L2 regularization
@@ -179,7 +191,7 @@ function ptt!(
 
         # gauge
         zerosum::Bool = true, # zerosum gauge for Potts layers
-        rescale::Bool = true, # normalize weights to unit norm (for continuous hidden units only)
+        rescale::Bool = true, # fix the scale gauge of the hidden units
 
         callback = Returns(nothing), # called for every batch
 
@@ -187,14 +199,19 @@ function ptt!(
         ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w),
         state = setup(optim, ps),
     )
-    ladder.rbm === rbm || throw(ArgumentError("the ladder was built for another model"))
+    # the ladder samples `rbm`, or the plain `RBM` whose layers and weights `rbm` shares
+    model = ladder.rbm
+    model.visible === rbm.visible && model.hidden === rbm.hidden && model.w === rbm.w ||
+        throw(ArgumentError("the ladder was built for another model"))
     hasproperty(optim, :eta) || throw(ArgumentError("ptt! halves the learning rate `eta` of the optimiser, which $optim lacks"))
+    @assert 0 ≤ damping ≤ 1
     wts_mean, batchsize = _pcd_check_args(rbm, data, wts, batchsize)
 
-    # initial gauge; zerosum! first because rescaling preserves the zero-sum gauge,
-    # while zerosum! perturbs weight norms
+    standardize_visible_from_data!(rbm, data; wts, ϵ = ϵv)
+    standardize_hidden_from_v!(rbm, data; wts, ϵ = ϵh)
+    # zerosum! first because rescaling preserves the zero-sum gauge
     zerosum && zerosum!(rbm)
-    rescale && rescale_weights!(rbm)
+    rescale && rescale_hidden_activations!(rbm)
 
     halvings = 0 # of the learning rate, by rejected updates
     for iter in 1:iters
@@ -202,7 +219,7 @@ function ptt!(
         vd, wd = data[.., idx], wts[idx]
 
         # negative phase first, since a rejected update restores the parameters
-        if _ptt_update!(ladder, rbm; steps) === :rejected
+        if _ptt_update!(ladder, model; steps) === :rejected
             ladder.rejections ≤ PTT_MAX_REJECTIONS ||
                 error("PTT lost equilibrium after $PTT_MAX_REJECTIONS consecutive learning rate halvings")
             _restart_optimiser!(state, ps)
@@ -222,16 +239,17 @@ function ptt!(
         ∂ = (∂d - ∂m) * batch_weight
 
         # weight decay
-        ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum)
+        ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum, regularize_unstandardized)
 
         # feed gradient to Optimiser rule
         gs = (; visible = ∂.visible, hidden = ∂.hidden, w = ∂.w)
         state, ps = update!(state, ps, gs)
         _validate_layer_parameters(rbm)
 
-        # reset gauge (zerosum! first, as above)
+        # these leave the distribution unchanged
+        standardize_hidden_from_v!(rbm, vd; wts = wd, damping, ϵ = ϵh)
         zerosum && zerosum!(rbm)
-        rescale && rescale_weights!(rbm)
+        rescale && rescale_hidden_activations!(rbm)
 
         callback(; rbm, optim, state, ps, iter, vd, wd, ∂, vm = ladder.chains, ladder)
     end

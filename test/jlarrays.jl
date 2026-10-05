@@ -446,11 +446,10 @@ end
     @test all(isfinite, adapt(Array, R))
 end
 
-@testset "ptt! with $(nameof(typeof(visible))) visible layer" for visible in (
-        Binary(; θ = randn(N...)), PottsGumbel(; θ = randn(Q, N...)),
-    )
+@testset "ptt! with $(nameof(typeof(visible))) visible layer, standardized = $standardized" for visible in (Binary(; θ = randn(N...)), PottsGumbel(; θ = randn(Q, N...))), standardized in (false, true)
     rbm = RBM(visible, Binary(; θ = randn(2)), randn(size(visible)..., 2) / 3)
     data = sample_from_inputs(rbm.visible, zeros(size(rbm.visible)..., 64))
+    standardized && (rbm = StandardizedRBM(rbm))
     jl_rbm = adapt(JLArray, rbm)
     jl_data = adapt(JLArray, data)
     ladder = RBMs.TrajectoryLadder(jl_rbm; nchains = 16, nreservoir = 64, anneal = 5)

@@ -10,8 +10,9 @@ This page describes how model training works in this package, focusing on:
 - [`pcd!`](@ref) for `StandardizedRBM` (stdRBM), including `CenteredRBM`,
 - [`ptt!`](@ref), equilibrium training by Parallel Trajectory Tempering.
 
-There is one trainer: a plain `RBM` is trained as the equivalent stdRBM whose offsets and
-scales are fixed to zero and one, so the extra stdRBM steps below reduce to nothing for it.
+Each trainer has a single training loop: a plain `RBM` is trained as the equivalent stdRBM
+whose offsets and scales are fixed to zero and one, so the extra stdRBM steps below reduce
+to nothing for it.
 
 Unbiased Contrastive Divergence (`ucd!`) for binary-binary RBMs lives in a
 separate package, [ucdRBMs.jl](https://github.com/cossio/ucdRBMs.jl).
@@ -142,12 +143,11 @@ The [`TrajectoryLadder`](@ref) holds the checkpoints and the persistent chains:
    rejected, whatever its initial learning rate; plain gradient descent (`Descent`)
    can then train through.
 
-`ptt!` trains plain `RBM`s from scratch, starting from [`initialize!`](@ref), and
-accepts the keywords of [`pcd!`](@ref) for `RBM`, plus the `ladder`; its callback also
-receives the ladder as `ladder`. The optimiser must have a learning rate `eta`. To
-continue training, pass the ladder of the previous run: without
-it, `ptt!` builds a new one. A `TrajectoryLadder` can also be built for a `CenteredRBM` or
-`StandardizedRBM`, to sample it or estimate its partition function. The paper uses
+`ptt!` trains plain `RBM`s and stdRBMs from scratch, starting from
+[`initialize!`](@ref). It accepts the keywords of [`pcd!`](@ref), plus the `ladder`, and
+handles the offsets and scales of a stdRBM as `pcd!` does; its callback also receives the
+ladder as `ladder`. The optimiser must have a learning rate `eta`. To continue training,
+pass the ladder of the previous run: without it, `ptt!` builds a new one. The paper uses
 [`CossimDescent`](@ref), a gradient descent whose learning rate adapts to the alignment
 of successive gradients. The default optimiser is `Adam(1e-4)`, a tenth of the learning
 rate of `pcd!`'s `Adam()`, whose larger steps can be rejected from the first update. On

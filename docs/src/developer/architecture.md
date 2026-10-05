@@ -50,7 +50,8 @@ methods skip them through `_maybe_div` / `_maybe_mul`.
   utilities.
 - `src/rbms/` — convenience constructors (`BinaryRBM`, `HopfieldRBM`, ...).
 - `src/train/` — training: `pcd.jl` (persistent contrastive divergence),
-  `initialization.jl` (data-driven init), `gradient.jl`.
+  `ptt.jl` (parallel trajectory tempering, with the `CossimDescent` rule in
+  `cossim.jl`), `initialization.jl` (data-driven init), `gradient.jl`.
 - `src/gauge/` — gauge transformations: `zerosum.jl`, `rescale_hidden.jl`,
   `shift_fields.jl`.
 - `src/util/` — linear algebra helpers, one-hot encoding, truncated normal
