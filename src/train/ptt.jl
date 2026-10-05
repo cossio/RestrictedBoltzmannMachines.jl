@@ -56,11 +56,11 @@ Base.@kwdef mutable struct TrajectoryLadder{M, A <: AbstractArray}
     const checkpoints::Vector{M} # frozen copies of `rbm` along its training trajectory
     const logZ::Vector{Float64} # log-partition functions of the checkpoints
     const chains::A # persistent chains of `rbm`
-    chains_F::Vector{Float64} # their free energies under the model they were last sampled from
-    samples::A # equilibrium samples of the last checkpoint
-    samples_F::Vector{Float64} # their free energies under the last checkpoint
-    reservoir::A = copy(samples) # working copy of `samples`, exchanged with `chains`
-    reservoir_F::Vector{Float64} = copy(samples_F)
+    const chains_F::Vector{Float64} # their free energies under the model they were last sampled from
+    const samples::A # equilibrium samples of the last checkpoint
+    const samples_F::Vector{Float64} # their free energies under the last checkpoint
+    const reservoir::A = copy(samples) # working copy of `samples`, exchanged with `chains`
+    const reservoir_F::Vector{Float64} = copy(samples_F)
     acceptance::Float64 = 1.0 # last swap acceptance between the last checkpoint and `rbm`
     since_checkpoint::Int = 0 # updates since the last checkpoint was frozen or restored
     rejections::Int = 0 # consecutive rejected updates
@@ -103,9 +103,9 @@ last parameter update) to the current one.
 function log_partition(ladder::TrajectoryLadder)
     (; rbm, chains, chains_F, samples, samples_F) = ladder
     F = _free_energies(rbm, chains)
-    return last(ladder.logZ) + _log_partition_ratio(
-        last(ladder.checkpoints), samples, samples_F, rbm, chains, F; logw = chains_F - F
-    )
+    W₀ = _free_energies(rbm, samples) - samples_F # work from the last checkpoint to `rbm`
+    W₁ = _free_energies(last(ladder.checkpoints), chains) - F # and back
+    return last(ladder.logZ) + _bennett(W₀, W₁; logw = chains_F - F)
 end
 
 """
@@ -398,13 +398,13 @@ function _push_checkpoint!(ladder::TrajectoryLadder, model; steps::Int, minsweep
     end
 
     samples_F = _free_energies(checkpoint, samples)
-    logZ = last(ladder.logZ) + _log_partition_ratio(
-        last(ladder.checkpoints), ladder.samples, ladder.samples_F, checkpoint, samples, samples_F
-    )
+    W₀ = _free_energies(checkpoint, ladder.samples) - ladder.samples_F # work from the last checkpoint to the new one
+    W₁ = _free_energies(last(ladder.checkpoints), samples) - samples_F # and back
+    push!(ladder.logZ, last(ladder.logZ) + _bennett(W₀, W₁))
     push!(ladder.checkpoints, checkpoint)
-    push!(ladder.logZ, logZ)
-    ladder.samples, ladder.samples_F = samples, samples_F
-    ladder.reservoir, ladder.reservoir_F = copy(samples), copy(samples_F)
+    ladder.samples .= samples
+    ladder.samples_F .= samples_F
+    _reset_reservoir!(ladder)
     ladder.chains_F .= _free_energies(checkpoint, ladder.chains)
     ladder.τint, ladder.τexp = τint, τexp
     ladder.since_checkpoint = 0
@@ -446,15 +446,6 @@ function _autocorrelation_times(swaps::AbstractMatrix{Bool})
         t ≥ 6τint && break
     end
     return max(τint, 0.5), τexp
-end
-
-#= Bennett acceptance ratio estimate of log(Z₁ / Z₀) from equilibrium samples `x₀` of `m₀`,
-with free energies `F₀x₀` under `m₀`, and samples `x₁` of `m₁`, with free energies `F₁x₁`
-under `m₁`, which can carry importance log-weights `logw`. =#
-function _log_partition_ratio(m₀, x₀, F₀x₀, m₁, x₁, F₁x₁; logw = Zeros(length(F₁x₁)))
-    W₀ = _free_energies(m₁, x₀) - F₀x₀ # forward "work"
-    W₁ = _free_energies(m₀, x₁) - F₁x₁ # reverse "work"
-    return _bennett(W₀, W₁; logw)
 end
 
 #= Bennett acceptance ratio estimate of log(Z₁ / Z₀) from the works `W₀ = F₁ - F₀` of
