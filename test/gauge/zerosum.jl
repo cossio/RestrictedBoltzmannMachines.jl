@@ -1,3 +1,4 @@
+using RestrictedBoltzmannMachines: CompositeRegularizer, L2FieldsRegularizer, L1WeightsRegularizer, L2WeightsRegularizer
 using Test: @test, @testset
 using LinearAlgebra: norm
 using Statistics: mean
@@ -610,10 +611,10 @@ end
     @test norm(mean(∂.w ./ srbm_g.scale_v; dims = 1)) < 1.0e-13
 end
 
-@testset "∂regularize! zerosum pass-through (StandardizedRBM)" begin
+@testset "zerosum! of the regularized gradient (StandardizedRBM)" begin
     # defining property from issue #110: with the projection applied to the full
-    # (free energy + regularization) gradient, a naive SGD step stays in gauge
-    # without needing the zerosum!(rbm) reset
+    # (free energy + regularization) gradient, as the trainers do, a naive SGD step stays
+    # in gauge without needing the zerosum!(rbm) reset
     N = (3, 2)
     M = (2,)
     rbm = RBM(Potts(; θ = randn(N...)), Binary(; θ = randn(M...)), randn(N..., M...))
@@ -626,7 +627,8 @@ end
 
     v = sample_from_inputs(srbm.visible, zeros(N..., 100))
     ∂ = ∂free_energy(srbm, v)
-    ∂regularize!(∂, srbm; l2_fields = 0.1, l1_weights = 0.1, l2_weights = 0.1, zerosum = true)
+    ∂regularize!(∂, srbm, CompositeRegularizer(L2FieldsRegularizer(0.1), L1WeightsRegularizer(0.1), L2WeightsRegularizer(0.1)))
+    zerosum!(∂, srbm)
     srbm.visible.par .-= 0.1 * ∂.visible
     srbm.hidden.par .-= 0.1 * ∂.hidden
     srbm.w .-= 0.1 * ∂.w
@@ -635,7 +637,7 @@ end
     @test norm(mean(urbm.visible.θ; dims = 1)) < 1.0e-10
 end
 
-@testset "∂regularize! zerosum pass-through (CenteredRBM)" begin
+@testset "zerosum! of the regularized gradient (CenteredRBM)" begin
     N = (3, 2)
     M = (2,)
     rbm = RBM(Potts(; θ = randn(N...)), Binary(; θ = randn(M...)), randn(N..., M...))
@@ -646,7 +648,8 @@ end
 
     v = sample_from_inputs(crbm.visible, zeros(N..., 100))
     ∂ = ∂free_energy(crbm, v)
-    ∂regularize!(∂, crbm; l2_fields = 0.1, l1_weights = 0.1, l2_weights = 0.1, zerosum = true)
+    ∂regularize!(∂, crbm, CompositeRegularizer(L2FieldsRegularizer(0.1), L1WeightsRegularizer(0.1), L2WeightsRegularizer(0.1)))
+    zerosum!(∂, crbm)
     crbm.visible.par .-= 0.1 * ∂.visible
     crbm.hidden.par .-= 0.1 * ∂.hidden
     crbm.w .-= 0.1 * ∂.w

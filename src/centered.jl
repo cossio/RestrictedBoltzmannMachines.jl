@@ -118,5 +118,5 @@ free_energy(rbm::PlainStandardizedRBM, v::AbstractArray) = free_energy(RBM(rbm),
 free_energy_h(rbm::PlainStandardizedRBM, h::AbstractArray) = free_energy_h(RBM(rbm), h)
 
 # standardized and unstandardized parameters coincide
-∂regularize!(∂::∂RBM, rbm::PlainStandardizedRBM; regularize_unstandardized::Bool = true, kwargs...) =
-    ∂regularize!(∂, RBM(rbm); kwargs...)
+_∂regularize_unstandardized!(∂::∂RBM, rbm::PlainStandardizedRBM, reg::AbstractRegularizer) =
+    ∂regularize!(∂, RBM(rbm), reg)

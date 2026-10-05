@@ -16,6 +16,9 @@ Base.:(/)(∂::∂RBM, λ::Real) = ∂RBM(∂.visible / λ, ∂.hidden / λ, ∂
 Base.:(==)(∂1::∂RBM, ∂2::∂RBM) = (∂1.visible == ∂2.visible) && (∂1.hidden == ∂2.hidden) && (∂1.w == ∂2.w)
 Base.hash(∂::∂RBM, h::UInt) = hash(∂.visible, hash(∂.hidden, hash(∂.w, h)))
 
+# zeros_like (not zero) so immutable layer parameter arrays get a mutable buffer
+_zero_gradient(rbm) = ∂RBM(zeros_like(rbm.visible.par), zeros_like(rbm.hidden.par), zeros_like(rbm.w))
+
 """
     ∂free_energy(rbm, v)
 

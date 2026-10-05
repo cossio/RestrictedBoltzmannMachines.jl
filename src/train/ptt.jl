@@ -152,8 +152,7 @@ equivalent `StandardizedRBM` whose offsets and scales are fixed to zero and one.
   `callback(; rbm, optim, state, ps, iter, vd, wd, ∂, vm, ladder)`, where `vm` are the
   chains of the ladder. Slurp unused keywords with a trailing `_...`.
 - `batchsize`, `iters`, `wts`, `moments`, `damping`, `ϵv`, `ϵh`,
-  `regularize_unstandardized`, `l2_fields`, `l1_weights`, `l2_weights`, `l2l1_weights`,
-  `zerosum`, `rescale`, `ps`, `state`: as for [`pcd!`](@ref).
+  `regularization`, `zerosum`, `rescale`, `ps`, `state`: as for [`pcd!`](@ref).
 
 Returns `(state, ps)`.
 """
@@ -175,13 +174,7 @@ function ptt!(
         moments = moments_from_samples(rbm.visible, data; wts), # sufficient statistics for visible layer
         damping::Real = 1 // 100, # of the hidden standardization updates
         ϵv::Real = 0, ϵh::Real = 0, # pseudocounts for the visible and hidden variances
-        regularize_unstandardized::Bool = true, # regularize the equivalent plain RBM, or this one
-
-        # regularization
-        l2_fields::Real = 0, # visible fields L2 regularization
-        l1_weights::Real = 0, # weights L1 regularization
-        l2_weights::Real = 0, # weights L2 regularization
-        l2l1_weights::Real = 0, # weights L2/L1 regularization
+        regularization::AbstractRegularizer = CompositeRegularizer(),
 
         # gauge
         zerosum::Bool = true, # zerosum gauge for Potts layers
@@ -232,8 +225,9 @@ function ptt!(
         batch_weight = convert(float(real(eltype(∂d.w))), mean(wd) / wts_mean)
         ∂ = (∂d - ∂m) * batch_weight
 
-        # weight decay
-        ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum, regularize_unstandardized)
+        # regularization, and projection of the gradient onto the zerosum gauge
+        ∂regularize!(∂, rbm, regularization)
+        zerosum && zerosum!(∂, rbm)
 
         # feed gradient to Optimiser rule
         gs = (; visible = ∂.visible, hidden = ∂.hidden, w = ∂.w)

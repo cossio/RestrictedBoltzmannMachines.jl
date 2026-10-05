@@ -1,3 +1,5 @@
+using RestrictedBoltzmannMachines: CompositeRegularizer, StandardizedParametersRegularizer, L2FieldsRegularizer, L1WeightsRegularizer,
+    L2WeightsRegularizer, L2L1WeightsRegularizer
 using Random: bitrand
 using RestrictedBoltzmannMachines: ∂free_energy
 using RestrictedBoltzmannMachines: ∂regularize!
@@ -242,16 +244,19 @@ end
         (dReLU(; θp = randn(3), θn = randn(3), γp = rand(3), γn = rand(3)), randn(3, 100)),
     )
     rbm = CenteredRBM(visible, Binary(; θ = randn(2)), randn(3, 2), randn(3), randn(2))
-    l2_fields, l1_weights, l2_weights, l2l1_weights = rand(4)
+    reg = CompositeRegularizer(
+        L2FieldsRegularizer(rand()), L1WeightsRegularizer(rand()),
+        L2WeightsRegularizer(rand()), L2L1WeightsRegularizer(rand())
+    )
 
     gs = gradient(rbm) do rbm
         F = mean(free_energy(rbm, v))
-        R = regularization_penalty(rbm; l2_fields, l1_weights, l2_weights, l2l1_weights)
+        R = regularization_penalty(rbm, reg)
         return F + R
     end
 
     ∂ = ∂free_energy(rbm, v)
-    ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights)
+    ∂regularize!(∂, rbm, reg)
 
     @test only(gs).visible.par ≈ ∂.visible
     @test only(gs).hidden.par ≈ ∂.hidden
@@ -260,11 +265,13 @@ end
 
 @testset "regularization_penalty of CenteredRBM" begin
     rbm = CenteredBinaryRBM(randn(3), randn(2), randn(3, 2), randn(3), randn(2))
-    l2_fields, l1_weights, l2_weights, l2l1_weights = rand(4)
-    @test regularization_penalty(rbm; l2_fields, l1_weights, l2_weights, l2l1_weights) ≈
-        regularization_penalty(unstandardize(rbm); l2_fields, l1_weights, l2_weights, l2l1_weights)
-    @test regularization_penalty(rbm; regularize_unstandardized = false, l2_fields, l1_weights, l2_weights, l2l1_weights) ≈
-        regularization_penalty(RBM(rbm); l2_fields, l1_weights, l2_weights, l2l1_weights)
+    reg = CompositeRegularizer(
+        L2FieldsRegularizer(rand()), L1WeightsRegularizer(rand()),
+        L2WeightsRegularizer(rand()), L2L1WeightsRegularizer(rand())
+    )
+    @test regularization_penalty(rbm, reg) ≈ regularization_penalty(unstandardize(rbm), reg)
+    @test regularization_penalty(rbm, StandardizedParametersRegularizer(reg)) ≈
+        regularization_penalty(RBM(rbm), reg)
 end
 
 using RestrictedBoltzmannMachines: log_pseudolikelihood, Gaussian

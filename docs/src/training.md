@@ -62,7 +62,7 @@ At each training iteration, [`pcd!`](@ref) on `RBM`:
   - `wts`: optional finite, positive sample weights,
   - `moments`: data sufficient statistics (defaults to layer moments from `data`).
 - Regularization:
-  - `l2_fields`, `l1_weights`, `l2_weights`, `l2l1_weights`.
+  - `regularization`: an [`AbstractRegularizer`](@ref), see [Regularization](@ref regularization) below.
 - Gauge:
   - `zerosum` (Potts-family gauge),
   - `rescale` (weight normalization, mainly relevant for continuous hidden units).
@@ -93,11 +93,53 @@ In addition to the standard PCD updates, it:
 - Standardization controls:
   - `damping`: smoothing factor for hidden standardization updates (`0 ≤ damping ≤ 1`),
   - `ϵv`, `ϵh`: pseudocount-like stabilizers for visible/hidden standardization.
-- Standardization-aware regularization:
-  - `regularize_unstandardized`: if `true`, regularization is applied in the unstandardized gauge.
 
 Other arguments, including `rescale` and `callback`, are the same as for a plain `RBM`.
 A plain `RBM` also accepts the stdRBM-specific arguments, which have no effect on it.
+
+## [Regularization](@id regularization)
+
+The `regularization` keyword of [`pcd!`](@ref) and [`ptt!`](@ref) takes an
+[`AbstractRegularizer`](@ref), a penalty added to the training objective:
+
+- [`L2FieldsRegularizer`](@ref)`(λ)`: L2 penalty on the visible fields,
+- [`L1WeightsRegularizer`](@ref)`(λ)` and [`L2WeightsRegularizer`](@ref)`(λ)`: L1 and L2
+  penalties on the weights,
+- [`L2L1WeightsRegularizer`](@ref)`(λ)`: the sparsity-promoting penalty of
+  [Tubiana et al. (2019)](https://doi.org/10.7554/eLife.39397),
+- [`CompositeRegularizer`](@ref)`(regularizers...)`: the sum of several; empty, the
+  default, it applies none,
+- [`StandardizedParametersRegularizer`](@ref)`(regularizer)`: on a stdRBM, applies
+  `regularizer` to the standardized parameters themselves (see below).
+
+```julia
+pcd!(rbm, data; regularization = CompositeRegularizer(L2WeightsRegularizer(1e-3), L2FieldsRegularizer(1e-2)))
+```
+
+A regularizer defines the value of its penalty and the gradient of the penalty for a
+plain `RBM`, through [`regularization_penalty`](@ref) and [`∂regularize!`](@ref). For
+example, an L2 penalty on the fields of the hidden layer:
+
+```julia
+import RestrictedBoltzmannMachines as RBMs
+
+struct L2HiddenFieldsRegularizer{T<:Real} <: RBMs.AbstractRegularizer
+    λ::T
+end
+
+RBMs.regularization_penalty(rbm::RBMs.RBM, reg::L2HiddenFieldsRegularizer) = reg.λ / 2 * sum(abs2, rbm.hidden.θ)
+
+function RBMs.∂regularize!(∂, rbm::RBMs.RBM, reg::L2HiddenFieldsRegularizer)
+    selectdim(∂.hidden, 1, 1) .+= reg.λ .* rbm.hidden.θ # the fields are the first parameter row
+    return ∂
+end
+```
+
+The same two methods regularize a stdRBM. The penalty applies to the parameters of the
+equivalent plain `RBM`, and its gradient is pulled back to the parameters of the stdRBM:
+the plain fields absorb the offsets, so a penalty on the fields also acts on the weights.
+To penalize the standardized parameters themselves instead, wrap the regularizer in a
+`StandardizedParametersRegularizer`; a `CompositeRegularizer` can mix both.
 
 ## [Equilibrium training with `ptt!`](@id ptt_training)
 

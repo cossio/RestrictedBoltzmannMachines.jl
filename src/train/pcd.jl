@@ -40,11 +40,11 @@ parameters with an `Optimisers.jl` rule.
 - `optim::AbstractRule=Adam()`: optimizer rule from `Optimisers.jl`.
 - `moments=moments_from_samples(rbm.visible, data; wts)`: data moments used
   by the positive phase.
-- `l2_fields::Real=0`: L2 regularization on visible fields.
-- `l1_weights::Real=0`: L1 regularization on interaction weights.
-- `l2_weights::Real=0`: L2 regularization on interaction weights.
-- `l2l1_weights::Real=0`: group-like L2/L1 weight regularization.
-- `zerosum::Bool=true`: enforce zero-sum gauge on Potts layers.
+- `regularization::AbstractRegularizer=CompositeRegularizer()`: penalty added to the
+  training objective, such as `L2WeightsRegularizer(λ)`, or several combined by a
+  `CompositeRegularizer` (see [`AbstractRegularizer`](@ref)). None by default.
+- `zerosum::Bool=true`: enforce zero-sum gauge on Potts layers (the gradient is projected
+  onto the gauge too).
 - `rescale::Bool=true`: rescale weights (mainly useful for continuous hidden units).
 - `callback=Returns(nothing)`: called after every update as
   `callback(; rbm, optim, state, ps, iter, vd, wd, ∂, vm)`. Slurp unused
@@ -59,8 +59,7 @@ Returns `(state, ps)`.
 
 A plain `RBM` is trained as the equivalent `StandardizedRBM` whose offsets and scales are
 fixed to zero and one (see the [`pcd!`](@ref) method for `StandardizedRBM`), so it also
-accepts the standardization keywords `damping`, `ϵv`, `ϵh` and
-`regularize_unstandardized`, which have no effect on it.
+accepts the standardization keywords `damping`, `ϵv` and `ϵh`, which have no effect on it.
 """
 function pcd!(rbm::RBM, data::AbstractArray; callback = Returns(nothing), kwargs...)
     std_rbm = PlainStandardizedRBM(rbm) # shares the layers and weights of `rbm`
@@ -69,8 +68,7 @@ function pcd!(rbm::RBM, data::AbstractArray; callback = Returns(nothing), kwargs
 end
 
 """
-    pcd!(rbm::StandardizedRBM, data; damping = 1 // 100, ϵv = 0, ϵh = 0,
-         regularize_unstandardized = true, kwargs...)
+    pcd!(rbm::StandardizedRBM, data; damping = 1 // 100, ϵv = 0, ϵh = 0, kwargs...)
 
 [`pcd!`](@ref) for a `StandardizedRBM` (including a [`CenteredRBM`](@ref)), with the same
 keywords as for a plain `RBM`. The offsets and scales of both layers are set from `data`
@@ -78,8 +76,8 @@ before training, and after every update the hidden ones move towards the minibat
 conditional statistics by a fraction `damping`; `ϵv`, `ϵh` are pseudocounts added to the
 variances. The scales of a `CenteredRBM` stay fixed to one. If `rescale`, the scale gauge
 of the hidden units is fixed by [`rescale_hidden_activations!`](@ref). Regularization
-applies to the equivalent plain `RBM` if `regularize_unstandardized`, otherwise to the
-standardized parameters.
+applies to the equivalent plain `RBM`, unless a regularizer is wrapped in a
+[`StandardizedParametersRegularizer`](@ref).
 """
 function pcd!(
         rbm::StandardizedRBM,
@@ -92,11 +90,7 @@ function pcd!(
         moments = moments_from_samples(rbm.visible, data; wts),
         damping::Real = 1 // 100, # of the hidden standardization updates
         ϵv::Real = 0, ϵh::Real = 0, # pseudocounts for the visible and hidden variances
-        regularize_unstandardized::Bool = true, # regularize the equivalent plain RBM, or this one
-        l2_fields::Real = 0,
-        l1_weights::Real = 0,
-        l2_weights::Real = 0,
-        l2l1_weights::Real = 0,
+        regularization::AbstractRegularizer = CompositeRegularizer(),
         zerosum::Bool = true,
         rescale::Bool = true,
         callback = Returns(nothing),
@@ -128,8 +122,9 @@ function pcd!(
         batch_weight = convert(float(real(eltype(∂d.w))), mean(wd) / wts_mean)
         ∂ = (∂d - ∂m) * batch_weight
 
-        # weight decay
-        ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum, regularize_unstandardized)
+        # regularization, and projection of the gradient onto the zerosum gauge
+        ∂regularize!(∂, rbm, regularization)
+        zerosum && zerosum!(∂, rbm)
 
         # feed gradient to Optimiser rule
         gs = (; visible = ∂.visible, hidden = ∂.hidden, w = ∂.w)
