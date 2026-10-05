@@ -1,4 +1,4 @@
-using RestrictedBoltzmannMachines: L2WeightsRegularizer
+using RestrictedBoltzmannMachines: L2WeightsRegularizer, StandardizedParametersRegularizer
 import Random
 using Test: @test, @testset
 using Statistics: mean
@@ -90,12 +90,13 @@ end
     standardize_hidden_from_inputs!(std_rbm, inputs_h_from_v(rbm, data))
     @test (rbm.visible.par, rbm.hidden.par, rbm.w) == pars
 
-    # the standardization keywords are accepted (and irrelevant) for a plain RBM; the
-    # callback receives the plain RBM
+    # the standardization keywords and regularizers are accepted (and irrelevant) for a
+    # plain RBM; the callback receives the plain RBM
     seen = Ref{Any}(nothing)
     pcd!(
-        rbm, data; iters = 2, batchsize = 4, regularization = L2WeightsRegularizer(0.1), damping = 0.5, ϵv = 0.1, ϵh = 0.1,
-        regularize_unstandardized = false, callback = (; rbm, _...) -> (seen[] = rbm)
+        rbm, data; iters = 2, batchsize = 4, damping = 0.5, ϵv = 0.1, ϵh = 0.1,
+        regularization = StandardizedParametersRegularizer(L2WeightsRegularizer(0.1)),
+        callback = (; rbm, _...) -> (seen[] = rbm)
     )
     @test seen[] === rbm
     @test all(isfinite, rbm.visible.par)

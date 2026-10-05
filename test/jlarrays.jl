@@ -20,8 +20,8 @@ using RestrictedBoltzmannMachines: RBM, CenteredRBM, StandardizedRBM, BinaryRBM,
     sample_h_from_v, sample_v_from_h, sample_v_from_v, reconstruction_error, metropolis,
     log_pseudolikelihood, log_pseudolikelihood_stoch,
     initialize!, pcd!, ∂free_energy, zerosum!, rescale_weights!, weight_norms, aise, raise,
-    ∂regularize!, CompositeRegularizer, L2FieldsRegularizer, L1WeightsRegularizer,
-    L2WeightsRegularizer, L2L1WeightsRegularizer
+    ∂regularize!, CompositeRegularizer, StandardizedParametersRegularizer, L2FieldsRegularizer,
+    L1WeightsRegularizer, L2WeightsRegularizer, L2L1WeightsRegularizer
 
 JLArrays.allowscalar(false)
 
@@ -457,9 +457,9 @@ end
     )
     v = sample_from_inputs(rbm.visible, zeros(N..., B))
     jl_rbm = adapt(JLArray, rbm)
-    for regularize_unstandardized in (false, true)
-        ∂ = ∂regularize!(∂free_energy(rbm, v), rbm, reg; regularize_unstandardized)
-        jl_∂ = ∂regularize!(∂free_energy(jl_rbm, JLArray(v)), jl_rbm, reg; regularize_unstandardized)
+    for regularizer in (reg, StandardizedParametersRegularizer(reg))
+        ∂ = ∂regularize!(∂free_energy(rbm, v), rbm, regularizer)
+        jl_∂ = ∂regularize!(∂free_energy(jl_rbm, JLArray(v)), jl_rbm, regularizer)
         @test jl_∂.visible isa JLArray
         @test jl_∂.hidden isa JLArray
         @test jl_∂.w isa JLArray

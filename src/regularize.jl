@@ -8,8 +8,11 @@ regularizer `reg` implements two methods for a plain `RBM`:
   (a `∂RBM`, such as returned by [`∂free_energy`](@ref)) and returns `∂`;
 - `regularization_penalty(rbm, reg)`, the value of its penalty.
 
-These also regularize a `StandardizedRBM`, by default on the parameters of its equivalent
-plain `RBM` (see [`∂regularize!`](@ref)). Several regularizers are combined by a
+These also regularize a `StandardizedRBM`: the penalty applies to the parameters of its
+equivalent plain `RBM` ([`unstandardize`](@ref)), and its gradient is pulled back to the
+parameters of the `StandardizedRBM`, with the offsets and scales held fixed. To penalize
+the standardized parameters themselves instead, wrap the regularizer in a
+[`StandardizedParametersRegularizer`](@ref). Several regularizers are combined by a
 [`CompositeRegularizer`](@ref).
 """
 abstract type AbstractRegularizer end
@@ -66,18 +69,25 @@ end
 CompositeRegularizer(regularizers::AbstractRegularizer...) = CompositeRegularizer(regularizers)
 
 """
+    StandardizedParametersRegularizer(regularizer)
+
+On a `StandardizedRBM`, applies `regularizer` to the standardized parameters themselves
+(its layers and weights as stored) instead of to the parameters of the equivalent plain
+`RBM`. On a plain `RBM` it is the same as `regularizer`.
+"""
+struct StandardizedParametersRegularizer{R <: AbstractRegularizer} <: AbstractRegularizer
+    regularizer::R
+end
+
+"""
     ∂regularize!(∂, rbm, regularizer)
 
 Adds the gradient of the penalty of `regularizer` (an [`AbstractRegularizer`](@ref)) with
 respect to the parameters of `rbm` to the gradient `∂` (a `∂RBM`, such as returned by
-[`∂free_energy`](@ref)), and returns `∂`.
-
-    ∂regularize!(∂, rbm::StandardizedRBM, regularizer; regularize_unstandardized = true)
-
-If `regularize_unstandardized`, the penalty applies to the parameters of the equivalent
-plain `RBM` ([`unstandardize`](@ref)), and its gradient is pulled back to the parameters of
-`rbm`, with the offsets and scales held fixed. Otherwise the penalty applies to the
-parameters of `rbm` themselves.
+[`∂free_energy`](@ref)), and returns `∂`. On a `StandardizedRBM` the penalty applies to the
+parameters of the equivalent plain `RBM` ([`unstandardize`](@ref)), and its gradient is
+pulled back to the parameters of `rbm`, with the offsets and scales held fixed, unless the
+regularizer is a [`StandardizedParametersRegularizer`](@ref).
 """
 function ∂regularize!(∂::∂RBM, rbm::RBM, reg::L2FieldsRegularizer)
     ∂regularize_fields!(∂.visible, rbm.visible, reg.λ)
@@ -100,7 +110,11 @@ function ∂regularize!(∂::∂RBM, rbm::RBM, reg::L2L1WeightsRegularizer)
     return ∂
 end
 
-function ∂regularize!(∂::∂RBM, rbm::RBM, reg::CompositeRegularizer)
+∂regularize!(∂::∂RBM, rbm::RBM, reg::CompositeRegularizer) = _∂regularize_composite!(∂, rbm, reg)
+∂regularize!(∂::∂RBM, rbm::RBM, reg::StandardizedParametersRegularizer) = ∂regularize!(∂, rbm, reg.regularizer)
+
+# each component adds its gradient on `rbm` (a plain or a standardized RBM)
+function _∂regularize_composite!(∂::∂RBM, rbm, reg::CompositeRegularizer)
     foreach(r -> ∂regularize!(∂, rbm, r), reg.regularizers)
     return ∂
 end
@@ -108,12 +122,9 @@ end
 """
     regularization_penalty(rbm, regularizer)
 
-The penalty of `regularizer` (an [`AbstractRegularizer`](@ref)) on the parameters of `rbm`.
-
-    regularization_penalty(rbm::StandardizedRBM, regularizer; regularize_unstandardized = true)
-
-If `regularize_unstandardized`, the penalty on the parameters of the equivalent plain `RBM`
-([`unstandardize`](@ref)), otherwise on the parameters of `rbm` themselves.
+The penalty of `regularizer` (an [`AbstractRegularizer`](@ref)) on the parameters of `rbm`:
+for a `StandardizedRBM`, on those of its equivalent plain `RBM` ([`unstandardize`](@ref)),
+unless the regularizer is a [`StandardizedParametersRegularizer`](@ref).
 """
 regularization_penalty(rbm::RBM, reg::L2FieldsRegularizer) = reg.λ / 2 * regularization_penalty_fields(rbm.visible)
 regularization_penalty(rbm::RBM, reg::L1WeightsRegularizer) = reg.λ * sum(abs, rbm.w)
@@ -124,7 +135,11 @@ function regularization_penalty(rbm::RBM, reg::L2L1WeightsRegularizer)
     return reg.λ / (2 * length(rbm.visible)) * sum(abs2, sum(abs, rbm.w; dims))
 end
 
-function regularization_penalty(rbm::RBM, reg::CompositeRegularizer)
+regularization_penalty(rbm::RBM, reg::CompositeRegularizer) = _composite_penalty(rbm, reg)
+regularization_penalty(rbm::RBM, reg::StandardizedParametersRegularizer) = regularization_penalty(rbm, reg.regularizer)
+
+# the sum of the penalties of the components on `rbm` (a plain or a standardized RBM)
+function _composite_penalty(rbm, reg::CompositeRegularizer)
     penalties = map(r -> regularization_penalty(rbm, r), reg.regularizers)
     return isempty(penalties) ? zero(eltype(rbm.w)) : sum(penalties)
 end

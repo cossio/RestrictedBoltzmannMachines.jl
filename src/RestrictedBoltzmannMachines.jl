@@ -106,8 +106,8 @@ public standardize, standardize!, unstandardize
 public mirror, zerosum, zerosum!
 public cpu, gpu, save_rbm, load_rbm
 public ∂free_energy, ∂regularize!, sample_from_inputs, moments_from_samples
-public AbstractRegularizer, CompositeRegularizer, L2FieldsRegularizer, L1WeightsRegularizer,
-    L2WeightsRegularizer, L2L1WeightsRegularizer, regularization_penalty
+public AbstractRegularizer, CompositeRegularizer, StandardizedParametersRegularizer, L2FieldsRegularizer,
+    L1WeightsRegularizer, L2WeightsRegularizer, L2L1WeightsRegularizer, regularization_penalty
 public uniform_wts, validate_wts, wmean, wsum
 public rescale_weights!, rescale_hidden_activations!
 public standardize_visible_from_data!, standardize_hidden_from_v!

@@ -152,8 +152,7 @@ equivalent `StandardizedRBM` whose offsets and scales are fixed to zero and one.
   `callback(; rbm, optim, state, ps, iter, vd, wd, ∂, vm, ladder)`, where `vm` are the
   chains of the ladder. Slurp unused keywords with a trailing `_...`.
 - `batchsize`, `iters`, `wts`, `moments`, `damping`, `ϵv`, `ϵh`,
-  `regularize_unstandardized`, `regularization`, `zerosum`, `rescale`, `ps`, `state`: as
-  for [`pcd!`](@ref).
+  `regularization`, `zerosum`, `rescale`, `ps`, `state`: as for [`pcd!`](@ref).
 
 Returns `(state, ps)`.
 """
@@ -175,7 +174,6 @@ function ptt!(
         moments = moments_from_samples(rbm.visible, data; wts), # sufficient statistics for visible layer
         damping::Real = 1 // 100, # of the hidden standardization updates
         ϵv::Real = 0, ϵh::Real = 0, # pseudocounts for the visible and hidden variances
-        regularize_unstandardized::Bool = true, # regularize the equivalent plain RBM, or this one
         regularization::AbstractRegularizer = CompositeRegularizer(),
 
         # gauge
@@ -228,7 +226,7 @@ function ptt!(
         ∂ = (∂d - ∂m) * batch_weight
 
         # regularization, and projection of the gradient onto the zerosum gauge
-        ∂regularize!(∂, rbm, regularization; regularize_unstandardized)
+        ∂regularize!(∂, rbm, regularization)
         zerosum && zerosum!(∂, rbm)
 
         # feed gradient to Optimiser rule

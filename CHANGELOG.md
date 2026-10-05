@@ -36,8 +36,8 @@ All notable changes to this project will be documented in this file. The format 
   the hidden weights (its scales cannot absorb the gauge), as the centered `pcd!` did.
 - `pcd!` on a plain `RBM` trains it as the equivalent `StandardizedRBM` whose offsets and
   scales are fixed to zero and one, with identical results. It thus also accepts the
-  standardization keywords (`damping`, `ϵv`, `ϵh`, `regularize_unstandardized`), which
-  have no effect on a plain `RBM`.
+  standardization keywords (`damping`, `ϵv`, `ϵh`), which have no effect on a plain
+  `RBM`.
 - **Breaking**: `standardize_hidden_from_v!` defaults to `damping = 1`, so it sets the
   hidden standardization as documented; the previous default, `0`, changed nothing.
 - `initialize!(rbm, [data])` now also accepts any `StandardizedRBM`, with and without
@@ -69,10 +69,14 @@ All notable changes to this project will be documented in this file. The format 
   no regularization). A new regularizer subtypes `AbstractRegularizer` and implements
   `∂regularize!(∂, rbm, regularizer)` and the newly public
   `regularization_penalty(rbm, regularizer)` for a plain `RBM`; these also regularize a
-  `StandardizedRBM`, by default on the parameters of its equivalent plain `RBM`, pulling
-  the gradient back to its own parameters (now also for penalties on the hidden layer).
-  `∂regularize!` takes the regularizer as its third argument and loses the `zerosum`
-  keyword: the trainers project the gradient onto the zerosum gauge themselves.
+  `StandardizedRBM`, on the parameters of its equivalent plain `RBM`, pulling the
+  gradient back to its own parameters (now also for penalties on the hidden layer). The
+  `regularize_unstandardized` keyword of `pcd!`, `ptt!`, `∂regularize!` and
+  `regularization_penalty` is removed: to penalize the standardized parameters
+  themselves, wrap the regularizer in a `StandardizedParametersRegularizer` (a
+  `CompositeRegularizer` can mix both). `∂regularize!` takes the regularizer as its third
+  argument and loses the `zerosum` keyword: the trainers project the gradient onto the
+  zerosum gauge themselves.
 
 ## 7.1.0
 

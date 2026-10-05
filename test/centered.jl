@@ -1,4 +1,4 @@
-using RestrictedBoltzmannMachines: CompositeRegularizer, L2FieldsRegularizer, L1WeightsRegularizer,
+using RestrictedBoltzmannMachines: CompositeRegularizer, StandardizedParametersRegularizer, L2FieldsRegularizer, L1WeightsRegularizer,
     L2WeightsRegularizer, L2L1WeightsRegularizer
 using Random: bitrand
 using RestrictedBoltzmannMachines: ∂free_energy
@@ -270,7 +270,7 @@ end
         L2WeightsRegularizer(rand()), L2L1WeightsRegularizer(rand())
     )
     @test regularization_penalty(rbm, reg) ≈ regularization_penalty(unstandardize(rbm), reg)
-    @test regularization_penalty(rbm, reg; regularize_unstandardized = false) ≈
+    @test regularization_penalty(rbm, StandardizedParametersRegularizer(reg)) ≈
         regularization_penalty(RBM(rbm), reg)
 end
 

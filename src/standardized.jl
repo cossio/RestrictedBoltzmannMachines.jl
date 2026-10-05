@@ -155,12 +155,16 @@ function log_pseudolikelihood(rbm::StandardizedRBM, v::AbstractArray; kwargs...)
     return log_pseudolikelihood(unstandardize(rbm), v; kwargs...)
 end
 
-function ∂regularize!(
-        ∂::∂RBM, rbm::StandardizedRBM, reg::AbstractRegularizer;
-        regularize_unstandardized::Bool = true
-    )
-    regularize_unstandardized || return ∂regularize!(∂, RBM(rbm), reg)
-    reg isa CompositeRegularizer{Tuple{}} && return ∂ # nothing to pull back
+# On a StandardizedRBM each regularizer picks the parameters it penalizes (see
+# `AbstractRegularizer`): a composite defers to its components, a
+# StandardizedParametersRegularizer applies to the standardized parameters themselves, and
+# any other regularizer to those of the equivalent plain RBM, pulling back its gradient.
+∂regularize!(∂::∂RBM, rbm::StandardizedRBM, reg::CompositeRegularizer) = _∂regularize_composite!(∂, rbm, reg)
+∂regularize!(∂::∂RBM, rbm::StandardizedRBM, reg::StandardizedParametersRegularizer) =
+    ∂regularize!(∂, RBM(rbm), reg.regularizer)
+∂regularize!(∂::∂RBM, rbm::StandardizedRBM, reg::AbstractRegularizer) = _∂regularize_unstandardized!(∂, rbm, reg)
+
+function _∂regularize_unstandardized!(∂::∂RBM, rbm::StandardizedRBM, reg::AbstractRegularizer)
     # gradient with respect to the parameters of the equivalent plain RBM, pulled back
     ∂plain = ∂regularize!(_zero_gradient(rbm), unstandardize(rbm), reg)
     ∂std = ∂unstandardize(rbm, ∂plain)
@@ -170,11 +174,10 @@ function ∂regularize!(
     return ∂
 end
 
-function regularization_penalty(
-        rbm::StandardizedRBM, reg::AbstractRegularizer; regularize_unstandardized::Bool = true
-    )
-    return regularization_penalty(regularize_unstandardized ? unstandardize(rbm) : RBM(rbm), reg)
-end
+regularization_penalty(rbm::StandardizedRBM, reg::CompositeRegularizer) = _composite_penalty(rbm, reg)
+regularization_penalty(rbm::StandardizedRBM, reg::StandardizedParametersRegularizer) =
+    regularization_penalty(RBM(rbm), reg.regularizer)
+regularization_penalty(rbm::StandardizedRBM, reg::AbstractRegularizer) = regularization_penalty(unstandardize(rbm), reg)
 
 """
     zerosum!(rbm::StandardizedRBM)

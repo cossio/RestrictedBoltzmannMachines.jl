@@ -1,4 +1,4 @@
-using RestrictedBoltzmannMachines: ∂RBM, ∂unstandardize, CompositeRegularizer, L2FieldsRegularizer,
+using RestrictedBoltzmannMachines: ∂RBM, ∂unstandardize, CompositeRegularizer, StandardizedParametersRegularizer, L2FieldsRegularizer,
     L1WeightsRegularizer, L2WeightsRegularizer, L2L1WeightsRegularizer
 using LinearAlgebra: norm
 using LogExpFunctions: logsumexp
@@ -349,15 +349,19 @@ end
         L2WeightsRegularizer(rand()), L2L1WeightsRegularizer(rand())
     )
 
-    for regularize_unstandardized in (false, true)
+    # on the parameters of the equivalent plain RBM, on the standardized parameters, and mixed
+    for regularizer in (
+            reg, StandardizedParametersRegularizer(reg),
+            CompositeRegularizer(L2WeightsRegularizer(rand()), StandardizedParametersRegularizer(L2FieldsRegularizer(rand()))),
+        )
         gs = gradient(rbm) do rbm
             F = mean(free_energy(rbm, v))
-            R = regularization_penalty(rbm, reg; regularize_unstandardized)
+            R = regularization_penalty(rbm, regularizer)
             return F + R
         end
 
         ∂ = ∂free_energy(rbm, v)
-        ∂regularize!(∂, rbm, reg; regularize_unstandardized)
+        ∂regularize!(∂, rbm, regularizer)
 
         @test only(gs).visible.par ≈ ∂.visible
         @test only(gs).hidden.par ≈ ∂.hidden
@@ -579,6 +583,6 @@ end
         L1WeightsRegularizer(0.1), L2WeightsRegularizer(0.2), L2L1WeightsRegularizer(0.3), L2FieldsRegularizer(0.4)
     )
     @test regularization_penalty(srbm, reg) ≈ regularization_penalty(unstandardize(srbm), reg)
-    @test regularization_penalty(srbm, reg; regularize_unstandardized = false) ≈
+    @test regularization_penalty(srbm, StandardizedParametersRegularizer(reg)) ≈
         regularization_penalty(RBM(srbm.visible, srbm.hidden, srbm.w), reg)
 end

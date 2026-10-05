@@ -3,8 +3,8 @@ using EllipsisNotation: (..)
 using FillArrays: Ones
 using Random: bitrand
 using RestrictedBoltzmannMachines: ∂free_energy, ∂regularize!, ∂RBM, regularization_penalty
-using RestrictedBoltzmannMachines: CompositeRegularizer, L2FieldsRegularizer, L1WeightsRegularizer,
-    L2WeightsRegularizer, L2L1WeightsRegularizer
+using RestrictedBoltzmannMachines: CompositeRegularizer, StandardizedParametersRegularizer,
+    L2FieldsRegularizer, L1WeightsRegularizer, L2WeightsRegularizer, L2L1WeightsRegularizer
 using RestrictedBoltzmannMachines: RBM, BinaryRBM, Binary, dReLU, Gaussian, nsReLU, pReLU, xReLU
 using RestrictedBoltzmannMachines: free_energy, standardize
 using Statistics: mean
@@ -21,6 +21,9 @@ using Test: @test, @testset
     @test regularization_penalty(rbm, CompositeRegularizer(L2FieldsRegularizer(λ), L2WeightsRegularizer(λ))) ≈
         regularization_penalty(rbm, L2FieldsRegularizer(λ)) + regularization_penalty(rbm, L2WeightsRegularizer(λ))
     @test iszero(regularization_penalty(rbm, CompositeRegularizer()))
+    # on a plain RBM the standardized parameters are the parameters
+    @test regularization_penalty(rbm, StandardizedParametersRegularizer(L2WeightsRegularizer(λ))) ==
+        regularization_penalty(rbm, L2WeightsRegularizer(λ))
 end
 
 regularizers = (
@@ -33,6 +36,7 @@ regularizers = (
         L2WeightsRegularizer(rand()), L2L1WeightsRegularizer(rand())
     ),
     CompositeRegularizer(L2WeightsRegularizer(rand()), CompositeRegularizer(L2FieldsRegularizer(rand()))), # nested
+    StandardizedParametersRegularizer(L1WeightsRegularizer(rand())), # transparent on a plain RBM
     CompositeRegularizer(), # no regularization
 )
 
