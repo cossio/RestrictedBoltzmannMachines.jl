@@ -521,12 +521,27 @@ function pcd!(
     for iter in 1:iters
         idx = sample(1:size(data)[end], batchsize; replace = false)
         vd, wd = data[.., idx], wts[idx]
-        state, ps, ∂ = _pcd_step!(
-            rbm, ps, state, vd, wd, vm, wts_mean;
-            steps, moments, l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum,
-            regularize_unstandardized
-        )
 
+        # positive phase
+        ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
+
+        # negative phase: update persistent fantasy chains
+        vm .= sample_v_from_v(rbm, vm; steps)
+        ∂m = ∂free_energy(rbm, vm)
+
+        # weighted minibatch bias correction, in the gradient eltype
+        batch_weight = convert(float(real(eltype(∂d.w))), mean(wd) / wts_mean)
+        ∂ = (∂d - ∂m) * batch_weight
+
+        # weight decay
+        ∂regularize!(∂, rbm; l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum, regularize_unstandardized)
+
+        # feed gradient to Optimiser rule
+        gs = (; visible = ∂.visible, hidden = ∂.hidden, w = ∂.w)
+        state, ps = update!(state, ps, gs)
+        _validate_layer_parameters(rbm)
+
+        # these leave the distribution unchanged
         standardize_hidden_from_v!(rbm, vd; wts = wd, damping, ϵ = ϵh)
         zerosum && zerosum!(rbm)
         rescale && rescale_hidden_activations!(rbm)
