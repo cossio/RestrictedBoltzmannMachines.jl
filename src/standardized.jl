@@ -66,8 +66,8 @@ function StandardizedRBM(rbm::RBM)
     return StandardizedRBM(rbm, offset_v, offset_h, scale_v, scale_h)
 end
 
-standardize_v(rbm::StandardizedRBM, v::AbstractArray) = _maybe_div(v .- rbm.offset_v, rbm.scale_v)
-standardize_h(rbm::StandardizedRBM, h::AbstractArray) = _maybe_div(h .- rbm.offset_h, rbm.scale_h)
+standardize_v(rbm::StandardizedRBM, v::AbstractArray) = _maybe_div(_maybe_sub(v, rbm.offset_v), rbm.scale_v)
+standardize_h(rbm::StandardizedRBM, h::AbstractArray) = _maybe_div(_maybe_sub(h, rbm.offset_h), rbm.scale_h)
 
 """
     RBM(rbm::StandardizedRBM)
@@ -379,7 +379,7 @@ function standardize_visible!(rbm::StandardizedRBM, offset_v::AbstractArray, sca
     cv = _maybe_div(scale_v, rbm.scale_v)
     Δθ = inputs_h_from_v(rbm, offset_v)
 
-    rbm.scale_v .= scale_v # first: lazy unit scales (`Trues`) throw unless set to one
+    rbm.scale_v .= scale_v # first: lazy unit scales (`Ones`) throw unless set to one
     shift_fields!(rbm.hidden, Δθ)
     _maybe_mul!(rbm.w, cv)
     rbm.offset_v .= offset_v
@@ -393,7 +393,7 @@ function standardize_hidden!(rbm::StandardizedRBM, offset_h::AbstractArray, scal
     ch = _along_hidden(rbm, _maybe_div(scale_h, rbm.scale_h))
     Δθ = inputs_v_from_h(rbm, offset_h)
 
-    rbm.scale_h .= scale_h # first: lazy unit scales (`Trues`) throw unless set to one
+    rbm.scale_h .= scale_h # first: lazy unit scales (`Ones`) throw unless set to one
     shift_fields!(rbm.visible, Δθ)
     _maybe_mul!(rbm.w, ch)
     rbm.offset_h .= offset_h

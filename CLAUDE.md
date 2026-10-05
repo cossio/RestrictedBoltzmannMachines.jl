@@ -65,8 +65,9 @@ CUDA.jl, and HDF5 persistence. It requires Julia 1.12 or later.
   three.
 - `RBM{V,H,W}` stores the `visible` layer, `hidden` layer, and weights `w`.
   `StandardizedRBM` adds offsets and scales. `CenteredRBM` is an alias for a
-  `StandardizedRBM` whose scales are lazy `FillArrays.Trues`, which are
-  immutable: in-place updates of a centered model change only its offsets.
+  `StandardizedRBM` whose scales are lazy `FillArrays.Ones` (usually `Trues`),
+  which are immutable: in-place updates of a centered model change only its
+  offsets.
 - Preserve generic array and multiple-dispatch behavior in core code. Put
   dependency-specific methods in `ext/`; treat the versioned HDF5 format in
   `ext/HDF5Ext.jl` as compatibility-sensitive.

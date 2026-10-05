@@ -91,6 +91,8 @@ _maybe_mul(x::AbstractArray, ::Ones) = x
 _maybe_mul(x::AbstractArray, s::AbstractArray) = x .* s
 _maybe_mul!(x::AbstractArray, ::Ones) = x
 _maybe_mul!(x::AbstractArray, s::AbstractArray) = x .*= s
+_maybe_sub(x::AbstractArray, ::Zeros) = x
+_maybe_sub(x::AbstractArray, o::AbstractArray) = x .- o
 
 # zeros / ones with the array backend of `A` (e.g. CuArray)
 zeros_like(A::AbstractArray, sz = size(A)) = fill!(similar(A, sz), 0)

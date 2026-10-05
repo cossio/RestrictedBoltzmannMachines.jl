@@ -9,7 +9,7 @@ All notable changes to this project will be documented in this file. The format 
   permutation of the data per epoch. Its `shuffle` keyword and the `infinite_minibatches`
   iterator are removed. MLUtils is no longer a dependency; StatsBase is a new one.
 - **Breaking**: `CenteredRBM` is now an alias for a `StandardizedRBM` whose scales are
-  fixed to one, instead of a separate struct. Centered models are thus
+  lazy ones (`FillArrays.Ones`, such as `Trues`), instead of a separate struct. Centered models are thus
   `StandardizedRBM`s (code dispatching on `StandardizedRBM` now receives them too) and
   use its methods, which keep their scales fixed: in-place standardization to other
   scales throws, and fitting statistics from data only updates their offsets. The HDF5
@@ -27,6 +27,10 @@ All notable changes to this project will be documented in this file. The format 
   `StandardizedRBM` from the data before the first update, as it already did for the
   offsets of a `CenteredRBM`. `rescale_hidden_activations!` on a `CenteredRBM` normalizes
   the hidden weights (its scales cannot absorb the gauge), as the centered `pcd!` did.
+- `pcd!` on a plain `RBM` trains it as the equivalent `StandardizedRBM` whose offsets and
+  scales are fixed to zero and one, with identical results. It thus also accepts the
+  standardization keywords (`damping`, `ϵv`, `ϵh`, `regularize_unstandardized`), which
+  have no effect on a plain `RBM`.
 - **Breaking**: `standardize_hidden_from_v!` defaults to `damping = 1`, so it sets the
   hidden standardization as documented; the previous default, `0`, changed nothing.
 - `initialize!(rbm, [data])` now also accepts any `StandardizedRBM`, with and without

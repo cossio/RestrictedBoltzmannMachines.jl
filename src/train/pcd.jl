@@ -81,47 +81,14 @@ parameters with an `Optimisers.jl` rule.
 - `state=setup(optim, ps)`: optimizer state.
 
 Returns `(state, ps)`.
+
+A plain `RBM` is trained as the equivalent `StandardizedRBM` whose offsets and scales are
+fixed to zero and one (see the [`pcd!`](@ref) method for `StandardizedRBM`), so it also
+accepts the standardization keywords `damping`, `ϵv`, `ϵh` and
+`regularize_unstandardized`, which have no effect on it.
 """
-function pcd!(
-        rbm::RBM,
-        data::AbstractArray;
-        batchsize::Int = 1,
-        iters::Int = 1,
-        wts::AbstractVector{<:Real} = uniform_wts(rbm.visible, data),
-        steps::Int = 1,
-        optim::AbstractRule = Adam(),
-        moments = moments_from_samples(rbm.visible, data; wts),
-        l2_fields::Real = 0,
-        l1_weights::Real = 0,
-        l2_weights::Real = 0,
-        l2l1_weights::Real = 0,
-        zerosum::Bool = true,
-        rescale::Bool = true,
-        callback = Returns(nothing),
-        vm::AbstractArray = _default_fantasy_chains(rbm, min(batchsize, size(data)[end])),
-        ps = (; visible = rbm.visible.par, hidden = rbm.hidden.par, w = rbm.w),
-        state = setup(optim, ps),
-    )
-    wts_mean, batchsize = _pcd_check_args(rbm, data, wts, batchsize)
-
-    # initial gauge; zerosum! first because rescaling preserves the zero-sum gauge,
-    # while zerosum! perturbs weight norms
-    zerosum && zerosum!(rbm)
-    rescale && rescale_weights!(rbm)
-
-    for iter in 1:iters
-        idx = sample(1:size(data)[end], batchsize; replace = false)
-        vd, wd = data[.., idx], wts[idx]
-        state, ps, ∂ = _pcd_step!(
-            rbm, ps, state, vd, wd, vm, wts_mean;
-            steps, moments, l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum
-        )
-
-        # reset gauge (zerosum! first, as above)
-        zerosum && zerosum!(rbm)
-        rescale && rescale_weights!(rbm)
-
-        callback(; rbm, optim, state, ps, iter, vd, wd, ∂, vm)
-    end
-    return state, ps
+function pcd!(rbm::RBM, data::AbstractArray; callback = Returns(nothing), kwargs...)
+    std_rbm = PlainStandardizedRBM(rbm) # shares the layers and weights of `rbm`
+    # the callback receives `rbm` rather than `std_rbm` (the rightmost keyword wins)
+    return pcd!(std_rbm, data; callback = (; kw...) -> callback(; kw..., rbm), kwargs...)
 end

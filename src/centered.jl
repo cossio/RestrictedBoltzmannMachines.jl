@@ -1,10 +1,11 @@
 """
     CenteredRBM{V,H,W,Ov,Oh}
 
-A [`StandardizedRBM`](@ref) whose scales are fixed to one, so in-place updates change only
-its offsets. See <http://jmlr.org/papers/v17/14-237.html>.
+A [`StandardizedRBM`](@ref) whose scales are lazy ones (`FillArrays.Ones`, usually `Trues`),
+so they are fixed and in-place updates change only its offsets.
+See <http://jmlr.org/papers/v17/14-237.html>.
 """
-const CenteredRBM{V, H, W, Ov, Oh} = StandardizedRBM{V, H, W, Ov, Oh, <:Trues, <:Trues}
+const CenteredRBM{V, H, W, Ov, Oh} = StandardizedRBM{V, H, W, Ov, Oh, <:Ones, <:Ones}
 
 """
     CenteredRBM(rbm, λv, λh)
@@ -92,3 +93,30 @@ end
 
 # the unit scales cannot absorb the hidden scale gauge, so normalize the weights instead
 rescale_hidden_activations!(rbm::CenteredRBM) = rescale_weights!(rbm)
+
+"""
+    PlainStandardizedRBM{V,H,W}
+
+A [`CenteredRBM`](@ref) whose offsets are also lazy zeros (`FillArrays.Zeros`, usually
+`Falses`), so it is equivalent to the plain `RBM` with the same layers and weights.
+[`pcd!`](@ref) trains a plain `RBM` through it.
+"""
+const PlainStandardizedRBM{V, H, W} = StandardizedRBM{V, H, W, <:Zeros, <:Zeros, <:Ones, <:Ones}
+
+# shares the layers and weights of `rbm`
+PlainStandardizedRBM(rbm::RBM) = StandardizedRBM(
+    rbm, Falses(size(rbm.visible)), Falses(size(rbm.hidden)), Trues(size(rbm.visible)), Trues(size(rbm.hidden))
+)
+
+# The offsets and scales are fixed, so fitting statistics from data changes nothing.
+standardize_visible_from_data!(rbm::PlainStandardizedRBM, data::AbstractArray; kwargs...) = rbm
+standardize_hidden_from_inputs!(rbm::PlainStandardizedRBM, inputs::AbstractArray; kwargs...) = rbm
+standardize_hidden_from_v!(rbm::PlainStandardizedRBM, v::AbstractArray; kwargs...) = rbm # skips the inputs
+
+unstandardize(rbm::PlainStandardizedRBM) = RBM(rbm)
+free_energy(rbm::PlainStandardizedRBM, v::AbstractArray) = free_energy(RBM(rbm), v)
+free_energy_h(rbm::PlainStandardizedRBM, h::AbstractArray) = free_energy_h(RBM(rbm), h)
+
+# standardized and unstandardized parameters coincide
+∂regularize!(∂::∂RBM, rbm::PlainStandardizedRBM; regularize_unstandardized::Bool = true, kwargs...) =
+    ∂regularize!(∂, RBM(rbm); kwargs...)
