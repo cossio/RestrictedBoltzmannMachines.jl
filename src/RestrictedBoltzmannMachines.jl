@@ -42,13 +42,14 @@ include("partition.jl")
 include("ais.jl")
 
 include("train/initialization.jl")
-include("train/gradient.jl")
-include("regularize.jl") # before the trainers, whose signatures name the regularizers
 include("train/pcd.jl")
+include("train/gradient.jl")
 
 include("gauge/zerosum.jl")
 include("gauge/rescale_hidden.jl")
 include("gauge/shift_fields.jl")
+
+include("regularize.jl")
 
 include("metropolis.jl")
 
