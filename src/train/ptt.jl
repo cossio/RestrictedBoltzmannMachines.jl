@@ -25,17 +25,16 @@ const PTT_WARN_HALVINGS = 10
 """
     TrajectoryLadder(rbm; nchains, nreservoir = 10nchains, α = 0.3, αmin = 0.1, sweeps = 1, steps = 1, anneal = 100)
 
-Persistent state of Parallel Trajectory Tempering for training `rbm` (see [`ptt!`](@ref)):
+Persistent state of Parallel Trajectory Tempering for training `rbm` with [`ptt!`](@ref):
 frozen checkpoints along the training trajectory of `rbm`, their log-partition functions,
 a reservoir of `nreservoir` equilibrium samples of the last checkpoint, and `nchains`
-persistent chains of `rbm`.
+persistent chains of `rbm`. The algorithm is described in
+[Equilibrium training with `ptt!`](@ref ptt_training).
 
 Every update runs `sweeps` sweeps, each exchanging the chains with reservoir samples and
-then running Gibbs sampling. A new checkpoint is frozen when the swap acceptance between
-the last checkpoint and `rbm` falls below `α`. If it falls below `αmin`, or below `α` one
-update after a checkpoint was frozen, or if the swap acceptance of a new checkpoint at
-equilibrium is below `αmin`, the update is rejected: `rbm` is restored to the last
-checkpoint, and [`ptt!`](@ref) halves the learning rate.
+then running Gibbs sampling. `α` is the swap acceptance between the last checkpoint and
+`rbm` below which a new checkpoint is frozen, and `αmin` the one below which the update is
+rejected.
 
 `rbm` is an `RBM` or a `StandardizedRBM` (including a `CenteredRBM`), freshly initialized
 by [`initialize!`](@ref). The ladder starts at the independent-site model obtained by
@@ -129,15 +128,12 @@ Each update runs `ladder.sweeps` sweeps, exchanging the chains with equilibrium 
 the last checkpoint and then running `steps` Gibbs steps, before the gradient step.
 
 An update that loses overlap with the last checkpoint is rejected: `rbm` is restored to that
-checkpoint, the learning rate is halved, and the optimiser forgets its past gradients
-(momenta, moment estimates), which would otherwise repeat the rejected step. As in the
-reference implementation, the halving is permanent: letting the learning rate grow back
-at later checkpoints gave several times more rejections, and checkpoints frozen at
-excursions of the model away from the data. Rejections can thus stall training, and
-`ptt!` warns once it has halved the learning rate 10 times. An optimiser with momentum,
-such as `Nesterov` or `Adam`, can make the model oscillate across a phase transition,
-each crossing being rejected, whatever its initial learning rate; plain gradient
-descent (`Descent`) can then train through.
+checkpoint, the learning rate of the optimiser is halved for good, and the optimiser forgets
+its past gradients (momenta, moment estimates). `ptt!` warns once it has halved the
+learning rate $PTT_WARN_HALVINGS times, and throws an error if more than
+$PTT_MAX_REJECTIONS updates in a row are rejected. See
+[Equilibrium training with `ptt!`](@ref ptt_training) for when updates are rejected, and
+what to do if rejections stall training.
 
 `data` must have shape `(size(rbm.visible)..., nsamples)`. As in [`pcd!`](@ref) and the
 reference implementation, every minibatch is drawn at random from `data`, independently of
@@ -151,9 +147,7 @@ equivalent `StandardizedRBM` whose offsets and scales are fixed to zero and one.
   previous run.
 - `steps::Int=1`: Gibbs steps per sweep.
 - `optim::AbstractRule=Adam(1e-4)`: optimizer rule from `Optimisers.jl`, with a learning
-  rate `eta`. The default learning rate is a tenth of that of `Adam()`, whose larger steps
-  can be rejected from the first update and freeze a checkpoint every few updates.
-  [`CossimDescent`](@ref) is the optimiser used in the paper.
+  rate `eta`. [`CossimDescent`](@ref) is the optimiser used in the paper.
 - `callback=Returns(nothing)`: called after every update as
   `callback(; rbm, optim, state, ps, iter, vd, wd, ∂, vm, ladder)`, where `vm` are the
   chains of the ladder. Slurp unused keywords with a trailing `_...`.
@@ -226,8 +220,8 @@ function ptt!(
             halvings += 1
             halvings == PTT_WARN_HALVINGS && @warn """
             PTT rejected $halvings updates, so the learning rate is down to 1/$(2^halvings) of its \
-            initial value; training may stall. Optimisers with momentum can oscillate across phase \
-            transitions of the model; plain gradient descent (Descent) may train better."""
+            initial value; training may stall. An optimiser without momentum, such as Descent, may \
+            train better: see "Equilibrium training with ptt!" in the documentation."""
         end
         ∂m = ∂free_energy(rbm, ladder.chains)
 
@@ -271,15 +265,15 @@ function _restart_optimiser(o::AbstractRule, state, x::AbstractArray)
 end
 
 #= One PTT update of the chains of `model`, which moved along its trajectory since the last
-update. Returns `:rejected` if `model` lost overlap with the last checkpoint, in which case
-`model` is restored to that checkpoint, and the reservoir and the chains to its equilibrium
-samples; `:frozen` if `model` was frozen as a new checkpoint; and `:accepted` otherwise.
-With `freeze`, `model` is frozen unless rejected.
+update. Returns `:rejected` if `model` lost overlap with the last checkpoint (as decided by
+`_ptt_status` and `_push_checkpoint!`), in which case `model` is restored to that
+checkpoint, and the reservoir and the chains to its equilibrium samples; `:frozen` if
+`model` was frozen as a new checkpoint; and `:accepted` otherwise. With `freeze`, `model`
+is frozen unless rejected.
 
 The chains still sample the model before its last move, so the acceptance that decides
 between these outcomes reweights them to `model`. Otherwise, the acceptance of a large step
-is overestimated until the chains catch up. A frozen `model` whose chains then fail to
-equilibrate with the last checkpoint is rejected too. =#
+is overestimated until the chains catch up. =#
 function _ptt_update!(ladder::TrajectoryLadder, model; steps::Int, freeze::Bool = false)
     proposal = _propose_exchange(ladder, model)
     w = softmax(ladder.chains_F - proposal.Fθx) # reweights the chains to `model`
@@ -357,9 +351,10 @@ function _exchange!(ladder::TrajectoryLadder, proposal::NamedTuple)
 end
 
 #= Freezes a copy of `model` as a new checkpoint. Its chains are thermalized by exchanges
-with the reservoir of the previous checkpoint, for 20 times the autocorrelation time of
-their ladder level (and at least `minsweeps` sweeps), and then collected every 2 integrated
-autocorrelation times into new equilibrium samples, as in the paper.
+with the reservoir of the previous checkpoint, for `PTT_THERMALIZATION` times the
+autocorrelation time of their ladder level (and at least `minsweeps` sweeps), and then
+collected every `PTT_DECORRELATION` integrated autocorrelation times into new equilibrium
+samples, as in the paper.
 
 Returns `false`, with the checkpoints unchanged, if the chains fail to thermalize within
 `maxsweeps` sweeps, or if their swap acceptance falls below `αmin`. The online acceptance
@@ -367,8 +362,7 @@ then overestimated the overlap of `model` with the last checkpoint, because its 
 lagged behind `model`. The swap acceptance is measured over the second half of the run. It
 typically decreases during thermalization, from its value for chains fed by the reservoir
 to its equilibrium value, so the run stops as soon as it falls below `αmin`. The reference
-implementation also checks both conditions, and restarts training from the last good
-checkpoint with a halved learning rate if either fails.
+implementation also checks both conditions.
 
 The working reservoir is first reset to the equilibrium samples of the previous checkpoint,
 because exchanges write the chains back into it, which biases it in two ways: chains lagging

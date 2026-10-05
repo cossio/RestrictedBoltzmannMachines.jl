@@ -99,7 +99,7 @@ In addition to the standard PCD updates, it:
 Other arguments, including `rescale` and `callback`, are the same as for a plain `RBM`.
 A plain `RBM` also accepts the stdRBM-specific arguments, which have no effect on it.
 
-## Equilibrium training with `ptt!`
+## [Equilibrium training with `ptt!`](@id ptt_training)
 
 On multimodal or scarce data, the persistent chains of [`pcd!`](@ref) can fall out of
 equilibrium (for instance, getting trapped in some of the modes), which biases the
@@ -125,9 +125,9 @@ The [`TrajectoryLadder`](@ref) holds the checkpoints and the persistent chains:
    the last checkpoint, drawn from a reservoir, and then runs `steps` Gibbs steps.
 3. When the swap acceptance between the last checkpoint and the model falls below `α`
    (default `0.3`), the model is frozen as a new checkpoint. Its chains are
-   thermalized by exchanges with the reservoir of the previous checkpoint, for 20
-   autocorrelation times of the ladder level of the chains, as in the paper, and then
-   collected into a new reservoir.
+   thermalized by exchanges with the reservoir of the previous checkpoint, for a multiple
+   of the autocorrelation time of the ladder level of the chains, as in the paper, and
+   then collected into a new reservoir.
 4. Log-partition functions of successive checkpoints are linked by the Bennett
    acceptance ratio, which gives [`log_partition(ladder)`](@ref log_partition(::TrajectoryLadder))
    and [`log_likelihood(ladder, v)`](@ref log_likelihood(::TrajectoryLadder, ::AbstractArray))
@@ -136,8 +136,11 @@ The [`TrajectoryLadder`](@ref) holds the checkpoints and the persistent chains:
    below `α` right after a checkpoint, or if the chains of a new checkpoint do not reach
    an acceptance of `αmin` with the previous one once thermalized. The model is then
    restored to the last checkpoint, the learning rate of the optimiser is halved, and the
-   optimiser forgets its momenta. As in the reference implementation, the halving is
-   permanent, and `ptt!` warns once it has halved the learning rate 10 times. On
+   optimiser forgets its past gradients (momenta, moment estimates), which would otherwise
+   repeat the rejected step. As in the reference implementation, the halving is
+   permanent: letting the learning rate grow back at later checkpoints gave several times
+   more rejections, and checkpoints frozen at excursions of the model away from the data.
+   Rejections can thus stall training, and `ptt!` warns after repeated halvings. On
    clustered data, an optimiser with momentum, such as `Nesterov` or `Adam`, can make
    the model oscillate across a phase transition, so that its updates keep being
    rejected, whatever its initial learning rate; plain gradient descent (`Descent`)
@@ -150,10 +153,10 @@ ladder as `ladder`. The optimiser must have a learning rate `eta`. To continue t
 pass the ladder of the previous run: without it, `ptt!` builds a new one. The paper uses
 [`CossimDescent`](@ref), a gradient descent whose learning rate adapts to the alignment
 of successive gradients. The default optimiser is `Adam(1e-4)`, a tenth of the learning
-rate of `pcd!`'s `Adam()`, whose larger steps can be rejected from the first update. On
-four protein and RNA families, it reached the best or tied best validation
-log-likelihood after 100k updates, compared with `Descent(1e-2)` and `CossimDescent`, at
-the cost of more checkpoints.
+rate of `pcd!`'s `Adam()`, whose larger steps can be rejected from the first update and
+freeze a checkpoint every few updates. On four protein and RNA families, it reached the
+best or tied best validation log-likelihood after 100k updates, compared with
+`Descent(1e-2)` and `CossimDescent`, at the cost of more checkpoints.
 
 The size of the updates sets how often checkpoints are frozen, each of which costs some
 tens of sweeps, so a smaller learning rate trades slower learning for fewer checkpoints.
