@@ -369,6 +369,50 @@ end
     end
 end
 
+@testset "which parameters a StandardizedRBM regularizes ($(nameof(typeof(visible))) visible)" for visible in (
+        Binary(; θ = randn(3)),
+        dReLU(; θp = randn(3), θn = randn(3), γp = 1 .+ rand(3), γn = 1 .+ rand(3)),
+    )
+    rbm = StandardizedRBM(visible, Binary(; θ = randn(2)), randn(3, 2), randn(3), randn(2), 1 .+ rand(3), 1 .+ rand(2))
+    λ = rand()
+    zero_gradient() = ∂RBM(zero(rbm.visible.par), zero(rbm.hidden.par), zero(rbm.w))
+    # closed forms, in the stored parameters: the equivalent plain RBM has the weights
+    # w̃ = w / (scale_v ⊗ scale_h), and its visible fields absorb the shift w̃ * offset_h
+    scale_w = rbm.scale_v * rbm.scale_h'
+    w̃ = rbm.w ./ scale_w
+    shift = w̃ * rbm.offset_h
+    fields = visible isa dReLU ? (rbm.visible.θp, rbm.visible.θn) : (rbm.visible.θ,)
+    nfields = length(fields)
+    stack_rows(xs) = reduce(vcat, (x' for x in xs))
+
+    # a bare regularizer penalizes the parameters of the equivalent plain RBM
+    @test regularization_penalty(rbm, L2WeightsRegularizer(λ)) ≈ λ / 2 * sum(abs2, w̃)
+    @test regularization_penalty(rbm, L2FieldsRegularizer(λ)) ≈ λ / 2 * sum(sum(abs2, θ .- shift) for θ in fields)
+    ∂ = ∂regularize!(zero_gradient(), rbm, L2WeightsRegularizer(λ))
+    @test ∂.w ≈ λ .* w̃ ./ scale_w
+    @test iszero(∂.visible)
+    @test iszero(∂.hidden)
+    ∂ = ∂regularize!(zero_gradient(), rbm, L2FieldsRegularizer(λ))
+    @test ∂.visible[1:nfields, :] ≈ stack_rows(λ .* (θ .- shift) for θ in fields)
+    @test iszero(∂.visible[(nfields + 1):end, :])
+    @test iszero(∂.hidden)
+    # the plain fields absorb the offsets, so the penalty on them also pulls on the weights
+    @test ∂.w ≈ -λ .* sum(θ .- shift for θ in fields) * rbm.offset_h' ./ scale_w
+
+    # a wrapped regularizer penalizes the standardized parameters themselves
+    @test regularization_penalty(rbm, StandardizedParametersRegularizer(L2WeightsRegularizer(λ))) ≈ λ / 2 * sum(abs2, rbm.w)
+    @test regularization_penalty(rbm, StandardizedParametersRegularizer(L2FieldsRegularizer(λ))) ≈ λ / 2 * sum(sum(abs2, θ) for θ in fields)
+    ∂ = ∂regularize!(zero_gradient(), rbm, StandardizedParametersRegularizer(L2WeightsRegularizer(λ)))
+    @test ∂.w ≈ λ .* rbm.w
+    @test iszero(∂.visible)
+    @test iszero(∂.hidden)
+    ∂ = ∂regularize!(zero_gradient(), rbm, StandardizedParametersRegularizer(L2FieldsRegularizer(λ)))
+    @test ∂.visible[1:nfields, :] ≈ stack_rows(λ .* θ for θ in fields)
+    @test iszero(∂.visible[(nfields + 1):end, :])
+    @test iszero(∂.hidden)
+    @test iszero(∂.w)
+end
+
 @testset "∂unstandardize ($(nameof(typeof(visible))) visible, $(nameof(typeof(hidden))) hidden)" for visible in (
             Binary(; θ = randn(3, 2)),
             dReLU(; θp = randn(3, 2), θn = randn(3, 2), γp = rand(3, 2), γn = rand(3, 2)),
