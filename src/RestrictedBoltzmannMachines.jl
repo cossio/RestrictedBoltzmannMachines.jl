@@ -55,7 +55,6 @@ include("metropolis.jl")
 include("standardized.jl")
 include("centered.jl")
 
-# after the StandardizedRBM types, on which `pcd!` and `ptt!` dispatch
 include("train/pcd.jl")
 include("train/cossim.jl")
 include("train/ptt.jl")
