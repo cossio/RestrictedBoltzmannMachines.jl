@@ -1,3 +1,5 @@
+using RestrictedBoltzmannMachines: ∂RBM, ∂unstandardize, CompositeRegularizer, L2FieldsRegularizer,
+    L1WeightsRegularizer, L2WeightsRegularizer, L2L1WeightsRegularizer
 using LinearAlgebra: norm
 using LogExpFunctions: logsumexp
 using Random: bitrand, seed!
@@ -342,22 +344,43 @@ end
         (dReLU(; θp = randn(3), θn = randn(3), γp = rand(3), γn = rand(3)), randn(3, 100)),
     )
     rbm = StandardizedRBM(visible, Binary(; θ = randn(2)), randn(3, 2), randn(3), randn(2), rand(3), rand(2))
-    l2_fields, l1_weights, l2_weights, l2l1_weights = rand(4)
+    reg = CompositeRegularizer(
+        L2FieldsRegularizer(rand()), L1WeightsRegularizer(rand()),
+        L2WeightsRegularizer(rand()), L2L1WeightsRegularizer(rand())
+    )
 
     for regularize_unstandardized in (false, true)
         gs = gradient(rbm) do rbm
             F = mean(free_energy(rbm, v))
-            R = regularization_penalty(rbm; regularize_unstandardized, l1_weights, l2_weights, l2l1_weights, l2_fields)
+            R = regularization_penalty(rbm, reg; regularize_unstandardized)
             return F + R
         end
 
         ∂ = ∂free_energy(rbm, v)
-        ∂regularize!(∂, rbm; regularize_unstandardized, l2_fields, l1_weights, l2_weights, l2l1_weights)
+        ∂regularize!(∂, rbm, reg; regularize_unstandardized)
 
         @test only(gs).visible.par ≈ ∂.visible
         @test only(gs).hidden.par ≈ ∂.hidden
         @test only(gs).w ≈ ∂.w
     end
+end
+
+@testset "∂unstandardize ($(nameof(typeof(visible))) visible, $(nameof(typeof(hidden))) hidden)" for visible in (
+            Binary(; θ = randn(3, 2)),
+            dReLU(; θp = randn(3, 2), θn = randn(3, 2), γp = rand(3, 2), γn = rand(3, 2)),
+        ), hidden in (
+            Binary(; θ = randn(2)),
+            dReLU(; θp = randn(2), θn = randn(2), γp = rand(2), γn = rand(2)),
+        )
+    rbm = StandardizedRBM(visible, hidden, randn(3, 2, 2), randn(3, 2), randn(2), rand(3, 2), rand(2))
+    # a linear function of the parameters of the equivalent plain RBM, with gradient ∂plain
+    ∂plain = ∂RBM(randn(size(rbm.visible.par)), randn(size(rbm.hidden.par)), randn(size(rbm.w)))
+    f(plain) = sum(∂plain.visible .* plain.visible.par) + sum(∂plain.hidden .* plain.hidden.par) + sum(∂plain.w .* plain.w)
+    gs = gradient(rbm -> f(unstandardize(rbm)), rbm)
+    ∂ = ∂unstandardize(rbm, ∂plain)
+    @test only(gs).visible.par ≈ ∂.visible
+    @test only(gs).hidden.par ≈ ∂.hidden
+    @test only(gs).w ≈ ∂.w
 end
 
 @testset "unstandardized_weights" begin
@@ -552,8 +575,10 @@ end
 
 @testset "regularization_penalty StandardizedRBM" begin
     srbm = BinaryStandardizedRBM(randn(3), randn(2), randn(3, 2), randn(3), randn(2), 1 .+ rand(3), 1 .+ rand(2))
-    kw = (; l1_weights = 0.1, l2_weights = 0.2, l2l1_weights = 0.3, l2_fields = 0.4)
-    @test regularization_penalty(srbm; kw...) ≈ regularization_penalty(unstandardize(srbm); kw...)
-    @test regularization_penalty(srbm; regularize_unstandardized = false, kw...) ≈
-        regularization_penalty(RBM(srbm.visible, srbm.hidden, srbm.w); kw...)
+    reg = CompositeRegularizer(
+        L1WeightsRegularizer(0.1), L2WeightsRegularizer(0.2), L2L1WeightsRegularizer(0.3), L2FieldsRegularizer(0.4)
+    )
+    @test regularization_penalty(srbm, reg) ≈ regularization_penalty(unstandardize(srbm), reg)
+    @test regularization_penalty(srbm, reg; regularize_unstandardized = false) ≈
+        regularization_penalty(RBM(srbm.visible, srbm.hidden, srbm.w), reg)
 end

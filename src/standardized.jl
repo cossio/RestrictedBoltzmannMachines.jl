@@ -156,38 +156,24 @@ function log_pseudolikelihood(rbm::StandardizedRBM, v::AbstractArray; kwargs...)
 end
 
 function ∂regularize!(
-        ∂::∂RBM, offset_rbm::StandardizedRBM;
-        l2_fields::Real = 0,
-        l1_weights::Real = 0,
-        l2_weights::Real = 0,
-        l2l1_weights::Real = 0,
-        regularize_unstandardized::Bool = true,
-        zerosum::Bool = false # whether to zerosum gradients
+        ∂::∂RBM, rbm::StandardizedRBM, reg::AbstractRegularizer;
+        regularize_unstandardized::Bool = true
     )
-    if !regularize_unstandardized
-        # regularization applies directly to the offset model's parameters
-        ∂regularize!(∂, RBM(offset_rbm); l2_fields, l1_weights, l2_weights, l2l1_weights)
-    elseif !all(iszero, (l2_fields, l1_weights, l2_weights, l2l1_weights))
-        # regularization applies to the parameters of the equivalent plain RBM, whose
-        # weights are `w / scale_w` and whose visible fields absorb `w * offset_h`
-        rbm = unstandardize(offset_rbm)
-        scale_w = _scale_w(offset_rbm)
-        if !iszero(l2_fields)
-            visible_reg = ∂regularize_fields(rbm.visible; l2_fields)
-            ∂.visible .+= visible_reg
-            # chain rule through the absorbed field shift; only the field rows of
-            # `visible_reg` are nonzero, so summing over parameter rows collects them
-            field_reg = dropdims(sum(visible_reg; dims = 1); dims = 1)
-            ∂.w .-= _maybe_div(field_reg .* _along_hidden(offset_rbm, offset_rbm.offset_h), scale_w)
-        end
-        _∂regularize_weights!(∂.w, rbm; l1_weights, l2_weights, l2l1_weights, scale = scale_w)
-    end
-    zerosum && zerosum!(∂, offset_rbm)
+    regularize_unstandardized || return ∂regularize!(∂, RBM(rbm), reg)
+    reg isa CompositeRegularizer{Tuple{}} && return ∂ # nothing to pull back
+    # gradient with respect to the parameters of the equivalent plain RBM, pulled back
+    ∂plain = ∂regularize!(_zero_gradient(rbm), unstandardize(rbm), reg)
+    ∂std = ∂unstandardize(rbm, ∂plain)
+    ∂.visible .+= ∂std.visible
+    ∂.hidden .+= ∂std.hidden
+    ∂.w .+= ∂std.w
     return ∂
 end
 
-function regularization_penalty(rbm::StandardizedRBM; regularize_unstandardized::Bool = true, kwargs...)
-    return regularization_penalty(regularize_unstandardized ? unstandardize(rbm) : RBM(rbm); kwargs...)
+function regularization_penalty(
+        rbm::StandardizedRBM, reg::AbstractRegularizer; regularize_unstandardized::Bool = true
+    )
+    return regularization_penalty(regularize_unstandardized ? unstandardize(rbm) : RBM(rbm), reg)
 end
 
 """
@@ -272,6 +258,24 @@ Note: this does not enforce zerosum gauge; call `zerosum(unstandardize(rbm))` if
 """
 unstandardize(rbm::StandardizedRBM) = RBM(standardize(rbm))
 unstandardize(rbm::RBM) = rbm
+
+"""
+    ∂unstandardize(rbm::StandardizedRBM, ∂plain::∂RBM)
+
+Pulls back a gradient `∂plain` with respect to the parameters of the equivalent plain
+`RBM`, `unstandardize(rbm)`, to the gradient with respect to the parameters of `rbm`, with
+its offsets and scales held fixed.
+"""
+function ∂unstandardize(rbm::StandardizedRBM, ∂plain::∂RBM)
+    # the plain weights are w̃ = w / (scale_v ⊗ scale_h), and the plain fields absorb the
+    # offsets, θ̃v = θv - w̃ * offset_h and θ̃h = θh - w̃' * offset_v, so the gradients with
+    # respect to the plain fields also pull back to the weights
+    ∂θv = ∂shift_fields(rbm.visible, ∂plain.visible) # with respect to a shift of the fields
+    ∂θh = ∂shift_fields(rbm.hidden, ∂plain.hidden)
+    ∂w = ∂plain.w .- _along_visible(rbm, ∂θv) .* _along_hidden(rbm, rbm.offset_h) .-
+        _along_visible(rbm, rbm.offset_v) .* _along_hidden(rbm, ∂θh)
+    return ∂RBM(∂plain.visible, ∂plain.hidden, _maybe_div(∂w, _scale_w(rbm)))
+end
 
 @doc raw"""
     standardize(rbm)
@@ -498,10 +502,7 @@ function pcd!(
         damping::Real = 1 // 100, # of the hidden standardization updates
         ϵv::Real = 0, ϵh::Real = 0, # pseudocounts for the visible and hidden variances
         regularize_unstandardized::Bool = true, # regularize the equivalent plain RBM, or this one
-        l2_fields::Real = 0,
-        l1_weights::Real = 0,
-        l2_weights::Real = 0,
-        l2l1_weights::Real = 0,
+        regularization::AbstractRegularizer = CompositeRegularizer(),
         zerosum::Bool = true,
         rescale::Bool = true,
         callback = Returns(nothing),
@@ -523,8 +524,7 @@ function pcd!(
         vd, wd = data[.., idx], wts[idx]
         state, ps, ∂ = _pcd_step!(
             rbm, ps, state, vd, wd, vm, wts_mean;
-            steps, moments, l2_fields, l1_weights, l2_weights, l2l1_weights, zerosum,
-            regularize_unstandardized
+            steps, moments, regularization, regularize_unstandardized, zerosum
         )
 
         standardize_hidden_from_v!(rbm, vd; wts = wd, damping, ϵ = ϵh)

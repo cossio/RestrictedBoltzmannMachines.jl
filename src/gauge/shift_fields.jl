@@ -22,3 +22,16 @@ function shift_fields!(l::dReLU, a::AbstractArray)
     l.θn .+= a
     return l
 end
+
+# Gradient with respect to the shift `a` of `shift_fields(layer, a)`, pulled back from a
+# gradient `∂par` with respect to the parameters of the shifted layer: the sum of the rows
+# of `∂par` of the fields that the shift moves.
+function ∂shift_fields(layer::_ThetaLayers, ∂par::AbstractArray)
+    @assert size(∂par) == size(layer.par)
+    return ∂par[1, ..]
+end
+
+function ∂shift_fields(layer::dReLU, ∂par::AbstractArray)
+    @assert size(∂par) == size(layer.par)
+    return ∂par[1, ..] .+ ∂par[2, ..]
+end

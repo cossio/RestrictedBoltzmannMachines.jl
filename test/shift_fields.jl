@@ -1,6 +1,6 @@
 using Test: @testset, @test, @inferred
 using RestrictedBoltzmannMachines: Binary, Spin, Potts, PottsGumbel, Gaussian, ReLU, dReLU, pReLU, xReLU, nsReLU,
-    energy, sample_from_inputs, shift_fields!, shift_fields
+    energy, sample_from_inputs, shift_fields!, shift_fields, ∂shift_fields
 
 function energy_shift(offset::AbstractArray, x::AbstractArray)
     @assert size(offset) == size(x)[1:ndims(offset)]
@@ -36,5 +36,17 @@ layers = (
         layer_shifted = @inferred shift(layer, offset)
         @test typeof(layer_shifted) === typeof(layer)
         @test energy(layer_shifted, x) ≈ energy(layer, x) + energy_shift(offset, x)
+    end
+end
+
+@testset "∂shift_fields" begin
+    # the shift is linear in `a`, so its pullback satisfies the adjoint identity
+    # ⟨∂par, shift_fields(layer, a).par - layer.par⟩ = ⟨∂shift_fields(layer, ∂par), a⟩
+    for layer in layers
+        a = randn(size(layer)...)
+        ∂par = randn(size(layer.par)...)
+        ∂a = @inferred ∂shift_fields(layer, ∂par)
+        @test size(∂a) == size(layer)
+        @test sum(∂par .* (shift_fields(layer, a).par - layer.par)) ≈ sum(∂a .* a)
     end
 end

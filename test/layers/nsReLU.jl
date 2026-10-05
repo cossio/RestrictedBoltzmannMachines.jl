@@ -1,6 +1,5 @@
 import Zygote
-using EllipsisNotation: (..)
-using RestrictedBoltzmannMachines: ∂cgf, ∂regularize_fields
+using RestrictedBoltzmannMachines: ∂cgf
 using RestrictedBoltzmannMachines: cgfs
 using RestrictedBoltzmannMachines: dReLU
 using RestrictedBoltzmannMachines: energies
@@ -106,15 +105,6 @@ end
     @test layer2.θ ≈ batchmean(layer2, data) rtol = 0.05
     @test all(iszero, layer2.Δ)
     @test all(iszero, layer2.ξ)
-end
-
-@testset "nsReLU ∂regularize_fields" begin
-    layer = nsReLU(; θ = randn(3, 5), Δ = randn(3, 5), ξ = randn(3, 5))
-    ∂ = ∂regularize_fields(layer; l2_fields = 0.1)
-    @test size(∂) == size(layer.par)
-    @test ∂[1, ..] ≈ 0.1 * layer.θ
-    @test all(iszero, ∂[2, ..])
-    @test all(iszero, ∂[3, ..])
 end
 
 @testset "nsReLU shift_fields" begin

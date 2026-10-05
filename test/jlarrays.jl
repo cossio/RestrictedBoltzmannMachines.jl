@@ -19,7 +19,9 @@ using RestrictedBoltzmannMachines: RBM, CenteredRBM, StandardizedRBM, BinaryRBM,
     inputs_h_from_v, inputs_v_from_h, mean_h_from_v, mean_v_from_h,
     sample_h_from_v, sample_v_from_h, sample_v_from_v, reconstruction_error, metropolis,
     log_pseudolikelihood, log_pseudolikelihood_stoch,
-    initialize!, pcd!, ∂free_energy, zerosum!, rescale_weights!, weight_norms, aise, raise
+    initialize!, pcd!, ∂free_energy, zerosum!, rescale_weights!, weight_norms, aise, raise,
+    ∂regularize!, CompositeRegularizer, L2FieldsRegularizer, L1WeightsRegularizer,
+    L2WeightsRegularizer, L2L1WeightsRegularizer
 
 JLArrays.allowscalar(false)
 
@@ -434,6 +436,37 @@ end
     @test all(isfinite, adapt(Array, jl_rbm.w))
     @test all(isfinite, adapt(Array, jl_rbm.visible.par))
     @test all(isfinite, adapt(Array, jl_rbm.hidden.par))
+end
+
+@testset "∂regularize! stays on device ($label)" for (label, rbm) in (
+        (
+            "StandardizedRBM", StandardizedRBM(
+                dReLU(; θp = randn(N...), θn = randn(N...), γp = 1 .+ rand(N...), γn = 1 .+ rand(N...)),
+                Binary(; θ = randn(2)), randn(N..., 2), randn(N...), randn(2), 1 .+ rand(N...), 1 .+ rand(2)
+            ),
+        ),
+        (
+            "CenteredRBM", CenteredRBM(
+                dReLU(; θp = randn(N...), θn = randn(N...), γp = 1 .+ rand(N...), γn = 1 .+ rand(N...)),
+                Binary(; θ = randn(2)), randn(N..., 2), randn(N...), randn(2)
+            ),
+        ),
+    )
+    reg = CompositeRegularizer(
+        L2FieldsRegularizer(0.1), L1WeightsRegularizer(0.2), L2WeightsRegularizer(0.3), L2L1WeightsRegularizer(0.4)
+    )
+    v = sample_from_inputs(rbm.visible, zeros(N..., B))
+    jl_rbm = adapt(JLArray, rbm)
+    for regularize_unstandardized in (false, true)
+        ∂ = ∂regularize!(∂free_energy(rbm, v), rbm, reg; regularize_unstandardized)
+        jl_∂ = ∂regularize!(∂free_energy(jl_rbm, JLArray(v)), jl_rbm, reg; regularize_unstandardized)
+        @test jl_∂.visible isa JLArray
+        @test jl_∂.hidden isa JLArray
+        @test jl_∂.w isa JLArray
+        @test adapt(Array, jl_∂.visible) ≈ ∂.visible
+        @test adapt(Array, jl_∂.hidden) ≈ ∂.hidden
+        @test adapt(Array, jl_∂.w) ≈ ∂.w
+    end
 end
 
 @testset "AIS" begin

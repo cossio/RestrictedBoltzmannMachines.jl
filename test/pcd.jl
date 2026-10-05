@@ -1,3 +1,4 @@
+using RestrictedBoltzmannMachines: L2WeightsRegularizer
 import Random
 using Test: @test, @testset
 using Statistics: mean
@@ -93,7 +94,7 @@ end
     # callback receives the plain RBM
     seen = Ref{Any}(nothing)
     pcd!(
-        rbm, data; iters = 2, batchsize = 4, l2_weights = 0.1, damping = 0.5, ϵv = 0.1, ϵh = 0.1,
+        rbm, data; iters = 2, batchsize = 4, regularization = L2WeightsRegularizer(0.1), damping = 0.5, ϵv = 0.1, ϵh = 0.1,
         regularize_unstandardized = false, callback = (; rbm, _...) -> (seen[] = rbm)
     )
     @test seen[] === rbm

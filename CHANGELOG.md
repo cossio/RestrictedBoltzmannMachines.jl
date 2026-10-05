@@ -61,6 +61,18 @@ All notable changes to this project will be documented in this file. The format 
   conditional precision is not positive give `-Inf`. Previously these calls
   raised a `MethodError`. `CenteredRBM` and `StandardizedRBM` with Gaussian
   layers are supported through their equivalent plain `RBM`.
+- **Breaking**: regularization is given by regularizer objects. `pcd!` and `ptt!` take
+  `regularization`, an `AbstractRegularizer`, instead of the keywords `l2_fields`,
+  `l1_weights`, `l2_weights` and `l2l1_weights`, which are removed. The penalties are
+  `L2FieldsRegularizer(λ)`, `L1WeightsRegularizer(λ)`, `L2WeightsRegularizer(λ)` and
+  `L2L1WeightsRegularizer(λ)`, combined by a `CompositeRegularizer` (empty by default:
+  no regularization). A new regularizer subtypes `AbstractRegularizer` and implements
+  `∂regularize!(∂, rbm, regularizer)` and the newly public
+  `regularization_penalty(rbm, regularizer)` for a plain `RBM`; these also regularize a
+  `StandardizedRBM`, by default on the parameters of its equivalent plain `RBM`, pulling
+  the gradient back to its own parameters (now also for penalties on the hidden layer).
+  `∂regularize!` takes the regularizer as its third argument and loses the `zerosum`
+  keyword: the trainers project the gradient onto the zerosum gauge themselves.
 
 ## 7.1.0
 

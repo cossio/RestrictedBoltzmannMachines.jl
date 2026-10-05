@@ -19,7 +19,8 @@ end
 
 function _pcd_step!(
         rbm, ps, state, vd::AbstractArray, wd::AbstractArray, vm::AbstractArray, wts_mean::Real;
-        steps::Int, moments, regularization...
+        steps::Int, moments, regularization::AbstractRegularizer,
+        regularize_unstandardized::Bool, zerosum::Bool
     )
     # positive phase
     ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
@@ -32,8 +33,9 @@ function _pcd_step!(
     batch_weight = convert(float(real(eltype(∂d.w))), mean(wd) / wts_mean)
     ∂ = (∂d - ∂m) * batch_weight
 
-    # weight decay
-    ∂regularize!(∂, rbm; regularization...)
+    # regularization, and projection of the gradient onto the zerosum gauge
+    ∂regularize!(∂, rbm, regularization; regularize_unstandardized)
+    zerosum && zerosum!(∂, rbm)
 
     # feed gradient to Optimiser rule
     gs = (; visible = ∂.visible, hidden = ∂.hidden, w = ∂.w)
@@ -65,11 +67,11 @@ parameters with an `Optimisers.jl` rule.
 - `optim::AbstractRule=Adam()`: optimizer rule from `Optimisers.jl`.
 - `moments=moments_from_samples(rbm.visible, data; wts)`: data moments used
   by the positive phase.
-- `l2_fields::Real=0`: L2 regularization on visible fields.
-- `l1_weights::Real=0`: L1 regularization on interaction weights.
-- `l2_weights::Real=0`: L2 regularization on interaction weights.
-- `l2l1_weights::Real=0`: group-like L2/L1 weight regularization.
-- `zerosum::Bool=true`: enforce zero-sum gauge on Potts layers.
+- `regularization::AbstractRegularizer=CompositeRegularizer()`: penalty added to the
+  training objective, such as `L2WeightsRegularizer(λ)`, or several combined by a
+  `CompositeRegularizer` (see [`AbstractRegularizer`](@ref)). None by default.
+- `zerosum::Bool=true`: enforce zero-sum gauge on Potts layers (the gradient is projected
+  onto the gauge too).
 - `rescale::Bool=true`: rescale weights (mainly useful for continuous hidden units).
 - `callback=Returns(nothing)`: called after every update as
   `callback(; rbm, optim, state, ps, iter, vd, wd, ∂, vm)`. Slurp unused

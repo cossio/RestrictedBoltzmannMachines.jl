@@ -1,3 +1,4 @@
+using RestrictedBoltzmannMachines: L2WeightsRegularizer
 #= Moment-matching tests for the training algorithms.
 
 At a maximum-likelihood stationary point, the model must match the data moments
@@ -166,11 +167,11 @@ end
 
     rbm_weak = BinaryRBM(3, 5)
     initialize!(rbm_weak, data)
-    avg_weak = pcd_averaged!(rbm_weak, data; batchsize = 32, iters = 10000, steps = 5, optim = Adam(1.0e-3), l2_weights = 1.0e-4)
+    avg_weak = pcd_averaged!(rbm_weak, data; batchsize = 32, iters = 10000, steps = 5, optim = Adam(1.0e-3), regularization = L2WeightsRegularizer(1.0e-4))
 
     rbm_strong = BinaryRBM(3, 5)
     initialize!(rbm_strong, data)
-    avg_strong = pcd_averaged!(rbm_strong, data; batchsize = 32, iters = 10000, steps = 5, optim = Adam(1.0e-3), l2_weights = 10.0)
+    avg_strong = pcd_averaged!(rbm_strong, data; batchsize = 32, iters = 10000, steps = 5, optim = Adam(1.0e-3), regularization = L2WeightsRegularizer(10.0))
 
     # weak regularization barely perturbs the maximum-likelihood solution
     gaps = moment_gaps(avg_weak, data)
