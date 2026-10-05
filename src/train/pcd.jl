@@ -17,31 +17,6 @@ function _pcd_check_args(rbm, data::AbstractArray, wts::AbstractVector, batchsiz
     return mean(wts), min(batchsize, length(wts))
 end
 
-function _pcd_step!(
-        rbm, ps, state, vd::AbstractArray, wd::AbstractArray, vm::AbstractArray, wts_mean::Real;
-        steps::Int, moments, regularization...
-    )
-    # positive phase
-    ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
-
-    # negative phase: update persistent fantasy chains
-    vm .= sample_v_from_v(rbm, vm; steps)
-    ∂m = ∂free_energy(rbm, vm)
-
-    # weighted minibatch bias correction, in the gradient eltype
-    batch_weight = convert(float(real(eltype(∂d.w))), mean(wd) / wts_mean)
-    ∂ = (∂d - ∂m) * batch_weight
-
-    # weight decay
-    ∂regularize!(∂, rbm; regularization...)
-
-    # feed gradient to Optimiser rule
-    gs = (; visible = ∂.visible, hidden = ∂.hidden, w = ∂.w)
-    state, ps = update!(state, ps, gs)
-    _validate_layer_parameters(rbm)
-    return state, ps, ∂
-end
-
 """
     pcd!(rbm, data; kwargs...)
 
