@@ -453,7 +453,7 @@ function _bennett(W₀::AbstractVector, W₁::AbstractVector; logw = Zeros(lengt
     n₁ = 1 / sum(abs2, p₁) # effective number of samples x₁
     M = log(length(W₀) / n₁)
     g(Δf) = sum(w -> logistic(Δf - M - w), W₀) - n₁ * sum(p₁ .* logistic.(M .- W₁ .- Δf))
-    lo = hi = -_logmeanexp(-W₀) # one-sided (exponential averaging) estimate
+    lo = hi = -logmeanexp(-W₀) # one-sided (exponential averaging) estimate
     while g(lo) > 0
         lo -= 1 + abs(lo)
     end
@@ -469,7 +469,6 @@ function _bennett(W₀::AbstractVector, W₁::AbstractVector; logw = Zeros(lengt
 end
 
 _nsamples(x::AbstractArray) = size(x, ndims(x))
-_logmeanexp(x::AbstractArray) = logsumexp(x) - log(length(x))
 
 # free energies of the samples `x` under `model`, on the host in double precision
 _free_energies(model, x::AbstractArray) = convert(Vector{Float64}, Array(free_energy(model, x)))
