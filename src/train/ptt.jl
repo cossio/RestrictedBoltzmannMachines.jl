@@ -42,9 +42,11 @@ setting the weights of `rbm` to zero, whose partition function is known, and is 
 along `anneal` steps scaling the weights up to those of `rbm`, which becomes the last
 checkpoint. `steps` are the Gibbs steps per sweep used meanwhile.
 
-The checkpoints and their log-partition functions are kept in `ladder.checkpoints` and
-`ladder.logZ`, the persistent chains in `ladder.chains`, equilibrium samples of the last
-checkpoint in `ladder.samples`, and the last swap acceptance in `ladder.acceptance`. As
+The checkpoints and their log-partition functions, each in its own parametrization (see
+[`log_partition(ladder)`](@ref log_partition(::TrajectoryLadder))), are kept in
+`ladder.checkpoints` and `ladder.logZ`, the persistent chains in `ladder.chains`,
+equilibrium samples of the last checkpoint in `ladder.samples`, and the last swap
+acceptance in `ladder.acceptance`. As
 diagnostics of the thermalization of the last checkpoint, `ladder.τint` and `ladder.τexp`
 hold the integrated and exponential autocorrelation times, in sweeps, of the ladder level
 of its chains. See also [`log_partition(ladder)`](@ref log_partition(::TrajectoryLadder))
@@ -98,6 +100,14 @@ Estimate of the log-partition function of the model trained with `ladder`, by th
 acceptance ratio between equilibrium samples of the last checkpoint and the chains of the
 model. The chains are reweighted from the model they were last sampled from (before the
 last parameter update) to the current one.
+
+Like `ladder.logZ`, the estimate normalizes `exp(-free_energy(ladder.rbm, v))`, as
+[`log_likelihood(ladder, v)`](@ref log_likelihood(::TrajectoryLadder, ::AbstractArray))
+does. For a `StandardizedRBM`, the free energies of the equivalent plain `RBM`,
+`unstandardize(ladder.rbm)`, differ by a constant, so its log-partition function is
+`log_partition(ladder) + c` with
+`c = free_energy(ladder.rbm, v) - free_energy(unstandardize(ladder.rbm), v)`, the same for
+every `v`.
 """
 function log_partition(ladder::TrajectoryLadder)
     (; rbm, chains, chains_F, samples, samples_F) = ladder
