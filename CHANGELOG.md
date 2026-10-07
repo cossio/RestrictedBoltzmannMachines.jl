@@ -9,9 +9,10 @@ All notable changes to this project will be documented in this file. The format 
   `StandardizedRBM` (including a `CenteredRBM`) like `pcd!`, keeping the persistent chains at equilibrium by replica exchange with frozen
   checkpoints of the training trajectory, held by a `TrajectoryLadder`. The ladder also
   estimates the partition function along training, through `log_partition(ladder)` and
-  `log_likelihood(ladder, v)`. Adds the `CossimDescent` optimiser rule used in the paper,
-  whose learning rate adapts to the alignment of successive gradients. LogStatFunctions is
-  a new dependency.
+  `log_likelihood(ladder, v)`, and `freeze!(ladder)` freezes the trained model as a
+  checkpoint, to sample it at equilibrium. Adds the `CossimDescent` optimiser rule used in
+  the paper, whose learning rate adapts to the alignment of successive gradients.
+  LogStatFunctions is a new dependency.
 - **Breaking**: `pcd!` draws each minibatch as an independent uniformly random subset of
   the data (without replacement within the minibatch) instead of cycling through a fresh
   permutation of the data per epoch. Its `shuffle` keyword and the `infinite_minibatches`

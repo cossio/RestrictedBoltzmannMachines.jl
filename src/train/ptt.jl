@@ -47,8 +47,9 @@ The checkpoints and their log-partition functions are kept in `ladder.checkpoint
 checkpoint in `ladder.samples`, and the last swap acceptance in `ladder.acceptance`. As
 diagnostics of the thermalization of the last checkpoint, `ladder.τint` and `ladder.τexp`
 hold the integrated and exponential autocorrelation times, in sweeps, of the ladder level
-of its chains. See also [`log_partition(ladder)`](@ref log_partition(::TrajectoryLadder))
-and [`log_likelihood(ladder, v)`](@ref log_likelihood(::TrajectoryLadder, ::AbstractArray)).
+of its chains. See also [`log_partition(ladder)`](@ref log_partition(::TrajectoryLadder)),
+[`log_likelihood(ladder, v)`](@ref log_likelihood(::TrajectoryLadder, ::AbstractArray)), and
+[`freeze!`](@ref), which freezes `rbm` as a checkpoint to sample it at equilibrium.
 """
 Base.@kwdef mutable struct TrajectoryLadder{M, A <: AbstractArray}
     const rbm::M # model being trained (not a copy)
@@ -154,7 +155,9 @@ equivalent `StandardizedRBM` whose offsets and scales are fixed to zero and one.
 - `batchsize`, `iters`, `wts`, `moments`, `damping`, `ϵv`, `ϵh`,
   `regularization`, `zerosum`, `rescale`, `ps`, `state`: as for [`pcd!`](@ref).
 
-Returns `(state, ps)`.
+Returns `(state, ps)`. The ladder then lags behind `rbm`: `ladder.samples` are equilibrium
+samples of the last checkpoint, and `ladder.chains` sample the model before its last update.
+[`freeze!`](@ref) freezes the trained `rbm` as a checkpoint, to sample it at equilibrium.
 """
 function ptt!(rbm::RBM, data::AbstractArray; callback = Returns(nothing), kwargs...)
     std_rbm = PlainStandardizedRBM(rbm) # shares the layers and weights of `rbm`
@@ -244,6 +247,25 @@ function ptt!(
     return state, ps
 end
 
+"""
+    freeze!(ladder::TrajectoryLadder; steps = 1)
+
+Freeze the model trained with `ladder` as a new checkpoint, to sample it at equilibrium:
+after [`ptt!`](@ref), the ladder only holds equilibrium samples of the last checkpoint, which
+the model moved away from. As for the checkpoints frozen by `ptt!`, the chains of the model
+are thermalized and collected into a new reservoir, with `steps` Gibbs steps per sweep, and
+its log-partition function is appended to `ladder.logZ`.
+
+Returns `true` if the model was frozen: `ladder.samples` are then equilibrium samples of the
+model, and `last(ladder.logZ)`, `ladder.τint` and `ladder.τexp` refer to it. Returns `false`
+if the model lost overlap with the last checkpoint (their swap acceptance is below
+`ladder.αmin`, before or after thermalizing the chains): the model is then restored to the
+last checkpoint, and the chains to its equilibrium samples, as at a rejected update of
+`ptt!`.
+"""
+freeze!(ladder::TrajectoryLadder; steps::Int = 1) =
+    _ptt_update!(ladder, ladder.rbm; steps, freeze = true) === :frozen
+
 #= Restarts the optimiser after a rejected update: halves the learning rate of every
 parameter array in the optimiser state tree of the parameters `ps`, and discards the memory
 of past gradients (momenta, moment estimates), which would otherwise repeat the rejected
@@ -288,10 +310,16 @@ function _ptt_update!(ladder::TrajectoryLadder, model; steps::Int, freeze::Bool 
     return status
 end
 
+#= Outcome of an update, from the acceptance just measured: `:accepted` while it stays at
+least `α`, `:frozen` once it falls below `α` but not below `αmin`, and `:rejected` otherwise.
+An acceptance below `α` within two updates of the last checkpoint rejects the update instead
+of freezing a checkpoint every other update, so that the learning rate is halved. With
+`freeze`, `model` is frozen whenever the acceptance is at least `αmin`. =#
 function _ptt_status(ladder::TrajectoryLadder; freeze::Bool = false)
-    ladder.acceptance ≥ ladder.α && return freeze ? :frozen : :accepted
-    ladder.acceptance ≥ ladder.αmin && ladder.since_checkpoint > 1 && return :frozen
-    return :rejected
+    ladder.acceptance ≥ ladder.αmin || return :rejected
+    freeze && return :frozen
+    ladder.acceptance ≥ ladder.α && return :accepted
+    return ladder.since_checkpoint > 1 ? :frozen : :rejected
 end
 
 # exchanges the chains with the reservoir, then runs Gibbs sampling; returns the accepted swaps

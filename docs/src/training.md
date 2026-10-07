@@ -156,6 +156,7 @@ initialize!(rbm, data)
 ladder = TrajectoryLadder(rbm; nchains = 1000)
 ptt!(rbm, data; ladder, batchsize = 500, iters = 10_000, steps = 10)
 log_likelihood(ladder, data) # with the partition function estimated by the ladder
+freeze!(ladder; steps = 10) # equilibrium samples of the trained model, in ladder.samples
 ```
 
 The [`TrajectoryLadder`](@ref) holds the checkpoints and the persistent chains:
@@ -209,6 +210,15 @@ checkpoint is kept in `ladder.checkpoints`, with its log-partition function in
 `ladder.logZ`. The log-partition functions accumulate the errors of the successive
 estimates, from a few hundredths to about a tenth of a nat per checkpoint, so fewer
 checkpoints give more accurate estimates.
+
+After `ptt!` returns, the ladder lags behind the model: `ladder.samples` are equilibrium
+samples of the last checkpoint, and `ladder.chains` sample the model before its last update.
+[`freeze!`](@ref) freezes the trained model as a new checkpoint, thermalizing
+its chains and collecting equilibrium samples of the model itself into `ladder.samples`, with
+its log-partition function appended to `ladder.logZ`. It returns `false` if the model lost
+overlap with the last checkpoint, restoring it to that checkpoint as a rejected update does.
+This is how the paper samples its trained models; to evaluate the model during training,
+freeze it between `ptt!` runs or in the callback.
 
 ## Practical tuning guidelines
 

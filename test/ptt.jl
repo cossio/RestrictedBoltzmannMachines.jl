@@ -7,7 +7,7 @@ using StatsBase: sample, Weights
 using EllipsisNotation: (..)
 using Optimisers: Adam, ClipGrad, Descent, Nesterov, setup, update!
 using RestrictedBoltzmannMachines: RBM, BinaryRBM, Binary, Spin, Potts, Gaussian,
-    TrajectoryLadder, CossimDescent, ptt!, initialize!, free_energy,
+    TrajectoryLadder, CossimDescent, ptt!, freeze!, initialize!, free_energy,
     log_partition, log_likelihood, collect_states, standardize, StandardizedRBM
 
 Random.seed!(41)
@@ -160,7 +160,8 @@ end
         ladder.acceptance, ladder.since_checkpoint = acceptance, since_checkpoint
         @test RBMs._ptt_status(ladder) === status
     end
-    for (acceptance, since_checkpoint, status) in ((0.5, 0, :frozen), (0.2, 1, :rejected))
+    # an explicit freeze only needs an acceptance of αmin
+    for (acceptance, since_checkpoint, status) in ((0.5, 0, :frozen), (0.2, 1, :frozen), (0.05, 5, :rejected))
         ladder.acceptance, ladder.since_checkpoint = acceptance, since_checkpoint
         @test RBMs._ptt_status(ladder; freeze = true) === status
     end
@@ -233,26 +234,42 @@ end
     p = softmax(-free_energy(rbm, states))
     @test total_variation(empirical_distribution(ladder.chains, states), p) < 6tv_noise(p, 500)
 
+    # the ladder lags behind the trained model until it is frozen
+    K = length(ladder.checkpoints)
+    @test last(ladder.checkpoints).w != rbm.w
+    @test freeze!(ladder)
+    @test length(ladder.checkpoints) == K + 1
+    @test last(ladder.checkpoints).w == rbm.w
+    @test last(ladder.checkpoints).w !== rbm.w
+    @test last(ladder.logZ) ≈ log_partition(rbm) atol = 0.05
+    @test log_partition(ladder) ≈ last(ladder.logZ)
+    @test total_variation(empirical_distribution(ladder.samples, states), p) < 4tv_noise(p, size(ladder.samples)[end])
+    @test ladder.samples_F ≈ free_energy(rbm, ladder.samples)
+    @test ladder.reservoir == ladder.samples
+    @test ladder.chains_F ≈ free_energy(rbm, ladder.chains)
+
     other = BinaryRBM(8, 4)
     @test_throws ArgumentError ptt!(other, data; ladder, batchsize = 100)
     @test_throws ArgumentError ptt!(rbm, data; ladder, batchsize = 100, optim = ClipGrad()) # no learning rate
 end
 
-#= The chains lag behind `model` at the independent-site model `base`, so that the online
-acceptance (≈ 0.61) overestimates the overlap of the two models at equilibrium (≈ 0.054). =#
+#= The chains lag behind the model, moved from the independent-site model it was frozen at,
+so that the online acceptance (≈ 0.61) overestimates the overlap of the two models at
+equilibrium (≈ 0.054). =#
 @testset "PTT rejects checkpoints that do not equilibrate" begin
-    base = BinaryRBM(zeros(10), zeros(2), zeros(10, 2))
-    ladder = TrajectoryLadder(base; nchains = 1000)
+    rbm = BinaryRBM(zeros(10), zeros(2), zeros(10, 2))
+    ladder = TrajectoryLadder(rbm; nchains = 1000)
     K = length(ladder.checkpoints)
-    model = BinaryRBM(fill(2.0, 10), zeros(2), zeros(10, 2))
-    ladder.chains_F .= free_energy(model, ladder.chains) # as if they sampled `model`
-    @test RBMs._ptt_update!(ladder, model; steps = 1, freeze = true) === :rejected
+    rbm.visible.θ .= 2
+    ladder.chains_F .= free_energy(rbm, ladder.chains) # as if they sampled the moved model
+    @test !freeze!(ladder)
     @test ladder.acceptance > 0.5
     @test length(ladder.checkpoints) == K
-    @test iszero(model.visible.θ) # restored to the last checkpoint
+    @test iszero(rbm.visible.θ) # restored to the last checkpoint
     @test ladder.reservoir == ladder.samples
+    @test ladder.rejections == 1
     # with enough overlap (≈ 0.13), but more sweeps needed than allowed
-    model.visible.θ .= 1.5
+    model = BinaryRBM(fill(1.5, 10), zeros(2), zeros(10, 2))
     @test !RBMs._push_checkpoint!(ladder, model; steps = 1, maxsweeps = 20)
     @test length(ladder.checkpoints) == K
     @test RBMs._push_checkpoint!(ladder, model; steps = 1)
