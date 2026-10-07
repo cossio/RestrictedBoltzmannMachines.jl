@@ -49,6 +49,9 @@ end
 module ptt_tests
     include("ptt.jl")
 end
+module ptt_regressions_tests
+    include("ptt_regressions.jl")
+end
 module zero_weight_training_tests
     include("zero_weight_training.jl")
 end
