@@ -208,7 +208,10 @@ helps if that many Gibbs steps move the chains between the modes of the model. E
 checkpoint is kept in `ladder.checkpoints`, with its log-partition function in
 `ladder.logZ`. The log-partition functions accumulate the errors of the successive
 estimates, from a few hundredths to about a tenth of a nat per checkpoint, so fewer
-checkpoints give more accurate estimates.
+checkpoints give more accurate estimates. Like `log_partition(ladder)`, they normalize
+`exp(-free_energy(ladder.rbm, v))`; for a stdRBM, the free energies of `unstandardize(rbm)`
+differ by a constant, which must be added to the estimates to normalize them (see
+[`log_partition(ladder)`](@ref log_partition(::TrajectoryLadder))).
 
 ## Practical tuning guidelines
 

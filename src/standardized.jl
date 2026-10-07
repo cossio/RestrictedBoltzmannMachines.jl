@@ -83,7 +83,9 @@ _scale_w(rbm::StandardizedRBM) = _along_visible(rbm, rbm.scale_v) .* _along_hidd
 """
     delta_energy(rbm)
 
-The constant energy shift of `rbm` with respect to its equivalent plain `RBM`.
+The constant by which the energies of `rbm` exceed those of its equivalent plain `RBM`,
+`unstandardize(rbm)`, and by which the log-partition function of the latter exceeds that of
+`rbm`. Zero for a plain `RBM`.
 """
 delta_energy(rbm::RBM) = 0
 delta_energy(rbm::StandardizedRBM) = interaction_energy(rbm, Falses(size(rbm.visible)), Falses(size(rbm.hidden)))
@@ -256,7 +258,8 @@ end
 """
     unstandardize(rbm)
 
-Convert a `StandardizedRBM` back to an equivalent plain `RBM`.
+Convert a `StandardizedRBM` back to an equivalent plain `RBM`, whose energies, and hence
+log-partition function, differ from those of `rbm` by a constant.
 Note: this does not enforce zerosum gauge; call `zerosum(unstandardize(rbm))` if needed.
 """
 unstandardize(rbm::StandardizedRBM) = RBM(standardize(rbm))
