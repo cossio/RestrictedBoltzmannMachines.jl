@@ -235,10 +235,8 @@ end
     # each estimate refers to the parametrization of its checkpoint, whose offsets and
     # scales moved along training
     @test log_partition(unstandardize(rbm)) ≈ log_partition(ladder) + delta_energy(rbm) atol = 0.05
-    @test all(isapprox.(
-        ladder.logZ + delta_energy.(ladder.checkpoints),
-        log_partition.(unstandardize.(ladder.checkpoints)); atol = 0.05
-    ))
+    logZ_plain = log_partition.(unstandardize.(ladder.checkpoints))
+    @test all(isapprox.(ladder.logZ + delta_energy.(ladder.checkpoints), logZ_plain; atol = 0.05))
     states = enumerate_states(rbm.visible)
     p = softmax(-free_energy(rbm, states))
     @test total_variation(empirical_distribution(ladder.chains, states), p) < 6tv_noise(p, 500)
