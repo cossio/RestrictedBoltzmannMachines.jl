@@ -7,9 +7,6 @@ similarity between the current and previous gradient is positive (capped at `ηm
 `1 - δ` when it is negative. Each parameter array adapts its own learning rate, starting
 from `η`.
 
-`CossimDescent` is experimental: it is not part of the public API and may change in any
-release.
-
 The rule assumes that the minibatches are drawn independently, as [`ptt!`](@ref) and
 [`pcd!`](@ref) do. The minibatches of an epoch, drawn without replacement, have
 anticorrelated noise, which makes successive gradients anti-aligned more often than not

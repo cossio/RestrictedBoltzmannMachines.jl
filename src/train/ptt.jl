@@ -36,9 +36,6 @@ then running Gibbs sampling. `α` is the swap acceptance between the last checkp
 `rbm` below which a new checkpoint is frozen, and `αmin` the one below which the update is
 rejected.
 
-`TrajectoryLadder` is experimental: it is not part of the public API and may change in any
-release.
-
 `rbm` is an `RBM` or a `StandardizedRBM` (including a `CenteredRBM`), freshly initialized
 by [`initialize!`](@ref). The ladder starts at the independent-site model obtained by
 setting the weights of `rbm` to zero, whose partition function is known, and is extended
@@ -124,8 +121,6 @@ log_likelihood(ladder::TrajectoryLadder, v::AbstractArray) =
 
 Train an `RBM` or a `StandardizedRBM` (including a `CenteredRBM`) with Parallel Trajectory
 Tempering (PTT; Béreux, Decelle, Furtlehner, Seoane, arXiv:2607.27077).
-
-`ptt!` is experimental: it is not part of the public API and may change in any release.
 
 Like [`pcd!`](@ref), but the persistent chains are kept at equilibrium by replica exchange
 with frozen checkpoints of the training trajectory, held by a [`TrajectoryLadder`](@ref).
