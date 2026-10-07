@@ -69,7 +69,7 @@ Construct an RBM with any pair of layer types using `RBM(visible, hidden, weight
 
 ## Key functionality
 
-- **Training**: `pcd!` — Persistent Contrastive Divergence with customizable optimizer (via [Optimisers.jl](https://github.com/FluxML/Optimisers.jl)), regularization (L1, L2 on weights/fields), and callbacks. `ptt!` — equilibrium training by [Parallel Trajectory Tempering](https://arxiv.org/abs/2607.27077), which also estimates the log-likelihood along training.
+- **Training**: `pcd!` — Persistent Contrastive Divergence with customizable optimizer (via [Optimisers.jl](https://github.com/FluxML/Optimisers.jl)), regularization (L1, L2 on weights/fields), and callbacks. `ptt!` (experimental, not yet part of the public API) — equilibrium training by [Parallel Trajectory Tempering](https://arxiv.org/abs/2607.27077), which also estimates the log-likelihood along training.
 - **Sampling**: `sample_v_from_v`, `sample_h_from_v`, `sample_v_from_h` — Gibbs sampling; `metropolis` — Metropolis-Hastings sampling at arbitrary temperature.
 - **Evaluation**: `free_energy`, `log_pseudolikelihood`, `log_likelihood`, `reconstruction_error`.
 - **Partition function**: `log_partition` (exact, for small RBMs), `aise` / `raise` (Annealed Importance Sampling estimates).

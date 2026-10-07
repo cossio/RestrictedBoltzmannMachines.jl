@@ -8,7 +8,7 @@ This page describes how model training works in this package, focusing on:
 
 - [`pcd!`](@ref) for plain `RBM`,
 - [`pcd!`](@ref) for `StandardizedRBM` (stdRBM), including `CenteredRBM`,
-- [`ptt!`](@ref), equilibrium training by Parallel Trajectory Tempering.
+- [`ptt!`](@ref), equilibrium training by Parallel Trajectory Tempering (experimental).
 
 Each trainer has a single training loop: a plain `RBM` is trained as the equivalent stdRBM
 whose offsets and scales are fixed to zero and one, so the extra stdRBM steps below reduce
@@ -142,6 +142,10 @@ To penalize the standardized parameters themselves instead, wrap the regularizer
 `StandardizedParametersRegularizer`; a `CompositeRegularizer` can mix both.
 
 ## [Equilibrium training with `ptt!`](@id ptt_training)
+
+!!! warning "Experimental"
+    `ptt!`, `TrajectoryLadder` and `CossimDescent` are experimental: they are not part of
+    the public API and may change in any release.
 
 On multimodal or scarce data, the persistent chains of [`pcd!`](@ref) can fall out of
 equilibrium (for instance, getting trapped in some of the modes), which biases the

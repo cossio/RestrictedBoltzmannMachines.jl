@@ -96,7 +96,7 @@ public RBM, CenteredRBM, StandardizedRBM
 public Binary, Spin, Potts, Gaussian, ReLU, dReLU, pReLU, xReLU, nsReLU, PottsGumbel
 public BinaryRBM, SpinRBM, GaussianRBM, HopfieldRBM,
     CenteredBinaryRBM, BinaryStandardizedRBM, SpinStandardizedRBM
-public pcd!, ptt!, TrajectoryLadder, CossimDescent, initialize!
+public pcd!, initialize!
 public log_pseudolikelihood, log_partition, log_likelihood, aise, raise
 public energy, free_energy, interaction_energy
 public sample_v_from_h, sample_h_from_v, sample_v_from_v, sample_h_from_h
