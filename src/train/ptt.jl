@@ -164,6 +164,13 @@ equivalent `StandardizedRBM` whose offsets and scales are fixed to zero and one.
 - `batchsize`, `iters`, `wts`, `moments`, `damping`, `ϵv`, `ϵh`,
   `regularization`, `zerosum`, `rescale`, `ps`, `state`: as for [`pcd!`](@ref).
 
+Before returning, `rbm` is frozen as the last checkpoint, so that `ladder.samples` are
+equilibrium samples of the trained model and `log_partition(ladder)` its log-partition
+function; if that is rejected like an update, `rbm` is restored to the last checkpoint.
+Every run thus ends with a checkpoint, which costs some tens of sweeps, so continue training
+in a few long runs rather than many short ones. [`freeze!`](@ref) freezes the model at any
+point of a run, from the callback.
+
 Returns `(state, ps)`.
 """
 function ptt!(rbm::RBM, data::AbstractArray; callback = Returns(nothing), kwargs...)
@@ -217,14 +224,7 @@ function ptt!(
 
         # negative phase first, since a rejected update restores the parameters
         if _ptt_update!(ladder, model; steps) === :rejected
-            ladder.rejections ≤ PTT_MAX_REJECTIONS ||
-                error("PTT lost equilibrium after $PTT_MAX_REJECTIONS consecutive learning rate halvings")
-            _restart_optimiser!(state, ps)
-            halvings += 1
-            halvings == PTT_WARN_HALVINGS && @warn """
-            PTT rejected $halvings updates, so the learning rate is down to 1/$(2^halvings) of its \
-            initial value; training may stall. An optimiser without momentum, such as Descent, may \
-            train better: see "Equilibrium training with ptt!" in the documentation."""
+            halvings = _halve_learning_rate!(ladder, state, ps, halvings)
         end
         ∂m = ∂free_energy(rbm, ladder.chains)
 
@@ -251,7 +251,44 @@ function ptt!(
 
         callback(; rbm, optim, state, ps, iter, vd, wd, ∂, vm = ladder.chains, ladder)
     end
+    #= The chains lag one update behind `rbm`: freeze it as the last checkpoint, so that the
+    ladder holds equilibrium samples of the trained model. Like an update, the freeze is
+    rejected if `rbm` lost overlap with the last checkpoint, which restores `rbm` to it. =#
+    freeze!(ladder; steps) || _halve_learning_rate!(ladder, state, ps, halvings)
     return state, ps
+end
+
+"""
+    freeze!(ladder::TrajectoryLadder; steps = 1)
+
+Freeze the model trained with `ladder` as a new checkpoint, to sample it at equilibrium, as
+[`ptt!`](@ref) does before returning; from its callback, this evaluates the model during a
+run. As along training, the chains of the model are thermalized and collected into a new
+reservoir, with `steps` Gibbs steps per sweep, and its log-partition function is appended to
+`ladder.logZ`.
+
+Returns `true` if the model was frozen: `ladder.samples` are then equilibrium samples of the
+model, and `last(ladder.logZ)`, `ladder.τint` and `ladder.τexp` refer to it. Returns `false`
+if the freeze is rejected, under the rules of a training update (see [`ptt!`](@ref)): the
+model is then restored to the last checkpoint and the chains to its equilibrium samples, as
+at a rejected update, but the optimiser is left as it is.
+"""
+freeze!(ladder::TrajectoryLadder; steps::Int = 1) =
+    _ptt_update!(ladder, ladder.rbm; steps, freeze = true) === :frozen
+
+#= After a rejected update: restarts the optimiser with half the learning rate, warns once
+it has been halved `PTT_WARN_HALVINGS` times, and throws once more than `PTT_MAX_REJECTIONS`
+updates in a row were rejected. Returns the number of halvings so far. =#
+function _halve_learning_rate!(ladder::TrajectoryLadder, state, ps, halvings::Int)
+    ladder.rejections ≤ PTT_MAX_REJECTIONS ||
+        error("PTT lost equilibrium after $PTT_MAX_REJECTIONS consecutive learning rate halvings")
+    _restart_optimiser!(state, ps)
+    halvings += 1
+    halvings == PTT_WARN_HALVINGS && @warn """
+    PTT rejected $halvings updates, so the learning rate is down to 1/$(2^halvings) of its \
+    initial value; training may stall. An optimiser without momentum, such as Descent, may \
+    train better: see "Equilibrium training with ptt!" in the documentation."""
+    return halvings
 end
 
 #= Restarts the optimiser after a rejected update: halves the learning rate of every

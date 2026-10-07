@@ -156,6 +156,7 @@ initialize!(rbm, data)
 ladder = TrajectoryLadder(rbm; nchains = 1000)
 ptt!(rbm, data; ladder, batchsize = 500, iters = 10_000, steps = 10)
 log_likelihood(ladder, data) # with the partition function estimated by the ladder
+ladder.samples # equilibrium samples of the trained model
 ```
 
 The [`TrajectoryLadder`](@ref) holds the checkpoints and the persistent chains:
@@ -212,6 +213,14 @@ checkpoints give more accurate estimates. Like `log_partition(ladder)`, they nor
 `exp(-free_energy(ladder.rbm, v))`; for a stdRBM, the free energies of `unstandardize(rbm)`
 differ by a constant, which must be added to the estimates to normalize them (see
 [`log_partition(ladder)`](@ref log_partition(::TrajectoryLadder))).
+
+Before returning, `ptt!` freezes the trained model as the last checkpoint, so that
+`ladder.samples` are equilibrium samples of the model itself and `log_partition(ladder)` its
+log-partition function; the paper samples its trained models this way. The freeze follows
+the rules of an update: if it is rejected, the model is restored to the last checkpoint and
+the learning rate is halved. Every run thus ends with a checkpoint, so continue training in a
+few long runs rather than many short ones. To evaluate the model during a run, for instance
+for model selection, `freeze!(ladder; steps)` freezes it in the same way from the callback.
 
 ## Practical tuning guidelines
 

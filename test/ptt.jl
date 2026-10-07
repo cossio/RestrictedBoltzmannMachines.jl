@@ -7,7 +7,7 @@ using StatsBase: sample, Weights
 using EllipsisNotation: (..)
 using Optimisers: Adam, ClipGrad, Descent, Nesterov, setup, update!
 using RestrictedBoltzmannMachines: RBM, BinaryRBM, Binary, Spin, Potts, Gaussian,
-    TrajectoryLadder, CossimDescent, ptt!, initialize!, free_energy,
+    TrajectoryLadder, CossimDescent, ptt!, freeze!, initialize!, free_energy,
     log_partition, log_likelihood, collect_states, standardize, StandardizedRBM,
     unstandardize, delta_energy
 
@@ -223,13 +223,18 @@ end
     nfrozen = Ref(0)
     state, ps = ptt!(
         rbm, data; ladder, batchsize = 100, iters = 1000, optim = CossimDescent(0.02, 0.1),
-        callback = (; vm, ladder, kw...) -> begin
+        callback = (; vm, ladder, iter, kw...) -> begin
             @assert kw[:rbm] === rbm && vm === ladder.chains
+            iter == 500 && @test freeze!(ladder) # e.g. to evaluate the model during training
             nfrozen[] = length(ladder.checkpoints)
         end,
     )
-    @test nfrozen[] == length(ladder.checkpoints) > K₀
+    @test nfrozen[] > K₀ + 1 # checkpoints frozen along training, besides the explicit one
+    @test length(ladder.checkpoints) == nfrozen[] + 1 # and the trained model, frozen last
+    @test last(ladder.checkpoints).w == rbm.w
+    @test last(ladder.checkpoints).w !== rbm.w
     @test mean(RBMs.log_likelihood(rbm, data)) > ll₀ + 0.5
+    @test log_partition(ladder) ≈ last(ladder.logZ)
     @test log_partition(ladder) ≈ log_partition(rbm) atol = 0.05
     @test all(isapprox.(ladder.logZ, log_partition.(ladder.checkpoints); atol = 0.05))
     # each estimate refers to the parametrization of its checkpoint, whose offsets and
@@ -240,27 +245,33 @@ end
     states = enumerate_states(rbm.visible)
     p = softmax(-free_energy(rbm, states))
     @test total_variation(empirical_distribution(ladder.chains, states), p) < 6tv_noise(p, 500)
+    @test total_variation(empirical_distribution(ladder.samples, states), p) < 4tv_noise(p, size(ladder.samples)[end])
+    @test ladder.samples_F ≈ free_energy(rbm, ladder.samples)
+    @test ladder.reservoir == ladder.samples
+    @test ladder.chains_F ≈ free_energy(rbm, ladder.chains)
 
     other = BinaryRBM(8, 4)
     @test_throws ArgumentError ptt!(other, data; ladder, batchsize = 100)
     @test_throws ArgumentError ptt!(rbm, data; ladder, batchsize = 100, optim = ClipGrad()) # no learning rate
 end
 
-#= The chains lag behind `model` at the independent-site model `base`, so that the online
-acceptance (≈ 0.61) overestimates the overlap of the two models at equilibrium (≈ 0.054). =#
+#= The chains lag behind the model, moved from the independent-site model it was frozen at,
+so that the online acceptance (≈ 0.61) overestimates the overlap of the two models at
+equilibrium (≈ 0.054). =#
 @testset "PTT rejects checkpoints that do not equilibrate" begin
-    base = BinaryRBM(zeros(10), zeros(2), zeros(10, 2))
-    ladder = TrajectoryLadder(base; nchains = 1000)
+    rbm = BinaryRBM(zeros(10), zeros(2), zeros(10, 2))
+    ladder = TrajectoryLadder(rbm; nchains = 1000)
     K = length(ladder.checkpoints)
-    model = BinaryRBM(fill(2.0, 10), zeros(2), zeros(10, 2))
-    ladder.chains_F .= free_energy(model, ladder.chains) # as if they sampled `model`
-    @test RBMs._ptt_update!(ladder, model; steps = 1, freeze = true) === :rejected
+    rbm.visible.θ .= 2
+    ladder.chains_F .= free_energy(rbm, ladder.chains) # as if they sampled the moved model
+    @test !freeze!(ladder)
     @test ladder.acceptance > 0.5
     @test length(ladder.checkpoints) == K
-    @test iszero(model.visible.θ) # restored to the last checkpoint
+    @test iszero(rbm.visible.θ) # restored to the last checkpoint
     @test ladder.reservoir == ladder.samples
+    @test ladder.rejections == 1
     # with enough overlap (≈ 0.13), but more sweeps needed than allowed
-    model.visible.θ .= 1.5
+    model = BinaryRBM(fill(1.5, 10), zeros(2), zeros(10, 2))
     @test !RBMs._push_checkpoint!(ladder, model; steps = 1, maxsweeps = 20)
     @test length(ladder.checkpoints) == K
     @test RBMs._push_checkpoint!(ladder, model; steps = 1)
