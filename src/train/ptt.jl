@@ -42,9 +42,9 @@ setting the weights of `rbm` to zero, whose partition function is known, and is 
 along `anneal` steps scaling the weights up to those of `rbm`, which becomes the last
 checkpoint. `steps` are the Gibbs steps per sweep used meanwhile.
 
-The checkpoints and their log-partition functions, each in the parametrization of its
-checkpoint (see [`log_partition(ladder)`](@ref log_partition(::TrajectoryLadder))), are
-kept in `ladder.checkpoints` and `ladder.logZ`, the persistent chains in `ladder.chains`,
+The checkpoints and their log-partition functions, each in its own parametrization (see
+[`log_partition(ladder)`](@ref log_partition(::TrajectoryLadder))), are kept in
+`ladder.checkpoints` and `ladder.logZ`, the persistent chains in `ladder.chains`,
 equilibrium samples of the last checkpoint in `ladder.samples`, and the last swap
 acceptance in `ladder.acceptance`. As
 diagnostics of the thermalization of the last checkpoint, `ladder.τint` and `ladder.τexp`
@@ -101,14 +101,13 @@ acceptance ratio between equilibrium samples of the last checkpoint and the chai
 model. The chains are reweighted from the model they were last sampled from (before the
 last parameter update) to the current one.
 
-Like `ladder.logZ`, the estimate refers to the model in its own parametrization: it
-normalizes `exp(-free_energy(ladder.rbm, v))`, which is what
+Like `ladder.logZ`, the estimate normalizes `exp(-free_energy(ladder.rbm, v))`, as
 [`log_likelihood(ladder, v)`](@ref log_likelihood(::TrajectoryLadder, ::AbstractArray))
-uses. For a `StandardizedRBM` (including a `CenteredRBM`), the equivalent plain `RBM`,
-`unstandardize(ladder.rbm)`, has the same distribution but energies shifted by a constant,
-so its log-partition function is `log_partition(ladder) + delta_energy(ladder.rbm)` (see
-[`delta_energy`](@ref)); pairing its free energies with `log_partition(ladder)` instead
-would shift every log-likelihood by that constant.
+does. For a `StandardizedRBM`, the free energies of the equivalent plain `RBM`,
+`unstandardize(ladder.rbm)`, differ by a constant, so its log-partition function is
+`log_partition(ladder) + c` with
+`c = free_energy(ladder.rbm, v) - free_energy(unstandardize(ladder.rbm), v)`, the same for
+every `v`.
 """
 function log_partition(ladder::TrajectoryLadder)
     (; rbm, chains, chains_F, samples, samples_F) = ladder

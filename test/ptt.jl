@@ -180,7 +180,7 @@ end
     @test first(ladder.logZ) ≈ log_partition(first(ladder.checkpoints))
     @test all(isapprox.(ladder.logZ, log_partition.(ladder.checkpoints); atol = 0.05))
     @test log_partition(ladder) ≈ log_partition(model) atol = 0.05
-    # the estimate refers to the parametrization of `model`; `delta_energy` converts it
+    # the estimate refers to the parametrization of `model`
     @test log_partition(unstandardize(model)) ≈ log_partition(ladder) + delta_energy(model) atol = 0.05
     states = enumerate_states(model.visible)
     @test maximum(abs, log_likelihood(ladder, states) - RBMs.log_likelihood(model, states)) < 0.05
@@ -233,7 +233,7 @@ end
     @test log_partition(ladder) ≈ log_partition(rbm) atol = 0.05
     @test all(isapprox.(ladder.logZ, log_partition.(ladder.checkpoints); atol = 0.05))
     # each estimate refers to the parametrization of its checkpoint, whose offsets and
-    # scales moved along training; `delta_energy` converts them to the plain models'
+    # scales moved along training
     @test log_partition(unstandardize(rbm)) ≈ log_partition(ladder) + delta_energy(rbm) atol = 0.05
     @test all(isapprox.(
         ladder.logZ + delta_energy.(ladder.checkpoints),

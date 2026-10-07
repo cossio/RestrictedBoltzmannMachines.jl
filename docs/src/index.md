@@ -42,9 +42,7 @@ So both models represent exactly the same ``P(\mathbf{v},\mathbf{h})``. In pract
 
 - use `standardize(rbm)` to introduce offsets/scales, or `standardize(rbm, offset_v, offset_h)` to change the offsets only,
 - update them with `standardize_visible_from_data!` and `standardize_hidden_from_v!`,
-- use `unstandardize(rbm)` to recover an equivalent plain `RBM`; its energies are those of
-  `rbm` minus the constant `delta_energy(rbm)`, and its log-partition function is that of
-  `rbm` plus the same constant.
+- use `unstandardize(rbm)` to recover an equivalent plain `RBM`.
 
 A `CenteredRBM` is the special case with scales fixed to one.
 
