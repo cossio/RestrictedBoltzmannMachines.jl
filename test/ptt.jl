@@ -2,7 +2,7 @@ import Random
 import RestrictedBoltzmannMachines as RBMs
 using Test: @test, @testset, @test_logs, @test_throws
 using Statistics: mean
-using LogExpFunctions: softmax
+using LogExpFunctions: logsumexp, softmax
 using StatsBase: sample, Weights
 using EllipsisNotation: (..)
 using Optimisers: Adam, ClipGrad, Descent, Nesterov, setup, update!
@@ -296,4 +296,108 @@ end
     @test_logs (:warn, r"rejected 10 updates") match_mode = :any ptt!(
         rbm, data; ladder, batchsize = 100, iters = 100, optim = Descent(1.0e4)
     )
+end
+
+#= The ladder level of a chain whose exchanges are accepted independently with probability
+p, at every sweep, is a two-state Markov chain with autocorrelation (1 - 2p)^t, so that
+τint = (1 - p) / 2p and τexp = -1 / log(1 - 2p). With p = 1/2 the level is uncorrelated. =#
+@testset "autocorrelation times of the ladder level, p = $p" for p in (0.05, 0.2)
+    τint, τexp = RBMs._autocorrelation_times(rand(1000, 1000) .< p)
+    @test τint ≈ (1 - p) / 2p rtol = 0.1
+    @test τexp ≈ -1 / log(1 - 2p) rtol = 0.1
+end
+
+@testset "autocorrelation times of an uncorrelated ladder level" begin
+    τint, τexp = RBMs._autocorrelation_times(rand(1000, 1000) .< 0.5)
+    @test τint ≈ 0.5 atol = 0.01
+    @test τexp == 0
+end
+
+# exchanging the roles of the two models changes the sign of Bennett's estimate
+@testset "Bennett acceptance ratio is antisymmetric" begin
+    W₀, W₁ = randn(100) .+ 1, randn(37) .- 0.5
+    @test RBMs._bennett(W₁, W₀) ≈ -RBMs._bennett(W₀, W₁)
+end
+
+#= After a parameter update, the chains still sample the previous model, `prev`, so that
+`log_partition(ladder)` must reweight them to the current one. Here the chains are exact
+samples of `prev`, and the last checkpoint `base` has its exact log-partition function. =#
+@testset "log_partition(ladder) reweights lagging chains" begin
+    base = BinaryRBM(zeros(8), zeros(2), fill(0.3, 8, 2))
+    prev = BinaryRBM(zeros(8), zeros(2), fill(0.6, 8, 2))
+    model = BinaryRBM(fill(-1.0, 8), zeros(2), fill(0.6, 8, 2))
+    states = enumerate_states(model.visible)
+    chains = exact_samples(states, softmax(-free_energy(prev, states)), 10_000)
+    samples = exact_samples(states, softmax(-free_energy(base, states)), 10_000)
+    ladder = TrajectoryLadder(;
+        rbm = model, checkpoints = [base], logZ = [log_partition(base)], chains, chains_F = free_energy(prev, chains),
+        samples, samples_F = free_energy(base, samples), sweeps = 1, α = 0.0, αmin = 0.0
+    )
+    @test log_partition(ladder) ≈ log_partition(model) atol = 0.05
+    # without reweighting (as if the chains sampled `model`), the estimate is off by ≈ 0.35
+    ladder.chains_F .= free_energy(model, chains)
+    @test abs(log_partition(ladder) - log_partition(model)) > 0.2
+end
+
+#= A rejected update restores every parameter of a StandardizedRBM, including the offsets
+and scales that training also moves, into arrays of its own, and redraws the chains from
+the equilibrium samples of the last checkpoint. =#
+@testset "PTT rejection restores the last checkpoint" begin
+    model = standardize(BinaryRBM(randn(6) / 2, randn(3) / 2, randn(6, 3)), rand(6), rand(3), 0.5 .+ rand(6), 0.5 .+ rand(3))
+    ladder = TrajectoryLadder(model; nchains = 100, nreservoir = 1000)
+    checkpoint = deepcopy(last(ladder.checkpoints))
+    model.w .= 2
+    model.visible.θ .= 4
+    model.hidden.θ .= -1
+    model.offset_v .= rand(6)
+    model.offset_h .= rand(3)
+    model.scale_v .= 2
+    model.scale_h .= 3
+    ladder.reservoir .= 0 # as if moved by exchanges
+    ladder.since_checkpoint = 5
+    @test RBMs._reject!(ladder, model) === :rejected
+    @test model.visible.par == checkpoint.visible.par
+    @test model.hidden.par == checkpoint.hidden.par
+    @test all(f -> getfield(model, f) == getfield(checkpoint, f), (:w, :offset_v, :offset_h, :scale_v, :scale_h))
+    @test model.w !== last(ladder.checkpoints).w # copied, not aliased
+    @test ladder.reservoir == ladder.samples
+    @test ladder.reservoir_F == ladder.samples_F
+    @test ladder.chains_F ≈ free_energy(model, ladder.chains)
+    @test ladder.since_checkpoint == 0
+    @test ladder.rejections == 1
+    RBMs._reject!(ladder, model)
+    @test ladder.rejections == 2 # consecutive rejections accumulate
+end
+
+# `n` samples of two noisy modes of `N` Potts sites with `q` colors, with weights 0.7 and 0.3
+function potts_two_modes(q::Int, N::Int, n::Int)
+    ξ = rand(1:q, N)
+    data = falses(q, N, n)
+    for s in 1:n
+        colors = rand() < 0.7 ? ξ : mod1.(ξ .+ 1, q)
+        colors = ifelse.(rand(N) .< 0.1, rand(1:q, N), colors)
+        for (site, color) in enumerate(colors)
+            data[color, site, s] = true
+        end
+    end
+    return data
+end
+
+# with a Potts visible layer, the zero-sum gauge fixing moves the parameters after each update
+@testset "ptt! of a Potts RBM" begin
+    data = potts_two_modes(3, 5, 1000)
+    rbm = RBM(Potts(; θ = zeros(3, 5)), Binary(; θ = zeros(3)), zeros(3, 5, 3))
+    initialize!(rbm, data)
+    states = enumerate_states(rbm.visible)
+    exact_log_partition(model) = logsumexp(-free_energy(model, states))
+    ll₀ = mean(-free_energy(rbm, data)) - exact_log_partition(rbm)
+    ladder = TrajectoryLadder(rbm; nchains = 500, α = 0.8) # frequent checkpoints
+    K₀ = length(ladder.checkpoints)
+    ptt!(rbm, data; ladder, batchsize = 100, iters = 1000, optim = CossimDescent(0.02, 0.1))
+    @test length(ladder.checkpoints) > K₀
+    @test mean(log_likelihood(ladder, data)) > ll₀ + 0.5
+    @test log_partition(ladder) ≈ exact_log_partition(rbm) atol = 0.05
+    @test all(isapprox.(ladder.logZ, exact_log_partition.(ladder.checkpoints); atol = 0.05))
+    p = softmax(-free_energy(rbm, states))
+    @test total_variation(empirical_distribution(ladder.chains, states), p) < 6tv_noise(p, 500)
 end
