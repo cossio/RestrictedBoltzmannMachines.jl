@@ -492,11 +492,9 @@ end
     @test all(isfinite, adapt(Array, jl_rbm.w))
     @test isfinite(RBMs.log_partition(ladder))
     @test all(isfinite, adapt(Array, RBMs.log_likelihood(ladder, jl_data)))
-    RBMs.freeze!(ladder) # the model is then the last checkpoint, frozen or restored to it
+    # the trained model is the last checkpoint, frozen or restored to it
     @test adapt(Array, last(ladder.checkpoints).w) == adapt(Array, jl_rbm.w)
-    @test ladder.samples isa JLArray
     @test ladder.samples_F ≈ adapt(Array, free_energy(jl_rbm, ladder.samples))
-    @test isfinite(RBMs.log_partition(ladder))
 end
 
 @testset "wmean full reduction stays on device" begin

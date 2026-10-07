@@ -47,9 +47,8 @@ The checkpoints and their log-partition functions are kept in `ladder.checkpoint
 checkpoint in `ladder.samples`, and the last swap acceptance in `ladder.acceptance`. As
 diagnostics of the thermalization of the last checkpoint, `ladder.τint` and `ladder.τexp`
 hold the integrated and exponential autocorrelation times, in sweeps, of the ladder level
-of its chains. See also [`log_partition(ladder)`](@ref log_partition(::TrajectoryLadder)),
-[`log_likelihood(ladder, v)`](@ref log_likelihood(::TrajectoryLadder, ::AbstractArray)), and
-[`freeze!`](@ref), which freezes `rbm` as a checkpoint to sample it at equilibrium.
+of its chains. See also [`log_partition(ladder)`](@ref log_partition(::TrajectoryLadder))
+and [`log_likelihood(ladder, v)`](@ref log_likelihood(::TrajectoryLadder, ::AbstractArray)).
 """
 Base.@kwdef mutable struct TrajectoryLadder{M, A <: AbstractArray}
     const rbm::M # model being trained (not a copy)
@@ -155,9 +154,14 @@ equivalent `StandardizedRBM` whose offsets and scales are fixed to zero and one.
 - `batchsize`, `iters`, `wts`, `moments`, `damping`, `ϵv`, `ϵh`,
   `regularization`, `zerosum`, `rescale`, `ps`, `state`: as for [`pcd!`](@ref).
 
-Returns `(state, ps)`. The ladder then lags behind `rbm`: `ladder.samples` are equilibrium
-samples of the last checkpoint, and `ladder.chains` sample the model before its last update.
-[`freeze!`](@ref) freezes the trained `rbm` as a checkpoint, to sample it at equilibrium.
+Before returning, `rbm` is frozen as the last checkpoint, so that `ladder.samples` are
+equilibrium samples of the trained model and `log_partition(ladder)` its log-partition
+function; if that is rejected like an update, `rbm` is restored to the last checkpoint.
+Every run thus ends with a checkpoint, which costs some tens of sweeps, so continue training
+in a few long runs rather than many short ones. [`freeze!`](@ref) freezes the model at any
+point of a run, from the callback.
+
+Returns `(state, ps)`.
 """
 function ptt!(rbm::RBM, data::AbstractArray; callback = Returns(nothing), kwargs...)
     std_rbm = PlainStandardizedRBM(rbm) # shares the layers and weights of `rbm`
@@ -210,14 +214,7 @@ function ptt!(
 
         # negative phase first, since a rejected update restores the parameters
         if _ptt_update!(ladder, model; steps) === :rejected
-            ladder.rejections ≤ PTT_MAX_REJECTIONS ||
-                error("PTT lost equilibrium after $PTT_MAX_REJECTIONS consecutive learning rate halvings")
-            _restart_optimiser!(state, ps)
-            halvings += 1
-            halvings == PTT_WARN_HALVINGS && @warn """
-            PTT rejected $halvings updates, so the learning rate is down to 1/$(2^halvings) of its \
-            initial value; training may stall. An optimiser without momentum, such as Descent, may \
-            train better: see "Equilibrium training with ptt!" in the documentation."""
+            halvings = _halve_learning_rate!(ladder, state, ps, halvings)
         end
         ∂m = ∂free_energy(rbm, ladder.chains)
 
@@ -244,27 +241,45 @@ function ptt!(
 
         callback(; rbm, optim, state, ps, iter, vd, wd, ∂, vm = ladder.chains, ladder)
     end
+    #= The chains lag one update behind `rbm`: freeze it as the last checkpoint, so that the
+    ladder holds equilibrium samples of the trained model. Like an update, the freeze is
+    rejected if `rbm` lost overlap with the last checkpoint, which restores `rbm` to it. =#
+    freeze!(ladder; steps) || _halve_learning_rate!(ladder, state, ps, halvings)
     return state, ps
 end
 
 """
     freeze!(ladder::TrajectoryLadder; steps = 1)
 
-Freeze the model trained with `ladder` as a new checkpoint, to sample it at equilibrium:
-after [`ptt!`](@ref), the ladder only holds equilibrium samples of the last checkpoint, which
-the model moved away from. As for the checkpoints frozen by `ptt!`, the chains of the model
-are thermalized and collected into a new reservoir, with `steps` Gibbs steps per sweep, and
-its log-partition function is appended to `ladder.logZ`.
+Freeze the model trained with `ladder` as a new checkpoint, to sample it at equilibrium, as
+[`ptt!`](@ref) does before returning; from its callback, this evaluates the model during a
+run. As along training, the chains of the model are thermalized and collected into a new
+reservoir, with `steps` Gibbs steps per sweep, and its log-partition function is appended to
+`ladder.logZ`.
 
 Returns `true` if the model was frozen: `ladder.samples` are then equilibrium samples of the
 model, and `last(ladder.logZ)`, `ladder.τint` and `ladder.τexp` refer to it. Returns `false`
-if the model lost overlap with the last checkpoint (their swap acceptance is below
-`ladder.αmin`, before or after thermalizing the chains): the model is then restored to the
-last checkpoint, and the chains to its equilibrium samples, as at a rejected update of
-`ptt!`.
+if the freeze is rejected, under the rules of a training update (see [`ptt!`](@ref)): the
+model is then restored to the last checkpoint and the chains to its equilibrium samples, as
+at a rejected update, but the optimiser is left as it is.
 """
 freeze!(ladder::TrajectoryLadder; steps::Int = 1) =
     _ptt_update!(ladder, ladder.rbm; steps, freeze = true) === :frozen
+
+#= After a rejected update: restarts the optimiser with half the learning rate, warns once
+it has been halved `PTT_WARN_HALVINGS` times, and throws once more than `PTT_MAX_REJECTIONS`
+updates in a row were rejected. Returns the number of halvings so far. =#
+function _halve_learning_rate!(ladder::TrajectoryLadder, state, ps, halvings::Int)
+    ladder.rejections ≤ PTT_MAX_REJECTIONS ||
+        error("PTT lost equilibrium after $PTT_MAX_REJECTIONS consecutive learning rate halvings")
+    _restart_optimiser!(state, ps)
+    halvings += 1
+    halvings == PTT_WARN_HALVINGS && @warn """
+    PTT rejected $halvings updates, so the learning rate is down to 1/$(2^halvings) of its \
+    initial value; training may stall. An optimiser without momentum, such as Descent, may \
+    train better: see "Equilibrium training with ptt!" in the documentation."""
+    return halvings
+end
 
 #= Restarts the optimiser after a rejected update: halves the learning rate of every
 parameter array in the optimiser state tree of the parameters `ps`, and discards the memory
@@ -310,16 +325,10 @@ function _ptt_update!(ladder::TrajectoryLadder, model; steps::Int, freeze::Bool 
     return status
 end
 
-#= Outcome of an update, from the acceptance just measured: `:accepted` while it stays at
-least `α`, `:frozen` once it falls below `α` but not below `αmin`, and `:rejected` otherwise.
-An acceptance below `α` within two updates of the last checkpoint rejects the update instead
-of freezing a checkpoint every other update, so that the learning rate is halved. With
-`freeze`, `model` is frozen whenever the acceptance is at least `αmin`. =#
 function _ptt_status(ladder::TrajectoryLadder; freeze::Bool = false)
-    ladder.acceptance ≥ ladder.αmin || return :rejected
-    freeze && return :frozen
-    ladder.acceptance ≥ ladder.α && return :accepted
-    return ladder.since_checkpoint > 1 ? :frozen : :rejected
+    ladder.acceptance ≥ ladder.α && return freeze ? :frozen : :accepted
+    ladder.acceptance ≥ ladder.αmin && ladder.since_checkpoint > 1 && return :frozen
+    return :rejected
 end
 
 # exchanges the chains with the reservoir, then runs Gibbs sampling; returns the accepted swaps

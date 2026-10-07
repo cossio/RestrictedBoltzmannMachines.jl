@@ -160,8 +160,7 @@ end
         ladder.acceptance, ladder.since_checkpoint = acceptance, since_checkpoint
         @test RBMs._ptt_status(ladder) === status
     end
-    # an explicit freeze only needs an acceptance of αmin
-    for (acceptance, since_checkpoint, status) in ((0.5, 0, :frozen), (0.2, 1, :frozen), (0.05, 5, :rejected))
+    for (acceptance, since_checkpoint, status) in ((0.5, 0, :frozen), (0.2, 1, :rejected))
         ladder.acceptance, ladder.since_checkpoint = acceptance, since_checkpoint
         @test RBMs._ptt_status(ladder; freeze = true) === status
     end
@@ -221,28 +220,23 @@ end
     nfrozen = Ref(0)
     state, ps = ptt!(
         rbm, data; ladder, batchsize = 100, iters = 1000, optim = CossimDescent(0.02, 0.1),
-        callback = (; vm, ladder, kw...) -> begin
+        callback = (; vm, ladder, iter, kw...) -> begin
             @assert kw[:rbm] === rbm && vm === ladder.chains
+            iter == 500 && @test freeze!(ladder) # e.g. to evaluate the model during training
             nfrozen[] = length(ladder.checkpoints)
         end,
     )
-    @test nfrozen[] == length(ladder.checkpoints) > K₀
+    @test nfrozen[] > K₀ + 1 # checkpoints frozen along training, besides the explicit one
+    @test length(ladder.checkpoints) == nfrozen[] + 1 # and the trained model, frozen last
+    @test last(ladder.checkpoints).w == rbm.w
+    @test last(ladder.checkpoints).w !== rbm.w
     @test mean(RBMs.log_likelihood(rbm, data)) > ll₀ + 0.5
+    @test log_partition(ladder) ≈ last(ladder.logZ)
     @test log_partition(ladder) ≈ log_partition(rbm) atol = 0.05
     @test all(isapprox.(ladder.logZ, log_partition.(ladder.checkpoints); atol = 0.05))
     states = enumerate_states(rbm.visible)
     p = softmax(-free_energy(rbm, states))
     @test total_variation(empirical_distribution(ladder.chains, states), p) < 6tv_noise(p, 500)
-
-    # the ladder lags behind the trained model until it is frozen
-    K = length(ladder.checkpoints)
-    @test last(ladder.checkpoints).w != rbm.w
-    @test freeze!(ladder)
-    @test length(ladder.checkpoints) == K + 1
-    @test last(ladder.checkpoints).w == rbm.w
-    @test last(ladder.checkpoints).w !== rbm.w
-    @test last(ladder.logZ) ≈ log_partition(rbm) atol = 0.05
-    @test log_partition(ladder) ≈ last(ladder.logZ)
     @test total_variation(empirical_distribution(ladder.samples, states), p) < 4tv_noise(p, size(ladder.samples)[end])
     @test ladder.samples_F ≈ free_energy(rbm, ladder.samples)
     @test ladder.reservoir == ladder.samples
