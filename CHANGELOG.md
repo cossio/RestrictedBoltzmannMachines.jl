@@ -12,6 +12,11 @@ All notable changes to this project will be documented in this file. The format 
   `log_likelihood(ladder, v)`. Adds the `CossimDescent` optimiser rule used in the paper,
   whose learning rate adapts to the alignment of successive gradients. LogStatFunctions is
   a new dependency.
+- `delta_energy(rbm)` is now public: the constant by which the energies of a
+  `StandardizedRBM` exceed those of its equivalent plain `RBM`, `unstandardize(rbm)`, and
+  by which the log-partition function of the plain model exceeds that of `rbm`. It
+  converts the estimates of a `TrajectoryLadder`, `log_partition(ladder)` and
+  `ladder.logZ`, which refer to the model's own parametrization, to the plain model's.
 - **Breaking**: `pcd!` draws each minibatch as an independent uniformly random subset of
   the data (without replacement within the minibatch) instead of cycling through a fresh
   permutation of the data per epoch. Its `shuffle` keyword and the `infinite_minibatches`

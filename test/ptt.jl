@@ -8,7 +8,8 @@ using EllipsisNotation: (..)
 using Optimisers: Adam, ClipGrad, Descent, Nesterov, setup, update!
 using RestrictedBoltzmannMachines: RBM, BinaryRBM, Binary, Spin, Potts, Gaussian,
     TrajectoryLadder, CossimDescent, ptt!, initialize!, free_energy,
-    log_partition, log_likelihood, collect_states, standardize, StandardizedRBM
+    log_partition, log_likelihood, collect_states, standardize, StandardizedRBM,
+    unstandardize, delta_energy
 
 Random.seed!(41)
 
@@ -179,6 +180,8 @@ end
     @test first(ladder.logZ) ≈ log_partition(first(ladder.checkpoints))
     @test all(isapprox.(ladder.logZ, log_partition.(ladder.checkpoints); atol = 0.05))
     @test log_partition(ladder) ≈ log_partition(model) atol = 0.05
+    # the estimate refers to the parametrization of `model`; `delta_energy` converts it
+    @test log_partition(unstandardize(model)) ≈ log_partition(ladder) + delta_energy(model) atol = 0.05
     states = enumerate_states(model.visible)
     @test maximum(abs, log_likelihood(ladder, states) - RBMs.log_likelihood(model, states)) < 0.05
     p = softmax(-free_energy(model, states))
@@ -229,6 +232,13 @@ end
     @test mean(RBMs.log_likelihood(rbm, data)) > ll₀ + 0.5
     @test log_partition(ladder) ≈ log_partition(rbm) atol = 0.05
     @test all(isapprox.(ladder.logZ, log_partition.(ladder.checkpoints); atol = 0.05))
+    # each estimate refers to the parametrization of its checkpoint, whose offsets and
+    # scales moved along training; `delta_energy` converts them to the plain models'
+    @test log_partition(unstandardize(rbm)) ≈ log_partition(ladder) + delta_energy(rbm) atol = 0.05
+    @test all(isapprox.(
+        ladder.logZ + delta_energy.(ladder.checkpoints),
+        log_partition.(unstandardize.(ladder.checkpoints)); atol = 0.05
+    ))
     states = enumerate_states(rbm.visible)
     p = softmax(-free_energy(rbm, states))
     @test total_variation(empirical_distribution(ladder.chains, states), p) < 6tv_noise(p, 500)

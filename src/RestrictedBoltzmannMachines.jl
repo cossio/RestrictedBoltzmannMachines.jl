@@ -103,7 +103,7 @@ public sample_v_from_h, sample_h_from_v, sample_v_from_v, sample_h_from_h
 public mean_h_from_v, mean_v_from_h, var_h_from_v, var_v_from_h, mode_h_from_v, mode_v_from_h
 public inputs_h_from_v, inputs_v_from_h
 public metropolis, metropolis!, cold_metropolis
-public standardize, standardize!, unstandardize
+public standardize, standardize!, unstandardize, delta_energy
 public mirror, zerosum, zerosum!
 public cpu, gpu, save_rbm, load_rbm
 public ∂free_energy, ∂regularize!, sample_from_inputs, moments_from_samples

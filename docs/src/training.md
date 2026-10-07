@@ -210,6 +210,16 @@ checkpoint is kept in `ladder.checkpoints`, with its log-partition function in
 estimates, from a few hundredths to about a tenth of a nat per checkpoint, so fewer
 checkpoints give more accurate estimates.
 
+These log-partition functions, `ladder.logZ` and `log_partition(ladder)`, refer to the
+models in their own parametrization: they normalize `exp(-free_energy(ladder.rbm, v))`,
+which is what `log_likelihood(ladder, v)` uses. For a stdRBM, the equivalent plain `RBM`,
+`unstandardize(rbm)`, has the same distribution but energies shifted by the constant
+[`delta_energy`](@ref)`(rbm)`, so its log-partition function is
+`log_partition(ladder) + delta_energy(rbm)`. Use it when evaluating the trained model as a
+plain `RBM`, for instance after saving it as one: pairing the free energies of
+`unstandardize(rbm)` with `log_partition(ladder)` would shift every log-likelihood by that
+constant.
+
 ## Practical tuning guidelines
 
 - Start with `steps=1`; increase only if fantasy chains mix too slowly.

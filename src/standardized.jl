@@ -83,7 +83,16 @@ _scale_w(rbm::StandardizedRBM) = _along_visible(rbm, rbm.scale_v) .* _along_hidd
 """
     delta_energy(rbm)
 
-The constant energy shift of `rbm` with respect to its equivalent plain `RBM`.
+Constant by which the energies of a `StandardizedRBM` `rbm` exceed those of its equivalent
+plain `RBM`, [`unstandardize(rbm)`](@ref unstandardize), which has the same distribution:
+
+    energy(rbm, v, h) ≈ energy(unstandardize(rbm), v, h) + delta_energy(rbm)
+    free_energy(rbm, v) ≈ free_energy(unstandardize(rbm), v) + delta_energy(rbm)
+    log_partition(unstandardize(rbm)) ≈ log_partition(rbm) + delta_energy(rbm)
+
+The last relation converts a log-partition function of `rbm`, such as the estimate
+[`log_partition(ladder)`](@ref log_partition(::TrajectoryLadder)) of a
+[`TrajectoryLadder`](@ref), into that of the plain model. Zero for a plain `RBM`.
 """
 delta_energy(rbm::RBM) = 0
 delta_energy(rbm::StandardizedRBM) = interaction_energy(rbm, Falses(size(rbm.visible)), Falses(size(rbm.hidden)))
@@ -256,7 +265,9 @@ end
 """
     unstandardize(rbm)
 
-Convert a `StandardizedRBM` back to an equivalent plain `RBM`.
+Convert a `StandardizedRBM` back to an equivalent plain `RBM`. Its energies are those of
+`rbm` minus the constant [`delta_energy(rbm)`](@ref delta_energy), so its log-partition
+function is `log_partition(rbm) + delta_energy(rbm)`.
 Note: this does not enforce zerosum gauge; call `zerosum(unstandardize(rbm))` if needed.
 """
 unstandardize(rbm::StandardizedRBM) = RBM(standardize(rbm))
@@ -287,7 +298,8 @@ end
 
 Constructs a `StandardizedRBM` equivalent to the given `rbm` (a plain `RBM` or another
 `StandardizedRBM`), with the given offsets and scales. The energies assigned by the two
-models differ by a constant amount, so the modeled distribution is unchanged.
+models differ by a constant amount (see [`delta_energy`](@ref)), so the modeled
+distribution is unchanged.
 
 Omitted offsets are zero. Omitted scales are one, except that the three-argument form
 keeps the scales of `rbm`: those of a `StandardizedRBM`, or unit scales for a plain `RBM`,

@@ -75,6 +75,13 @@ end
     @test iszero(delta_energy(standardize(std_rbm)))
     @test delta_energy(rbm) isa Real
     @test delta_energy(std_rbm) isa Real
+    # the energies of the two parametrizations differ by the constant, and so do their
+    # log-partition functions, with the opposite sign
+    v = bitrand(3, 10)
+    for model in (std_rbm, standardize(rbm, randn(3), randn(2))) # standardized, centered
+        @test free_energy(model, v) ≈ free_energy(unstandardize(model), v) .+ delta_energy(model)
+        @test log_partition(unstandardize(model)) ≈ log_partition(model) + delta_energy(model)
+    end
 end
 
 @testset "standardize!" begin
