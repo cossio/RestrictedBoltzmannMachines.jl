@@ -85,7 +85,7 @@ function rescale_hidden!(rbm::CenteredRBM, λ::AbstractArray)
     @assert size(rbm.hidden) == size(λ)
     if rescale_activations!(rbm.hidden, λ)
         rbm.w .*= _along_hidden(rbm, λ)
-        _maybe_div!(rbm.offset_h, λ)
+        rbm.offset_h ./= λ
         return true
     end
     return false
@@ -116,6 +116,11 @@ standardize_hidden_from_v!(rbm::PlainStandardizedRBM, v::AbstractArray; kwargs..
 unstandardize(rbm::PlainStandardizedRBM) = RBM(rbm)
 free_energy(rbm::PlainStandardizedRBM, v::AbstractArray) = free_energy(RBM(rbm), v)
 free_energy_h(rbm::PlainStandardizedRBM, h::AbstractArray) = free_energy_h(RBM(rbm), h)
+
+# The offsets are fixed to zero, so rescaling the hidden units moves only the layer and the
+# weights, shared with the plain RBM (dividing the lazy zero offsets would also fail on GPU
+# arrays, which cannot write into them).
+rescale_hidden!(rbm::PlainStandardizedRBM, λ::AbstractArray) = rescale_hidden!(RBM(rbm), λ)
 
 # standardized and unstandardized parameters coincide
 _∂regularize_unstandardized!(∂::∂RBM, rbm::PlainStandardizedRBM, reg::AbstractRegularizer) =
