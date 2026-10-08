@@ -295,6 +295,14 @@ end
             ReLU(; θ = randn(2), γ = 1 .+ rand(2)),
             copy(w),
         ),
+        # a plain RBM as pcd! and ptt! train it: lazy zero offsets, which cannot be written
+        RBMs.PlainStandardizedRBM(
+            RBM(
+                Binary(; θ = randn(2)),
+                ReLU(; θ = randn(2), γ = 1 .+ rand(2)),
+                copy(w),
+            )
+        ),
         CenteredRBM(
             Binary(; θ = randn(2)),
             ReLU(; θ = randn(2), γ = 1 .+ rand(2)),
@@ -479,8 +487,8 @@ end
     @test all(isfinite, adapt(Array, R))
 end
 
-@testset "ptt! with $(nameof(typeof(visible))) visible layer, standardized = $standardized" for visible in (Binary(; θ = randn(N...)), PottsGumbel(; θ = randn(Q, N...))), standardized in (false, true)
-    rbm = RBM(visible, Binary(; θ = randn(2)), randn(size(visible)..., 2) / 3)
+@testset "ptt! with $(nameof(typeof(visible))) visible and $(nameof(typeof(hidden))) hidden layers, standardized = $standardized" for visible in (Binary(; θ = randn(N...)), PottsGumbel(; θ = randn(Q, N...))), hidden in (Binary(; θ = randn(2)), xReLU(; θ = randn(2), γ = 1 .+ rand(2), Δ = randn(2), ξ = randn(2))), standardized in (false, true)
+    rbm = RBM(visible, hidden, randn(size(visible)..., 2) / 3)
     data = sample_from_inputs(rbm.visible, zeros(size(rbm.visible)..., 64))
     standardized && (rbm = StandardizedRBM(rbm))
     jl_rbm = adapt(JLArray, rbm)
