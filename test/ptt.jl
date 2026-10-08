@@ -6,10 +6,11 @@ using LogExpFunctions: logsumexp, softmax
 using StatsBase: sample, Weights
 using EllipsisNotation: (..)
 using Optimisers: Adam, ClipGrad, Descent, Nesterov, setup, update!
-using RestrictedBoltzmannMachines: RBM, BinaryRBM, Binary, Spin, Potts, Gaussian,
+using RestrictedBoltzmannMachines: RBM, BinaryRBM, Binary, Spin, Potts, Gaussian, xReLU,
     TrajectoryLadder, CossimDescent, ptt!, freeze!, initialize!, free_energy,
     log_partition, log_likelihood, collect_states, standardize, StandardizedRBM,
-    unstandardize, delta_energy
+    unstandardize, delta_energy, rescale_hidden!, rescale_weights!, weight_norms,
+    rescale_hidden_activations!, standardize_hidden!
 
 Random.seed!(41)
 
@@ -64,6 +65,7 @@ function two_modes(N::Int, n::Int)
 end
 
 random_layer(::Type{L}, sz::Dims) where {L <: Union{Binary, Potts}} = L(; θ = randn(sz...) / 2)
+random_layer(::Type{xReLU}, sz::Dims) = xReLU(; θ = randn(sz...) / 2, γ = 0.5 .+ rand(sz...), Δ = randn(sz...) / 2, ξ = randn(sz...) / 2)
 
 @testset "CossimDescent" begin
     st = setup(CossimDescent(0.1, 0.2, 0.5), [1.0, 2.0])
@@ -102,9 +104,10 @@ end
 #= Replica exchange with the reservoir, followed by Gibbs sampling, must leave the joint
 distribution of the chains and the reservoir invariant: starting both exactly at
 equilibrium, they must stay at equilibrium within Monte-Carlo error, through updates of
-two sweeps each. =#
-@testset "no drift: PTT update, $V visible, standardized = $standardized" for (V, vsz) in ((Binary, (6,)), (Potts, (3, 3))), standardized in (false, true)
-    model = RBM(random_layer(V, vsz), Binary(; θ = randn(3) / 2), randn(vsz..., 3) * 0.6)
+two sweeps each. With xReLU hidden units, the exchange ratios compare the free energies of
+two models with different continuous hidden units, which Gibbs sampling alone never does. =#
+@testset "no drift: PTT update, $V visible, $H hidden, standardized = $standardized" for (V, vsz, H) in ((Binary, (6,), Binary), (Potts, (3, 3), Binary), (Binary, (6,), xReLU)), standardized in (false, true)
+    model = RBM(random_layer(V, vsz), random_layer(H, (3,)), randn(vsz..., 3) * 0.6)
     base = RBM(model.visible, model.hidden, model.w .+ randn(vsz..., 3) * 0.3)
     if standardized
         model = standardize(model, rand(vsz...) / 3, rand(3) / 3, 0.5 .+ rand(vsz...), 0.5 .+ rand(3))
@@ -171,6 +174,8 @@ end
         ("RBM", BinaryRBM(randn(8) / 2, randn(4) / 2, 1.5randn(8, 4))),
         ("CenteredRBM", standardize(BinaryRBM(randn(8) / 2, randn(4) / 2, 1.5randn(8, 4)), rand(8), rand(4))),
         ("StandardizedRBM", standardize(BinaryRBM(randn(8) / 2, randn(4) / 2, 1.5randn(8, 4)), rand(8), rand(4), 0.5 .+ rand(8), 0.5 .+ rand(4))),
+        ("RBM with xReLU hidden", RBM(Binary(; θ = randn(8) / 2), random_layer(xReLU, (4,)), randn(8, 4))),
+        ("StandardizedRBM with xReLU hidden", standardize(RBM(Binary(; θ = randn(8) / 2), random_layer(xReLU, (4,)), randn(8, 4)), rand(8), rand(4), 0.5 .+ rand(8), 0.5 .+ rand(4))),
     )
     ladder = TrajectoryLadder(model; nchains = 1000)
     @test ladder.rbm === model
@@ -253,6 +258,94 @@ end
     other = BinaryRBM(8, 4)
     @test_throws ArgumentError ptt!(other, data; ladder, batchsize = 100)
     @test_throws ArgumentError ptt!(rbm, data; ladder, batchsize = 100, optim = ClipGrad()) # no learning rate
+end
+
+#= The paper trains binary hidden units. With continuous hidden units, `ptt!` also fixes
+their scale gauge after every update: a plain `RBM` (trained as a `CenteredRBM`) normalizes
+the weights of each hidden unit, and a `StandardizedRBM` absorbs `scale_h` into the layer.
+Both shift the free energies of the model by a constant, which must cancel in the exchange
+ratios, in the reweighting of the lagging chains and in the Bennett estimates: every
+checkpoint, in its own parametrization, must still match exact enumeration. =#
+@testset "ptt! of $name with xReLU hidden units" for (name, rbm) in (
+        ("RBM", RBM(Binary((8,)), xReLU((4,)), zeros(8, 4))),
+        ("StandardizedRBM", StandardizedRBM(RBM(Binary((8,)), xReLU((4,)), zeros(8, 4)))),
+    )
+    data = two_modes(8, 1000)
+    initialize!(rbm, data)
+    ladder = TrajectoryLadder(rbm; nchains = 500, α = 0.8) # frequent checkpoints
+    K₀ = length(ladder.checkpoints)
+    ll₀ = mean(RBMs.log_likelihood(rbm, data))
+    ptt!(
+        rbm, data; ladder, batchsize = 100, iters = 1000, optim = Adam(1.0e-3),
+        callback = (; ladder, iter, _...) -> iter == 500 && @test(freeze!(ladder)),
+    )
+    @test length(ladder.checkpoints) > K₀ + 2
+    @test last(ladder.checkpoints).hidden.par == rbm.hidden.par
+    @test mean(RBMs.log_likelihood(rbm, data)) > ll₀ + 0.5
+    @test log_partition(ladder) ≈ log_partition(rbm) atol = 0.05
+    @test all(isapprox.(ladder.logZ, log_partition.(ladder.checkpoints); atol = 0.05))
+    @test log_partition(unstandardize(rbm)) ≈ log_partition(ladder) + delta_energy(rbm) atol = 0.05
+    states = enumerate_states(rbm.visible)
+    @test maximum(abs, log_likelihood(ladder, states) - RBMs.log_likelihood(rbm, states)) < 0.05
+    p = softmax(-free_energy(rbm, states))
+    @test total_variation(empirical_distribution(ladder.samples, states), p) < 4tv_noise(p, size(ladder.samples)[end])
+    @test ladder.samples_F ≈ free_energy(rbm, ladder.samples)
+    @test ladder.chains_F ≈ free_energy(rbm, ladder.chains)
+    if rbm isa RBM
+        @test weight_norms(rbm) ≈ ones(4) # the scale gauge of a plain RBM
+    else
+        @test rbm.scale_h ≈ ones(4) # and of a StandardizedRBM
+    end
+end
+
+#= Fixing the scale gauge of continuous hidden units shifts the free energies of the model
+by a constant: the log-Jacobian of the rescaled activations, or the change of
+`delta_energy` for new hidden offsets and scales. The ladder compares the model with the
+last checkpoint through differences of free energies of the same model, which the constant
+leaves invariant: the exchange ratios, the swap acceptance and the chains after an update,
+and the log-likelihoods; `log_partition(ladder)` follows the constant. =#
+@testset "the scale gauge of the hidden units leaves the ladder invariant" begin
+    rbm = RBM(Binary(; θ = randn(8) / 2), random_layer(xReLU, (4,)), randn(8, 4))
+    ladder = TrajectoryLadder(rbm; nchains = 1000)
+    rbm.w .+= randn(8, 4) / 10 # moved from the last checkpoint, as by a training update
+    rbm.hidden.θ .+= 0.1
+    states = enumerate_states(rbm.visible)
+    ll = log_likelihood(ladder, states)
+    logZ = log_partition(ladder)
+    Random.seed!(7)
+    Δ = RBMs._propose_exchange(ladder, rbm).Δ
+    λ = 0.5 .+ rand(4)
+    @test rescale_hidden!(rbm, λ)
+    @test log_partition(ladder) ≈ logZ - sum(log, λ)
+    @test log_likelihood(ladder, states) ≈ ll
+    Random.seed!(7)
+    @test RBMs._propose_exchange(ladder, rbm).Δ ≈ Δ atol = 1.0e-8
+    ω = weight_norms(rbm)
+    @test rescale_weights!(rbm)
+    @test log_partition(ladder) ≈ logZ - sum(log, λ) + sum(log, ω)
+    @test log_likelihood(ladder, states) ≈ ll
+    # the same update, from the same random stream, of the model in another gauge
+    other = deepcopy(ladder)
+    @test rescale_hidden!(other.rbm, 2 .+ rand(4))
+    Random.seed!(3)
+    status = RBMs._ptt_update!(ladder, rbm; steps = 1)
+    Random.seed!(3)
+    @test RBMs._ptt_update!(other, other.rbm; steps = 1) === status
+    @test 0 < ladder.acceptance < 1
+    @test other.acceptance ≈ ladder.acceptance
+    @test other.chains == ladder.chains
+
+    std = standardize(RBM(Binary(; θ = randn(8) / 2), random_layer(xReLU, (4,)), randn(8, 4)), rand(8), rand(4), 0.5 .+ rand(8), 0.5 .+ rand(4))
+    ladder = TrajectoryLadder(std; nchains = 1000)
+    std.w .+= randn(8, 4) / 10
+    ll = log_likelihood(ladder, states)
+    logZ = log_partition(ladder) + delta_energy(std) # of the equivalent plain RBM
+    standardize_hidden!(std, randn(4), 0.5 .+ rand(4))
+    @test log_likelihood(ladder, states) ≈ ll
+    @test log_partition(ladder) + delta_energy(std) ≈ logZ
+    @test rescale_hidden_activations!(std)
+    @test std.scale_h ≈ ones(4)
+    @test log_likelihood(ladder, states) ≈ ll
 end
 
 #= The chains lag behind the model, moved from the independent-site model it was frozen at,
@@ -351,15 +444,16 @@ samples of `prev`, and the last checkpoint `base` has its exact log-partition fu
 end
 
 #= A rejected update restores every parameter of a StandardizedRBM, including the offsets
-and scales that training also moves, into arrays of its own, and redraws the chains from
-the equilibrium samples of the last checkpoint. =#
-@testset "PTT rejection restores the last checkpoint" begin
-    model = standardize(BinaryRBM(randn(6) / 2, randn(3) / 2, randn(6, 3)), rand(6), rand(3), 0.5 .+ rand(6), 0.5 .+ rand(3))
+and scales that training also moves, and all the parameters of its hidden units (four for
+xReLU), into arrays of its own, and redraws the chains from the equilibrium samples of the
+last checkpoint. =#
+@testset "PTT rejection restores the last checkpoint, $H hidden" for H in (Binary, xReLU)
+    model = standardize(RBM(Binary(; θ = randn(6) / 2), random_layer(H, (3,)), randn(6, 3)), rand(6), rand(3), 0.5 .+ rand(6), 0.5 .+ rand(3))
     ladder = TrajectoryLadder(model; nchains = 100, nreservoir = 1000)
     checkpoint = deepcopy(last(ladder.checkpoints))
     model.w .= 2
     model.visible.θ .= 4
-    model.hidden.θ .= -1
+    model.hidden.par .= -1
     model.offset_v .= rand(6)
     model.offset_h .= rand(3)
     model.scale_v .= 2
@@ -378,6 +472,27 @@ the equilibrium samples of the last checkpoint. =#
     @test ladder.rejections == 1
     RBMs._reject!(ladder, model)
     @test ladder.rejections == 2 # consecutive rejections accumulate
+end
+
+#= The free energies of a model whose hidden integrals diverge, here an xReLU layer with a
+scale `γ` driven to zero, are not finite, nor is the acceptance computed from them, which
+then fails every comparison with `α` and `αmin`: the update, or the freeze, is rejected,
+which restores the model to the last checkpoint, and no checkpoint is frozen from it. =#
+@testset "PTT rejects a model with non-finite free energies" begin
+    rbm = RBM(Binary(; θ = randn(6) / 2), random_layer(xReLU, (2,)), randn(6, 2) / 2)
+    ladder = TrajectoryLadder(rbm; nchains = 100, nreservoir = 1000)
+    K = length(ladder.checkpoints)
+    γ = copy(rbm.hidden.γ)
+    rbm.hidden.γ .= 0
+    @test !all(isfinite, free_energy(rbm, ladder.chains))
+    @test RBMs._ptt_update!(ladder, rbm; steps = 1) === :rejected
+    @test !isfinite(ladder.acceptance)
+    @test rbm.hidden.γ == γ
+    @test ladder.rejections == 1
+    rbm.hidden.γ .= 0
+    @test !freeze!(ladder)
+    @test rbm.hidden.γ == γ
+    @test length(ladder.checkpoints) == K
 end
 
 # `n` samples of two noisy modes of `N` Potts sites with `q` colors, with weights 0.7 and 0.3
