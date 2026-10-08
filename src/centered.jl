@@ -85,7 +85,7 @@ function rescale_hidden!(rbm::CenteredRBM, λ::AbstractArray)
     @assert size(rbm.hidden) == size(λ)
     if rescale_activations!(rbm.hidden, λ)
         rbm.w .*= _along_hidden(rbm, λ)
-        rbm.offset_h ./= λ
+        _maybe_div!(rbm.offset_h, λ)
         return true
     end
     return false

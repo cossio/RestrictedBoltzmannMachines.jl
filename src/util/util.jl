@@ -93,6 +93,10 @@ _maybe_mul!(x::AbstractArray, ::Ones) = x
 _maybe_mul!(x::AbstractArray, s::AbstractArray) = x .*= s
 _maybe_sub(x::AbstractArray, ::Zeros) = x
 _maybe_sub(x::AbstractArray, o::AbstractArray) = x .- o
+# divide an offset array in place by a scale array, skipping the no-op for lazy zero offsets
+# (writing into them fails on GPU arrays)
+_maybe_div!(x::Zeros, ::AbstractArray) = x
+_maybe_div!(x::AbstractArray, s::AbstractArray) = x ./= s
 
 # zeros / ones with the array backend of `A` (e.g. CuArray)
 zeros_like(A::AbstractArray, sz = size(A)) = fill!(similar(A, sz), 0)

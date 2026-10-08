@@ -295,6 +295,14 @@ end
             ReLU(; θ = randn(2), γ = 1 .+ rand(2)),
             copy(w),
         ),
+        # a plain RBM as pcd! and ptt! train it: lazy zero offsets, which cannot be written
+        RBMs.PlainStandardizedRBM(
+            RBM(
+                Binary(; θ = randn(2)),
+                ReLU(; θ = randn(2), γ = 1 .+ rand(2)),
+                copy(w),
+            )
+        ),
         CenteredRBM(
             Binary(; θ = randn(2)),
             ReLU(; θ = randn(2), γ = 1 .+ rand(2)),
