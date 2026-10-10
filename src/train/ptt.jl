@@ -299,7 +299,8 @@ function _check_mass(ladder::TrajectoryLadder, v::AbstractArray)
     x = reshape(Array(v), :, _nsamples(v))
     distinct = unique(n -> view(x, :, n), axes(x, 2))
     log_mass = logsumexp(Array(log_likelihood(ladder, v))[distinct])
-    log_mass ≤ PTT_MAX_LOG_MASS || error("""
+    log_mass ≤ PTT_MAX_LOG_MASS || error(
+        """
         PTT lost track of the mass of the model: the distinct configurations of a minibatch have \
         total probability exp($(round(log_mass; sigdigits = 3))) under log_partition(ladder), \
         which is impossible. Training moved mass where neither the chains nor the checkpoints \
@@ -307,7 +308,8 @@ function _check_mass(ladder::TrajectoryLadder, v::AbstractArray)
         basins that Gibbs sampling takes too long to reach, so ladder.samples and \
         log_partition(ladder) are wrong. More Gibbs steps per update (`steps`), or a smaller \
         learning rate, can let the chains keep up; see "Equilibrium training with ptt!" in the \
-        documentation.""")
+        documentation."""
+    )
     return nothing
 end
 
@@ -499,12 +501,12 @@ function _check_relaxation(model, x::AbstractArray)
     ΔF = _free_energies(model, relaxed) - _free_energies(model, x)
     drift, se = mean(ΔF), std(ΔF) / sqrt(length(ΔF))
     abs(drift) ≤ 3se || @warn """
-        The equilibrium samples of a new checkpoint are out of equilibrium: their mean free \
-        energy changes by $(round(drift; sigdigits = 3)) ± $(round(se; sigdigits = 2)) in \
-        $PTT_RELAXATION_CHECK Gibbs steps, so ladder.samples and log_partition(ladder) are \
-        biased. Training likely moved mass where the chains do not go, faster than Gibbs \
-        sampling follows; more Gibbs steps per update (`steps`), or a smaller learning rate, \
-        let the chains keep up. See "Equilibrium training with ptt!" in the documentation."""
+    The equilibrium samples of a new checkpoint are out of equilibrium: their mean free \
+    energy changes by $(round(drift; sigdigits = 3)) ± $(round(se; sigdigits = 2)) in \
+    $PTT_RELAXATION_CHECK Gibbs steps, so ladder.samples and log_partition(ladder) are \
+    biased. Training likely moved mass where the chains do not go, faster than Gibbs \
+    sampling follows; more Gibbs steps per update (`steps`), or a smaller learning rate, \
+    let the chains keep up. See "Equilibrium training with ptt!" in the documentation."""
     return drift
 end
 
