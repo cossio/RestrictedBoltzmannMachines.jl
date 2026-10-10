@@ -124,6 +124,12 @@ end
     μ_cpu, ν_cpu = meanvar_from_inputs(layer, inputs)
     @test adapt(Array, μ) ≈ μ_cpu
     @test adapt(Array, ν) ≈ ν_cpu
+    @test adapt(Array, RBMs.mean_abs_from_inputs(jl_layer, jl_inputs)) ≈ RBMs.mean_abs_from_inputs(layer, inputs)
+    @test adapt(Array, RBMs.moments_from_inputs(jl_layer, jl_inputs)) ≈ RBMs.moments_from_inputs(layer, inputs)
+    μ_tot, ν_tot = RBMs.total_meanvar_from_inputs(jl_layer, jl_inputs)
+    μ_tot_cpu, ν_tot_cpu = RBMs.total_meanvar_from_inputs(layer, inputs)
+    @test adapt(Array, μ_tot) ≈ μ_tot_cpu
+    @test adapt(Array, ν_tot) ≈ ν_tot_cpu
     @test adapt(Array, ∂cgfs(jl_layer, jl_inputs)) ≈ ∂cgfs(layer, inputs)
 
     x = sample_from_inputs(layer, inputs)

@@ -87,4 +87,9 @@ end
         @test μ ≈ tnmean(a)
         @test ν ≈ tnvar(a)
     end
+    # on arrays, a tuple of arrays rather than an array of tuples
+    a = collect(-2:0.5:2)
+    μ, ν = @inferred tnmeanvar(a)
+    @test μ ≈ tnmean.(a)
+    @test ν ≈ tnvar.(a)
 end

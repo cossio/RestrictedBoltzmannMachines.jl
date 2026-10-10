@@ -167,7 +167,7 @@ mean_abs_from_inputs(layer::_dReLUReparam, inputs::AbstractArray = Falses(size(l
 moments_from_inputs(layer::_dReLUReparam, inputs::AbstractArray = Falses(size(layer))) = moments_from_inputs(dReLU(layer), inputs)
 
 # Two moment slots `<x>`, `<x^2>` from the conditional mean and variance.
-function moments_from_inputs(layer::Union{Gaussian, ReLU}, inputs::AbstractArray = Falses(size(layer)))
+function moments_from_inputs(layer::Gaussian, inputs::AbstractArray = Falses(size(layer)))
     μ, ν = meanvar_from_inputs(layer, inputs)
     return stack([μ, μ .^ 2 .+ ν]; dims = 1)
 end

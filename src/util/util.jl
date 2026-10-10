@@ -45,6 +45,15 @@ _weighted_outer(A::AbstractMatrix, wts::AbstractArray{<:Real}, B::AbstractMatrix
     A * Diagonal(vec(wts)) * B'
 _weighted_outer(A::AbstractMatrix, ::Ones{<:Real}, B::AbstractMatrix) = A * B'
 
+# The `K`-tuples in `A` as a `(K, size(A)...)` array: the layout of moments arrays (see
+# `moments_from_samples`). It shares the memory of `A`, so that broadcasting a function
+# that returns all `K` moments of a unit materializes them in a single pass.
+_stack_tuples(A::AbstractArray{<:Tuple{T, Vararg{T}}}) where {T} = reinterpret(reshape, T, A)
+
+# The pairs in `A` as two arrays, such as the conditional means and variances of the units
+# of a layer, computed by a single broadcast.
+_unzip(A::AbstractArray{<:Tuple{Any, Any}}) = (first.(A), last.(A))
+
 @doc raw"""
     wmean(A; [wts])
 

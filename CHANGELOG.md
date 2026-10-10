@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+- `initialize!`, `pcd!` and `ptt!` no longer run out of GPU memory when standardizing the
+  hidden units of a `StandardizedRBM` on a large dataset
+  ([#267](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/267)): the
+  conditional statistics of `ReLU`, dReLU-family and `Binary` layers use far less memory
+  and are faster. On CPUs, `moments_from_inputs` of `ReLU` and dReLU-family layers returns
+  a reinterpreted array instead of an `Array`.
 - Add equilibrium training by Parallel Trajectory Tempering
   ([Béreux et al., 2026](https://arxiv.org/abs/2607.27077)): `ptt!` trains an `RBM` or a
   `StandardizedRBM` (including a `CenteredRBM`) like `pcd!`, keeping the persistent chains at equilibrium by replica exchange with frozen
