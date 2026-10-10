@@ -311,6 +311,46 @@ end
     @test mean_from_moments(layer, moments) ≈ total_mean_from_inputs(layer, inputs)
 end
 
+@testset "dReLU statistics agree with numerical integration" begin
+    # expectation of `f(h)` for a dReLU unit
+    function quad_expect(f, θp, θn, γp, γn)
+        p(h) = exp(-drelu_energy(θp, θn, γp, γn, h))
+        return first(quadgk(h -> f(h) * p(h), -Inf, 0, Inf)) / first(quadgk(p, -Inf, 0, Inf))
+    end
+    layer = dReLU(
+        θp = randn(4), θn = randn(4),
+        γp = (rand(4) .+ 1) .* (rand(Bool, 4) .- 0.5),
+        γn = (rand(4) .+ 1) .* (rand(Bool, 4) .- 0.5)
+    )
+    inputs = randn(4, 3)
+    E(f) = quad_expect.(f, layer.θp .+ inputs, layer.θn .+ inputs, layer.γp, layer.γn)
+    μ = E(identity)
+    @test mean_from_inputs(layer, inputs) ≈ μ rtol = 1.0e-6
+    @test var_from_inputs(layer, inputs) ≈ E(abs2) - μ .^ 2 rtol = 1.0e-6
+    @test mean_abs_from_inputs(layer, inputs) ≈ E(abs) rtol = 1.0e-6
+    xp(h) = max(h, 0)
+    xn(h) = min(h, 0)
+    @test moments_from_inputs(layer, inputs) ≈ stack([E(xp), E(xn), E(abs2 ∘ xp), E(abs2 ∘ xn)]; dims = 1) rtol = 1.0e-6
+end
+
+@testset "statistics of $Layer are computed in one pass" for Layer in (ReLU, dReLU, pReLU, xReLU, nsReLU)
+    layer = Layer((10,))
+    randn!(layer.par)
+    if layer isa pReLU
+        layer.η .= layer.η ./ (1 .+ abs.(layer.η))
+    end
+    inputs = randn(10, 1000)
+    A = sizeof(inputs) # one array of statistics
+    K = size(moments_from_inputs(layer), 1)
+    for (f, n) in ((mean_from_inputs, 1), (var_from_inputs, 1), (mean_abs_from_inputs, 1), (meanvar_from_inputs, 4), (moments_from_inputs, K))
+        f(layer, inputs) # compile
+        @test @allocated(f(layer, inputs)) < (n + 1 // 2) * A
+    end
+    # the (mean, variance) pairs, the two arrays they are split into, and one temporary
+    total_meanvar_from_inputs(layer, inputs)
+    @test @allocated(total_meanvar_from_inputs(layer, inputs)) < 11 // 2 * A
+end
+
 @testset "mean_from_moments $Layer" for Layer in _layers
     layer = Layer((5,))
     rbm = RBM(layer, Binary(; θ = randn(3)), randn(5, 3))

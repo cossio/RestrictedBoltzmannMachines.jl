@@ -4,11 +4,17 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
-- `standardize_hidden_from_v!`, and therefore `initialize!`, `pcd!` and `ptt!` on a
-  `StandardizedRBM`, accumulate the hidden statistics of large datasets over chunks of
-  samples, so their memory no longer grows with the number of samples. Initializing on a
-  whole dataset could run out of GPU memory before the first update
+- The conditional statistics of `ReLU` and dReLU-family (`dReLU`, `pReLU`, `xReLU`,
+  `nsReLU`) layers (`mean_from_inputs`, `var_from_inputs`, `meanvar_from_inputs`,
+  `mean_abs_from_inputs` and `moments_from_inputs`) are computed by a single elementwise
+  pass, without intermediate arrays: the dReLU `meanvar_from_inputs` allocates 4 arrays of
+  the size of its inputs instead of 33, and is up to 8 times faster on large GPU arrays.
+  `meanvar_from_inputs` of `Binary` layers also allocates only its two results. Standardizing
+  the hidden units of a `StandardizedRBM` on a whole dataset (by `initialize!`, `pcd!` and
+  `ptt!`) could run out of GPU memory before the first update
   ([#267](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/267)).
+  On CPUs, `moments_from_inputs` of these layers now returns a `reinterpret`ed array
+  instead of an `Array`.
 - Add equilibrium training by Parallel Trajectory Tempering
   ([Béreux et al., 2026](https://arxiv.org/abs/2607.27077)): `ptt!` trains an `RBM` or a
   `StandardizedRBM` (including a `CenteredRBM`) like `pcd!`, keeping the persistent chains at equilibrium by replica exchange with frozen

@@ -25,28 +25,10 @@ sample_from_inputs(layer::ReLU, inputs::AbstractArray = Falses(size(layer))) = r
 mode_from_inputs(layer::ReLU, inputs::AbstractArray = Falses(size(layer))) = max.((layer.θ .+ inputs) ./ abs.(layer.γ), 0)
 mean_abs_from_inputs(layer::ReLU, inputs::AbstractArray = Falses(size(layer))) = mean_from_inputs(layer, inputs)
 
-function mean_from_inputs(layer::ReLU, inputs::AbstractArray = Falses(size(layer)))
-    g = Gaussian(layer.par)
-    μ = mean_from_inputs(g, inputs)
-    σ = sqrt.(var_from_inputs(g, inputs))
-    return @. μ + σ * tnmean(-μ / σ)
-end
-
-function var_from_inputs(layer::ReLU, inputs::AbstractArray = Falses(size(layer)))
-    g = Gaussian(layer.par)
-    μ = mean_from_inputs(g, inputs)
-    ν = var_from_inputs(g, inputs)
-    return @. ν * tnvar(-μ / √ν)
-end
-
-function meanvar_from_inputs(layer::ReLU, inputs::AbstractArray = Falses(size(layer)))
-    g = Gaussian(layer.par)
-    μ = mean_from_inputs(g, inputs)
-    ν = var_from_inputs(g, inputs)
-    σ = sqrt.(ν)
-    tμ, tν = tnmeanvar(-μ ./ σ)
-    return μ + σ .* tμ, ν .* tν
-end
+mean_from_inputs(layer::ReLU, inputs::AbstractArray = Falses(size(layer))) = first.(relu_meanvar.(layer.θ .+ inputs, layer.γ))
+var_from_inputs(layer::ReLU, inputs::AbstractArray = Falses(size(layer))) = last.(relu_meanvar.(layer.θ .+ inputs, layer.γ))
+meanvar_from_inputs(layer::ReLU, inputs::AbstractArray = Falses(size(layer))) = _unzip(relu_meanvar.(layer.θ .+ inputs, layer.γ))
+moments_from_inputs(layer::ReLU, inputs::AbstractArray = Falses(size(layer))) = _stack_tuples(relu_moments.(layer.θ .+ inputs, layer.γ))
 
 # the moments interface is shared with Gaussian, which has the same parameters
 function ∂energy_from_moments(layer::Union{Gaussian, ReLU}, moments::AbstractArray)
@@ -80,6 +62,21 @@ end
 function relu_cgf(θ::Real, γ::Real)
     abs_γ = abs(γ)
     return logerfcx(-θ / √(2abs_γ)) - log(2abs_γ / π) / 2
+end
+
+# A ReLU unit is a Gaussian of mean θ / |γ| and variance 1 / |γ|, truncated to x ≥ 0.
+function relu_meanvar(θ::Real, γ::Real)
+    μ = θ / abs(γ)
+    ν = inv(abs(γ))
+    σ = √ν
+    tμ, tν = tnmeanvar(-μ / σ)
+    return μ + σ * tμ, ν * tν
+end
+
+# the two moment slots `<x>`, `<x^2>`
+function relu_moments(θ::Real, γ::Real)
+    μ, ν = relu_meanvar(θ, γ)
+    return μ, μ^2 + ν
 end
 
 function relu_rand(θ::Real, γ::Real)

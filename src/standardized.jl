@@ -436,12 +436,6 @@ function standardize_hidden_from_inputs!(
         wts::AbstractArray{<:Real} = uniform_wts(rbm.hidden, inputs), damping::Real = 1, ϵ::Real = 0
     )
     μ, ν = total_meanvar_from_inputs(rbm.hidden, inputs; wts)
-    return _standardize_hidden_from_meanvar!(rbm, μ, ν; damping, ϵ)
-end
-
-function _standardize_hidden_from_meanvar!(
-        rbm::StandardizedRBM, μ::AbstractArray, ν; damping::Real, ϵ::Real
-    )
     offset_h = (1 - damping) .* rbm.offset_h + damping .* μ
     scale_h = sqrt.((1 - damping) .* rbm.scale_h .^ 2 + damping .* (ν .+ ϵ))
     return standardize_hidden!(rbm, offset_h, scale_h)
@@ -459,30 +453,8 @@ function standardize_hidden_from_v!(
         rbm::StandardizedRBM, v::AbstractArray;
         wts::AbstractArray{<:Real} = uniform_wts(rbm.visible, v), damping::Real = 1, ϵ::Real = 0
     )
-    μ, ν = _total_meanvar_h_from_v(rbm, v; wts)
-    return _standardize_hidden_from_meanvar!(rbm, μ, ν; damping, ϵ)
-end
-
-# `total_meanvar_from_inputs(rbm.hidden, inputs_h_from_v(rbm, v); wts)`, in chunks of about
-# `chunk` hidden activations so that memory stays bounded for large `v` (such as a whole
-# dataset). Two passes over the chunks, first the mean and then the variance about it.
-function _total_meanvar_h_from_v(
-        rbm::StandardizedRBM, v::AbstractArray;
-        wts::AbstractArray{<:Real} = uniform_wts(rbm.visible, v), chunk::Int = 2^22
-    )
-    @assert size(wts) == batch_size(rbm.visible, v)
-    v_flat = reshape(v, size(rbm.visible)..., :)
-    wts_flat = vec(wts)
-    chunks = Iterators.partition(eachindex(wts_flat), max(1, chunk ÷ length(rbm.hidden)))
-    length(chunks) == 1 && return total_meanvar_from_inputs(rbm.hidden, inputs_h_from_v(rbm, v); wts)
-    inputs(idx) = inputs_h_from_v(rbm, selectdim(v_flat, ndims(v_flat), idx))
-    W = sum(wts_flat)
-    μ = sum(idx -> wsum(mean_from_inputs(rbm.hidden, inputs(idx)), wts_flat[idx]), chunks) / W
-    ν = sum(chunks) do idx
-        h_ave, h_var = meanvar_from_inputs(rbm.hidden, inputs(idx))
-        wsum(h_var .+ (h_ave .- μ) .^ 2, wts_flat[idx]) # law of total variance
-    end / W
-    return (μ = μ, ν = ν)
+    inputs = inputs_h_from_v(rbm, v)
+    return standardize_hidden_from_inputs!(rbm, inputs; damping, wts, ϵ)
 end
 
 """

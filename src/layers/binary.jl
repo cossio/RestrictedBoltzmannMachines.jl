@@ -12,14 +12,6 @@ mean_abs_from_inputs(layer::Binary, inputs::AbstractArray = Falses(size(layer)))
 var_from_inputs(layer::Binary, inputs::AbstractArray = Falses(size(layer))) = binary_var.(layer.θ .+ inputs)
 std_from_inputs(layer::Binary, inputs::AbstractArray = Falses(size(layer))) = binary_std.(layer.θ .+ inputs)
 
-function meanvar_from_inputs(layer::Binary, inputs::AbstractArray = Falses(size(layer)))
-    θ = layer.θ .+ inputs
-    t = @. exp(-abs(θ))
-    μ = @. ifelse(θ ≥ 0, 1 / (1 + t), t / (1 + t))
-    ν = @. t / (1 + t)^2
-    return μ, ν
-end
-
 function sample_from_inputs(layer::Binary, inputs::AbstractArray = Falses(size(layer)))
     θ = layer.θ .+ inputs
     u = rand!(similar(θ))

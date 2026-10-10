@@ -27,51 +27,11 @@ cgfs(layer::dReLU, inputs::AbstractArray = Falses(size(layer))) = drelu_cgf.(lay
 sample_from_inputs(layer::dReLU, inputs::AbstractArray = Falses(size(layer))) = drelu_rand.(layer.θp .+ inputs, layer.θn .+ inputs, layer.γp, layer.γn)
 mode_from_inputs(layer::dReLU, inputs::AbstractArray = Falses(size(layer))) = drelu_mode.(layer.θp .+ inputs, layer.θn .+ inputs, layer.γp, layer.γn)
 
-#=
-A dReLU unit is a two-sided mixture of truncated Gaussians: a positive-side ReLU with
-parameters (θp, γp) and a mirrored negative-side ReLU with parameters (-θn, γn).
-Returns the mixture weights `pp`, `pn` and the mean and variance `μp`, `νp`, `μn`, `νn`
-of each side (with the negative side mirrored to positive values). This is the shared
-preamble of the dReLU statistics and conditional moments.
-=#
-function _drelu_mixture_moments(layer::dReLU, inputs)
-    lp = ReLU(; θ = layer.θp, γ = layer.γp)
-    ln = ReLU(; θ = -layer.θn, γ = layer.γn)
-
-    Γp = cgfs(lp, inputs)
-    Γn = cgfs(ln, -inputs)
-    Γ = logaddexp.(Γp, Γn)
-
-    pp = exp.(Γp - Γ)
-    pn = exp.(Γn - Γ)
-    μp, νp = meanvar_from_inputs(lp, inputs)
-    μn, νn = meanvar_from_inputs(ln, -inputs)
-    return (; pp, pn, μp, μn, νp, νn)
-end
-
-mean_from_inputs(layer::dReLU, inputs::AbstractArray = Falses(size(layer))) = first(meanvar_from_inputs(layer, inputs))
-var_from_inputs(layer::dReLU, inputs::AbstractArray = Falses(size(layer))) = last(meanvar_from_inputs(layer, inputs))
-
-function meanvar_from_inputs(layer::dReLU, inputs::AbstractArray = Falses(size(layer)))
-    (; pp, pn, μp, μn, νp, νn) = _drelu_mixture_moments(layer, inputs)
-    μ = pp .* μp - pn .* μn
-    ν = @. pp * (νp + μp^2) + pn * (νn + μn^2) - μ^2
-    return μ, ν
-end
-
-function mean_abs_from_inputs(layer::dReLU, inputs::AbstractArray = Falses(size(layer)))
-    (; pp, pn, μp, μn) = _drelu_mixture_moments(layer, inputs)
-    return pp .* μp + pn .* μn
-end
-
-function moments_from_inputs(layer::dReLU, inputs::AbstractArray = Falses(size(layer)))
-    (; pp, pn, μp, μn, νp, νn) = _drelu_mixture_moments(layer, inputs)
-    xp1 = @. pp * μp
-    xn1 = @. -pn * μn # the negative side is mirrored back to x = -y ≤ 0
-    xp2 = @. pp * (νp + μp^2)
-    xn2 = @. pn * (νn + μn^2)
-    return stack([xp1, xn1, xp2, xn2]; dims = 1)
-end
+mean_from_inputs(layer::dReLU, inputs::AbstractArray = Falses(size(layer))) = first.(drelu_meanvar.(layer.θp .+ inputs, layer.θn .+ inputs, layer.γp, layer.γn))
+var_from_inputs(layer::dReLU, inputs::AbstractArray = Falses(size(layer))) = last.(drelu_meanvar.(layer.θp .+ inputs, layer.θn .+ inputs, layer.γp, layer.γn))
+meanvar_from_inputs(layer::dReLU, inputs::AbstractArray = Falses(size(layer))) = _unzip(drelu_meanvar.(layer.θp .+ inputs, layer.θn .+ inputs, layer.γp, layer.γn))
+mean_abs_from_inputs(layer::dReLU, inputs::AbstractArray = Falses(size(layer))) = drelu_mean_abs.(layer.θp .+ inputs, layer.θn .+ inputs, layer.γp, layer.γn)
+moments_from_inputs(layer::dReLU, inputs::AbstractArray = Falses(size(layer))) = _stack_tuples(drelu_moments.(layer.θp .+ inputs, layer.θn .+ inputs, layer.γp, layer.γn))
 
 function ∂energy_from_moments(layer::dReLU, moments::AbstractArray)
     _check_moments(layer, moments)
@@ -91,6 +51,41 @@ function drelu_cgf(θp::Real, θn::Real, γp::Real, γn::Real)
     Γp = relu_cgf(θp, γp)
     Γn = relu_cgf(-θn, γn)
     return logaddexp(Γp, Γn)
+end
+
+#=
+A dReLU unit is a two-sided mixture of truncated Gaussians: a positive-side ReLU with
+parameters (θp, γp) and a mirrored negative-side ReLU with parameters (-θn, γn).
+Returns the mixture weights `pp`, `pn` and the mean and variance `μp`, `νp`, `μn`, `νn`
+of each side (with the negative side mirrored to positive values), from which the
+statistics below follow.
+=#
+function _drelu_mixture(θp::Real, θn::Real, γp::Real, γn::Real)
+    Γp = relu_cgf(θp, γp)
+    Γn = relu_cgf(-θn, γn)
+    Γ = logaddexp(Γp, Γn)
+    μp, νp = relu_meanvar(θp, γp)
+    μn, νn = relu_meanvar(-θn, γn)
+    return (; pp = exp(Γp - Γ), pn = exp(Γn - Γ), μp, μn, νp, νn)
+end
+
+function drelu_meanvar(θp::Real, θn::Real, γp::Real, γn::Real)
+    (; pp, pn, μp, μn, νp, νn) = _drelu_mixture(θp, θn, γp, γn)
+    μ = pp * μp - pn * μn
+    ν = pp * (νp + μp^2) + pn * (νn + μn^2) - μ^2
+    return μ, ν
+end
+
+function drelu_mean_abs(θp::Real, θn::Real, γp::Real, γn::Real)
+    (; pp, pn, μp, μn) = _drelu_mixture(θp, θn, γp, γn)
+    return pp * μp + pn * μn
+end
+
+# the four moment slots `<xp>`, `<xn>`, `<xp^2>`, `<xn^2>`
+function drelu_moments(θp::Real, θn::Real, γp::Real, γn::Real)
+    (; pp, pn, μp, μn, νp, νn) = _drelu_mixture(θp, θn, γp, γn)
+    # the negative side is mirrored back to x = -y ≤ 0
+    return pp * μp, -pn * μn, pp * (νp + μp^2), pn * (νn + μn^2)
 end
 
 function drelu_rand(θp::Real, θn::Real, γp::Real, γn::Real)
