@@ -11,7 +11,7 @@ using LogStatFunctions: logmeanexp
 using Optimisers: Optimisers, AbstractRule, Adam, setup, update!
 using Random: AbstractRNG, default_rng, rand!, randexp, randn!
 using SpecialFunctions: erf, erfcx, logerfcx
-using Statistics: mean
+using Statistics: mean, std
 using StatsBase: sample
 
 include("util/util.jl")

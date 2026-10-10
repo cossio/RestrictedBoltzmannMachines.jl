@@ -170,7 +170,12 @@ The [`TrajectoryLadder`](@ref) holds the checkpoints and the persistent chains:
    (default `0.3`), the model is frozen as a new checkpoint. Its chains are
    thermalized by exchanges with the reservoir of the previous checkpoint, for a multiple
    of the autocorrelation time of the ladder level of the chains, as in the paper, and
-   then collected into a new reservoir.
+   then collected into a new reservoir. To check that the reservoir is at equilibrium, a
+   copy of `nchains` of its samples runs 10 000 Gibbs steps, and `ptt!` warns if their mean
+   free energy changes by more than 3 standard errors (`ladder.drift` records the
+   change). The checkpoints do not temper every slow direction of the model: training can
+   dig basins where the chains never go, which the exchanges cannot reach nor the swap
+   acceptance detect, and which Gibbs sampling reaches only after thousands of steps.
 4. Log-partition functions of successive checkpoints are linked by the Bennett
    acceptance ratio, which gives [`log_partition(ladder)`](@ref log_partition(::TrajectoryLadder))
    and [`log_likelihood(ladder, v)`](@ref log_likelihood(::TrajectoryLadder, ::AbstractArray))
@@ -188,6 +193,15 @@ The [`TrajectoryLadder`](@ref) holds the checkpoints and the persistent chains:
    the model oscillate across a phase transition, so that its updates keep being
    rejected, whatever its initial learning rate; plain gradient descent (`Descent`)
    can then train through.
+6. For discrete visible units, `ptt!` throws if the ladder provably lost track of the mass
+   of the model: if the log-likelihoods of the distinct configurations of a minibatch,
+   under `log_partition(ladder)`, add up to a total probability above `exp(10)`. Training
+   can move mass where neither the chains nor the checkpoints go: to a mode of the data
+   that the recent checkpoints gave negligible weight, for instance after the model broke
+   a symmetry of the data at a phase transition, which no exchange or Gibbs step can
+   restore; or to basins dug faster than Gibbs sampling reaches them. Without this check,
+   such a run would go on with wrong samples and log-likelihoods, which can even exceed
+   zero. More Gibbs steps per update, or a smaller learning rate, let the chains keep up.
 
 `ptt!` trains plain `RBM`s and stdRBMs from scratch, starting from
 [`initialize!`](@ref). It accepts the keywords of [`pcd!`](@ref), plus the `ladder`, and
@@ -203,6 +217,15 @@ best or tied best validation log-likelihood after 100k updates, compared with
 
 The size of the updates sets how often checkpoints are frozen, each of which costs some
 tens of sweeps, so a smaller learning rate trades slower learning for fewer checkpoints.
+The exchanges only help with what the checkpoints temper, such as modes that the models
+before a phase transition connect; within each mode the chains still rely on Gibbs
+sampling, so `steps` must let them keep up with the updates, or training digs basins that
+they never see, and the equilibrium of the trained model drifts away from
+`ladder.samples`. The warnings above signal this; certify a trained model with long Gibbs
+runs from several initializations, which must agree with `ladder.samples`. Relaxing the
+reservoirs by long Gibbs runs at every checkpoint, and training on the relaxed samples, does
+not fix it: the large correction that follows the discovery of a basin breaks the overlap
+with the last checkpoint, and repeated rejections stall training.
 Repeated rejections at the same checkpoint can mean that the chains lag behind the model,
 so that the acceptance overestimates its overlap with the checkpoint. A larger `steps`
 helps if that many Gibbs steps move the chains between the modes of the model. Every
