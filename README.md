@@ -140,6 +140,7 @@ Full documentation with API reference and worked examples (MNIST, Metropolis sam
 
 ## Publications using this package
 
+- [Spherical Boltzmann machines: a solvable theory of learning and generation in energy-based models](https://arxiv.org/abs/2605.09031) — [NeurIPS](https://neurips.cc/virtual/2026/loc/paris/poster/148834) (2026)
 - [Cross-individual translation of spontaneous zebrafish brain activity through a shared latent representation](https://www.pnas.org/doi/abs/10.1073/pnas.2529064123) — *PNAS* (2026)
 - [Design and experimental characterization of specificity-switching mutational paths of WW domains](https://elifesciences.org/reviewed-preprints/110491) - *eLife* (2026)
 - [Designing molecular RNA switches with Restricted Boltzmann machines](https://www.nature.com/articles/s41467-025-66265-y) — *Nature Communications* 16, 11223 (2025)
