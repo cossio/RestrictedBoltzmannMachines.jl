@@ -7,7 +7,7 @@ using RestrictedBoltzmannMachines: batchmean
 using RestrictedBoltzmannMachines: BinaryRBM
 using RestrictedBoltzmannMachines: standardize
 using RestrictedBoltzmannMachines: standardize!
-using RestrictedBoltzmannMachines: standardize_hidden_from_v!
+using RestrictedBoltzmannMachines: standardize_hidden_from_inputs!, standardize_hidden_from_v!
 using RestrictedBoltzmannMachines: standardize_visible_from_data!
 using RestrictedBoltzmannMachines: CenteredBinaryRBM
 using RestrictedBoltzmannMachines: CenteredRBM
@@ -190,6 +190,19 @@ end
     @test standardize_hidden_from_v!(rbm_hidden, data; wts) === rbm_hidden
     @test rbm_hidden.offset_h ≈ expected_offset_h
     @test rbm_hidden isa CenteredRBM
+
+    # damped, from the visible configurations or from the hidden inputs they give
+    damped_offset_h = 0.7 .* expected_hidden.offset_h .+ 0.3 .* expected_offset_h
+    rbm_damped = deepcopy(expected_hidden)
+    @test standardize_hidden_from_v!(rbm_damped, data; wts, damping = 0.3, ϵ = 0.1) === rbm_damped
+    @test rbm_damped.offset_h ≈ damped_offset_h
+    rbm_inputs = deepcopy(expected_hidden)
+    inputs = inputs_h_from_v(expected_hidden, data)
+    @test standardize_hidden_from_inputs!(rbm_inputs, inputs; wts, damping = 0.3, ϵ = 0.1) === rbm_inputs
+    @test rbm_inputs.offset_h ≈ damped_offset_h
+    @test rbm_inputs.w ≈ rbm_damped.w
+    @test rbm_inputs isa CenteredRBM
+    @test all(isone, rbm_inputs.scale_h)
 end
 
 @testset "centered pcd uses weighted initial centering" begin
