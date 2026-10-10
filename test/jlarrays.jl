@@ -512,3 +512,23 @@ end
     @test RBMs.wmean(A) ≈ mean(adapt(Array, A))
     @test RBMs.wmean(A; wts = Trues(size(A))) ≈ mean(adapt(Array, A))
 end
+
+@testset "standardize_hidden_from_v! in chunks stays on device" begin
+    rbm = StandardizedRBM(
+        RBM(Binary(; θ = randn(N...)), xReLU(; θ = randn(2), γ = 1 .+ rand(2), Δ = randn(2), ξ = randn(2)), randn(N..., 2)),
+        randn(N...), randn(2), 1 .+ rand(N...), 1 .+ rand(2)
+    )
+    data = float(bitrand(N..., 64))
+    wts = rand(64)
+    jl_rbm = adapt(JLArray, rbm)
+    jl_data = JLArray(data)
+    for w in (nothing, wts)
+        kw = isnothing(w) ? (;) : (; wts = w)
+        jl_kw = isnothing(w) ? (;) : (; wts = JLArray(w))
+        μ, ν = RBMs._total_meanvar_h_from_v(jl_rbm, jl_data; jl_kw..., chunk = 20)
+        μ0, ν0 = RBMs.total_meanvar_from_inputs(rbm.hidden, inputs_h_from_v(rbm, data); kw...)
+        @test μ isa JLArray
+        @test adapt(Array, μ) ≈ μ0
+        @test adapt(Array, ν) ≈ ν0
+    end
+end

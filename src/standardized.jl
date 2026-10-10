@@ -436,6 +436,12 @@ function standardize_hidden_from_inputs!(
         wts::AbstractArray{<:Real} = uniform_wts(rbm.hidden, inputs), damping::Real = 1, ϵ::Real = 0
     )
     μ, ν = total_meanvar_from_inputs(rbm.hidden, inputs; wts)
+    return _standardize_hidden_from_meanvar!(rbm, μ, ν; damping, ϵ)
+end
+
+function _standardize_hidden_from_meanvar!(
+        rbm::StandardizedRBM, μ::AbstractArray, ν; damping::Real, ϵ::Real
+    )
     offset_h = (1 - damping) .* rbm.offset_h + damping .* μ
     scale_h = sqrt.((1 - damping) .* rbm.scale_h .^ 2 + damping .* (ν .+ ϵ))
     return standardize_hidden!(rbm, offset_h, scale_h)
@@ -453,8 +459,51 @@ function standardize_hidden_from_v!(
         rbm::StandardizedRBM, v::AbstractArray;
         wts::AbstractArray{<:Real} = uniform_wts(rbm.visible, v), damping::Real = 1, ϵ::Real = 0
     )
-    inputs = inputs_h_from_v(rbm, v)
-    return standardize_hidden_from_inputs!(rbm, inputs; damping, wts, ϵ)
+    μ, ν = _total_meanvar_h_from_v(rbm, v; wts)
+    return _standardize_hidden_from_meanvar!(rbm, μ, ν; damping, ϵ)
+end
+
+# Total mean and variance of the hidden activations conditioned on `v`, as
+# `total_meanvar_from_inputs(rbm.hidden, inputs_h_from_v(rbm, v); wts)`. Large `v` (such
+# as a whole dataset) is processed in chunks of about `chunk` hidden units times samples,
+# whose statistics are merged exactly (Chan et al.), so memory stays bounded.
+function _total_meanvar_h_from_v(
+        rbm::StandardizedRBM, v::AbstractArray;
+        wts::AbstractArray{<:Real} = uniform_wts(rbm.visible, v), chunk::Int = 2^22
+    )
+    @assert size(wts) == batch_size(rbm.visible, v)
+    nsamples = prod(batch_size(rbm.visible, v))
+    chunk_samples = max(1, chunk ÷ length(rbm.hidden))
+    if nsamples ≤ chunk_samples
+        return total_meanvar_from_inputs(rbm.hidden, inputs_h_from_v(rbm, v); wts)
+    end
+    v_flat = reshape(v, size(rbm.visible)..., nsamples)
+    wts_flat = reshape(wts, nsamples)
+    W = 0 # total weight of the chunks merged so far
+    μ = ν = nothing
+    for idx in Iterators.partition(1:nsamples, chunk_samples)
+        wc = view(wts_flat, idx)
+        Wc = sum(wc)
+        iszero(Wc) && continue # contributes nothing, but its statistics would be NaN
+        inputs = inputs_h_from_v(rbm, selectdim(v_flat, ndims(v_flat), idx))
+        μc, νc = total_meanvar_from_inputs(rbm.hidden, inputs; wts = wc)
+        if isnothing(μ)
+            μ, ν = μc, νc
+        else
+            T = eltype(μc)
+            f = convert(T, Wc / (W + Wc))
+            δ = μc - μ
+            μ = μ .+ f .* δ
+            ν = (1 - f) .* ν .+ f .* νc .+ (f * (1 - f)) .* δ .^ 2
+        end
+        W += Wc
+    end
+    if isnothing(μ) # zero total weight: NaN statistics, as without chunking
+        idx = 1:chunk_samples
+        inputs = inputs_h_from_v(rbm, selectdim(v_flat, ndims(v_flat), idx))
+        return total_meanvar_from_inputs(rbm.hidden, inputs; wts = view(wts_flat, idx))
+    end
+    return (μ = μ, ν = ν)
 end
 
 """

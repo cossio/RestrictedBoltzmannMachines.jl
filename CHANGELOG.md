@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+- `standardize_hidden_from_v!`, and therefore `initialize!`, `pcd!` and `ptt!` on a
+  `StandardizedRBM`, accumulate the hidden statistics of large datasets over chunks of
+  samples, so their memory no longer grows with the number of samples. Initializing on a
+  whole dataset could run out of GPU memory before the first update
+  ([#267](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/267)).
 - Add equilibrium training by Parallel Trajectory Tempering
   ([Béreux et al., 2026](https://arxiv.org/abs/2607.27077)): `ptt!` trains an `RBM` or a
   `StandardizedRBM` (including a `CenteredRBM`) like `pcd!`, keeping the persistent chains at equilibrium by replica exchange with frozen

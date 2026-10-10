@@ -68,6 +68,10 @@ function standardize_hidden_from_inputs!(
         wts::AbstractArray{<:Real} = uniform_wts(rbm.hidden, inputs), damping::Real = 1, ϵ::Real = 0
     )
     μ = total_mean_from_inputs(rbm.hidden, inputs; wts)
+    return _standardize_hidden_from_meanvar!(rbm, μ, nothing; damping, ϵ)
+end
+
+function _standardize_hidden_from_meanvar!(rbm::CenteredRBM, μ::AbstractArray, ν; damping::Real, ϵ::Real)
     offset_h = (1 - damping) .* rbm.offset_h .+ damping .* μ
     return standardize_hidden!(rbm, offset_h, rbm.scale_h)
 end

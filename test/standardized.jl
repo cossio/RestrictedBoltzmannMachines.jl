@@ -4,7 +4,7 @@ using LinearAlgebra: norm
 using LogExpFunctions: logsumexp
 using Random: bitrand, seed!
 using RestrictedBoltzmannMachines: ∂free_energy, ∂free_energy_h, ∂free_energy_v, ∂regularize!
-using RestrictedBoltzmannMachines: Binary, Spin, dReLU, Potts, ReLU, nsReLU
+using RestrictedBoltzmannMachines: Binary, Spin, dReLU, Potts, ReLU, nsReLU, xReLU
 using RestrictedBoltzmannMachines: RBM, StandardizedRBM
 using RestrictedBoltzmannMachines: BinaryRBM, BinaryStandardizedRBM, SpinStandardizedRBM
 using RestrictedBoltzmannMachines: weight_norms, delta_energy
@@ -19,6 +19,8 @@ using RestrictedBoltzmannMachines: sample_h_from_h, sample_v_from_v
 using RestrictedBoltzmannMachines: standardize, unstandardize, standardize!, unstandardized_weights
 using RestrictedBoltzmannMachines: standardize_hidden, standardize_visible
 using RestrictedBoltzmannMachines: initialize!
+using RestrictedBoltzmannMachines: _total_meanvar_h_from_v, total_meanvar_from_inputs, inputs_h_from_v
+using RestrictedBoltzmannMachines: standardize_hidden_from_inputs!, standardize_hidden_from_v!
 using StatsBase: proportionmap
 using Statistics: mean, std, var
 using FillArrays: Trues
@@ -635,4 +637,33 @@ end
     @test regularization_penalty(srbm, reg) ≈ regularization_penalty(unstandardize(srbm), reg)
     @test regularization_penalty(srbm, StandardizedParametersRegularizer(reg)) ≈
         regularization_penalty(RBM(srbm.visible, srbm.hidden, srbm.w), reg)
+end
+
+@testset "standardize_hidden_from_v! in chunks ($(nameof(typeof(hidden))) hidden)" for hidden in (
+        Binary(; θ = randn(2, 3)),
+        Potts(; θ = randn(3, 2)),
+        xReLU(; θ = randn(2, 3), γ = 1 .+ rand(2, 3), Δ = randn(2, 3), ξ = randn(2, 3)),
+    )
+    rbm = standardize(
+        RBM(Binary(; θ = randn(4)), hidden, randn(4, size(hidden)...)),
+        randn(4), randn(size(hidden)...), 1 .+ rand(4), 1 .+ rand(size(hidden)...)
+    )
+    v = bitrand(4, 5, 7) # 35 samples in two batch dimensions
+    wts = rand(5, 7)
+    wts[:, 2] .= 0 # samples 6:10, a whole chunk of 5 samples below
+    for wts in (Trues(5, 7), wts), chunk_samples in (1, 5, 8, 35, 100)
+        μ, ν = _total_meanvar_h_from_v(rbm, v; wts, chunk = chunk_samples * length(hidden))
+        μ0, ν0 = total_meanvar_from_inputs(rbm.hidden, inputs_h_from_v(rbm, v); wts)
+        @test μ ≈ μ0
+        @test ν ≈ ν0
+    end
+    # zero total weight gives NaN statistics, with or without chunks
+    @test all(isnan, _total_meanvar_h_from_v(rbm, v; wts = zeros(5, 7), chunk = 5 * length(hidden)).μ)
+
+    rbm_full = deepcopy(rbm)
+    standardize_hidden_from_inputs!(rbm_full, inputs_h_from_v(rbm, v); wts, damping = 0.3, ϵ = 0.1)
+    standardize_hidden_from_v!(rbm, v; wts, damping = 0.3, ϵ = 0.1)
+    @test rbm.offset_h ≈ rbm_full.offset_h
+    @test rbm.scale_h ≈ rbm_full.scale_h
+    @test rbm.w ≈ rbm_full.w
 end
