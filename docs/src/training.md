@@ -170,7 +170,8 @@ The [`TrajectoryLadder`](@ref) holds the checkpoints and the persistent chains:
    (default `0.3`), the model is frozen as a new checkpoint. Its chains are
    thermalized by exchanges with the reservoir of the previous checkpoint, for a multiple
    of the autocorrelation time of the ladder level of the chains, as in the paper, and
-   then collected into a new reservoir.
+   then collected into a new reservoir. `ptt!` warns if the free energy of a copy of
+   `nchains` of these samples drifts in 10 000 Gibbs steps (`ladder.drift`).
 4. Log-partition functions of successive checkpoints are linked by the Bennett
    acceptance ratio, which gives [`log_partition(ladder)`](@ref log_partition(::TrajectoryLadder))
    and [`log_likelihood(ladder, v)`](@ref log_likelihood(::TrajectoryLadder, ::AbstractArray))
@@ -188,6 +189,9 @@ The [`TrajectoryLadder`](@ref) holds the checkpoints and the persistent chains:
    the model oscillate across a phase transition, so that its updates keep being
    rejected, whatever its initial learning rate; plain gradient descent (`Descent`)
    can then train through.
+6. For discrete visible units, `ptt!` throws if the distinct configurations of a minibatch
+   have total probability above `exp(10)` under `log_partition(ladder)`, which proves that
+   the ladder lost track of the mass of the model.
 
 `ptt!` trains plain `RBM`s and stdRBMs from scratch, starting from
 [`initialize!`](@ref). It accepts the keywords of [`pcd!`](@ref), plus the `ladder`, and
@@ -203,6 +207,11 @@ best or tied best validation log-likelihood after 100k updates, compared with
 
 The size of the updates sets how often checkpoints are frozen, each of which costs some
 tens of sweeps, so a smaller learning rate trades slower learning for fewer checkpoints.
+The checkpoints do not temper everything: training can move mass where neither the chains
+nor the checkpoints go, such as a mode of the data abandoned at a phase transition, or
+basins dug faster than Gibbs sampling reaches them. The checks above detect this; more
+Gibbs steps per update (`steps`), or a smaller learning rate, help the chains keep up.
+Certify a trained model with long Gibbs runs from several initializations.
 Repeated rejections at the same checkpoint can mean that the chains lag behind the model,
 so that the acceptance overestimates its overlap with the checkpoint. A larger `steps`
 helps if that many Gibbs steps move the chains between the modes of the model. Every

@@ -154,6 +154,30 @@ enough that this leaves its mode weights unchanged within the tolerance. =#
     @test abs(f_up - p_up) < 4sqrt(p_up * (1 - p_up) / 1000)
 end
 
+#= Issue #270: the exchanges with the samples of the last checkpoint, here all in the minority
+mode of the bimodal model above, with weaker couplings, cannot fix samples out of
+equilibrium in a direction that Gibbs sampling relaxes slowly, here in hundreds of steps. A
+new checkpoint checks its samples by Gibbs sampling a copy of some of them, and warns if
+their free energy drifts, but not for samples at equilibrium. =#
+@testset "a new checkpoint warns about samples out of equilibrium" begin
+    N = 10
+    rbm = RBM(Spin(; θ = fill(0.1, N)), Gaussian(; θ = zeros(1), γ = ones(1)), fill(0.45, N, 1))
+    states = enumerate_states(rbm.visible)
+    p = softmax(-free_energy(rbm, states))
+    down = vec(sum(states; dims = 1) .< 0)
+    p_down = sum(p[down])
+    @test p_down < 0.2
+    ladder = TrajectoryLadder(rbm; nchains = 1000, nreservoir = 10_000)
+    ladder.samples .= exact_samples(states[:, down], p[down] / p_down, 10_000)
+    ladder.samples_F .= free_energy(rbm, ladder.samples)
+    RBMs._reset_reservoir!(ladder)
+    @test_logs (:warn, r"out of equilibrium") RBMs._push_checkpoint!(ladder, deepcopy(rbm); steps = 1)
+    @test mean(sum(ladder.samples; dims = 1) .< 0) > p_down + 0.5 # the samples are left as they are
+    @test ladder.drift < -1 # towards the up mode, of lower free energy
+    samples = exact_samples(states, p, 1000)
+    @test_logs RBMs._check_relaxation(rbm, samples) # no warning
+end
+
 @testset "PTT update decisions" begin
     ladder = TrajectoryLadder(BinaryRBM(4, 2); nchains = 10) # α = 0.3, αmin = 0.1
     for (acceptance, since_checkpoint, status) in (
@@ -370,6 +394,31 @@ equilibrium (≈ 0.054). =#
     @test RBMs._push_checkpoint!(ladder, model; steps = 1)
     @test length(ladder.checkpoints) == K + 1
     @test last(ladder.logZ) ≈ log_partition(model) atol = 0.05
+end
+
+#= Issue #269: the probabilities of distinct configurations of discrete units sum to at most 1,
+so data whose log-likelihoods under the ladder add up to more prove that the ladder misses
+some of the mass of the model, and `ptt!` throws. Repeated configurations count once. =#
+@testset "ptt! throws when the ladder misses mass" begin
+    data = two_modes(8, 1000)
+    rbm = BinaryRBM(8, 4)
+    initialize!(rbm, data)
+    ladder = TrajectoryLadder(rbm; nchains = 500)
+    states = enumerate_states(rbm.visible)
+    ll = log_likelihood(ladder, states)
+    @test logsumexp(ll) ≈ 0 atol = 0.05
+    @test isnothing(RBMs._check_mass(ladder, states))
+    likeliest = states[:, argmax(ll):argmax(ll)]
+    copies = ceil(Int, exp(RBMs.PTT_MAX_LOG_MASS + 1 - maximum(ll)))
+    @test isnothing(RBMs._check_mass(ladder, repeat(likeliest, 1, copies)))
+    ladder.logZ[end] -= 2RBMs.PTT_MAX_LOG_MASS # as if the ladder missed most of the mass
+    @test_throws ErrorException RBMs._check_mass(ladder, states)
+    @test_throws ErrorException ptt!(rbm, data; ladder, batchsize = 100)
+    # continuous visible units have densities, which this bound does not apply to
+    gaussian = RBM(Gaussian(; θ = zeros(3), γ = ones(3)), Binary(; θ = zeros(2)), randn(3, 2) / 4)
+    ladder = TrajectoryLadder(gaussian; nchains = 100)
+    ladder.logZ[end] -= 2RBMs.PTT_MAX_LOG_MASS
+    @test isnothing(RBMs._check_mass(ladder, zeros(3, 10)))
 end
 
 @testset "ptt! halves the learning rate at rejections" begin
