@@ -23,7 +23,7 @@ const PTT_MAX_REJECTIONS = 30
 const PTT_WARN_HALVINGS = 10
 # Gibbs steps that check that the samples of a new checkpoint are at equilibrium
 const PTT_RELAXATION_CHECK = 10_000
-# log total probability of a minibatch, under `log_partition(ladder)`, above which `ptt!` throws
+# log total probability of a minibatch, under `log_partition(ladder)`, above which `ptt!` stops
 const PTT_MAX_LOG_MASS = 10
 
 """
@@ -283,20 +283,23 @@ at a rejected update, but the optimiser is left as it is.
 freeze!(ladder::TrajectoryLadder; steps::Int = 1) =
     _ptt_update!(ladder, ladder.rbm; steps, freeze = true) === :frozen
 
-#= Throws if the distinct (discrete) configurations of `v` have total probability above 1
-under `log_partition(ladder)`: the ladder then misses mass that training moved where neither
-the chains nor the checkpoints go, unseen by the swap acceptance (#269, #270). =#
+#= If the distinct (discrete) configurations of `v` have total probability above 1 under
+`log_partition(ladder)`, the ladder misses mass that training moved where neither the chains
+nor the checkpoints go, unseen by the swap acceptance (#269, #270): restores the model to the
+last checkpoint, whose ladder holds its mass, and throws. =#
 function _check_mass(ladder::TrajectoryLadder, v::AbstractArray)
     ladder.rbm.visible isa _FieldLayers || return nothing
     x = reshape(Array(v), :, _nsamples(v))
     distinct = unique(n -> view(x, :, n), axes(x, 2))
     log_mass = logsumexp(Array(log_likelihood(ladder, v))[distinct])
-    log_mass ≤ PTT_MAX_LOG_MASS || error(
+    log_mass ≤ PTT_MAX_LOG_MASS && return nothing
+    _reject!(ladder, ladder.rbm)
+    error(
         "PTT lost track of the mass of the model: a minibatch has probability ",
-        "exp($(round(log_mass; sigdigits = 3))) under log_partition(ladder); see ",
-        "\"Equilibrium training with ptt!\" in the documentation",
+        "exp($(round(log_mass; sigdigits = 3))) under log_partition(ladder). The model is ",
+        "restored to the last checkpoint: continue training with this ladder and a smaller ",
+        "learning rate; see \"Equilibrium training with ptt!\" in the documentation",
     )
-    return nothing
 end
 
 #= After a rejected update: restarts the optimiser with half the learning rate, warns once

@@ -189,9 +189,11 @@ The [`TrajectoryLadder`](@ref) holds the checkpoints and the persistent chains:
    the model oscillate across a phase transition, so that its updates keep being
    rejected, whatever its initial learning rate; plain gradient descent (`Descent`)
    can then train through.
-6. For discrete visible units, `ptt!` throws if the distinct configurations of a minibatch
-   have total probability above `exp(10)` under `log_partition(ladder)`, which proves that
-   the ladder lost track of the mass of the model.
+6. For discrete visible units, if the distinct configurations of a minibatch have total
+   probability above `exp(10)` under `log_partition(ladder)`, which proves that the ladder
+   lost track of the mass of the model, `ptt!` restores the model to the last checkpoint
+   and throws. Training can then continue with the same ladder and a smaller learning
+   rate, as the paper recommends when its acceptance checks fail.
 
 `ptt!` trains plain `RBM`s and stdRBMs from scratch, starting from
 [`initialize!`](@ref). It accepts the keywords of [`pcd!`](@ref), plus the `ladder`, and

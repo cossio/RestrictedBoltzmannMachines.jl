@@ -398,7 +398,8 @@ end
 
 #= Issue #269: the probabilities of distinct configurations of discrete units sum to at most 1,
 so data whose log-likelihoods under the ladder add up to more prove that the ladder misses
-some of the mass of the model, and `ptt!` throws. Repeated configurations count once. =#
+some of the mass of the model, and `ptt!` restores the model to the last checkpoint and
+throws. Repeated configurations count once. =#
 @testset "ptt! throws when the ladder misses mass" begin
     data = two_modes(8, 1000)
     rbm = BinaryRBM(8, 4)
@@ -412,7 +413,10 @@ some of the mass of the model, and `ptt!` throws. Repeated configurations count 
     copies = ceil(Int, exp(RBMs.PTT_MAX_LOG_MASS + 1 - maximum(ll)))
     @test isnothing(RBMs._check_mass(ladder, repeat(likeliest, 1, copies)))
     ladder.logZ[end] -= 2RBMs.PTT_MAX_LOG_MASS # as if the ladder missed most of the mass
+    rbm.w .+= 0.1 # moved since the last checkpoint
     @test_throws ErrorException RBMs._check_mass(ladder, states)
+    @test rbm.w == last(ladder.checkpoints).w
+    @test ladder.chains_F ≈ free_energy(rbm, ladder.chains)
     @test_throws ErrorException ptt!(rbm, data; ladder, batchsize = 100)
     # continuous visible units have densities, which this bound does not apply to
     gaussian = RBM(Gaussian(; θ = zeros(3), γ = ones(3)), Binary(; θ = zeros(2)), randn(3, 2) / 4)
