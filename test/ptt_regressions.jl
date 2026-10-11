@@ -140,7 +140,7 @@ from the checkpoint: a displacement of exactly -(1 + ρ) η ∂, with the halved
     ρ = 0.9
     checked = Ref(0)
     ptt!(
-        rbm, data; ladder, batchsize = 100, iters = 300, optim = Nesterov(5.0, ρ),
+        rbm, data; ladder, batchsize = 100, iters = 300, optim = Nesterov(10.0, ρ),
         callback = (; rbm, state, ∂, ladder, _...) -> begin
             if ladder.rejections > 0 # this iteration's step started from the restored checkpoint
                 η = state.w.rule.eta
