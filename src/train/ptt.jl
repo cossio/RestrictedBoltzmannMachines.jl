@@ -21,13 +21,15 @@ const PTT_DECORRELATION = 2
 const PTT_MAX_REJECTIONS = 30
 # learning rate halvings after which `ptt!` warns that training may stall
 const PTT_WARN_HALVINGS = 10
-# Gibbs steps that check that the samples of a new checkpoint are at equilibrium
+# Gibbs steps that check that the samples of a new checkpoint are at equilibrium,
 const PTT_RELAXATION_CHECK = 10_000
+# and the probability that the check warns about samples that are at equilibrium
+const PTT_RELAXATION_PVALUE = 1.0e-3
 # log total probability of a minibatch, under `log_partition(ladder)`, above which `ptt!` stops
 const PTT_MAX_LOG_MASS = 10
 
 """
-    TrajectoryLadder(rbm; nchains, nreservoir = 10nchains, α = 0.3, αmin = 0.1, sweeps = 1, steps = 1, anneal = 100)
+    TrajectoryLadder(rbm; nchains, nreservoir = 10nchains, nfree = 0, α = 0.3, αmin = 0.1, sweeps = 1, steps = 1, anneal = 100, check = 10_000)
 
 Persistent state of Parallel Trajectory Tempering for training `rbm` with [`ptt!`](@ref):
 frozen checkpoints along the training trajectory of `rbm`, their log-partition functions,
@@ -40,22 +42,33 @@ then running Gibbs sampling. `α` is the swap acceptance between the last checkp
 `rbm` below which a new checkpoint is frozen, and `αmin` the one below which the update is
 rejected.
 
+`nfree` *free chains* of `rbm` are never exchanged with the reservoir, but sampled by Gibbs
+sampling alone, like the chains of [`pcd!`](@ref), and join the chains in the negative phase
+of `ptt!`. The exchanges keep the chains where the reservoir goes, so training can dig
+basins that they never see; free chains fall into them, so that the gradient suppresses
+them, as in `pcd!`. They are not at equilibrium, so they bias the gradient as the chains of
+`pcd!` do, in proportion to their number: see
+[Equilibrium training with `ptt!`](@ref ptt_training).
+
 `rbm` is an `RBM` or a `StandardizedRBM` (including a `CenteredRBM`), freshly initialized
 by [`initialize!`](@ref). The ladder starts at the independent-site model obtained by
 setting the weights of `rbm` to zero, whose partition function is known, and is extended
 along `anneal` steps scaling the weights up to those of `rbm`, which becomes the last
-checkpoint. `steps` are the Gibbs steps per sweep used meanwhile.
+checkpoint. `steps` are the Gibbs steps per sweep used meanwhile, and `check` the Gibbs
+steps of the equilibrium check of the samples of `rbm` (see [`freeze!`](@ref)).
 
 The checkpoints and their log-partition functions, each in its own parametrization (see
 [`log_partition(ladder)`](@ref log_partition(::TrajectoryLadder))), are kept in
-`ladder.checkpoints` and `ladder.logZ`, the persistent chains in `ladder.chains`,
-equilibrium samples of the last checkpoint in `ladder.samples`, and the last swap
-acceptance in `ladder.acceptance`. As
-diagnostics of the thermalization of the last checkpoint, `ladder.τint` and `ladder.τexp`
-hold the integrated and exponential autocorrelation times, in sweeps, of the ladder level
-of its chains, and `ladder.drift` the drift of the free energy of its samples under Gibbs
-sampling. See also [`log_partition(ladder)`](@ref log_partition(::TrajectoryLadder))
-and [`log_likelihood(ladder, v)`](@ref log_likelihood(::TrajectoryLadder, ::AbstractArray)).
+`ladder.checkpoints` and `ladder.logZ`, the persistent chains in `ladder.chains`, the free
+chains in `ladder.free`, equilibrium samples of the last checkpoint in `ladder.samples`,
+and the last swap acceptance in `ladder.acceptance`. As diagnostics of the thermalization
+of the last checkpoint, `ladder.τint` and `ladder.τexp` hold the integrated and
+exponential autocorrelation times, in sweeps, of the ladder level of its chains, and
+`ladder.drift` the result of the equilibrium check of its samples: the drift of their free
+energy `F`, the largest standardized drift `z` of the means of the units and of the free
+energy, in standard errors, and the Gibbs `steps` of the check. See also
+[`log_partition(ladder)`](@ref log_partition(::TrajectoryLadder)) and
+[`log_likelihood(ladder, v)`](@ref log_likelihood(::TrajectoryLadder, ::AbstractArray)).
 """
 Base.@kwdef mutable struct TrajectoryLadder{M, A <: AbstractArray}
     const rbm::M # model being trained (not a copy)
@@ -67,23 +80,28 @@ Base.@kwdef mutable struct TrajectoryLadder{M, A <: AbstractArray}
     const samples_F::Vector{Float64} # their free energies under the last checkpoint
     const reservoir::A = copy(samples) # working copy of `samples`, exchanged with `chains`
     const reservoir_F::Vector{Float64} = copy(samples_F)
+    # free chains of `rbm`, never exchanged with the reservoir, sampled by Gibbs sampling alone
+    const free::A = similar(chains, (size(chains)[1:(end - 1)]..., 0))
     acceptance::Float64 = 1.0 # last swap acceptance between the last checkpoint and `rbm`
     since_checkpoint::Int = 0 # updates since the last checkpoint was frozen or restored
     rejections::Int = 0 # consecutive rejected updates
     τint::Float64 = NaN # integrated and exponential autocorrelation times (in sweeps) of the
     τexp::Float64 = NaN # chains' ladder level, measured when building the last reservoir
-    drift::Float64 = NaN # of the free energy of `samples` under Gibbs sampling
+    # equilibrium check of `samples`: drift of their free energy, largest standardized drift
+    # of the means of the units and of the free energy, and Gibbs steps of the check
+    drift::@NamedTuple{F::Float64, z::Float64, steps::Int} = (; F = NaN, z = NaN, steps = 0)
     const sweeps::Int
     const α::Float64
     const αmin::Float64
 end
 
 function TrajectoryLadder(
-        rbm; nchains::Int, nreservoir::Int = 10nchains, α::Real = 0.3, αmin::Real = 0.1,
-        sweeps::Int = 1, steps::Int = 1, anneal::Int = 100
+        rbm; nchains::Int, nreservoir::Int = 10nchains, nfree::Int = 0, α::Real = 0.3, αmin::Real = 0.1,
+        sweeps::Int = 1, steps::Int = 1, anneal::Int = 100, check::Int = PTT_RELAXATION_CHECK
     )
     nchains > 0 || throw(ArgumentError("nchains must be positive"))
     nreservoir ≥ nchains || throw(ArgumentError("nreservoir must be at least nchains"))
+    nfree ≥ 0 || throw(ArgumentError("nfree must be non-negative"))
     0 ≤ αmin < α ≤ 1 || throw(ArgumentError("expected 0 ≤ αmin < α ≤ 1"))
     sweeps > 0 && anneal > 0 || throw(ArgumentError("sweeps and anneal must be positive"))
     independent = deepcopy(rbm)
@@ -93,9 +111,12 @@ function TrajectoryLadder(
     chains = _default_fantasy_chains(independent, nchains)
     ladder = TrajectoryLadder(;
         rbm, checkpoints = [independent], logZ = [Float64(log_partition_zero_weight(independent))],
-        chains, chains_F = _free_energies(independent, chains), samples, samples_F, sweeps, α, αmin
+        chains, chains_F = _free_energies(independent, chains), samples, samples_F,
+        free = _default_fantasy_chains(independent, nfree), sweeps, α, αmin
     )
-    _anneal!(ladder; steps, nsteps = anneal)
+    _anneal!(ladder; steps, nsteps = anneal, check)
+    # the free chains start from equilibrium samples of `rbm`
+    ladder.free .= ladder.samples[.., sample(1:nreservoir, nfree; replace = nfree > nreservoir)]
     return ladder
 end
 
@@ -141,7 +162,9 @@ Tempering (PTT; Béreux, Decelle, Furtlehner, Seoane, arXiv:2607.27077).
 Like [`pcd!`](@ref), but the persistent chains are kept at equilibrium by replica exchange
 with frozen checkpoints of the training trajectory, held by a [`TrajectoryLadder`](@ref).
 Each update runs `ladder.sweeps` sweeps, exchanging the chains with equilibrium samples of
-the last checkpoint and then running `steps` Gibbs steps, before the gradient step.
+the last checkpoint and then running `steps` Gibbs steps, before the gradient step. The
+free chains of the ladder, if any, run as many Gibbs steps without exchanges, and join the
+chains in the negative phase.
 
 An update that loses overlap with the last checkpoint is rejected: `rbm` is restored to that
 checkpoint, the learning rate of the optimiser is halved for good, and the optimiser forgets
@@ -164,6 +187,9 @@ equivalent `StandardizedRBM` whose offsets and scales are fixed to zero and one.
 - `steps::Int=1`: Gibbs steps per sweep.
 - `optim::AbstractRule=Adam(1e-4)`: optimizer rule from `Optimisers.jl`, with a learning
   rate `eta`. [`CossimDescent`](@ref) is the optimiser used in the paper.
+- `check::Int=10_000`, `final_check::Int=10check`: Gibbs steps of the equilibrium check of
+  the samples of each new checkpoint, and of the last one, frozen before returning (see
+  [`freeze!`](@ref)). `0` disables the check.
 - `callback=Returns(nothing)`: called after every update as
   `callback(; rbm, optim, state, ps, iter, vd, wd, ∂, vm, ladder)`, where `vm` are the
   chains of the ladder. Slurp unused keywords with a trailing `_...`.
@@ -172,10 +198,13 @@ equivalent `StandardizedRBM` whose offsets and scales are fixed to zero and one.
 
 Before returning, `rbm` is frozen as the last checkpoint, so that `ladder.samples` are
 equilibrium samples of the trained model and `log_partition(ladder)` its log-partition
-function; if that is rejected like an update, `rbm` is restored to the last checkpoint.
-Every run thus ends with a checkpoint, which costs some tens of sweeps, so continue training
-in a few long runs rather than many short ones. [`freeze!`](@ref) freezes the model at any
-point of a run, from the callback.
+function, as far as the check of `final_check` Gibbs steps can tell: drift that develops
+over more steps escapes it, so certify a trained model with longer Gibbs runs from several
+initializations (see [Equilibrium training with `ptt!`](@ref ptt_training)). If the freeze
+is rejected like an update, `rbm` is restored to the last checkpoint. Every run thus ends
+with a checkpoint, which costs some tens of sweeps and the check, so continue training in a
+few long runs rather than many short ones. [`freeze!`](@ref) freezes the model at any point
+of a run, from the callback.
 
 Returns `(state, ps)`.
 """
@@ -192,7 +221,9 @@ function ptt!(
         iters::Int = 1, # number of gradient updates
         wts::AbstractVector{<:Real} = uniform_wts(rbm.visible, data), # data weights
         steps::Int = 1, # Gibbs steps per sweep
-        ladder::TrajectoryLadder = TrajectoryLadder(rbm; nchains = min(batchsize, size(data)[end]), steps),
+        check::Int = PTT_RELAXATION_CHECK, # Gibbs steps of the equilibrium check of each new checkpoint,
+        final_check::Int = 10check, # and of the last one
+        ladder::TrajectoryLadder = TrajectoryLadder(rbm; nchains = min(batchsize, size(data)[end]), steps, check),
         optim::AbstractRule = Adam(1.0e-4), # optimizer rule
         moments = moments_from_samples(rbm.visible, data; wts), # sufficient statistics for visible layer
         damping::Real = 1 // 100, # of the hidden standardization updates
@@ -229,11 +260,11 @@ function ptt!(
         vd, wd = data[.., idx], wts[idx]
 
         # negative phase first, since a rejected update restores the parameters
-        if _ptt_update!(ladder, model; steps) === :rejected
+        if _ptt_update!(ladder, model; steps, check) === :rejected
             halvings = _halve_learning_rate!(ladder, state, ps, halvings)
         end
         _check_mass(ladder, vd)
-        ∂m = ∂free_energy(rbm, ladder.chains)
+        ∂m = ∂free_energy(rbm, _negative_samples!(ladder, rbm; steps))
 
         # positive phase
         ∂d = ∂free_energy(rbm, vd; wts = wd, moments)
@@ -261,12 +292,20 @@ function ptt!(
     #= The chains lag one update behind `rbm`: freeze it as the last checkpoint, so that the
     ladder holds equilibrium samples of the trained model. Like an update, the freeze is
     rejected if `rbm` lost overlap with the last checkpoint, which restores `rbm` to it. =#
-    freeze!(ladder; steps) || _halve_learning_rate!(ladder, state, ps, halvings)
+    freeze!(ladder; steps, check = final_check) || _halve_learning_rate!(ladder, state, ps, halvings)
     return state, ps
 end
 
+#= Samples of the negative phase: the chains of the ladder, joined by its free chains after
+as many Gibbs steps of `model` as the chains ran in the last update. =#
+function _negative_samples!(ladder::TrajectoryLadder, model; steps::Int)
+    _nsamples(ladder.free) > 0 || return ladder.chains
+    ladder.free .= sample_v_from_v(model, ladder.free; steps = ladder.sweeps * steps)
+    return cat(ladder.chains, ladder.free; dims = ndims(ladder.free))
+end
+
 """
-    freeze!(ladder::TrajectoryLadder; steps = 1)
+    freeze!(ladder::TrajectoryLadder; steps = 1, check = 10_000)
 
 Freeze the model trained with `ladder` as a new checkpoint, to sample it at equilibrium, as
 [`ptt!`](@ref) does before returning; from its callback, this evaluates the model during a
@@ -274,14 +313,20 @@ run. As along training, the chains of the model are thermalized and collected in
 reservoir, with `steps` Gibbs steps per sweep, and its log-partition function is appended to
 `ladder.logZ`.
 
+The new samples are then checked for equilibrium: a copy of all of them runs `check` Gibbs
+steps, and `freeze!` warns if the mean of any visible or hidden unit, or the mean free
+energy, drifts significantly, as when training dug basins where the chains do not go.
+`ladder.drift` records the drift. The check only sees drift that develops within `check`
+steps; `0` disables it.
+
 Returns `true` if the model was frozen: `ladder.samples` are then equilibrium samples of the
-model, and `last(ladder.logZ)`, `ladder.τint` and `ladder.τexp` refer to it. Returns `false`
-if the freeze is rejected, under the rules of a training update (see [`ptt!`](@ref)): the
-model is then restored to the last checkpoint and the chains to its equilibrium samples, as
-at a rejected update, but the optimiser is left as it is.
+model, and `last(ladder.logZ)`, `ladder.τint`, `ladder.τexp` and `ladder.drift` refer to it.
+Returns `false` if the freeze is rejected, under the rules of a training update (see
+[`ptt!`](@ref)): the model is then restored to the last checkpoint and the chains to its
+equilibrium samples, as at a rejected update, but the optimiser is left as it is.
 """
-freeze!(ladder::TrajectoryLadder; steps::Int = 1) =
-    _ptt_update!(ladder, ladder.rbm; steps, freeze = true) === :frozen
+freeze!(ladder::TrajectoryLadder; steps::Int = 1, check::Int = PTT_RELAXATION_CHECK) =
+    _ptt_update!(ladder, ladder.rbm; steps, freeze = true, check) === :frozen
 
 #= If the distinct (discrete) configurations of `v` have total probability above 1 under
 `log_partition(ladder)`, the ladder misses mass that training moved where neither the chains
@@ -341,7 +386,9 @@ is frozen unless rejected.
 The chains still sample the model before its last move, so the acceptance that decides
 between these outcomes reweights them to `model`. Otherwise, the acceptance of a large step
 is overestimated until the chains catch up. =#
-function _ptt_update!(ladder::TrajectoryLadder, model; steps::Int, freeze::Bool = false)
+function _ptt_update!(
+        ladder::TrajectoryLadder, model; steps::Int, freeze::Bool = false, check::Int = PTT_RELAXATION_CHECK
+    )
     proposal = _propose_exchange(ladder, model)
     w = softmax(ladder.chains_F - proposal.Fθx) # reweights the chains to `model`
     ladder.acceptance = dot(w, min.(1, exp.(proposal.Δ)))
@@ -349,7 +396,7 @@ function _ptt_update!(ladder::TrajectoryLadder, model; steps::Int, freeze::Bool 
     status === :rejected && return _reject!(ladder, model)
     _exchange!(ladder, proposal)
     if status === :frozen
-        _push_checkpoint!(ladder, model; steps) || return _reject!(ladder, model)
+        _push_checkpoint!(ladder, model; steps, check) || return _reject!(ladder, model)
     end
     ladder.chains .= sample_v_from_v(model, ladder.chains; steps)
     for _ in 2:ladder.sweeps
@@ -436,7 +483,10 @@ because exchanges write the chains back into it, which biases it in two ways: ch
 behind the moving model are not at equilibrium, and, when Gibbs sampling cannot move between
 modes, the swaps conserve the number of configurations of each mode in chains and reservoir
 together, so that a shift of the model's mode weights is partly absorbed by the reservoir. =#
-function _push_checkpoint!(ladder::TrajectoryLadder, model; steps::Int, minsweeps::Int = 20, maxsweeps::Int = 10_000)
+function _push_checkpoint!(
+        ladder::TrajectoryLadder, model; steps::Int, check::Int = PTT_RELAXATION_CHECK,
+        minsweeps::Int = 20, maxsweeps::Int = 10_000
+    )
     checkpoint = deepcopy(model)
     _reset_reservoir!(ladder)
     sweeps(n) = stack(_sweep!(ladder, checkpoint; steps) for _ in 1:n) # accepted swaps, chains × sweeps
@@ -457,7 +507,7 @@ function _push_checkpoint!(ladder::TrajectoryLadder, model; steps::Int, minsweep
         end
         samples[.., block] = ladder.chains[.., 1:length(block)]
     end
-    ladder.drift = _check_relaxation(checkpoint, samples[.., 1:_nsamples(ladder.chains)])
+    ladder.drift = _check_relaxation(checkpoint, samples, check)
 
     samples_F = _free_energies(checkpoint, samples)
     W₀ = _free_energies(checkpoint, ladder.samples) - ladder.samples_F # work from the last checkpoint to the new one
@@ -476,30 +526,53 @@ end
 # mean over the second half of the sweeps (columns) of `swaps`
 _late_mean(swaps::AbstractMatrix) = mean(view(swaps, :, (size(swaps, 2) ÷ 2 + 1):size(swaps, 2)))
 
-#= Returns the mean drift of the free energy of the samples `x` of `model` in
-`PTT_RELAXATION_CHECK` Gibbs steps of a copy, and warns if it exceeds 3 standard errors, as
-when training digs basins where the chains do not go (#270). =#
-function _check_relaxation(model, x::AbstractArray)
-    relaxed = sample_v_from_v(model, x; steps = PTT_RELAXATION_CHECK)
-    ΔF = _free_energies(model, relaxed) - _free_energies(model, x)
-    drift, se = mean(ΔF), std(ΔF) / sqrt(length(ΔF))
-    abs(drift) ≤ 3se || @warn string(
-        "The samples of a new checkpoint are out of equilibrium: their free energy drifts by ",
-        "$(round(drift; sigdigits = 3)) ± $(round(se; sigdigits = 2)) in $PTT_RELAXATION_CHECK ",
-        "Gibbs steps; see \"Equilibrium training with ptt!\" in the documentation",
+#= Checks that the samples `x` of `model` are at equilibrium: relaxes a copy of all of them
+by `steps` Gibbs steps and compares, before and after, the mean of every visible and hidden
+unit (the moments that the gradient of the fields uses) and the mean free energy, each by a
+paired z-test over the samples. Warns if any drifts significantly, after a Bonferroni
+correction over the statistics, as when training dug basins where the chains do not go
+(#270): the mean free energy alone misses drifts between states of similar free energy.
+Returns the drift of the free energy `F`, the largest standardized drift `z`, and `steps`
+(`NaN`s, with `steps = 0`, if the check is disabled or there are fewer than two samples).
+The check sees only drift that develops within `steps`. =#
+function _check_relaxation(model, x::AbstractArray, steps::Int)
+    steps > 0 && _nsamples(x) ≥ 2 || return (; F = NaN, z = NaN, steps = 0)
+    y = sample_v_from_v(model, x; steps)
+    ΔF = _free_energies(model, y) - _free_energies(model, x)
+    F, se = mean(ΔF), std(ΔF) / sqrt(length(ΔF))
+    z = max(_zscore(F, se), _max_zscore(x, y), _max_zscore(mean_h_from_v(model, x), mean_h_from_v(model, y)))
+    m = 1 + length(model.visible) + length(model.hidden) # statistics tested
+    threshold = sqrt(2) * erfcinv(PTT_RELAXATION_PVALUE / m) # two-sided, Bonferroni-corrected
+    z ≤ threshold || @warn string(
+        "The samples of a new checkpoint are out of equilibrium: in $steps Gibbs steps, their ",
+        "free energy drifts by $(round(F; sigdigits = 3)) ± $(round(se; sigdigits = 2)), and ",
+        "the mean of a unit or the free energy by $(round(z; sigdigits = 3)) standard errors ",
+        "(threshold $(round(threshold; sigdigits = 2))); see \"Equilibrium training with ",
+        "ptt!\" in the documentation",
     )
-    return drift
+    return (; F = Float64(F), z = Float64(z), steps)
+end
+
+# drift `μ` of a mean in units of its standard error `se`: 0 if nothing moved, ±Inf if all moved alike
+_zscore(μ::Real, se::Real) = iszero(μ) ? zero(μ / se) : μ / se
+
+# largest standardized drift of the means of the units from the samples `x` to the paired `y`
+function _max_zscore(x::AbstractArray, y::AbstractArray)
+    Δ = y .- x
+    μ = mean(Δ; dims = ndims(Δ))
+    se = sqrt.(max.(mean(abs2, Δ; dims = ndims(Δ)) .- abs2.(μ), 0) ./ (_nsamples(Δ) - 1))
+    return maximum(abs, _zscore.(μ, se))
 end
 
 #= Builds the initial ladder, from the independent-site model to `ladder.rbm`, along models
 whose weights are those of `ladder.rbm` scaled by k / `nsteps`, for k = 1, …, `nsteps`.
 `ladder.rbm` is frozen as the last checkpoint, so that rejected training updates never move
 back further than the initial model. =#
-function _anneal!(ladder::TrajectoryLadder; steps::Int, nsteps::Int)
+function _anneal!(ladder::TrajectoryLadder; steps::Int, nsteps::Int, check::Int)
     model = deepcopy(ladder.rbm)
     for k in 1:nsteps
         model.w .= (k / nsteps) .* ladder.rbm.w
-        _ptt_update!(ladder, model; steps, freeze = k == nsteps) === :rejected &&
+        _ptt_update!(ladder, model; steps, freeze = k == nsteps, check) === :rejected &&
             error("PTT failed to anneal from the independent-site model to the initial model; increase `anneal`")
     end
     return ladder

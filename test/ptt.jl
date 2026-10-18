@@ -139,8 +139,9 @@ enough that this leaves its mode weights unchanged within the tolerance. =#
     p_up = sum(p[up]) # exact weight of the mode with positive magnetization
     @test 0.6 < p_up < 0.9
 
-    ladder = TrajectoryLadder(rbm; nchains = 1000, nreservoir = 100_000)
+    ladder = TrajectoryLadder(rbm; nchains = 1000, nreservoir = 100_000, check = 0) # no check of this large reservoir
     @test length(ladder.checkpoints) > 2 # needs intermediate models
+    @test isequal(ladder.drift, (; F = NaN, z = NaN, steps = 0))
     @test abs(log_partition(ladder) - log_partition(rbm)) < 0.05
     @test abs(mean(sum(ladder.chains; dims = 1) .> 0) - p_up) < 4sqrt(p_up * (1 - p_up) / 1000)
 
@@ -167,15 +168,58 @@ their free energy drifts, but not for samples at equilibrium. =#
     down = vec(sum(states; dims = 1) .< 0)
     p_down = sum(p[down])
     @test p_down < 0.2
-    ladder = TrajectoryLadder(rbm; nchains = 1000, nreservoir = 10_000)
+    ladder = TrajectoryLadder(rbm; nchains = 1000, nreservoir = 10_000, check = 0)
     ladder.samples .= exact_samples(states[:, down], p[down] / p_down, 10_000)
     ladder.samples_F .= free_energy(rbm, ladder.samples)
     RBMs._reset_reservoir!(ladder)
     @test_logs (:warn, r"out of equilibrium") RBMs._push_checkpoint!(ladder, deepcopy(rbm); steps = 1)
     @test mean(sum(ladder.samples; dims = 1) .< 0) > p_down + 0.5 # the samples are left as they are
-    @test ladder.drift < -1 # towards the up mode, of lower free energy
+    @test ladder.drift.F < -1 # towards the up mode, of lower free energy
+    @test ladder.drift.z > 10
+    @test ladder.drift.steps == RBMs.PTT_RELAXATION_CHECK
     samples = exact_samples(states, p, 1000)
-    @test_logs RBMs._check_relaxation(rbm, samples) # no warning
+    drift = @test_logs RBMs._check_relaxation(rbm, samples, 1000) # no warning
+    @test abs(drift.F) < 0.5 && drift.z < 5 && drift.steps == 1000
+    @test isequal(RBMs._check_relaxation(rbm, samples, 0), (; F = NaN, z = NaN, steps = 0)) # disabled
+end
+
+#= The mean free energy misses a drift between states of similar free energy, such as the
+moments of the issue: here, from one mode of a symmetric bimodal model, which Gibbs
+sampling spreads over both without changing the mean free energy. The means of the units
+drift by many standard errors, which the check sees. =#
+@testset "the equilibrium check sees a drift at constant free energy" begin
+    N = 10
+    rbm = RBM(Spin(; θ = zeros(N)), Gaussian(; θ = zeros(1), γ = ones(1)), fill(0.45, N, 1))
+    states = enumerate_states(rbm.visible)
+    p = softmax(-free_energy(rbm, states))
+    down = vec(sum(states; dims = 1) .< 0)
+    samples = exact_samples(states[:, down], p[down] / sum(p[down]), 10_000)
+    drift = @test_logs (:warn, r"out of equilibrium") RBMs._check_relaxation(rbm, samples, 10_000)
+    @test abs(drift.F) < 0.2 # ± 0.03
+    @test drift.z > 20
+    @test drift.steps == 10_000
+    @test RBMs._max_zscore(samples, samples) == 0 # nothing moved
+    @test RBMs._zscore(0.0, 0.0) == 0 && RBMs._zscore(1.0, 0.0) == Inf
+end
+
+#= Free chains start from equilibrium samples of the initial model and are never exchanged:
+they move by Gibbs sampling alone, as many steps as the chains of the ladder, and join them
+in the negative phase. Without free chains, the negative phase is the chains themselves. =#
+@testset "free chains" begin
+    rbm = BinaryRBM(randn(6) / 2, randn(3) / 2, randn(6, 3) / 2)
+    ladder = TrajectoryLadder(rbm; nchains = 50, nreservoir = 200, nfree = 20, anneal = 20, check = 100)
+    @test size(ladder.free) == (6, 20) && ladder.free isa typeof(ladder.samples)
+    @test all(n -> any(m -> ladder.free[:, n] == ladder.samples[:, m], 1:200), 1:20)
+    free₀ = copy(ladder.free)
+    Random.seed!(5)
+    v = RBMs._negative_samples!(ladder, rbm; steps = 3)
+    Random.seed!(5)
+    @test ladder.free == RBMs.sample_v_from_v(rbm, free₀; steps = 3)
+    @test ladder.free != free₀
+    @test v == [ladder.chains ladder.free]
+    ladder = TrajectoryLadder(rbm; nchains = 50, nreservoir = 200, anneal = 20, check = 100)
+    @test size(ladder.free) == (6, 0)
+    @test RBMs._negative_samples!(ladder, rbm; steps = 3) === ladder.chains
 end
 
 @testset "PTT update decisions" begin
@@ -218,6 +262,7 @@ end
 
     @test_throws ArgumentError TrajectoryLadder(model; nchains = 10, nreservoir = 5)
     @test_throws ArgumentError TrajectoryLadder(model; nchains = 10, α = 0.1, αmin = 0.2)
+    @test_throws ArgumentError TrajectoryLadder(model; nchains = 10, nfree = -1)
 end
 
 # a single anneal step to the bimodal model above loses overlap

@@ -170,8 +170,13 @@ The [`TrajectoryLadder`](@ref) holds the checkpoints and the persistent chains:
    (default `0.3`), the model is frozen as a new checkpoint. Its chains are
    thermalized by exchanges with the reservoir of the previous checkpoint, for a multiple
    of the autocorrelation time of the ladder level of the chains, as in the paper, and
-   then collected into a new reservoir. `ptt!` warns if the free energy of a copy of
-   `nchains` of these samples drifts in 10 000 Gibbs steps (`ladder.drift`).
+   then collected into a new reservoir. To check that the reservoir is at equilibrium, a
+   copy of all its samples runs `check` Gibbs steps (10 000 by default; `final_check`,
+   ten times as many by default, at the freeze that ends a run), and `ptt!` warns if the
+   mean of any visible or hidden unit, or the mean free energy, drifts significantly (a
+   paired test over the samples, with a Bonferroni correction over the units;
+   `ladder.drift` records the drift). The check sees only drift that develops within its
+   horizon.
 4. Log-partition functions of successive checkpoints are linked by the Bennett
    acceptance ratio, which gives [`log_partition(ladder)`](@ref log_partition(::TrajectoryLadder))
    and [`log_likelihood(ladder, v)`](@ref log_likelihood(::TrajectoryLadder, ::AbstractArray))
@@ -208,12 +213,36 @@ best or tied best validation log-likelihood after 100k updates, compared with
 `Descent(1e-2)` and `CossimDescent`, at the cost of more checkpoints.
 
 The size of the updates sets how often checkpoints are frozen, each of which costs some
-tens of sweeps, so a smaller learning rate trades slower learning for fewer checkpoints.
+tens of sweeps and the equilibrium check, so a smaller learning rate trades slower learning
+for fewer checkpoints.
+
 The checkpoints do not temper everything: training can move mass where neither the chains
 nor the checkpoints go, such as a mode of the data abandoned at a phase transition, or
-basins dug faster than Gibbs sampling reaches them. The checks above detect this; more
-Gibbs steps per update (`steps`), or a smaller learning rate, help the chains keep up.
-Certify a trained model with long Gibbs runs from several initializations.
+basins dug faster than Gibbs sampling reaches them. The exchanges keep the chains where
+the reservoir goes (a chain is replaced by a reservoir sample every sweep or two), so they
+never travel far enough to find such basins, and the gradient never suppresses them,
+whereas the chains of [`pcd!`](@ref), which move by Gibbs sampling alone, fall into them.
+Three things help:
+
+- *Free chains*: `TrajectoryLadder(rbm; nchains, nfree)` adds `nfree` chains that are never
+  exchanged with the reservoir, but sampled by Gibbs sampling alone, like the chains of
+  `pcd!`, and join the chains of the ladder in the negative phase. They fall into the
+  basins that training digs, so that the gradient suppresses them. They are not at
+  equilibrium, so they bias the gradient as the chains of `pcd!` do, in proportion to
+  their share `nfree / (nchains + nfree)` of the negative phase; the ladder's samples and
+  log-partition functions do not use them.
+- More Gibbs steps per update (`steps`), or a smaller learning rate, help the chains keep
+  up with the model.
+- The equilibrium check of each new checkpoint, which warns when its samples drift.
+
+The check certifies `ladder.samples` and `log_partition(ladder)` only up to its horizon:
+drift that develops over more Gibbs steps than `final_check` escapes it (on protein
+families, drifts of several nats developed over 10⁵–3·10⁵ steps), and so do basins that
+Gibbs sampling does not reach at all. Certify a trained model with long Gibbs runs from
+several initializations (random configurations, the data, and `ladder.samples`), whose
+moments must agree with each other and with those of `ladder.samples`, and its
+log-partition function against an independent estimate, such as annealed importance
+sampling ([`aise`](@ref) and [`raise`](@ref)).
 Repeated rejections at the same checkpoint can mean that the chains lag behind the model,
 so that the acceptance overestimates its overlap with the checkpoint. A larger `steps`
 helps if that many Gibbs steps move the chains between the modes of the model. Every
@@ -227,11 +256,13 @@ differ by a constant, which must be added to the estimates to normalize them (se
 
 Before returning, `ptt!` freezes the trained model as the last checkpoint, so that
 `ladder.samples` are equilibrium samples of the model itself and `log_partition(ladder)` its
-log-partition function; the paper samples its trained models this way. The freeze follows
-the rules of an update: if it is rejected, the model is restored to the last checkpoint and
-the learning rate is halved. Every run thus ends with a checkpoint, so continue training in a
-few long runs rather than many short ones. To evaluate the model during a run, for instance
-for model selection, `freeze!(ladder; steps)` freezes it in the same way from the callback.
+log-partition function, as far as the check of `final_check` Gibbs steps can tell; the paper
+samples its trained models this way. The freeze follows the rules of an update: if it is
+rejected, the model is restored to the last checkpoint and the learning rate is halved.
+Every run thus ends with a checkpoint and the longer check, so continue training in a few
+long runs rather than many short ones. To evaluate the model during a run, for instance for
+model selection, `freeze!(ladder; steps, check)` freezes it in the same way from the
+callback.
 
 ## Practical tuning guidelines
 

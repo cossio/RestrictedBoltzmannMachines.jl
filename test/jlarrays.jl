@@ -499,11 +499,16 @@ end
     standardized && (rbm = StandardizedRBM(rbm))
     jl_rbm = adapt(JLArray, rbm)
     jl_data = adapt(JLArray, data)
-    ladder = RBMs.TrajectoryLadder(jl_rbm; nchains = 16, nreservoir = 64, anneal = 5)
+    ladder = RBMs.TrajectoryLadder(jl_rbm; nchains = 16, nreservoir = 64, nfree = 8, anneal = 5, check = 100)
     @test ladder.chains isa JLArray
     @test ladder.samples isa JLArray
-    RBMs.ptt!(jl_rbm, jl_data; ladder, iters = 10, batchsize = 16, optim = RBMs.CossimDescent(0.1, 1.0))
+    @test ladder.free isa JLArray
+    @test isfinite(ladder.drift.z) && ladder.drift.steps == 100 # the equilibrium check ran on device arrays
+    free₀ = copy(ladder.free)
+    RBMs.ptt!(jl_rbm, jl_data; ladder, iters = 10, batchsize = 16, optim = RBMs.CossimDescent(0.1, 1.0), check = 100)
     @test all(isfinite, adapt(Array, jl_rbm.w))
+    @test adapt(Array, ladder.free) != adapt(Array, free₀) # the free chains were sampled
+    @test ladder.drift.steps == 1000 # the final check
     @test isfinite(RBMs.log_partition(ladder))
     @test all(isfinite, adapt(Array, RBMs.log_likelihood(ladder, jl_data)))
     # the trained model is the last checkpoint, frozen or restored to it
