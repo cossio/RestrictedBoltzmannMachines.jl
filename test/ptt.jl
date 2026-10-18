@@ -222,6 +222,42 @@ in the negative phase. Without free chains, the negative phase is the chains the
     @test RBMs._negative_samples!(ladder, rbm; steps = 3) === ladder.chains
 end
 
+#= Issue #270: the exchanges keep the chains where the reservoir goes, so training never sees
+the basins that it digs outside the reservoir's support, and the gradient never suppresses
+them. Here the two modes of a bimodal model are connected by Gibbs sampling in about 10⁵
+steps, the reservoir and the data hold samples of the majority mode only, and the ladder
+never freezes nor rejects. Fitting the data would suppress the minority mode, which the
+ladder's chains never see: its weight stays. Free chains that have reached it (here,
+started from samples of the whole model) join the negative phase, so that the gradient
+suppresses it, and they leave it as it goes. =#
+@testset "free chains suppress mass that the ladder cannot reach" begin
+    N = 10
+    states = enumerate_states(Spin(; θ = zeros(N)))
+    up = vec(sum(states; dims = 1) .> 0)
+    p_down(model) = 1 - sum(softmax(-free_energy(model, states))[up])
+    weights = map((0, 100)) do nfree
+        rbm = RBM(Spin(; θ = fill(0.1, N)), Gaussian(; θ = zeros(1), γ = ones(1)), fill(0.6, N, 1))
+        p = softmax(-free_energy(rbm, states))
+        @test 0.1 < p_down(rbm) < 0.15
+        p_up = p[up] / sum(p[up])
+        data = exact_samples(states[:, up], p_up, 5000)
+        chains = exact_samples(states[:, up], p_up, 100)
+        samples = exact_samples(states[:, up], p_up, 10_000)
+        base = deepcopy(rbm)
+        ladder = TrajectoryLadder(;
+            rbm, checkpoints = [base], logZ = [logsumexp(-free_energy(base, states))], chains,
+            chains_F = free_energy(rbm, chains), samples, samples_F = free_energy(base, samples),
+            free = exact_samples(states, p, nfree), sweeps = 1, α = 0.0, αmin = 0.0
+        )
+        ptt!(rbm, data; ladder, batchsize = 500, iters = 5000, steps = 2, optim = Descent(3.0e-3), check = 0, final_check = 0)
+        @test iszero(ladder.rejections)
+        nfree > 0 && @test iszero(mean(sum(ladder.free; dims = 1) .< 0))
+        p_down(rbm)
+    end
+    @test weights[1] > 0.06 # without free chains, the minority mode keeps most of its weight
+    @test weights[2] < 1.0e-3 # with them, it is gone
+end
+
 @testset "PTT update decisions" begin
     ladder = TrajectoryLadder(BinaryRBM(4, 2); nchains = 10) # α = 0.3, αmin = 0.1
     for (acceptance, since_checkpoint, status) in (
