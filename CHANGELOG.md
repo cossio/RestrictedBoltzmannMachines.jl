@@ -16,9 +16,13 @@ All notable changes to this project will be documented in this file. The format 
   checkpoints of the training trajectory, held by a `TrajectoryLadder`. The ladder also
   estimates the partition function along training, through `log_partition(ladder)` and
   `log_likelihood(ladder, v)`. `ptt!` ends each run by freezing the trained model as the
-  last checkpoint, so that `ladder.samples` are equilibrium samples of it. Adds the
-  `CossimDescent` optimiser rule used in the paper, whose learning rate adapts to the
-  alignment of successive gradients. LogStatFunctions is a new dependency.
+  last checkpoint, so that `ladder.samples` are equilibrium samples of it. Each new
+  checkpoint checks its samples for equilibrium by Gibbs sampling (`check` and
+  `final_check` steps), and `ptt!` warns if they drift; `nfree` free chains, never
+  exchanged with the ladder, can join the negative phase to suppress basins that the
+  ladder cannot reach. Adds the `CossimDescent` optimiser rule used in the paper, whose
+  learning rate adapts to the alignment of successive gradients. LogStatFunctions is a new
+  dependency.
 - **Breaking**: `pcd!` draws each minibatch as an independent uniformly random subset of
   the data (without replacement within the minibatch) instead of cycling through a fresh
   permutation of the data per epoch. Its `shuffle` keyword and the `infinite_minibatches`

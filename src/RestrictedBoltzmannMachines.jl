@@ -10,7 +10,7 @@ using LogExpFunctions: log1pexp, logaddexp, logistic, logit, logsumexp, softmax
 using LogStatFunctions: logmeanexp
 using Optimisers: Optimisers, AbstractRule, Adam, setup, update!
 using Random: AbstractRNG, default_rng, rand!, randexp, randn!
-using SpecialFunctions: erf, erfcx, logerfcx
+using SpecialFunctions: erf, erfcinv, erfcx, logerfcx
 using Statistics: mean, std
 using StatsBase: sample
 
