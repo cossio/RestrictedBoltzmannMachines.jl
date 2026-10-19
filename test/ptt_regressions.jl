@@ -17,7 +17,7 @@ members proposed for exchange are distinct, so no reservoir member is written tw
 @testset "exchange bookkeeping" begin
     base = BinaryRBM(randn(6) / 2, randn(3) / 2, randn(6, 3) / 2)
     model = BinaryRBM(base.visible.θ .+ 0.3, base.hidden.θ, base.w .+ randn(6, 3) / 4)
-    ladder = TrajectoryLadder(base; nchains = 50, nreservoir = 200, anneal = 20)
+    ladder = TrajectoryLadder(base; nchains = 50, nreservoir = 200, anneal = 20, check = 1000)
     for _ in 1:5
         reservoir₀ = copy(ladder.reservoir)
         chains₀ = copy(ladder.chains)
@@ -46,10 +46,10 @@ stored free energies refer to it; the new reservoir and its free energies are co
 and the model moves on from the checkpoint, not back to an older one. =#
 @testset "state after freezing a checkpoint" begin
     rbm = BinaryRBM(randn(8) / 4, randn(3) / 4, randn(8, 3) / 4)
-    ladder = TrajectoryLadder(rbm; nchains = 100, nreservoir = 500, anneal = 20)
+    ladder = TrajectoryLadder(rbm; nchains = 100, nreservoir = 500, anneal = 20, check = 1000)
     K = length(ladder.checkpoints)
     model = BinaryRBM(rbm.visible.θ .+ 0.4, rbm.hidden.θ, rbm.w)
-    @test RBMs._push_checkpoint!(ladder, model; steps = 1)
+    @test RBMs._push_checkpoint!(ladder, model; steps = 1, check = 1000)
     @test length(ladder.checkpoints) == K + 1
     checkpoint = last(ladder.checkpoints)
     @test checkpoint.visible.θ == model.visible.θ && checkpoint !== model
@@ -101,8 +101,8 @@ Potts visible layers, as in sequence alignments, where the weights correct for p
     wts = [fill(1.0, n); fill(1.0e-3, n)]
     rbm = RBM(V((q, L)), Binary((2,)), zeros(q, L, 2))
     initialize!(rbm, data; wts)
-    ladder = TrajectoryLadder(rbm; nchains = 200, nreservoir = 1000)
-    ptt!(rbm, data; ladder, wts, batchsize = 100, iters = 400, optim = CossimDescent(0.05, 0.2))
+    ladder = TrajectoryLadder(rbm; nchains = 200, nreservoir = 1000, check = 1000)
+    ptt!(rbm, data; ladder, wts, batchsize = 100, iters = 400, optim = CossimDescent(0.05, 0.2), check = 1000)
     μ_model = batchmean(rbm.visible, RBMs.sample_v_from_v(rbm, ladder.samples; steps = 20))
     μ_weighted = batchmean(rbm.visible, data; wts)
     μ_unweighted = batchmean(rbm.visible, data)
@@ -120,8 +120,8 @@ unit scales, so both calls must produce the same model from the same random stre
         rbm = BinaryRBM(6, 3)
         initialize!(rbm, data)
         model = k == 1 ? rbm : RBMs.PlainStandardizedRBM(rbm)
-        ladder = TrajectoryLadder(model; nchains = 50, nreservoir = 200, anneal = 20)
-        ptt!(model, data; ladder, batchsize = 50, iters = 60, optim = Nesterov(0.5, 0.9))
+        ladder = TrajectoryLadder(model; nchains = 50, nreservoir = 200, anneal = 20, check = 1000)
+        ptt!(model, data; ladder, batchsize = 50, iters = 60, optim = Nesterov(0.5, 0.9), check = 1000)
         (rbm.w, rbm.visible.θ, rbm.hidden.θ, ladder.logZ, ladder.chains)
     end
     @test all(results[1] .== results[2])
@@ -136,11 +136,11 @@ from the checkpoint: a displacement of exactly -(1 + ρ) η ∂, with the halved
     data[1:4, 1:250] .= 1
     rbm = BinaryRBM(8, 4)
     initialize!(rbm, data)
-    ladder = TrajectoryLadder(rbm; nchains = 200)
+    ladder = TrajectoryLadder(rbm; nchains = 200, check = 1000)
     ρ = 0.9
     checked = Ref(0)
     ptt!(
-        rbm, data; ladder, batchsize = 100, iters = 300, optim = Nesterov(10.0, ρ),
+        rbm, data; ladder, batchsize = 100, iters = 300, optim = Nesterov(10.0, ρ), check = 1000,
         callback = (; rbm, state, ∂, ladder, _...) -> begin
             if ladder.rejections > 0 # this iteration's step started from the restored checkpoint
                 η = state.w.rule.eta

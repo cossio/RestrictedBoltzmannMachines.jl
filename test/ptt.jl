@@ -281,7 +281,7 @@ end
         ("RBM with xReLU hidden", RBM(Binary(; θ = randn(8) / 2), random_layer(xReLU, (4,)), randn(8, 4))),
         ("StandardizedRBM with xReLU hidden", standardize(RBM(Binary(; θ = randn(8) / 2), random_layer(xReLU, (4,)), randn(8, 4)), rand(8), rand(4), 0.5 .+ rand(8), 0.5 .+ rand(4))),
     )
-    ladder = TrajectoryLadder(model; nchains = 1000)
+    ladder = TrajectoryLadder(model; nchains = 1000, check = 1000)
     @test ladder.rbm === model
     @test iszero(first(ladder.checkpoints).w)
     @test last(ladder.checkpoints).w == model.w
@@ -327,15 +327,15 @@ end
     )
     data = two_modes(8, 1000)
     initialize!(rbm, data)
-    ladder = TrajectoryLadder(rbm; nchains = 500, α = 0.8) # frequent checkpoints
+    ladder = TrajectoryLadder(rbm; nchains = 500, α = 0.8, check = 1000) # frequent checkpoints
     K₀ = length(ladder.checkpoints)
     ll₀ = mean(RBMs.log_likelihood(rbm, data))
     nfrozen = Ref(0)
     state, ps = ptt!(
-        rbm, data; ladder, batchsize = 100, iters = 1000, optim = CossimDescent(0.02, 0.1),
+        rbm, data; ladder, batchsize = 100, iters = 1000, optim = CossimDescent(0.02, 0.1), check = 1000,
         callback = (; vm, ladder, iter, kw...) -> begin
             @assert kw[:rbm] === rbm && vm === ladder.chains
-            iter == 500 && @test freeze!(ladder) # e.g. to evaluate the model during training
+            iter == 500 && @test freeze!(ladder; check = 1000) # e.g. to evaluate the model during training
             nfrozen[] = length(ladder.checkpoints)
         end,
     )
@@ -377,12 +377,12 @@ checkpoint, in its own parametrization, must still match exact enumeration. =#
     )
     data = two_modes(8, 1000)
     initialize!(rbm, data)
-    ladder = TrajectoryLadder(rbm; nchains = 500, α = 0.8) # frequent checkpoints
+    ladder = TrajectoryLadder(rbm; nchains = 500, α = 0.8, check = 1000) # frequent checkpoints
     K₀ = length(ladder.checkpoints)
     ll₀ = mean(RBMs.log_likelihood(rbm, data))
     ptt!(
-        rbm, data; ladder, batchsize = 100, iters = 1000, optim = Adam(1.0e-3),
-        callback = (; ladder, iter, _...) -> iter == 500 && @test(freeze!(ladder)),
+        rbm, data; ladder, batchsize = 100, iters = 1000, optim = Adam(1.0e-3), check = 1000,
+        callback = (; ladder, iter, _...) -> iter == 500 && @test(freeze!(ladder; check = 1000)),
     )
     @test length(ladder.checkpoints) > K₀ + 2
     @test last(ladder.checkpoints).hidden.par == rbm.hidden.par
@@ -411,7 +411,7 @@ leaves invariant: the exchange ratios, the swap acceptance and the chains after 
 and the log-likelihoods; `log_partition(ladder)` follows the constant. =#
 @testset "the scale gauge of the hidden units leaves the ladder invariant" begin
     rbm = RBM(Binary(; θ = randn(8) / 2), random_layer(xReLU, (4,)), randn(8, 4))
-    ladder = TrajectoryLadder(rbm; nchains = 1000)
+    ladder = TrajectoryLadder(rbm; nchains = 1000, check = 1000)
     rbm.w .+= randn(8, 4) / 10 # moved from the last checkpoint, as by a training update
     rbm.hidden.θ .+= 0.1
     states = enumerate_states(rbm.visible)
@@ -441,7 +441,7 @@ and the log-likelihoods; `log_partition(ladder)` follows the constant. =#
     @test other.chains == ladder.chains
 
     std = standardize(RBM(Binary(; θ = randn(8) / 2), random_layer(xReLU, (4,)), randn(8, 4)), rand(8), rand(4), 0.5 .+ rand(8), 0.5 .+ rand(4))
-    ladder = TrajectoryLadder(std; nchains = 1000)
+    ladder = TrajectoryLadder(std; nchains = 1000, check = 1000)
     std.w .+= randn(8, 4) / 10
     ll = log_likelihood(ladder, states)
     logZ = log_partition(ladder) + delta_energy(std) # of the equivalent plain RBM
@@ -458,7 +458,7 @@ so that the online acceptance (≈ 0.61) overestimates the overlap of the two mo
 equilibrium (≈ 0.054). =#
 @testset "PTT rejects checkpoints that do not equilibrate" begin
     rbm = BinaryRBM(zeros(10), zeros(2), zeros(10, 2))
-    ladder = TrajectoryLadder(rbm; nchains = 1000)
+    ladder = TrajectoryLadder(rbm; nchains = 1000, check = 1000)
     K = length(ladder.checkpoints)
     rbm.visible.θ .= 2
     ladder.chains_F .= free_energy(rbm, ladder.chains) # as if they sampled the moved model
@@ -472,7 +472,7 @@ equilibrium (≈ 0.054). =#
     model = BinaryRBM(fill(1.5, 10), zeros(2), zeros(10, 2))
     @test !RBMs._push_checkpoint!(ladder, model; steps = 1, maxsweeps = 20)
     @test length(ladder.checkpoints) == K
-    @test RBMs._push_checkpoint!(ladder, model; steps = 1)
+    @test RBMs._push_checkpoint!(ladder, model; steps = 1, check = 1000)
     @test length(ladder.checkpoints) == K + 1
     @test last(ladder.logZ) ≈ log_partition(model) atol = 0.05
 end
@@ -485,7 +485,7 @@ throws. Repeated configurations count once. =#
     data = two_modes(8, 1000)
     rbm = BinaryRBM(8, 4)
     initialize!(rbm, data)
-    ladder = TrajectoryLadder(rbm; nchains = 500)
+    ladder = TrajectoryLadder(rbm; nchains = 500, check = 1000)
     states = enumerate_states(rbm.visible)
     ll = log_likelihood(ladder, states)
     @test logsumexp(ll) ≈ 0 atol = 0.05
@@ -510,11 +510,11 @@ end
     data = two_modes(8, 1000)
     rbm = BinaryRBM(8, 4)
     initialize!(rbm, data)
-    ladder = TrajectoryLadder(rbm; nchains = 500)
+    ladder = TrajectoryLadder(rbm; nchains = 500, check = 1000)
     η₀ = 2.0 # too large: rejected updates, in long runs without the optimiser reset
     η, rejected = [η₀], [false]
     ptt!(
-        rbm, data; ladder, batchsize = 100, iters = 300, optim = Nesterov(η₀, 0.9),
+        rbm, data; ladder, batchsize = 100, iters = 300, optim = Nesterov(η₀, 0.9), check = 1000,
         callback = (; state, ladder, _...) -> begin
             push!(η, state.w.rule.eta)
             push!(rejected, ladder.rejections > 0)
@@ -530,9 +530,9 @@ end
     # a learning rate this large takes over 10 halvings, which may stall training
     rbm = BinaryRBM(8, 4)
     initialize!(rbm, data)
-    ladder = TrajectoryLadder(rbm; nchains = 500)
+    ladder = TrajectoryLadder(rbm; nchains = 500, check = 1000)
     @test_logs (:warn, r"rejected 10 updates") match_mode = :any ptt!(
-        rbm, data; ladder, batchsize = 100, iters = 100, optim = Descent(1.0e4)
+        rbm, data; ladder, batchsize = 100, iters = 100, optim = Descent(1.0e4), check = 1000
     )
 end
 
@@ -583,7 +583,7 @@ xReLU), into arrays of its own, and redraws the chains from the equilibrium samp
 last checkpoint. =#
 @testset "PTT rejection restores the last checkpoint, $H hidden" for H in (Binary, xReLU)
     model = standardize(RBM(Binary(; θ = randn(6) / 2), random_layer(H, (3,)), randn(6, 3)), rand(6), rand(3), 0.5 .+ rand(6), 0.5 .+ rand(3))
-    ladder = TrajectoryLadder(model; nchains = 100, nreservoir = 1000)
+    ladder = TrajectoryLadder(model; nchains = 100, nreservoir = 1000, check = 1000)
     checkpoint = deepcopy(last(ladder.checkpoints))
     model.w .= 2
     model.visible.θ .= 4
@@ -614,7 +614,7 @@ then fails every comparison with `α` and `αmin`: the update, or the freeze, is
 which restores the model to the last checkpoint, and no checkpoint is frozen from it. =#
 @testset "PTT rejects a model with non-finite free energies" begin
     rbm = RBM(Binary(; θ = randn(6) / 2), random_layer(xReLU, (2,)), randn(6, 2) / 2)
-    ladder = TrajectoryLadder(rbm; nchains = 100, nreservoir = 1000)
+    ladder = TrajectoryLadder(rbm; nchains = 100, nreservoir = 1000, check = 1000)
     K = length(ladder.checkpoints)
     γ = copy(rbm.hidden.γ)
     rbm.hidden.γ .= 0
@@ -651,9 +651,9 @@ end
     states = enumerate_states(rbm.visible)
     exact_log_partition(model) = logsumexp(-free_energy(model, states))
     ll₀ = mean(-free_energy(rbm, data)) - exact_log_partition(rbm)
-    ladder = TrajectoryLadder(rbm; nchains = 500, α = 0.8) # frequent checkpoints
+    ladder = TrajectoryLadder(rbm; nchains = 500, α = 0.8, check = 1000) # frequent checkpoints
     K₀ = length(ladder.checkpoints)
-    ptt!(rbm, data; ladder, batchsize = 100, iters = 1000, optim = CossimDescent(0.02, 0.1))
+    ptt!(rbm, data; ladder, batchsize = 100, iters = 1000, optim = CossimDescent(0.02, 0.1), check = 1000)
     @test length(ladder.checkpoints) > K₀
     @test mean(log_likelihood(ladder, data)) > ll₀ + 0.5
     @test log_partition(ladder) ≈ exact_log_partition(rbm) atol = 0.05
