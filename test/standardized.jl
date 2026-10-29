@@ -313,9 +313,11 @@ end
             (Binary(; θ = T[1000, 0]), T[1, 0.5]),
             (Potts(; θ = zeros(T, 1, 1)), ones(T, 1, 1)),
         )
-        original = StandardizedRBM(RBM(
-            Binary(; θ = zeros(T, 1)), hidden, ones(T, 1, size(hidden)...)
-        ))
+        original = StandardizedRBM(
+            RBM(
+                Binary(; θ = zeros(T, 1)), hidden, ones(T, 1, size(hidden)...)
+            )
+        )
         F0 = free_energy(original, v)
         @test all(isfinite, F0)
 
