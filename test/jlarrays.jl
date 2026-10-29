@@ -205,6 +205,25 @@ end
     end
 end
 
+@testset "Potts conditional modes with ties stay on device" begin
+    for Layer in (Potts, PottsGumbel), θ in (zeros(Float32, 3, 2), Float32[0 3; 2 0; 2 3])
+        layer = Layer(; θ = repeat(θ, 1, 1, 2))
+        w = reshape(repeat(Float32[2 -3; 0 3; 0 0], 1, 1, 2), 1, 3, 2, 2)
+        rbm = RBM(Binary((1,)), layer, w)
+        for x in (Float32[0], Float32[1], reshape(Float32[0, 1, 2, 1, 2, 0], 1, 2, 3))
+            logits = layer.θ .+ inputs_h_from_v(rbm, x)
+            for (model, conditional_mode) in ((rbm, RBMs.mode_h_from_v), (RBMs.mirror(rbm), RBMs.mode_v_from_h))
+                mode = conditional_mode(adapt(JLArray, model), JLArray(x))
+                @test mode isa JLArray{Bool}
+                @test size(mode) == size(logits)
+                @test adapt(Array, mode) == conditional_mode(model, x)
+                @test all(sum(mode; dims = 1) .== 1)
+                @test sum(adapt(Array, mode) .* logits; dims = 1) == maximum(logits; dims = 1)
+            end
+        end
+    end
+end
+
 @testset "RBM functions" begin
     rbm = BinaryRBM(randn(N...), randn(3), randn(N..., 3) / √prod(N))
     jl_rbm = adapt(JLArray, rbm)

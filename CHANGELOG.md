@@ -8,6 +8,10 @@ All notable changes to this project will be documented in this file. The format 
   `log_pseudolikelihood_sites` for discrete visible layers with Gaussian hidden
   layers, preserving small conditional terms in Float32
   ([#278](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/278)).
+- Fixed `mode_h_from_v` and `mode_v_from_h` for `Potts` and `PottsGumbel` layers
+  returning invalid multi-hot configurations when categories tie. Modes now select
+  the first maximizing category at each site and remain one-hot
+  ([#280](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/280)).
 - Fix inaccurate tail means, negative variances and incorrect parameter gradients
   for `ReLU` and dReLU-family layers, especially with `Float32` parameters. Hidden
   standardization now remains finite for these tail inputs
