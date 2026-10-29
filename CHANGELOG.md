@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+- Fix `initialize!(rbm, data)` for `nsReLU` visible units by accepting the shared
+  `ϵ` keyword, while preserving their fixed-scale initialization
+  ([#282](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/282)).
 - `initialize!`, `pcd!` and `ptt!` no longer run out of GPU memory when standardizing the
   hidden units of a `StandardizedRBM` on a large dataset
   ([#267](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/267)): the
