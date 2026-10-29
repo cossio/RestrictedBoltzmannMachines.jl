@@ -438,7 +438,6 @@ function standardize_hidden_from_inputs!(
     μ, ν = total_meanvar_from_inputs(rbm.hidden, inputs; wts)
     offset_h = (1 - damping) .* rbm.offset_h + damping .* μ
     scale_h = sqrt.((1 - damping) .* rbm.scale_h .^ 2 + damping .* (ν .+ ϵ))
-    # Use a neutral unit scale for deterministic or numerically saturated hidden units.
     @. scale_h = ifelse(iszero(scale_h), one(scale_h), scale_h)
     return standardize_hidden!(rbm, offset_h, scale_h)
 end

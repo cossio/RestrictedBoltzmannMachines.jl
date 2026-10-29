@@ -76,7 +76,6 @@ end
 
 Variance of the standard normal distribution,
 truncated to the interval (a, +∞).
-WARNING: Fails for very very large values of `a`.
 """
 tnvar(a::Real) = last(tnmeanvar(a))
 
@@ -85,17 +84,51 @@ tnvar(a::Real) = last(tnmeanvar(a))
 
 Mean and variance of the standard normal distribution truncated to the interval (a, +∞).
 Equivalent to `tnmean(a), tnvar(a)` but saves some common computations.
-WARNING: `tnvar(a)` can fail for very very large values of `a`.
 """
 function tnmeanvar(a::Real)
+    if a ≥ 8
+        δ, ν = _tnmeanvar_tail(a)
+        return a + δ, ν
+    end
     μ = tnmean(a)
     ν = one(μ) - (μ - a) * μ
     return μ, ν
 end
 
+"""
+    tnmeanvar(μ, σ)
+
+Mean and variance of a normal distribution with mean `μ` and standard deviation
+`σ > 0`, truncated to positive values. Computes the shifted tail mean directly
+to avoid cancellation when `μ` is large and negative relative to `σ`.
+"""
+function tnmeanvar(μ::Real, σ::Real)
+    a = -μ / σ
+    if a ≥ 8
+        δ, ν = _tnmeanvar_tail(a)
+        return σ * δ, σ^2 * ν
+    end
+    tμ, tν = tnmeanvar(a)
+    return μ + σ * tμ, σ^2 * tν
+end
+
 # broadcasts and returns a tuple of arrays, rather than an array of tuples like tnmeanvar.(A)
-function tnmeanvar(a::AbstractArray)
-    μ = tnmean.(a)
-    ν = @. one(μ) - (μ - a) * μ
-    return μ, ν
+tnmeanvar(a::AbstractArray) = _unzip(tnmeanvar.(a))
+
+# For a ≥ 8, compute the excess mean δ = E[Z | Z > a] - a directly from
+# Laplace's continued fraction δ = 1 / (a + 2 / (a + 3 / (a + ...))).
+# The variance is -δ'(a); differentiate the backward recurrence alongside δ
+# instead of subtracting nearly equal numbers in 1 - (a + δ)δ.
+function _tnmeanvar_tail(a::Real)
+    δ = zero(float(a))
+    ν = zero(δ)
+    # 32 levels suffice for Float64 at a = 8 (relative error < 4e-25).
+    # The required depth grows quadratically with precision for BigFloat.
+    depth = max(32, cld(precision(δ)^2, 256))
+    for k in depth:-1:1
+        t = inv(a + δ)
+        δ = k * t
+        ν = δ * t * (1 - ν)
+    end
+    return δ, ν
 end

@@ -26,6 +26,32 @@ using FillArrays: Trues
 using Test: @inferred, @test, @testset
 using Zygote: gradient
 
+@testset "repeated zero-variance hidden standardization ($T)" for T in (Float32, Float64)
+    data = zeros(T, 1, 3)
+    v = T[0 1]
+    for (hidden, expected_scale) in (
+            (Spin(; θ = T[20]), T[1]),
+            (Spin(; θ = T[20, 1]), T[1, sech(1)]),
+            (Binary(; θ = T[1000, 0]), T[1, 0.5]),
+            (Potts(; θ = zeros(T, 1, 2)), ones(T, 1, 2)),
+        )
+        plain = RBM(Binary(; θ = zeros(T, 1)), hidden, ones(T, 1, size(hidden)...))
+        rbm = standardize(
+            plain, T[0.25], fill(T(0.2), size(hidden)),
+            T[2], fill(T(3), size(hidden)),
+        )
+        F = free_energy(rbm, v) .- delta_energy(rbm)
+        # Repeating the update must also preserve a model with nontrivial offsets/scales.
+        for _ in 1:2
+            standardize_hidden_from_v!(rbm, data)
+            @test rbm.scale_h ≈ expected_scale
+            @test eltype(rbm.scale_h) === T
+            @test all(isfinite, free_energy(rbm, v))
+            @test free_energy(rbm, v) .- delta_energy(rbm) ≈ F
+        end
+    end
+end
+
 @testset "standardize" begin
     rbm = BinaryRBM(randn(3), randn(2), randn(3, 2))
     offset_v = randn(3)
@@ -350,7 +376,7 @@ end
 end
 
 @testset "zero-variance hidden standardization with damping and pseudocounts" begin
-    for (damping, ϵ, scale) in ((0.5, 0.0, √0.5), (1.0, 0.04, 0.2))
+    for (damping, ϵ, scale) in ((0.5, 0.0, √0.5), (1.0, 0.04, 0.2), (0.0, 0.0, 1.0))
         rbm = StandardizedRBM(RBM(Binary(; θ = [0.0]), Spin(; θ = [20.0]), ones(1, 1)))
         v = [0.0 1.0]
         F = free_energy(rbm, v)
