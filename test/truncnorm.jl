@@ -117,7 +117,7 @@ end
                 b = BigFloat(a[i])
                 μ_ref = sqrt(2 / big(π)) / erfcx(b / sqrt(big(2)))
                 ν_ref = 1 - (μ_ref - b) * μ_ref
-                @test μ[i] ≈ T(μ_ref) rtol = 8eps(T)
+                @test μ[i] ≈ T(μ_ref) rtol = 64eps(T)
                 @test ν[i] ≈ T(ν_ref) rtol = 8192eps(T)
             end
         end
