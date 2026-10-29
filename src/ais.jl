@@ -88,7 +88,11 @@ Returns an RBM that interpolates between `rbm0` and `rbm1`.
 Denoting by `E0(v, h)` and `E1(v, h)` the energies assigned by `rbm0` and `rbm1`,
 respectively, the returned RBM assigns energies given by:
 
-    E(v,h) = (1 - β) * E0(v) + β * E1(v, h)
+    E(v,h) = (1 - β) * E0(v, h) + β * E1(v, h)
+
+Quadratic layers interpolate their absolute precisions. The `pReLU`, `xReLU`, and
+`nsReLU` layers are interpolated as equivalent `dReLU` layers, so that changing
+asymmetry also interpolates the energy linearly.
 """
 function anneal(rbm0::RBM, rbm1::RBM; β::Real)
     vis = anneal(rbm0.visible, rbm1.visible; β)
@@ -97,10 +101,35 @@ function anneal(rbm0::RBM, rbm1::RBM; β::Real)
     return RBM(vis, hid, w)
 end
 
-# Since every named layer parameter is a row of `par`, all layers anneal the same way.
+# Parameter interpolation applies when the energy is linear in `par`.
 function anneal(init::AbstractLayer, final::AbstractLayer; β::Real)
     @assert nameof(typeof(init)) === nameof(typeof(final))
     return _construct_like(init, (1 - β) * init.par + β * final.par)
+end
+
+function anneal(init::Gaussian, final::Gaussian; β::Real)
+    θ = @. (1 - β) * init.θ + β * final.θ
+    γ = @. (1 - β) * abs(init.γ) + β * abs(final.γ)
+    return Gaussian(; θ, γ)
+end
+
+function anneal(init::ReLU, final::ReLU; β::Real)
+    θ = @. (1 - β) * init.θ + β * final.θ
+    γ = @. (1 - β) * abs(init.γ) + β * abs(final.γ)
+    return ReLU(; θ, γ)
+end
+
+function anneal(init::dReLU, final::dReLU; β::Real)
+    θp = @. (1 - β) * init.θp + β * final.θp
+    θn = @. (1 - β) * init.θn + β * final.θn
+    γp = @. (1 - β) * abs(init.γp) + β * abs(final.γp)
+    γn = @. (1 - β) * abs(init.γn) + β * abs(final.γn)
+    return dReLU(; θp, θn, γp, γn)
+end
+
+function anneal(init::_dReLUReparam, final::_dReLUReparam; β::Real)
+    @assert nameof(typeof(init)) === nameof(typeof(final))
+    return anneal(dReLU(init), dReLU(final); β)
 end
 
 anneal_zero(init::AbstractLayer, rbm::RBM) = RBM(init, anneal_zero(rbm.hidden), Zeros(rbm.w))

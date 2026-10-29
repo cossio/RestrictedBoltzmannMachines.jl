@@ -111,6 +111,10 @@ All notable changes to this project will be documented in this file. The format 
   `CompositeRegularizer` can mix both). `∂regularize!` takes the regularizer as its third
   argument and loses the `zerosum` keyword: the trainers project the gradient onto the
   zerosum gauge themselves.
+- `aise` and `raise` now interpolate the energy coefficients of quadratic layers,
+  including absolute precisions and the two branches of the ReLU variants. Equivalent
+  models with opposite precision signs no longer produce NaNs along the annealing path
+  ([#279](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/279)).
 
 ## 7.1.0
 
