@@ -301,7 +301,7 @@ end
     # One site removes sampling noise. Large Gaussian cumulants must not erase
     # the quadratic term (1/2 for Binary and the equivalent two-color Potts).
     cases = (
-        (Binary(; θ = [-4096f0]), ones(Float32, 1, 1), reshape(Bool[0, 1], 1, 2)),
+        (Binary(; θ = [-4096.0f0]), ones(Float32, 1, 1), reshape(Bool[0, 1], 1, 2)),
         (Spin(; θ = [-4095.75f0]), ones(Float32, 1, 1), reshape(Int8[-1, 1], 1, 2)),
         (
             Potts(; θ = reshape(Float32[0, -4096], 2, 1)),
@@ -315,8 +315,8 @@ end
         ),
     )
     expected = -log1p.(exp.([0.5, -0.5]))
-    for γ in (1f0, -1f0), (visible, w, v) in cases
-        rbm = RBM(visible, Gaussian(; θ = [4096f0], γ = [γ]), w)
+    for γ in (1.0f0, -1.0f0), (visible, w, v) in cases
+        rbm = RBM(visible, Gaussian(; θ = [4096.0f0], γ = [γ]), w)
         for exact in (false, true)
             result = log_pseudolikelihood(rbm, v; exact)
             @test eltype(result) == Float32
