@@ -96,7 +96,7 @@ end
 
 @testset "truncated-normal tail moments" begin
     setprecision(BigFloat, 256) do
-        for T in (Float32, Float64), a in T.((8, 10, 20, 77, 100, 1000, 1e8))
+        for T in (Float32, Float64), a in T.((8, 10, 20, 77, 100, 1000, 1.0e8))
             b = BigFloat(a)
             μ_ref = sqrt(2 / big(π)) / erfcx(b / sqrt(big(2)))
             ν_ref = 1 - (μ_ref - b) * μ_ref

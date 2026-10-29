@@ -4,7 +4,7 @@ import RestrictedBoltzmannMachines as RBMs
 
 @testset "ReLU tail moments and hidden standardization (#276)" begin
     setprecision(BigFloat, 256) do
-        for T in (Float32, Float64), a in T.((8, 77, 1000, 1e8)), γ in T.((0.25, 1, -4))
+        for T in (Float32, Float64), a in T.((8, 77, 1000, 1.0e8)), γ in T.((0.25, 1, -4))
             θ = -a * sqrt(abs(γ))
             σ = inv(sqrt(abs(BigFloat(γ))))
             b = -BigFloat(θ) * σ
