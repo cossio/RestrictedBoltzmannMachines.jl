@@ -67,15 +67,8 @@ end
 # A ReLU unit is a Gaussian of mean θ / |γ| and variance 1 / |γ|, truncated to x ≥ 0.
 function relu_meanvar(θ::Real, γ::Real)
     μ = θ / abs(γ)
-    ν = inv(abs(γ))
-    σ = √ν
-    a = -μ / σ
-    if a ≥ 8
-        δ, tν = _tnmeanvar_tail(a)
-        return σ * δ, ν * tν
-    end
-    tμ, tν = tnmeanvar(a)
-    return μ + σ * tμ, ν * tν
+    σ = √inv(abs(γ))
+    return tnmeanvar(μ, σ)
 end
 
 # the two moment slots `<x>`, `<x^2>`

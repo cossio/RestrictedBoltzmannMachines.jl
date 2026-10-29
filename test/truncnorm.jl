@@ -94,6 +94,22 @@ end
     @test ν ≈ tnvar.(a)
 end
 
+@testset "tnmeanvar with location and scale" begin
+    for μ in (-2.0, 0.0, 3.0), σ in (0.5, 1.0, 2.0)
+        d = truncated(Normal(μ, σ); lower = 0)
+        m, v = @inferred tnmeanvar(μ, σ)
+        @test m ≈ mean(d)
+        @test v ≈ var(d)
+    end
+    for T in (Float32, Float64)
+        m, v = @inferred tnmeanvar(T(-77), T(1))
+        @test m isa T
+        @test v isa T
+        @test m ≈ T(0.012982635832510166) rtol = 8eps(T)
+        @test v ≈ T(0.00016849206355774916) rtol = 8eps(T)
+    end
+end
+
 @testset "truncated-normal tail moments" begin
     setprecision(BigFloat, 256) do
         for T in (Float32, Float64), a in T.((8, 10, 20, 77, 100, 1000, 1.0e8))

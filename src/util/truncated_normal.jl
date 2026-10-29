@@ -95,6 +95,23 @@ function tnmeanvar(a::Real)
     return μ, ν
 end
 
+"""
+    tnmeanvar(μ, σ)
+
+Mean and variance of a normal distribution with mean `μ` and standard deviation
+`σ > 0`, truncated to positive values. Computes the shifted tail mean directly
+to avoid cancellation when `μ` is large and negative relative to `σ`.
+"""
+function tnmeanvar(μ::Real, σ::Real)
+    a = -μ / σ
+    if a ≥ 8
+        δ, ν = _tnmeanvar_tail(a)
+        return σ * δ, σ^2 * ν
+    end
+    tμ, tν = tnmeanvar(a)
+    return μ + σ * tμ, σ^2 * tν
+end
+
 # broadcasts and returns a tuple of arrays, rather than an array of tuples like tnmeanvar.(A)
 tnmeanvar(a::AbstractArray) = _unzip(tnmeanvar.(a))
 
