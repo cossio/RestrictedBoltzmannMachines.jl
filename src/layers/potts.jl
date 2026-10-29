@@ -27,7 +27,8 @@ mean_abs_from_inputs(layer::_PottsLayers, inputs::AbstractArray = Falses(size(la
 
 function mode_from_inputs(layer::_PottsLayers, inputs::AbstractArray = Falses(size(layer)))
     θ = layer.θ .+ inputs
-    return θ .== maximum(θ; dims = 1)
+    idx = argmax(θ; dims = 1)
+    return first.(Tuple.(idx)) .== 1:size(layer, 1)
 end
 
 var_from_inputs(layer::_PottsLayers, inputs::AbstractArray = Falses(size(layer))) = last(meanvar_from_inputs(layer, inputs))

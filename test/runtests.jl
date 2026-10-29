@@ -64,6 +64,9 @@ end
 module pottsgumbel_tests
     include("pottsgumbel.jl")
 end
+module potts_modes_tests
+    include("potts_modes.jl")
+end
 module explicit_imports_tests
     include("explicit_imports.jl")
 end

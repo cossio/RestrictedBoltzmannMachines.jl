@@ -189,6 +189,7 @@ var_h_from_v(rbm, v) = var_from_inputs(rbm.hidden, inputs_h_from_v(rbm, v))
     mode_v_from_h(rbm, h)
 
 Mode unit activations, conditioned on the other layer.
+For `Potts` and `PottsGumbel` units, ties select the first maximizing category at each site.
 """
 mode_v_from_h(rbm, h) = mode_from_inputs(rbm.visible, inputs_v_from_h(rbm, h))
 
@@ -196,6 +197,7 @@ mode_v_from_h(rbm, h) = mode_from_inputs(rbm.visible, inputs_v_from_h(rbm, h))
     mode_h_from_v(rbm, v)
 
 Mode unit activations, conditioned on the other layer.
+For `Potts` and `PottsGumbel` units, ties select the first maximizing category at each site.
 """
 mode_h_from_v(rbm, v) = mode_from_inputs(rbm.hidden, inputs_h_from_v(rbm, v))
 
