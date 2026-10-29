@@ -25,6 +25,9 @@ end
 module truncnorm_tests
     include("truncnorm.jl")
 end
+module relu_tail_tests
+    include("relu_tail.jl")
+end
 module optim_tests
     include("optim.jl")
 end
