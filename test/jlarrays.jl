@@ -398,6 +398,21 @@ end
     @test adapt(Array, jl_∂.w) ≈ ∂.w
 end
 
+@testset "hidden standardization with zero variance stays on device" begin
+    for hidden in (Spin(; θ = Float32[20]), Potts(; θ = zeros(Float32, 1, 2)))
+        rbm = StandardizedRBM(RBM(Binary(; θ = Float32[0]), hidden, ones(Float32, 1, size(hidden)...)))
+        v = Float32[0 1]
+        F = free_energy(rbm, v)
+        jl_rbm = adapt(JLArray, rbm)
+        jl_v = JLArray(v)
+        RBMs.standardize_hidden_from_v!(jl_rbm, JLArray(zeros(Float32, 1, 3)))
+        @test jl_rbm.scale_h isa JLArray{Float32}
+        @test all(isone, Array(jl_rbm.scale_h))
+        @test all(isfinite, Array(free_energy(jl_rbm, jl_v)))
+        @test Array(free_energy(jl_rbm, jl_v)) .- RBMs.delta_energy(jl_rbm) ≈ F
+    end
+end
+
 @testset "initialize! and pcd!" begin
     data = float(bitrand(N..., 512))
     jl_data = JLArray(data)
