@@ -1,5 +1,5 @@
 import Random
-using Test: @test, @testset, @test_broken, @inferred
+using Test: @test, @testset, @inferred
 using Statistics: mean, var
 using SpecialFunctions: erfcx
 using Distributions: truncated, Normal
@@ -23,7 +23,7 @@ for a in -10:10
     @test 0 ≤ tnvar(a) ≤ 1
 end
 @test 1.0e20 ≤ tnmean(1.0e20) < Inf
-@test_broken 0 ≤ tnvar(1.0e80) ≤ 1
+@test tnvar(1.0e80) ≈ 1.0e-160
 
 @testset "sqrt1half" begin
     @test (@inferred sqrt1half(5)) ≈ 5.1925824035672520156
@@ -92,4 +92,59 @@ end
     μ, ν = @inferred tnmeanvar(a)
     @test μ ≈ tnmean.(a)
     @test ν ≈ tnvar.(a)
+end
+
+@testset "tnmeanvar with location and scale" begin
+    for μ in (-2.0, 0.0, 3.0), σ in (0.5, 1.0, 2.0)
+        d = truncated(Normal(μ, σ); lower = 0)
+        m, v = @inferred tnmeanvar(μ, σ)
+        @test m ≈ mean(d)
+        @test v ≈ var(d)
+    end
+    for T in (Float32, Float64)
+        m, v = @inferred tnmeanvar(T(-77), T(1))
+        @test m isa T
+        @test v isa T
+        @test m ≈ T(0.012982635832510166) rtol = 8eps(T)
+        @test v ≈ T(0.00016849206355774916) rtol = 8eps(T)
+    end
+end
+
+@testset "truncated-normal tail moments" begin
+    setprecision(BigFloat, 256) do
+        for T in (Float32, Float64), a in T.((8, 10, 20, 77, 100, 1000, 1.0e8))
+            b = BigFloat(a)
+            μ_ref = sqrt(2 / big(π)) / erfcx(b / sqrt(big(2)))
+            ν_ref = 1 - (μ_ref - b) * μ_ref
+            μ, ν = @inferred tnmeanvar(a)
+            @test μ isa T
+            @test ν isa T
+            @test μ ≈ T(μ_ref) rtol = 8eps(T)
+            @test ν ≈ T(ν_ref) rtol = 8eps(T)
+            @test 0 < ν < 1
+        end
+        for T in (Float32, Float64)
+            a = reshape(T[-10, 0, 2, prevfloat(T(8)), 8, nextfloat(T(8)), 77, 1000], 2, 4)
+            μ, ν = @inferred tnmeanvar(a)
+            @test size(μ) == size(ν) == size(a)
+            @test μ == first.(tnmeanvar.(a))
+            @test ν == last.(tnmeanvar.(a))
+            for i in eachindex(a)
+                b = BigFloat(a[i])
+                μ_ref = sqrt(2 / big(π)) / erfcx(b / sqrt(big(2)))
+                ν_ref = 1 - (μ_ref - b) * μ_ref
+                @test μ[i] ≈ T(μ_ref) rtol = 64eps(T)
+                @test ν[i] ≈ T(ν_ref) rtol = 8192eps(T)
+            end
+        end
+    end
+    for bits in (256, 512)
+        setprecision(BigFloat, bits) do
+            a = BigFloat(8)
+            μ_ref = sqrt(2 / big(π)) / erfcx(a / sqrt(big(2)))
+            μ, ν = tnmeanvar(a)
+            @test μ ≈ μ_ref rtol = 8eps(a)
+            @test ν ≈ 1 - (μ_ref - a) * μ_ref rtol = 8192eps(a)
+        end
+    end
 end

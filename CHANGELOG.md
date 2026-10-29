@@ -4,9 +4,10 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
-- Fix `initialize!(rbm, data)` for `nsReLU` visible units by accepting the shared
-  `ϵ` keyword, while preserving their fixed-scale initialization
-  ([#282](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/282)).
+- Fix inaccurate tail means, negative variances and incorrect parameter gradients
+  for `ReLU` and dReLU-family layers, especially with `Float32` parameters. Hidden
+  standardization now remains finite for these tail inputs
+  ([#276](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/276)).
 - Hidden standardization uses unit scales when the computed scales are zero, keeping
   `StandardizedRBM` energies finite for saturated or deterministic hidden units,
   including during the initial standardization in `pcd!`
@@ -64,6 +65,9 @@ All notable changes to this project will be documented in this file. The format 
   offsets and scales from `data`, or to zero and one without `data`, discarding the
   previous offsets and scales (previously only the `CenteredRBM` method with `data`
   existed, and the result depended on the previous offsets).
+- Fix `initialize!(rbm, data)` for `nsReLU` visible units by accepting the shared
+  `ϵ` keyword, while preserving their fixed-scale initialization
+  ([#282](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/282)).
 - Requires Adapt 4.7 or later.
 - `metropolis` and `metropolis!` now accept a single configuration without batch
   dimensions, like the other samplers, instead of throwing a `MethodError`. The
