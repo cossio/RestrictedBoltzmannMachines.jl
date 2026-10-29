@@ -110,6 +110,37 @@ random_layers() = (
     @test adapt(Array, jl_∂.w) == ∂.w
 end
 
+@testset "HopfieldRBM array constructor stays on device" begin
+    for (visible_size, hidden_size) in (((3,), (2,)), ((3, 2), (2, 2)))
+        g = zeros(Float32, visible_size)
+        w = fill(0.1f0, visible_size..., hidden_size...)
+        rbm = RBMs.HopfieldRBM(g, copy(w))
+        jl_rbm = RBMs.HopfieldRBM(JLArray(g), JLArray(w))
+
+        @test jl_rbm.visible.par isa JLArray
+        @test jl_rbm.hidden.par isa JLArray
+        @test jl_rbm.w isa JLArray
+        @test eltype(jl_rbm.hidden.par) == Float32
+        @test size(jl_rbm.visible) == visible_size
+        @test size(jl_rbm.hidden) == hidden_size
+        @test adapt(Array, jl_rbm.hidden.θ) == zeros(Float32, hidden_size)
+        @test adapt(Array, jl_rbm.hidden.γ) == ones(Float32, hidden_size)
+
+        @test rescale_weights!(jl_rbm)
+        @test rescale_weights!(rbm)
+        @test adapt(Array, jl_rbm.w) ≈ rbm.w
+        @test adapt(Array, jl_rbm.hidden.par) ≈ rbm.hidden.par
+
+        # Default training also rescales the directly constructed model.
+        jl_train = RBMs.HopfieldRBM(JLArray(g), JLArray(w))
+        data = JLArray(rand((-1.0f0, 1.0f0), visible_size..., 8))
+        pcd!(jl_train, data; iters = 1, batchsize = 4)
+        @test all(isfinite, adapt(Array, jl_train.visible.par))
+        @test all(isfinite, adapt(Array, jl_train.hidden.par))
+        @test all(isfinite, adapt(Array, jl_train.w))
+    end
+end
+
 @testset "pReLU η validation is device generic" begin
     layer = pReLU(;
         θ = zeros(Float32, N...), γ = ones(Float32, N...),

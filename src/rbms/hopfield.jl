@@ -17,8 +17,8 @@ end
 function HopfieldRBM(g::AbstractArray{T, N}, w::AbstractArray) where {T, N}
     @assert size(g) == size(w)[1:N]
     m = size(w)[(N + 1):end]
-    θ = zeros(eltype(g), m)
-    γ = ones(eltype(g), m)
+    θ = zeros_like(g, m)
+    γ = ones_like(g, m)
     return HopfieldRBM(g, θ, γ, w)
 end
 
