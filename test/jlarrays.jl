@@ -110,6 +110,22 @@ end
     @test eltype(jl_drelu.par) == Float32
 end
 
+@testset "quadratic annealing stays on device" begin
+    β = 0.5
+    x = randn(N..., B)
+    for (init, final) in zip(random_layers(), random_layers())
+        init isa Union{Gaussian, ReLU, dReLU, pReLU, xReLU, nsReLU} || continue
+        for field in (:γ, :γp, :γn)
+            hasproperty(final, field) && (getproperty(final, field) .*= -1)
+        end
+        samples = init isa ReLU ? abs.(x) : x
+        layer = RBMs.anneal(adapt(JLArray, init), adapt(JLArray, final); β)
+        @test layer.par isa JLArray
+        @test size(layer) == N
+        @test adapt(Array, energy(layer, JLArray(samples))) ≈ (1 - β) * energy(init, samples) + β * energy(final, samples)
+    end
+end
+
 @testset "layer functions: $(typeof(layer).name.wrapper)" for layer in random_layers()
     jl_layer = adapt(JLArray, layer)
     inputs = randn(size(layer)..., B)
