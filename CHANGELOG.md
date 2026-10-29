@@ -4,10 +4,10 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
-- `aise` and `raise` now interpolate the energy coefficients of quadratic layers,
-  including absolute precisions and the two branches of the ReLU variants. Equivalent
-  models with opposite precision signs no longer produce NaNs along the annealing path
-  ([#279](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/279)).
+- Fix cancellation in stochastic `log_pseudolikelihood` and
+  `log_pseudolikelihood_sites` for discrete visible layers with Gaussian hidden
+  layers, preserving small conditional terms in Float32
+  ([#278](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/278)).
 - Fix inaccurate tail means, negative variances and incorrect parameter gradients
   for `ReLU` and dReLU-family layers, especially with `Float32` parameters. Hidden
   standardization now remains finite for these tail inputs
@@ -16,6 +16,9 @@ All notable changes to this project will be documented in this file. The format 
   `StandardizedRBM` energies finite for saturated or deterministic hidden units,
   including during the initial standardization in `pcd!`
   ([#275](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/275)).
+- `HopfieldRBM(g, w)` now keeps its default hidden parameters on the input array
+  backend, so device inputs support `rescale_weights!` and default `pcd!` training
+  ([#283](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/283)).
 - `initialize!`, `pcd!` and `ptt!` no longer run out of GPU memory when standardizing the
   hidden units of a `StandardizedRBM` on a large dataset
   ([#267](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/267)): the
@@ -101,6 +104,10 @@ All notable changes to this project will be documented in this file. The format 
   `CompositeRegularizer` can mix both). `∂regularize!` takes the regularizer as its third
   argument and loses the `zerosum` keyword: the trainers project the gradient onto the
   zerosum gauge themselves.
+- `aise` and `raise` now interpolate the energy coefficients of quadratic layers,
+  including absolute precisions and the two branches of the ReLU variants. Equivalent
+  models with opposite precision signs no longer produce NaNs along the annealing path
+  ([#279](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/279)).
 
 ## 7.1.0
 
