@@ -57,6 +57,27 @@ end
     @test std_from_inputs(rbm.visible) ≈ reshape(std(data; dims = 2), size(rbm.visible)) rtol = 0.01
 end
 
+@testset "initialization nsReLU" begin
+    data = [1.0 3.0 5.0; -2.0 0.0 4.0]
+    for (kwargs, μ) in (
+            ((;), [3, 2 / 3]),
+            ((; ϵ = 0.1, wts = [1.0, 2.0, 3.0]), [11 / 3, 5 / 3]),
+        )
+        rbm = RBM(nsReLU((2,)), Binary((1,)), zeros(2, 1))
+        rbm.visible.par .= 1
+        rbm.hidden.par .= 1
+        @test initialize!(rbm, data; kwargs...) === rbm
+        @test rbm.visible.θ ≈ μ
+        @test all(iszero, rbm.visible.Δ)
+        @test all(iszero, rbm.visible.ξ)
+        @test mean_from_inputs(rbm.visible) ≈ μ
+        @test std_from_inputs(rbm.visible) ≈ ones(2)
+        @test all(iszero, rbm.hidden.θ)
+        @test all(isfinite, rbm.w)
+        @test !all(iszero, rbm.w)
+    end
+end
+
 @testset "initialize! layers without data" begin
     for Layer in (Binary, Spin, Potts, PottsGumbel, Gaussian, ReLU, dReLU, pReLU, xReLU, nsReLU)
         layer = Layer((3, 2))

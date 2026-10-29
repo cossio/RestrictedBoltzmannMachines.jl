@@ -129,8 +129,9 @@ end
 
 function initialize!(
         layer::nsReLU, data::AbstractArray;
-        wts::AbstractArray{<:Real} = uniform_wts(layer, data)
+        ϵ::Real = 1.0e-6, wts::AbstractArray{<:Real} = uniform_wts(layer, data)
     )
+    # The shared ϵ keyword is unused because nsReLU has a fixed unit scale.
     validate_wts(wts)
     μ = batchmean(layer, data; wts)
     layer.θ .= μ

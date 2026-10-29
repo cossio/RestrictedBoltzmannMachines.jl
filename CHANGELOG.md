@@ -4,9 +4,10 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
-- Fix overflow in `moments_from_samples` and `∂free_energy` for `Gaussian` and
-  `ReLU` layers with narrow integer samples, including weighted batches
-  ([#277](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/277)).
+- Fix cancellation in stochastic `log_pseudolikelihood` and
+  `log_pseudolikelihood_sites` for discrete visible layers with Gaussian hidden
+  layers, preserving small conditional terms in Float32
+  ([#278](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/278)).
 - Fix inaccurate tail means, negative variances and incorrect parameter gradients
   for `ReLU` and dReLU-family layers, especially with `Float32` parameters. Hidden
   standardization now remains finite for these tail inputs
@@ -15,6 +16,9 @@ All notable changes to this project will be documented in this file. The format 
   `StandardizedRBM` energies finite for saturated or deterministic hidden units,
   including during the initial standardization in `pcd!`
   ([#275](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/275)).
+- `HopfieldRBM(g, w)` now keeps its default hidden parameters on the input array
+  backend, so device inputs support `rescale_weights!` and default `pcd!` training
+  ([#283](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/283)).
 - `initialize!`, `pcd!` and `ptt!` no longer run out of GPU memory when standardizing the
   hidden units of a `StandardizedRBM` on a large dataset
   ([#267](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/267)): the
@@ -68,6 +72,9 @@ All notable changes to this project will be documented in this file. The format 
   offsets and scales from `data`, or to zero and one without `data`, discarding the
   previous offsets and scales (previously only the `CenteredRBM` method with `data`
   existed, and the result depended on the previous offsets).
+- Fix `initialize!(rbm, data)` for `nsReLU` visible units by accepting the shared
+  `ϵ` keyword, while preserving their fixed-scale initialization
+  ([#282](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/282)).
 - Requires Adapt 4.7 or later.
 - `metropolis` and `metropolis!` now accept a single configuration without batch
   dimensions, like the other samplers, instead of throwing a `MethodError`. The
@@ -100,6 +107,9 @@ All notable changes to this project will be documented in this file. The format 
   `CompositeRegularizer` can mix both). `∂regularize!` takes the regularizer as its third
   argument and loses the `zerosum` keyword: the trainers project the gradient onto the
   zerosum gauge themselves.
+- Fix overflow in `moments_from_samples` and `∂free_energy` for `Gaussian` and
+  `ReLU` layers with narrow integer samples, including weighted batches
+  ([#277](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/277)).
 
 ## 7.1.0
 

@@ -18,7 +18,7 @@ using RestrictedBoltzmannMachines: RBM, CenteredRBM, StandardizedRBM, BinaryRBM,
     mode_from_inputs, meanvar_from_inputs,
     inputs_h_from_v, inputs_v_from_h, mean_h_from_v, mean_v_from_h,
     sample_h_from_v, sample_v_from_h, sample_v_from_v, reconstruction_error, metropolis,
-    log_pseudolikelihood, log_pseudolikelihood_stoch,
+    log_pseudolikelihood, log_pseudolikelihood_stoch, log_pseudolikelihood_sites,
     initialize!, pcd!, ∂free_energy, zerosum!, rescale_weights!, weight_norms, aise, raise,
     ∂regularize!, CompositeRegularizer, StandardizedParametersRegularizer, L2FieldsRegularizer,
     L1WeightsRegularizer, L2WeightsRegularizer, L2L1WeightsRegularizer
@@ -108,6 +108,37 @@ random_layers() = (
     jl_∂ = adapt(JLArray, ∂)
     @test jl_∂.w isa JLArray
     @test adapt(Array, jl_∂.w) == ∂.w
+end
+
+@testset "HopfieldRBM array constructor stays on device" begin
+    for (visible_size, hidden_size) in (((3,), (2,)), ((3, 2), (2, 2)))
+        g = zeros(Float32, visible_size)
+        w = fill(0.1f0, visible_size..., hidden_size...)
+        rbm = RBMs.HopfieldRBM(g, copy(w))
+        jl_rbm = RBMs.HopfieldRBM(JLArray(g), JLArray(w))
+
+        @test jl_rbm.visible.par isa JLArray
+        @test jl_rbm.hidden.par isa JLArray
+        @test jl_rbm.w isa JLArray
+        @test eltype(jl_rbm.hidden.par) == Float32
+        @test size(jl_rbm.visible) == visible_size
+        @test size(jl_rbm.hidden) == hidden_size
+        @test adapt(Array, jl_rbm.hidden.θ) == zeros(Float32, hidden_size)
+        @test adapt(Array, jl_rbm.hidden.γ) == ones(Float32, hidden_size)
+
+        @test rescale_weights!(jl_rbm)
+        @test rescale_weights!(rbm)
+        @test adapt(Array, jl_rbm.w) ≈ rbm.w
+        @test adapt(Array, jl_rbm.hidden.par) ≈ rbm.hidden.par
+
+        # Default training also rescales the directly constructed model.
+        jl_train = RBMs.HopfieldRBM(JLArray(g), JLArray(w))
+        data = JLArray(rand((-1.0f0, 1.0f0), visible_size..., 8))
+        pcd!(jl_train, data; iters = 1, batchsize = 4)
+        @test all(isfinite, adapt(Array, jl_train.visible.par))
+        @test all(isfinite, adapt(Array, jl_train.hidden.par))
+        @test all(isfinite, adapt(Array, jl_train.w))
+    end
 end
 
 @testset "pReLU η validation is device generic" begin
@@ -238,9 +269,10 @@ end
     end
 end
 
-@testset "Gaussian-hidden exact pseudolikelihood" begin
+@testset "Gaussian-hidden pseudolikelihood" begin
     T = Float32
     batch = (2, 3)
+    sites = rand(CartesianIndices(N), batch)
     hidden_size = (2, 2)
     hidden = Gaussian(
         ; θ = randn(T, hidden_size...),
@@ -268,7 +300,25 @@ end
         @test eltype(result) == T
         @test size(result) == batch
         @test adapt(Array, result) ≈ expected rtol = 5.0e-4 atol = 5.0e-5
+
+        expected = log_pseudolikelihood_sites(rbm, v, sites)
+        result = log_pseudolikelihood_sites(jl_rbm, jl_v, sites)
+        @test result isa JLArray
+        @test eltype(result) == T
+        @test size(result) == batch
+        @test adapt(Array, result) ≈ expected rtol = 5.0e-4 atol = 5.0e-5
     end
+
+    cancellation_rbm = RBM(
+        Binary(; θ = T[-4096]), Gaussian(; θ = T[4096], γ = T[1]), ones(T, 1, 1)
+    )
+    cancellation_v = reshape(Bool[0, 1], 1, 2)
+    cancellation_result = log_pseudolikelihood(
+        adapt(JLArray, cancellation_rbm), JLArray(cancellation_v)
+    )
+    @test cancellation_result isa JLArray
+    @test eltype(cancellation_result) == T
+    @test adapt(Array, cancellation_result) ≈ -log1p.(exp.([0.5, -0.5])) rtol = 1.0e-6
 
     θ_offset = T[0, 1, -1, 0.5]
     offset_rbm = RBM(
