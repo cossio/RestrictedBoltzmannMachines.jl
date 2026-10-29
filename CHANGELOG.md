@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+- Fix cancellation in stochastic `log_pseudolikelihood` and
+  `log_pseudolikelihood_sites` for discrete visible layers with Gaussian hidden
+  layers, preserving small conditional terms in Float32
+  ([#278](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/278)).
 - Fixed `mode_h_from_v` and `mode_v_from_h` for `Potts` and `PottsGumbel` layers
   returning invalid multi-hot configurations when categories tie. Modes now select
   the first maximizing category at each site and remain one-hot
@@ -16,6 +20,9 @@ All notable changes to this project will be documented in this file. The format 
   `StandardizedRBM` energies finite for saturated or deterministic hidden units,
   including during the initial standardization in `pcd!`
   ([#275](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/275)).
+- `HopfieldRBM(g, w)` now keeps its default hidden parameters on the input array
+  backend, so device inputs support `rescale_weights!` and default `pcd!` training
+  ([#283](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/283)).
 - `initialize!`, `pcd!` and `ptt!` no longer run out of GPU memory when standardizing the
   hidden units of a `StandardizedRBM` on a large dataset
   ([#267](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/267)): the
