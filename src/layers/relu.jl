@@ -50,7 +50,6 @@ function moments_from_samples(
         wts::AbstractArray{<:Real} = uniform_wts(layer, data)
     )
     x1 = batchmean(layer, data; wts)
-    # square through float: narrow-integer samples would overflow in their own type
     x2 = batchmean(layer, abs2.(float.(data)); wts)
     return stack([x1, x2]; dims = 1)
 end
