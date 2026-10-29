@@ -149,12 +149,13 @@ end
     @test lpl_exact_reference ≈ log_pseudolikelihood_exact(rbm, v)
 end
 
-@testset "Gaussian-hidden exact fast paths" begin
+@testset "Gaussian-hidden fast paths" begin
     T = Float32
     n = (2, 2)
     m = (2, 2)
     batch = (2, 3)
     q = 3
+    sites = rand(CartesianIndices(n), batch)
     hidden = Gaussian(
         ; θ = randn(T, m...), γ = reshape(T[-2, -0.7, 1.1, 2.3], m)
     )
@@ -175,6 +176,12 @@ end
         @test size(result) == batch
         @test eltype(result) == T
         @test result ≈ reference rtol = 5.0e-4 atol = 5.0e-5
+
+        reference = PLRef.log_pseudolikelihood_sites(rbm, v, sites)
+        result = log_pseudolikelihood_sites(rbm, v, sites)
+        @test size(result) == batch
+        @test eltype(result) == T
+        @test result ≈ reference rtol = 5.0e-4 atol = 5.0e-5
     end
 
     # The optimized Potts formula preserves the generic implementation's
@@ -190,6 +197,8 @@ end
     reference = PLRef.log_pseudolikelihood_exact(rbm, v_dense)
     @test log_pseudolikelihood_exact(rbm, v_dense) ≈
         reference rtol = 5.0e-4 atol = 5.0e-5
+    @test log_pseudolikelihood_sites(rbm, v_dense, sites) ≈
+        PLRef.log_pseudolikelihood_sites(rbm, v_dense, sites) rtol = 5.0e-4 atol = 5.0e-5
 
     v_unbatched = bitrand(n...)
     rbm_unbatched = RBM(
@@ -199,6 +208,11 @@ end
     )
     result = log_pseudolikelihood_exact(rbm_unbatched, v_unbatched)
     reference = PLRef.log_pseudolikelihood_exact(rbm_unbatched, v_unbatched)
+    @test size(result) == ()
+    @test only(result) ≈ only(reference) rtol = 5.0e-4 atol = 5.0e-5
+    site = fill(CartesianIndex(1, 2))
+    result = log_pseudolikelihood_sites(rbm_unbatched, v_unbatched, site)
+    reference = PLRef.log_pseudolikelihood_sites(rbm_unbatched, v_unbatched, site)
     @test size(result) == ()
     @test only(result) ≈ only(reference) rtol = 5.0e-4 atol = 5.0e-5
 
@@ -222,6 +236,7 @@ end
         expected = sum(v .* visible.θ) - logsumexp(θ_offset)
         @test only(reference) ≈ expected
         @test result ≈ reference
+        @test only(log_pseudolikelihood(rbm_offset, v)) ≈ expected
     end
 
     # Mixed-precision models retain visible fields that are finer than the
@@ -255,6 +270,9 @@ end
         result = log_pseudolikelihood_exact(rbm_mixed, v)
         @test eltype(result) == Float64
         @test result ≈ reference rtol = 0 atol = 1.0e-8
+        result = log_pseudolikelihood(rbm_mixed, v)
+        @test eltype(result) == Float64
+        @test result ≈ reference rtol = 0 atol = 1.0e-8
     end
 
     # Integer parameters are valid even though inverse Gaussian precisions are
@@ -274,6 +292,38 @@ end
     result = log_pseudolikelihood_exact(rbm_integer, v_integer)
     @test eltype(result) == Float64
     @test result ≈ reference
+    result = log_pseudolikelihood(rbm_integer, v_integer)
+    @test eltype(result) == Float64
+    @test result ≈ reference
+end
+
+@testset "Gaussian-hidden stochastic cancellation" begin
+    # One site removes sampling noise. Large Gaussian cumulants must not erase
+    # the quadratic term (1/2 for Binary and the equivalent two-color Potts).
+    cases = (
+        (Binary(; θ = [-4096f0]), ones(Float32, 1, 1), reshape(Bool[0, 1], 1, 2)),
+        (Spin(; θ = [-4095.75f0]), ones(Float32, 1, 1), reshape(Int8[-1, 1], 1, 2)),
+        (
+            Potts(; θ = reshape(Float32[0, -4096], 2, 1)),
+            reshape(Float32[0, 1], 2, 1, 1),
+            reshape(Bool[1, 0, 0, 1], 2, 1, 2),
+        ),
+        (
+            PottsGumbel(; θ = reshape(Float32[0, -4096], 2, 1)),
+            reshape(Float32[0, 1], 2, 1, 1),
+            reshape(Bool[1, 0, 0, 1], 2, 1, 2),
+        ),
+    )
+    expected = -log1p.(exp.([0.5, -0.5]))
+    for γ in (1f0, -1f0), (visible, w, v) in cases
+        rbm = RBM(visible, Gaussian(; θ = [4096f0], γ = [γ]), w)
+        for exact in (false, true)
+            result = log_pseudolikelihood(rbm, v; exact)
+            @test eltype(result) == Float32
+            @test result ≈ expected rtol = 1.0e-6
+        end
+        @test log_pseudolikelihood(rbm, v) ≈ log_pseudolikelihood(rbm, v; exact = true)
+    end
 end
 
 @testset "stochastic log_pseudolikelihood" begin
