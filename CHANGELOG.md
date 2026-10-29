@@ -7,6 +7,10 @@ All notable changes to this project will be documented in this file. The format 
 - Fix overflow in `moments_from_samples` and `∂free_energy` for `Gaussian` and
   `ReLU` layers with narrow integer samples, including weighted batches
   ([#277](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/277)).
+- Fix inaccurate tail means, negative variances and incorrect parameter gradients
+  for `ReLU` and dReLU-family layers, especially with `Float32` parameters. Hidden
+  standardization now remains finite for these tail inputs
+  ([#276](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/276)).
 - Hidden standardization uses unit scales when the computed scales are zero, keeping
   `StandardizedRBM` energies finite for saturated or deterministic hidden units,
   including during the initial standardization in `pcd!`
