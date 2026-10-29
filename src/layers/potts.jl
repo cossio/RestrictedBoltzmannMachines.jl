@@ -25,6 +25,12 @@ cgfs(layer::_PottsLayers, inputs::AbstractArray = Falses(size(layer))) = logsume
 mean_from_inputs(layer::_PottsLayers, inputs::AbstractArray = Falses(size(layer))) = softmax(layer.θ .+ inputs; dims = 1)
 mean_abs_from_inputs(layer::_PottsLayers, inputs::AbstractArray = Falses(size(layer))) = mean_from_inputs(layer, inputs)
 
+"""
+    mode_from_inputs(layer::Union{Potts, PottsGumbel}, inputs = Falses(size(layer)))
+
+One-hot mode of each Potts site, conditioned on `inputs`.
+Ties select the first maximizing category at each site.
+"""
 function mode_from_inputs(layer::_PottsLayers, inputs::AbstractArray = Falses(size(layer)))
     θ = layer.θ .+ inputs
     idx = argmax(θ; dims = 1)
