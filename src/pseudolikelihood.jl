@@ -158,6 +158,56 @@ function _gaussian_hidden_pseudolikelihood_context(
     return batch_sz, B, vcalc, wflat, invγ, hidden_mean
 end
 
+function _log_pseudolikelihood_sites_2states(
+        rbm::RBM{<:Union{Binary, Spin}, <:Gaussian}, v::AbstractArray,
+        sites::AbstractArray{<:CartesianIndex}, flip::Integer
+    )
+    @assert size(sites) == batch_size(rbm.visible, v)
+    batch_sz, B, vflat, wflat, invγ, hidden_mean =
+        _gaussian_hidden_pseudolikelihood_context(rbm, v)
+    T = eltype(wflat)
+    site_linear = LinearIndices(size(rbm.visible))
+    j = _on_device(wflat, [site_linear[i] for i in reshape(sites, B)])
+    b = _on_device(wflat, collect(1:B))
+    δ = ifelse.(vflat[CartesianIndex.(j, b)] .> 0, -T(flip), T(flip))
+    Wsite = wflat[j, :] # B × M
+    θsite = convert_eltype(T, vec(rbm.visible.θ))[j]
+    linear = vec(sum(Wsite .* hidden_mean'; dims = 2))
+    quadratic = vec(sum(abs2.(Wsite) .* invγ'; dims = 2)) ./ 2
+    # Combine the visible field with the linear term before adding the small
+    # quadratic correction, without subtracting large Gaussian cumulants.
+    minusΔF = δ .* (θsite .+ linear) .+ abs2.(δ) .* quadratic
+    return reshape(.-log1pexp.(minusΔF), batch_sz)
+end
+
+function log_pseudolikelihood_sites(
+        rbm::RBM{<:Potts, <:Gaussian}, v::AbstractArray,
+        sites::AbstractArray{<:CartesianIndex}
+    )
+    @assert size(sites) == batch_size(rbm.visible, v)
+    batch_sz, B, vflat, wflat, invγ, hidden_mean =
+        _gaussian_hidden_pseudolikelihood_context(rbm, v)
+    q = colors(rbm.visible)
+    site_linear = LinearIndices(sitesize(rbm.visible))
+    rows = _on_device(
+        wflat, [(site_linear[i] - 1) * q + x for x in 1:q, i in reshape(sites, B)]
+    )
+    b = _on_device(wflat, collect(1:B))
+    Vsite = vflat[CartesianIndex.(rows, reshape(b, 1, B))]
+    θsite = convert_eltype(eltype(wflat), vec(rbm.visible.θ))[rows]
+    Wsite = reshape(wflat[vec(rows), :], q, B, length(rbm.hidden))
+    Wold = reshape(sum(Wsite .* Vsite; dims = 1), B, length(rbm.hidden))
+    θold = vec(sum(θsite .* Vsite; dims = 1))
+    logits = similar(wflat, q, B)
+    for x in 1:q
+        ΔW = view(Wsite, x, :, :) .- Wold
+        linear = vec(sum(ΔW .* hidden_mean'; dims = 2))
+        quadratic = vec(sum(abs2.(ΔW) .* invγ'; dims = 2)) ./ 2
+        logits[x, :] .= (view(θsite, x, :) .- θold .+ linear) .+ quadratic
+    end
+    return reshape(.-logsumexp(logits; dims = 1), batch_sz)
+end
+
 function _log_pseudolikelihood_exact_2states(rbm::RBM, v::AbstractArray, flip::Integer)
     batch_sz, B, vB, Iflat, Γ0 = _pseudolikelihood_context(rbm, v)
     vflat = reshape(vB, length(rbm.visible), B)

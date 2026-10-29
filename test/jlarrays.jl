@@ -18,7 +18,7 @@ using RestrictedBoltzmannMachines: RBM, CenteredRBM, StandardizedRBM, BinaryRBM,
     mode_from_inputs, meanvar_from_inputs,
     inputs_h_from_v, inputs_v_from_h, mean_h_from_v, mean_v_from_h,
     sample_h_from_v, sample_v_from_h, sample_v_from_v, reconstruction_error, metropolis,
-    log_pseudolikelihood, log_pseudolikelihood_stoch,
+    log_pseudolikelihood, log_pseudolikelihood_stoch, log_pseudolikelihood_sites,
     initialize!, pcd!, ∂free_energy, zerosum!, rescale_weights!, weight_norms, aise, raise,
     ∂regularize!, CompositeRegularizer, StandardizedParametersRegularizer, L2FieldsRegularizer,
     L1WeightsRegularizer, L2WeightsRegularizer, L2L1WeightsRegularizer
@@ -269,9 +269,10 @@ end
     end
 end
 
-@testset "Gaussian-hidden exact pseudolikelihood" begin
+@testset "Gaussian-hidden pseudolikelihood" begin
     T = Float32
     batch = (2, 3)
+    sites = rand(CartesianIndices(N), batch)
     hidden_size = (2, 2)
     hidden = Gaussian(
         ; θ = randn(T, hidden_size...),
@@ -299,7 +300,25 @@ end
         @test eltype(result) == T
         @test size(result) == batch
         @test adapt(Array, result) ≈ expected rtol = 5.0e-4 atol = 5.0e-5
+
+        expected = log_pseudolikelihood_sites(rbm, v, sites)
+        result = log_pseudolikelihood_sites(jl_rbm, jl_v, sites)
+        @test result isa JLArray
+        @test eltype(result) == T
+        @test size(result) == batch
+        @test adapt(Array, result) ≈ expected rtol = 5.0e-4 atol = 5.0e-5
     end
+
+    cancellation_rbm = RBM(
+        Binary(; θ = T[-4096]), Gaussian(; θ = T[4096], γ = T[1]), ones(T, 1, 1)
+    )
+    cancellation_v = reshape(Bool[0, 1], 1, 2)
+    cancellation_result = log_pseudolikelihood(
+        adapt(JLArray, cancellation_rbm), JLArray(cancellation_v)
+    )
+    @test cancellation_result isa JLArray
+    @test eltype(cancellation_result) == T
+    @test adapt(Array, cancellation_result) ≈ -log1p.(exp.([0.5, -0.5])) rtol = 1.0e-6
 
     θ_offset = T[0, 1, -1, 0.5]
     offset_rbm = RBM(
