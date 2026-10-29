@@ -34,6 +34,31 @@ const N = (3, 2) # visible site grid
 const Q = 4 # Potts classes
 const B = 16 # batch size
 
+@testset "Float32 ReLU tail moments stay on device" begin
+    a = Float32[8 77; 1000 1.0e8]
+    μ, ν = RBMs.tnmeanvar(JLArray(a))
+    μ_cpu, ν_cpu = RBMs.tnmeanvar(a)
+    @test μ isa JLArray{Float32}
+    @test ν isa JLArray{Float32}
+    @test Array(μ) ≈ μ_cpu
+    @test Array(ν) ≈ ν_cpu
+
+    layer = ReLU(; θ = [-77.0f0], γ = [1.0f0])
+    rbm = adapt(JLArray, RBM(Binary(Float32, (1,)), layer, zeros(Float32, 1, 1)))
+    v = JLArray(zeros(Float32, 1, 3))
+    μ, ν = meanvar_from_inputs(rbm.hidden, v)
+    @test μ isa JLArray{Float32}
+    @test ν isa JLArray{Float32}
+    @test all(isapprox.(Array(μ), 0.012982635832510166f0; rtol = 1.0f-6))
+    @test all(isapprox.(Array(ν), 0.00016849206355774916f0; rtol = 1.0f-6))
+    ∂ = ∂free_energy(rbm, v)
+    @test Array(∂.hidden)[2, 1] ≈ 0.00016852044835866304f0 rtol = 1.0f-6
+    std_rbm = StandardizedRBM(rbm)
+    @test RBMs.standardize_hidden_from_v!(std_rbm, v) === std_rbm
+    @test all(isfinite, Array(std_rbm.scale_h))
+    @test all(>(0), Array(std_rbm.scale_h))
+end
+
 random_layers() = (
     Binary(; θ = randn(N...)),
     Spin(; θ = randn(N...)),
