@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+- Hidden standardization uses a unit scale when the computed scale is zero, keeping
+  saturated or deterministic hidden units finite in `standardize_hidden_from_v!` and
+  default `pcd!` initialization
+  ([#275](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/275)).
 - `initialize!`, `pcd!` and `ptt!` no longer run out of GPU memory when standardizing the
   hidden units of a `StandardizedRBM` on a large dataset
   ([#267](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/267)): the

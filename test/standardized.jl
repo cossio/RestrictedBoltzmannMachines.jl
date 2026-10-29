@@ -18,12 +18,64 @@ using RestrictedBoltzmannMachines: pcd!, regularization_penalty
 using RestrictedBoltzmannMachines: sample_h_from_h, sample_v_from_v
 using RestrictedBoltzmannMachines: standardize, unstandardize, standardize!, unstandardized_weights
 using RestrictedBoltzmannMachines: standardize_hidden, standardize_visible
+using RestrictedBoltzmannMachines: standardize_hidden_from_v!
 using RestrictedBoltzmannMachines: initialize!
 using StatsBase: proportionmap
 using Statistics: mean, std, var
 using FillArrays: Trues
 using Test: @inferred, @test, @testset
 using Zygote: gradient
+
+@testset "hidden standardization with zero variance ($T)" for T in (Float32, Float64)
+    data = zeros(T, 1, 3)
+    v = T[0 1]
+    for (hidden, expected_scale) in (
+            (Spin(; θ = T[20]), T[1]),
+            (Spin(; θ = T[20, 1]), T[1, sech(1)]),
+            (Binary(; θ = T[1000, 0]), T[1, 0.5]),
+            (Potts(; θ = zeros(T, 1, 2)), ones(T, 1, 2)),
+        )
+        plain = RBM(Binary(; θ = zeros(T, 1)), hidden, ones(T, 1, size(hidden)...))
+        rbm = standardize(
+            plain, T[0.25], fill(T(0.2), size(hidden)),
+            T[2], fill(T(3), size(hidden)),
+        )
+        F = free_energy(rbm, v) .- delta_energy(rbm)
+        # Repeating the update must also preserve a model with nontrivial offsets/scales.
+        for _ in 1:2
+            standardize_hidden_from_v!(rbm, data)
+            @test rbm.scale_h ≈ expected_scale
+            @test eltype(rbm.scale_h) === T
+            @test all(isfinite, free_energy(rbm, v))
+            @test free_energy(rbm, v) .- delta_energy(rbm) ≈ F
+        end
+
+        for iters in (0, 2)
+            trained = StandardizedRBM(deepcopy(plain))
+            pcd!(trained, data; iters, batchsize = 3)
+            @test all(trained.scale_h .> 0)
+            for par in (
+                    trained.visible.par, trained.hidden.par, trained.w,
+                    trained.offset_v, trained.offset_h, trained.scale_v, trained.scale_h,
+                )
+                @test all(isfinite, par)
+            end
+            @test all(isfinite, free_energy(trained, v))
+            if iszero(iters)
+                # With no training steps, pcd! only changes the parametrization.
+                @test diff(vec(free_energy(trained, v))) ≈ diff(vec(free_energy(plain, v)))
+            end
+        end
+    end
+end
+
+@testset "zero hidden variance respects damping and pseudocounts" begin
+    for (damping, ϵ, expected_scale) in ((1, 0.04, 0.2), (0.25, 0, √0.75), (0, 0, 1))
+        rbm = StandardizedRBM(RBM(Binary(; θ = [0.0]), Spin(; θ = [20.0]), ones(1, 1)))
+        standardize_hidden_from_v!(rbm, zeros(1, 3); damping, ϵ)
+        @test rbm.scale_h ≈ [expected_scale]
+    end
+end
 
 @testset "standardize" begin
     rbm = BinaryRBM(randn(3), randn(2), randn(3, 2))

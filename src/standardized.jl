@@ -438,6 +438,8 @@ function standardize_hidden_from_inputs!(
     μ, ν = total_meanvar_from_inputs(rbm.hidden, inputs; wts)
     offset_h = (1 - damping) .* rbm.offset_h + damping .* μ
     scale_h = sqrt.((1 - damping) .* rbm.scale_h .^ 2 + damping .* (ν .+ ϵ))
+    # Deterministic or numerically saturated units can have zero variance.
+    @. scale_h = ifelse(iszero(scale_h), one(scale_h), scale_h)
     return standardize_hidden!(rbm, offset_h, scale_h)
 end
 
@@ -446,8 +448,8 @@ end
 
 Moves the hidden offsets and scales towards the mean and standard deviation of hidden
 unit activations conditioned on `v`, by a fraction `damping` (`1` sets them); the scales of
-a [`CenteredRBM`](@ref) stay fixed to one. The model is unchanged (energies differ by a
-constant).
+a [`CenteredRBM`](@ref) stay fixed to one. Computed zero scales are replaced by one to
+avoid division by zero. The model is unchanged (energies differ by a constant).
 """
 function standardize_hidden_from_v!(
         rbm::StandardizedRBM, v::AbstractArray;
