@@ -69,7 +69,12 @@ function relu_meanvar(θ::Real, γ::Real)
     μ = θ / abs(γ)
     ν = inv(abs(γ))
     σ = √ν
-    tμ, tν = tnmeanvar(-μ / σ)
+    a = -μ / σ
+    if a ≥ 8
+        δ, tν = _tnmeanvar_tail(a)
+        return σ * δ, ν * tν
+    end
+    tμ, tν = tnmeanvar(a)
     return μ + σ * tμ, ν * tν
 end
 
