@@ -514,6 +514,25 @@ end
     @inferred moments_from_samples(layer, samples)
 end
 
+@testset "Gaussian and ReLU sample moments do not overflow" for Layer in (Gaussian, ReLU), T in (Int8, UInt8, Float32, Float64)
+    layer = Layer((2, 1))
+    samples = reshape(T[100, 120, 40, 60], 2, 1, 2)
+    single = @view samples[:, :, 1]
+    @test moments_from_samples(layer, single) == reshape([100 120; 10000 14400], 2, 2, 1)
+
+    for B in ((2,), (1, 2))
+        data = reshape(samples, 2, 1, B...)
+        moments = moments_from_samples(layer, data)
+        @test moments == reshape([70 90; 5800 9000], 2, 2, 1)
+        @test moments == moments_from_samples(layer, float.(data))
+        T <: AbstractFloat && @test eltype(moments) == T
+
+        wts = reshape([1.0, 3.0], B)
+        @test moments_from_samples(layer, data; wts) == reshape([55 75; 3700 6300], 2, 2, 1)
+        @test moments_from_samples(layer, data; wts) == moments_from_samples(layer, float.(data); wts)
+    end
+end
+
 @testset "moments_from_samples with integer and Bool data" begin
     # the clipping zero is Bool so that narrow samples keep their eltype, and the
     # squares go through float so that extreme narrow integers cannot overflow;
