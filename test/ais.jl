@@ -76,7 +76,7 @@ end
         lZ = log(2) + log(2π) / 2 - (Layer === ReLU ? log(2) : 0)
         v = reshape([-1.0, 0.0, 1.0], 1, 3)
         Layer === ReLU && (v = abs.(v))
-        @test ais(RBM(init, rbm.hidden, rbm.w), rbm, v, βs) ≈ zeros(3) atol = 1e-14
+        @test ais(RBM(init, rbm.hidden, rbm.w), rbm, v, βs) ≈ zeros(3) atol = 1.0e-14
         @test aise(rbm, βs; init, nsamples = 3) ≈ fill(lZ, 3)
         @test raise(rbm, βs; init, v) ≈ fill(lZ, 3)
     end
