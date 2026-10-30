@@ -18,9 +18,6 @@ end
 @testset "anneal layer" begin
     β = 0.3
     N = 11
-    # the energy interpolates linearly only in parameters it is linear in, so the
-    # asymmetry parameters η and ξ are shared between `init` and `final`
-    γ, η, ξ = rand(N), rand(N) .- 0.5, randn(N)
     for (init, final) in (
             (Binary(; θ = randn(N)), Binary(; θ = randn(N))),
             (Spin(; θ = randn(N)), Spin(; θ = randn(N))),
@@ -28,12 +25,60 @@ end
             (Gaussian(; θ = randn(N), γ = rand(N)), Gaussian(; θ = randn(N), γ = rand(N))),
             (ReLU(; θ = randn(N), γ = rand(N)), ReLU(; θ = randn(N), γ = rand(N))),
             (dReLU(; θp = randn(N), θn = randn(N), γp = rand(N), γn = rand(N)), dReLU(; θp = randn(N), θn = randn(N), γp = rand(N), γn = rand(N))),
-            (pReLU(; θ = randn(N), γ, Δ = randn(N), η), pReLU(; θ = randn(N), γ, Δ = randn(N), η)),
-            (xReLU(; θ = randn(N), γ, Δ = randn(N), ξ), xReLU(; θ = randn(N), γ, Δ = randn(N), ξ)),
-            (nsReLU(; θ = randn(N), Δ = randn(N), ξ), nsReLU(; θ = randn(N), Δ = randn(N), ξ)),
+            (pReLU(; θ = randn(N), γ = rand(N), Δ = randn(N), η = rand(N) .- 0.5), pReLU(; θ = randn(N), γ = rand(N), Δ = randn(N), η = rand(N) .- 0.5)),
+            (xReLU(; θ = randn(N), γ = rand(N), Δ = randn(N), ξ = randn(N)), xReLU(; θ = randn(N), γ = rand(N), Δ = randn(N), ξ = randn(N))),
+            (nsReLU(; θ = randn(N), Δ = randn(N), ξ = randn(N)), nsReLU(; θ = randn(N), Δ = randn(N), ξ = randn(N))),
         )
         x = sample_from_inputs(final)
         @test energy(anneal(init, final; β), x) ≈ (1 - β) * energy(init, x) + β * energy(final, x)
+    end
+end
+
+@testset "anneal signed quadratic precisions" begin
+    θ = [0.2 -0.4; 0.1 0.3]
+    γ = [1.0 -2.0; -3.0 4.0]
+    Δ = [0.1 -0.2; 0.3 -0.4]
+    η = [0.2 -0.3; -0.4 0.1]
+    ξ = [1.0 -2.0; -3.0 4.0]
+    x = reshape(collect(-2.75:0.5:2.75), 2, 2, 3)
+    for (init, final) in (
+            (Gaussian(; θ, γ), Gaussian(; θ = -θ, γ = -2γ)),
+            (ReLU(; θ, γ), ReLU(; θ = -θ, γ = -2γ)),
+            (dReLU(; θp = θ, θn = -θ, γp = γ, γn = -2γ), dReLU(; θp = -θ, θn = 2θ, γp = -2γ, γn = γ)),
+            (pReLU(; θ, γ, Δ, η), pReLU(; θ = -θ, γ = -2γ, Δ = -Δ, η = -η)),
+            (xReLU(; θ, γ, Δ, ξ), xReLU(; θ = -θ, γ = -2γ, Δ = -Δ, ξ = -ξ)),
+            (nsReLU(; θ, Δ, ξ), nsReLU(; θ = -θ, Δ = -Δ, ξ = -ξ)),
+        )
+        init_par, final_par = copy(init.par), copy(final.par)
+        samples = init isa ReLU ? abs.(x) : x
+        for β in (0.0, 0.3, 0.5, 1.0)
+            layer = anneal(init, final; β)
+            @test size(layer) == size(init)
+            @test energy(layer, samples) ≈ (1 - β) * energy(init, samples) + β * energy(final, samples)
+            @test all(isfinite, sample_from_inputs(layer))
+        end
+        @test init.par == init_par
+        @test final.par == final_par
+    end
+end
+
+@testset "AIS between equivalent signed quadratic models (#279)" begin
+    βs = [0.0, 0.5, 1.0]
+    for Layer in (Gaussian, ReLU, dReLU, pReLU, xReLU)
+        init, final = Layer((1,)), Layer((1,))
+        if final isa dReLU
+            final.γp .*= -1
+            final.γn .*= -1
+        else
+            final.γ .*= -1
+        end
+        rbm = RBM(final, Binary((1,)), zeros(1, 1))
+        lZ = log(2) + log(2π) / 2 - (Layer === ReLU ? log(2) : 0)
+        v = reshape([-1.0, 0.0, 1.0], 1, 3)
+        Layer === ReLU && (v = abs.(v))
+        @test ais(RBM(init, rbm.hidden, rbm.w), rbm, v, βs) ≈ zeros(3) atol = 1.0e-14
+        @test aise(rbm, βs; init, nsamples = 3) ≈ fill(lZ, 3)
+        @test raise(rbm, βs; init, v) ≈ fill(lZ, 3)
     end
 end
 

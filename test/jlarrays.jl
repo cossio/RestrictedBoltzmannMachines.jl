@@ -166,6 +166,22 @@ end
     @test eltype(jl_drelu.par) == Float32
 end
 
+@testset "quadratic annealing stays on device" begin
+    β = 0.5
+    x = randn(N..., B)
+    for (init, final) in zip(random_layers(), random_layers())
+        init isa Union{Gaussian, ReLU, dReLU, pReLU, xReLU, nsReLU} || continue
+        for field in (:γ, :γp, :γn)
+            hasproperty(final, field) && (getproperty(final, field) .*= -1)
+        end
+        samples = init isa ReLU ? abs.(x) : x
+        layer = RBMs.anneal(adapt(JLArray, init), adapt(JLArray, final); β)
+        @test layer.par isa JLArray
+        @test size(layer) == N
+        @test adapt(Array, energy(layer, JLArray(samples))) ≈ (1 - β) * energy(init, samples) + β * energy(final, samples)
+    end
+end
+
 @testset "layer functions: $(typeof(layer).name.wrapper)" for layer in random_layers()
     jl_layer = adapt(JLArray, layer)
     inputs = randn(size(layer)..., B)
@@ -202,6 +218,25 @@ end
         @test s isa JLArray
         @test size(s) == (size(layer)..., B)
         @test all(isfinite, adapt(Array, s))
+    end
+end
+
+@testset "Potts conditional modes with ties stay on device" begin
+    for Layer in (Potts, PottsGumbel), θ in (zeros(Float32, 3, 2), Float32[0 3; 2 0; 2 3])
+        layer = Layer(; θ = repeat(θ, 1, 1, 2))
+        w = reshape(repeat(Float32[2 -3; 0 3; 0 0], 1, 1, 2), 1, 3, 2, 2)
+        rbm = RBM(Binary((1,)), layer, w)
+        for x in (Float32[0], Float32[1], reshape(Float32[0, 1, 2, 1, 2, 0], 1, 2, 3))
+            logits = layer.θ .+ inputs_h_from_v(rbm, x)
+            for (model, conditional_mode) in ((rbm, RBMs.mode_h_from_v), (RBMs.mirror(rbm), RBMs.mode_v_from_h))
+                mode = conditional_mode(adapt(JLArray, model), JLArray(x))
+                @test mode isa JLArray{Bool}
+                @test size(mode) == size(logits)
+                @test adapt(Array, mode) == conditional_mode(model, x)
+                @test all(sum(mode; dims = 1) .== 1)
+                @test sum(adapt(Array, mode) .* logits; dims = 1) == maximum(logits; dims = 1)
+            end
+        end
     end
 end
 
