@@ -41,6 +41,7 @@ using RestrictedBoltzmannMachines: Potts
 using RestrictedBoltzmannMachines: PottsGumbel
 using RestrictedBoltzmannMachines: RBM
 using RestrictedBoltzmannMachines: reconstruction_error
+using RestrictedBoltzmannMachines: ReLU
 using RestrictedBoltzmannMachines: sample_from_inputs
 using RestrictedBoltzmannMachines: sample_h_from_h
 using RestrictedBoltzmannMachines: sample_h_from_v
@@ -476,6 +477,20 @@ end
     @test gλ.visible ≈ ∂F.visible * 2.3
     @test gλ.hidden ≈ ∂F.hidden * 2.3
     @test gλ.w ≈ ∂F.w * 2.3
+end
+
+@testset "∂free_energy with narrow integer samples" for Layer in (Gaussian, ReLU), T in (Int8, UInt8)
+    rbm = RBM(Layer((1,)), Binary((1,)), zeros(1, 1))
+    v = reshape(T[100, 100], 1, 2)
+    ∂F = ∂free_energy(rbm, v)
+    @test ∂F.visible == reshape([-100.0, 5000.0], 2, 1)
+    @test ∂F == ∂free_energy(rbm, float.(v))
+
+    v = reshape(T[100, 60], 1, 2)
+    wts = [1.0, 3.0]
+    ∂F = ∂free_energy(rbm, v; wts)
+    @test ∂F.visible == reshape([-70.0, 2600.0], 2, 1)
+    @test ∂F == ∂free_energy(rbm, float.(v); wts)
 end
 
 @testset "total_mean_h_from_v, total_mean_v_from_h, etc." begin

@@ -115,6 +115,9 @@ All notable changes to this project will be documented in this file. The format 
   including absolute precisions and the two branches of the ReLU variants. Equivalent
   models with opposite precision signs no longer produce NaNs along the annealing path
   ([#279](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/279)).
+- Fix overflow in `moments_from_samples` and `∂free_energy` for `Gaussian` and
+  `ReLU` layers with narrow integer samples, including weighted batches
+  ([#277](https://github.com/cossio/RestrictedBoltzmannMachines.jl/issues/277)).
 
 ## 7.1.0
 
