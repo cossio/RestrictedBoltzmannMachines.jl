@@ -10,15 +10,9 @@ error bound: `eps_error` refuses a reference that is not tight to 40 digits.
 The tolerances are the accuracy the kernels deliver today, in units of `eps(T)`, with a
 margin of at least 2 over the worst error of the sweep. They are far below what a wrong
 formula would produce, and they record where accuracy is knowingly lost: below the threshold
-from which `tnmeanvar` evaluates the continued fraction, it uses a formula that cancels, and
-loses about `a^4` of the relative accuracy of the truncated-normal variance and `a^2` of the
-excess mean `E[Z | Z > a] - a`. That threshold is `a = 1` in Float32 and `a = 3.91` in
-Float64 (see `_tn_tail_levels` for the choice), so that the variance loses at most a factor
-of 4 in Float32, and of 265 in Float64, where its relative error is then about `2e-13`.
-
-The statistics of a dReLU unit are held to the tolerances of a ReLU however deep the wells
-of its two sides: the mixture weights do not lose accuracy with the magnitude of the
-cumulant generating functions of the sides.
+from which `tnmeanvar` uses the continued fraction (`a = 1` in Float32, `a = 3.91` in
+Float64), the truncated-normal variance loses about `a^4` of relative accuracy to
+cancellation, and the excess mean `E[Z | Z > a] - a` about `a^2`.
 =#
 
 using Test: @test, @testset
@@ -92,11 +86,9 @@ function check!(violations::Vector, at, err::Real, tol::Real)
     return violations
 end
 
-# `tnmeanvar` evaluates the continued fraction from this threshold on
+# the accuracy lost to cancellation at threshold `a`, below the switch of `tnmeanvar`
 tail_threshold(::Type{Float32}) = 1
 tail_threshold(::Type{Float64}) = 3.91
-
-# the accuracy lost to cancellation below that threshold, at threshold `a`
 tail_cancellation(::Type{T}, a::Real) where {T} = a < tail_threshold(T) ? 1 + max(a, 0)^2 : 1
 
 @testset "tnmeanvar accuracy ($T)" for T in (Float32, Float64)
@@ -142,9 +134,7 @@ end
 end
 
 @testset "dReLU kernels accuracy ($T)" for T in (Float32, Float64)
-    # The sweep includes sides with equally deep wells, whose weights are then comparable:
-    # θp = -θn with γp = γn, and θ = 300 with γ = 0.1 against θ = 3000 with γ = 10, whose
-    # cgfs are about 4.5e5 and differ by log(10). The deepest well has a cgf of 4.5e7.
+    # θ = 300, γ = 0.1 and θ = 3000, γ = 10 give equally deep wells with different γ
     θs = T[0; [s * θ for θ in (0.1, 0.5, 1, 2, 3, 5, 7, 10, 30, 100, 300, 3000) for s in (1, -1)]]
     γs = T[0.1, 1, 10]
     names = (:cgf, :mean, :var, :mean_abs, :moments)

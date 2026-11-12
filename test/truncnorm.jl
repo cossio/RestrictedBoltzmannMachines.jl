@@ -149,8 +149,7 @@ end
     end
 end
 
-# The recurrence of the tail keeps its intermediate values within the exponent range of the
-# narrowest floating-point type.
+# the scaled recurrence must not underflow in the narrowest type
 @testset "truncated-normal tail moments in Float16" begin
     for a in Float16.(1:0.25:60)
         δ, ν = @inferred tnmeanvar(-a, one(a))

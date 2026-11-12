@@ -64,34 +64,22 @@ function _drelu_mixture(θp::Real, θn::Real, γp::Real, γn::Real)
     Δ = _drelu_logodds(θp, θn, γp, γn)
     μp, νp = relu_meanvar(θp, γp)
     μn, νn = relu_meanvar(-θn, γn)
-    # logistic functions of the same log-odds: the weights sum to one
     return (; pp = logistic(Δ), pn = logistic(-Δ), μp, μn, νp, νn)
 end
 
-#=
-Log-odds of the positive side of a dReLU unit: the difference of the cgfs of the ReLUs of its
-two sides. A side with θ > 0 has a well of depth θ^2 / 2|γ|, which dominates its cgf when
-deep. With deep wells on both sides, the difference of the cgfs as computed by `relu_cgf`
-would carry rounding errors proportional to the depths, and so would the weights of the
-sides. Here the depths are subtracted first, together with their rounding errors, and the
-remainders of the cgfs are of order one.
-=#
+# Log-odds Γp - Γn of the positive side: the well depths are subtracted first, with their errors.
 function _drelu_logodds(θp::Real, θn::Real, γp::Real, γn::Real)
     dp, ep, rp = _relu_cgf_parts(θp, γp)
     dn, en, rn = _relu_cgf_parts(-θn, γn)
     return (dp - dn) + ((ep - en) + (rp - rn))
 end
 
-#=
-Splits `relu_cgf(θ, γ)` into the sum of the depth `d` of the well (zero for θ ≤ 0), the
-rounding error `e` of `d`, and a remainder `r`, using that logerfcx(z) = z^2 + logerfc(z).
-=#
+# relu_cgf(θ, γ) = d + e + r: the depth of the well, its rounding error, and a remainder
 function _relu_cgf_parts(θ::Real, γ::Real)
     abs_2γ = 2abs(γ)
     t = max(θ, zero(θ))
     t2 = t * t
     d = t2 / abs_2γ
-    # (t^2 - d * 2|γ|) / 2|γ|: the fused operations give the errors of the two products
     e = (fma(-d, abs_2γ, t2) + fma(t, t, -t2)) / abs_2γ
     z = -θ / √abs_2γ
     r = (θ > 0 ? logerfc(z) : logerfcx(z)) - log(abs_2γ / π) / 2
@@ -101,7 +89,7 @@ end
 function drelu_meanvar(θp::Real, θn::Real, γp::Real, γn::Real)
     (; pp, pn, μp, μn, νp, νn) = _drelu_mixture(θp, θn, γp, γn)
     μ = pp * μp - pn * μn
-    # law of total variance: within the sides, plus between their means μp and -μn
+    # law of total variance
     ν = pp * νp + pn * νn + pp * pn * (μp + μn)^2
     return μ, ν
 end
@@ -124,7 +112,7 @@ end
 
 function drelu_rand(θp::T, θn::T, γp::S, γn::S) where {T <: Real, S <: Real}
     Δ = _drelu_logodds(θp, θn, γp, γn)
-    # positive side with probability logistic(Δ) = exp(-log1pexp(-Δ))
+    # positive side with probability logistic(Δ)
     if randexp(typeof(Δ)) ≥ log1pexp(-Δ)
         return relu_rand(θp, γp)
     else
