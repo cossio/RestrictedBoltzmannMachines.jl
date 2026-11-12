@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+- Fix loss of accuracy in the conditional means and variances of `ReLU` and dReLU-family
+  layers for negative inputs (up to `6e-4` relative error in `Float32`), and in the weights
+  of the two sides of dReLU-family units with deep wells.
 - Fix cancellation in stochastic `log_pseudolikelihood` and
   `log_pseudolikelihood_sites` for discrete visible layers with Gaussian hidden
   layers, preserving small conditional terms in Float32

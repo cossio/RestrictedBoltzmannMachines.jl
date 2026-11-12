@@ -61,18 +61,36 @@ of each side (with the negative side mirrored to positive values), from which th
 statistics below follow.
 =#
 function _drelu_mixture(θp::Real, θn::Real, γp::Real, γn::Real)
-    Γp = relu_cgf(θp, γp)
-    Γn = relu_cgf(-θn, γn)
-    Γ = logaddexp(Γp, Γn)
+    Δ = _drelu_logodds(θp, θn, γp, γn)
     μp, νp = relu_meanvar(θp, γp)
     μn, νn = relu_meanvar(-θn, γn)
-    return (; pp = exp(Γp - Γ), pn = exp(Γn - Γ), μp, μn, νp, νn)
+    return (; pp = logistic(Δ), pn = logistic(-Δ), μp, μn, νp, νn)
+end
+
+# Log-odds Γp - Γn of the positive side: the well depths are subtracted first, with their errors.
+function _drelu_logodds(θp::Real, θn::Real, γp::Real, γn::Real)
+    dp, ep, rp = _relu_cgf_parts(θp, γp)
+    dn, en, rn = _relu_cgf_parts(-θn, γn)
+    return (dp - dn) + ((ep - en) + (rp - rn))
+end
+
+# relu_cgf(θ, γ) = d + e + r: the depth of the well, its rounding error, and a remainder
+function _relu_cgf_parts(θ::Real, γ::Real)
+    abs_2γ = 2abs(γ)
+    t = max(θ, zero(θ))
+    t2 = t * t
+    d = t2 / abs_2γ
+    e = (fma(-d, abs_2γ, t2) + fma(t, t, -t2)) / abs_2γ
+    z = -θ / √abs_2γ
+    r = (θ > 0 ? logerfc(z) : logerfcx(z)) - log(abs_2γ / π) / 2
+    return d, e, r
 end
 
 function drelu_meanvar(θp::Real, θn::Real, γp::Real, γn::Real)
     (; pp, pn, μp, μn, νp, νn) = _drelu_mixture(θp, θn, γp, γn)
     μ = pp * μp - pn * μn
-    ν = pp * (νp + μp^2) + pn * (νn + μn^2) - μ^2
+    # law of total variance
+    ν = pp * νp + pn * νn + pp * pn * (μp + μn)^2
     return μ, ν
 end
 
@@ -93,10 +111,9 @@ function drelu_rand(θp::Real, θn::Real, γp::Real, γn::Real)
 end
 
 function drelu_rand(θp::T, θn::T, γp::S, γn::S) where {T <: Real, S <: Real}
-    Γp = relu_cgf(θp, γp)
-    Γn = relu_cgf(-θn, γn)
-    Γ = logaddexp(Γp, Γn)
-    if randexp(typeof(Γ)) ≥ Γ - Γp
+    Δ = _drelu_logodds(θp, θn, γp, γn)
+    # positive side with probability logistic(Δ)
+    if randexp(typeof(Δ)) ≥ log1pexp(-Δ)
         return relu_rand(θp, γp)
     else
         return -relu_rand(-θn, γn)
