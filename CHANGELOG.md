@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+- More accurate conditional statistics of `ReLU` and dReLU-family layers
+  (`mean_from_inputs`, `var_from_inputs`, `moments_from_inputs`, and what uses them, such
+  as `var_h_from_v`, `∂free_energy` and hidden standardization). The variance of a `ReLU`
+  unit with a negative input lost accuracy to cancellation, up to a relative error of
+  about `6e-4` in `Float32` (`2e-12` in `Float64`) for inputs just under 8 standard
+  deviations below zero, and its mean up to `1e-5`. Both are now accurate to a few
+  rounding errors for inputs more than 1 standard deviation below zero in `Float32`, and
+  3.9 in `Float64`; closer to zero, the relative error of the variance stays below `3e-6`
+  (`2e-13`). The weights of the two sides of a dReLU-family unit lost accuracy with the
+  depth of its wells and did not sum to one: with `θp = 300`, `θn = -300`,
+  `γp = γn = 0.1` in `Float32`, the mean absolute value was `3016.99` instead of `3000`.
+  The statistics of these units are now as accurate as those of a `ReLU` whatever the
+  depth of the wells, and sampling picks the sides with the same weights. These functions
+  take about the same time for inputs spread around zero. Means and variances are about
+  3 times faster for inputs more than 8 standard deviations below zero, and up to 1.4
+  times slower between 1 and 2 (`Float32`) or 3.9 and 8 (`Float64`).
 - Fix cancellation in stochastic `log_pseudolikelihood` and
   `log_pseudolikelihood_sites` for discrete visible layers with Gaussian hidden
   layers, preserving small conditional terms in Float32

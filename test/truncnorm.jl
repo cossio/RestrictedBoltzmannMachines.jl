@@ -134,7 +134,7 @@ end
                 μ_ref = sqrt(2 / big(π)) / erfcx(b / sqrt(big(2)))
                 ν_ref = 1 - (μ_ref - b) * μ_ref
                 @test μ[i] ≈ T(μ_ref) rtol = 64eps(T)
-                @test ν[i] ≈ T(ν_ref) rtol = 8192eps(T)
+                @test ν[i] ≈ T(ν_ref) rtol = 256eps(T)
             end
         end
     end
@@ -146,5 +146,18 @@ end
             @test μ ≈ μ_ref rtol = 8eps(a)
             @test ν ≈ 1 - (μ_ref - a) * μ_ref rtol = 8192eps(a)
         end
+    end
+end
+
+# The recurrence of the tail keeps its intermediate values within the exponent range of the
+# narrowest floating-point type.
+@testset "truncated-normal tail moments in Float16" begin
+    for a in Float16.(1:0.25:60)
+        δ, ν = @inferred tnmeanvar(-a, one(a))
+        μ_ref, ν_ref = tnmeanvar(Float64(a))
+        @test δ isa Float16
+        @test ν isa Float16
+        @test δ ≈ μ_ref - a rtol = 4eps(Float16)
+        @test ν ≈ ν_ref rtol = 8eps(Float16)
     end
 end

@@ -9,14 +9,16 @@ error bound: `eps_error` refuses a reference that is not tight to 40 digits.
 
 The tolerances are the accuracy the kernels deliver today, in units of `eps(T)`, with a
 margin of at least 2 over the worst error of the sweep. They are far below what a wrong
-formula would produce, and they record where accuracy is knowingly lost:
+formula would produce, and they record where accuracy is knowingly lost: below the threshold
+from which `tnmeanvar` evaluates the continued fraction, it uses a formula that cancels, and
+loses about `a^4` of the relative accuracy of the truncated-normal variance and `a^2` of the
+excess mean `E[Z | Z > a] - a`. That threshold is `a = 1` in Float32 and `a = 3.91` in
+Float64 (see `_tn_tail_levels` for the choice), so that the variance loses at most a factor
+of 4 in Float32, and of 265 in Float64, where its relative error is then about `2e-13`.
 
-  - the truncated-normal variance loses about `a^4` of relative accuracy for thresholds
-    `0 < a < 8` (below the switch to the continued fraction in `tnmeanvar`), and the excess
-    mean `E[Z | Z > a] - a` about `a^2`;
-  - the statistics of a dReLU unit lose accuracy in proportion to the magnitude of the
-    cumulant generating functions of its two sides, whose difference sets the mixture
-    weights.
+The statistics of a dReLU unit are held to the tolerances of a ReLU however deep the wells
+of its two sides: the mixture weights do not lose accuracy with the magnitude of the
+cumulant generating functions of the sides.
 =#
 
 using Test: @test, @testset
@@ -90,8 +92,12 @@ function check!(violations::Vector, at, err::Real, tol::Real)
     return violations
 end
 
-# the accuracy lost to cancellation below the tail switch of `tnmeanvar`, at threshold `a`
-tail_cancellation(a::Real) = a < 8 ? 1 + max(a, 0)^2 : 1
+# `tnmeanvar` evaluates the continued fraction from this threshold on
+tail_threshold(::Type{Float32}) = 1
+tail_threshold(::Type{Float64}) = 3.91
+
+# the accuracy lost to cancellation below that threshold, at threshold `a`
+tail_cancellation(::Type{T}, a::Real) where {T} = a < tail_threshold(T) ? 1 + max(a, 0)^2 : 1
 
 @testset "tnmeanvar accuracy ($T)" for T in (Float32, Float64)
     as = T[
@@ -105,7 +111,7 @@ tail_cancellation(a::Real) = a < 8 ? 1 + max(a, 0)^2 : 1
         μ_ref, ν_ref = tn_ref(arb(a))
         # for a < 0 the mean is of order exp(-a²/2), with condition number a² in `a`
         check!(mean_violations, a, eps_error(μ, μ_ref), 16 * (1 + min(a, 0)^2))
-        check!(var_violations, a, eps_error(ν, ν_ref), 64 * tail_cancellation(a)^2)
+        check!(var_violations, a, eps_error(ν, ν_ref), 64 * tail_cancellation(T, a)^2)
         @test a ≤ μ
         @test 0 ≤ ν ≤ 1
     end
@@ -127,8 +133,8 @@ end
         μ, ν = relu_meanvar(θ, γ)
         # a log-partition function matters up to an absolute error
         check!(cgf_violations, at, eps_error(relu_cgf(θ, γ), Γ_ref, max(abs(Γ_ref), Arb(1))), 16)
-        check!(mean_violations, at, eps_error(μ, μ_ref), 16 * tail_cancellation(a))
-        check!(var_violations, at, eps_error(ν, ν_ref), 64 * tail_cancellation(a)^2)
+        check!(mean_violations, at, eps_error(μ, μ_ref), 16 * tail_cancellation(T, a))
+        check!(var_violations, at, eps_error(ν, ν_ref), 64 * tail_cancellation(T, a)^2)
     end
     @test isempty(cgf_violations)
     @test isempty(mean_violations)
@@ -136,30 +142,31 @@ end
 end
 
 @testset "dReLU kernels accuracy ($T)" for T in (Float32, Float64)
-    θs = T[0; [s * θ for θ in (0.1, 0.5, 1, 2, 3, 5, 7, 10, 30, 100, 300) for s in (1, -1)]]
+    # The sweep includes sides with equally deep wells, whose weights are then comparable:
+    # θp = -θn with γp = γn, and θ = 300 with γ = 0.1 against θ = 3000 with γ = 10, whose
+    # cgfs are about 4.5e5 and differ by log(10). The deepest well has a cgf of 4.5e7.
+    θs = T[0; [s * θ for θ in (0.1, 0.5, 1, 2, 3, 5, 7, 10, 30, 100, 300, 3000) for s in (1, -1)]]
     γs = T[0.1, 1, 10]
     names = (:cgf, :mean, :var, :mean_abs, :moments)
     violations = NamedTuple{names}(ntuple(_ -> [], length(names)))
     for θp in θs, θn in θs, γp in γs, γn in γs
         at = (; θp, θn, γp, γn)
         ref = drelu_ref(arb(θp), arb(θn), arb(γp), arb(γn))
-        # the mixture weights are exp of a difference of the cgfs of the two sides
-        κ = Float64(max(abs(ref.Γp), abs(ref.Γn), Arb(1)))
         # thresholds of the standardized ReLUs of the two sides
         ap = -Float64(θp) / sqrt(Float64(γp))
         an = Float64(θn) / sqrt(Float64(γn))
-        c = max(tail_cancellation(ap), tail_cancellation(an))
+        c = max(tail_cancellation(T, ap), tail_cancellation(T, an))
         μ, ν = drelu_meanvar(θp, θn, γp, γn)
         check!(violations.cgf, at, eps_error(drelu_cgf(θp, θn, γp, γn), ref.cgf, max(abs(ref.cgf), Arb(1))), 16)
         # the mean can vanish by symmetry: its natural scale is the mean absolute value
-        check!(violations.mean, at, eps_error(μ, ref.mean, ref.mean_abs), 16 * κ * c)
-        check!(violations.var, at, eps_error(ν, ref.var), 128 * κ * c^2)
-        check!(violations.mean_abs, at, eps_error(drelu_mean_abs(θp, θn, γp, γn), ref.mean_abs), 16 * κ * c)
+        check!(violations.mean, at, eps_error(μ, ref.mean, ref.mean_abs), 16 * c)
+        check!(violations.var, at, eps_error(ν, ref.var), 64 * c^2)
+        check!(violations.mean_abs, at, eps_error(drelu_mean_abs(θp, θn, γp, γn), ref.mean_abs), 16 * c)
         # the moments of each side, on the scale of the moment of that order of the unit
         m = drelu_moments(θp, θn, γp, γn)
         m_ref = ref.moments
         for i in 1:4
-            scale, tol = i ≤ 2 ? (ref.mean_abs, 16 * κ * c) : (m_ref[3] + m_ref[4], 64 * κ * c^2)
+            scale, tol = i ≤ 2 ? (ref.mean_abs, 16 * c) : (m_ref[3] + m_ref[4], 64 * c^2)
             check!(violations.moments, (; at..., i), eps_error(m[i], m_ref[i], scale), tol)
         end
     end
