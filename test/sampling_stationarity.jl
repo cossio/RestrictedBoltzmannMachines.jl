@@ -17,10 +17,11 @@ using LogExpFunctions: softmax
 using StatsBase: sample, Weights
 using EllipsisNotation: (..)
 using QuadGK: quadgk
-using RestrictedBoltzmannMachines: RBM, StandardizedRBM,
+using RestrictedBoltzmannMachines: RBM, StandardizedRBM, CenteredRBM,
     Binary, Spin, Potts, PottsGumbel, Gaussian, ReLU, dReLU, pReLU, xReLU, nsReLU,
     free_energy, free_energy_h, energy, sample_v_from_v, sample_h_from_h,
-    sample_h_from_v, mean_h_from_v, var_h_from_v, metropolis, zerosum, collect_states
+    sample_h_from_v, sample_from_inputs, mean_h_from_v, mean_v_from_h, var_h_from_v,
+    metropolis, zerosum, collect_states
 
 Random.seed!(37)
 
@@ -95,16 +96,17 @@ random_layer(::Type{nsReLU}, sz::Dims) = nsReLU(;
 #= Couplings strong enough that a broken kernel drifts visibly: with weaker weights
 (e.g. randn/3) a kernel that ignores the visible scales still equilibrates within the
 4σ Monte-Carlo band below, whereas at this strength its drift exceeds it several-fold. =#
-function random_rbm(V, vsz::Dims, H, M::Int; standardized::Bool)
-    rbm = RBM(random_layer(V, vsz), random_layer(H, (M,)), randn(vsz..., M) * 0.6)
+function random_rbm(V, vsz::Dims, H, hsz::Dims; standardized::Bool)
+    rbm = RBM(random_layer(V, vsz), random_layer(H, hsz), randn(vsz..., hsz...) * 0.6)
     standardized || return rbm
     # nontrivial offsets and scales, to exercise the standardized inputs_h_from_v / inputs_v_from_h
     return StandardizedRBM(
         rbm,
-        rand(vsz...) / 3, randn(M) / 5,
-        0.5 .+ rand(vsz...), 0.5 .+ rand(M),
+        rand(vsz...) / 3, randn(hsz...) / 5,
+        0.5 .+ rand(vsz...), 0.5 .+ rand(hsz...),
     )
 end
+random_rbm(V, vsz::Dims, H, M::Int; standardized::Bool) = random_rbm(V, vsz, H, (M,); standardized)
 
 _visible = ((Binary, (5,)), (Spin, (5,)), (Potts, (3, 3)), (PottsGumbel, (3, 3)))
 _hidden = (Gaussian, ReLU, dReLU, pReLU, xReLU, nsReLU)
@@ -173,4 +175,115 @@ This pins the target distribution the stationarity tests above are checked again
         Z, ε = quadgk(h -> exp(F - energy(rbm, v, [h])), lo, hi)
         @test Z ≈ 1 rtol = 1.0e-6
     end
+end
+
+#= Exact counterparts of the statistical tests above, free of Monte-Carlo error, for the
+discrete layers. `sample_v_from_h` and `sample_h_from_v` draw the units of a discrete layer
+independently, with probabilities set by the conditional means: P(x = 1) = μ for Binary,
+P(s = ±1) = (1 ± μ) / 2 for Spin, and P(color) = μ[color] for the Potts layers. Hence
+`state_probabilities` is the distribution over the states of a discrete layer from which
+these functions sample (that their draws follow it is what the statistical tests check),
+and the detailed balance of the Gibbs kernels becomes an identity between small matrices,
+which must hold to rounding error. =#
+
+const _DiscreteLayers = Union{Binary, Spin, Potts, PottsGumbel}
+
+unit_probability(::Binary, μ::Real, x::Real) = x > 0 ? μ : 1 - μ
+unit_probability(::Spin, μ::Real, x::Real) = (1 + x * μ) / 2
+unit_probability(::Union{Potts, PottsGumbel}, μ::Real, x::Real) = x > 0 ? μ : one(μ) # one-hot
+
+# P[n, b]: probability of the `n`-th of the `states` of the discrete `layer`, when its units
+# have the conditional means `μ[.., b]`
+function state_probabilities(layer::_DiscreteLayers, μ::AbstractArray, states::AbstractArray)
+    X = reshape(states, length(layer), :)
+    M = reshape(μ, length(layer), :)
+    return [prod(unit_probability.(Ref(layer), M[:, b], X[:, n])) for n in axes(X, 2), b in axes(M, 2)]
+end
+
+function random_model(V, vsz::Dims, H, hsz::Dims, kind::Symbol)
+    rbm = random_rbm(V, vsz, H, hsz; standardized = kind == :standardized)
+    kind == :centered || return rbm
+    return CenteredRBM(rbm, rand(vsz...) / 3, randn(hsz...) / 5)
+end
+
+_kinds = (:plain, :centered, :standardized)
+_discrete = ((Binary, (3,)), (Spin, (3,)), (Potts, (3, 2)), (PottsGumbel, (2, 2)))
+_continuous = ((Gaussian, (2,)), (ReLU, (2,)), (dReLU, (2,)), (pReLU, (2,)), (xReLU, (2,)), (nsReLU, (2,)))
+
+#= The distribution that a discrete layer is sampled from, given a configuration of the
+other layer, is the conditional of the joint distribution p(v, h) ∝ exp(-energy(rbm, v, h)):
+the Boltzmann weights of its states, normalized. The other layer can be of any type. =#
+@testset "conditionals of the joint distribution: $V × $H, $kind" for (V, vsz) in (_discrete..., (Gaussian, (3,))), (H, hsz) in (_discrete..., _continuous...), kind in _kinds
+    rbm = random_model(V, vsz, H, hsz, kind)
+    B = 5
+    v = sample_from_inputs(rbm.visible, zeros(vsz..., B))
+    h = sample_from_inputs(rbm.hidden, zeros(hsz..., B))
+    if rbm.visible isa _DiscreteLayers
+        states = enumerate_states(rbm.visible)
+        E = stack(energy(rbm, states, h[.., b]) for b in 1:B) # states × batch
+        @test state_probabilities(rbm.visible, mean_v_from_h(rbm, h), states) ≈ softmax(-E; dims = 1) rtol = 1.0e-10
+    end
+    if rbm.hidden isa _DiscreteLayers
+        states = enumerate_states(rbm.hidden)
+        E = stack(energy(rbm, v[.., b], states) for b in 1:B)
+        @test state_probabilities(rbm.hidden, mean_h_from_v(rbm, v), states) ≈ softmax(-E; dims = 1) rtol = 1.0e-10
+    end
+end
+
+#= With both layers discrete, the transition matrices of sample_v_from_v and sample_h_from_h
+are explicit: K(v → v') = Σ_h P(v' | h) P(h | v). They must satisfy detailed balance,
+π(v) K(v → v') = π(v') K(v' → v), with respect to π(v) ∝ exp(-free_energy(rbm, v)), which
+implies that π is stationary. =#
+@testset "detailed balance of the Gibbs kernels: $V × $H, $kind" for (V, vsz) in _discrete, (H, hsz) in _discrete, kind in _kinds
+    rbm = random_model(V, vsz, H, hsz, kind)
+    vs = enumerate_states(rbm.visible)
+    hs = enumerate_states(rbm.hidden)
+    Phv = state_probabilities(rbm.hidden, mean_h_from_v(rbm, vs), hs) # P(h | v), h × v
+    Pvh = state_probabilities(rbm.visible, mean_v_from_h(rbm, hs), vs) # P(v | h), v × h
+    πv = softmax(-free_energy(rbm, vs))
+    πh = softmax(-free_energy_h(rbm, hs))
+    @test all(≈(1), sum(Phv; dims = 1))
+    @test all(≈(1), sum(Pvh; dims = 1))
+
+    # both factorizations of the joint distribution agree with its Boltzmann weights
+    E = stack(energy(rbm, vs, hs[.., n]) for n in 1:size(hs)[end]) # v × h
+    joint = reshape(softmax(-vec(E)), size(E))
+    @test Pvh .* πh' ≈ joint rtol = 1.0e-10
+    @test (Phv .* πv')' ≈ joint rtol = 1.0e-10
+
+    for (K, π) in ((Pvh * Phv, πv), (Phv * Pvh, πh))
+        flux = K .* π' # flux[x', x] = π(x) K(x → x')
+        @test flux ≈ flux' rtol = 1.0e-10
+        @test K * π ≈ π rtol = 1.0e-10
+    end
+end
+
+#= The largest gap between the empirical distribution of `samples` and the distribution of
+density `pdf` (supported on x ≥ lo), over a grid spanning the samples: a lower bound of the
+Kolmogorov–Smirnov statistic. =#
+function ks_distance(samples::AbstractVector, pdf, lo::Real; ngrid::Int = 400)
+    x = sort(samples)
+    D = cdf = 0.0
+    a = float(lo)
+    for b in range(first(x), last(x), ngrid)
+        cdf += first(a < 0 < b ? quadgk(pdf, a, 0, b) : quadgk(pdf, a, b)) # the density can have a kink at 0
+        D = max(D, abs(searchsortedlast(x, b) / length(x) - cdf))
+        a = b
+    end
+    return D
+end
+
+#= A continuous hidden unit cannot be enumerated, but sample_h_from_v must draw it from the
+density p(h | v) = exp(free_energy(rbm, v) - energy(rbm, v, h)), the conditional of the joint
+distribution (normalized, by the marginalization test above). The moments checked above see
+only the first two cumulants; a Kolmogorov–Smirnov test compares the whole distribution. For
+n exact samples, the statistic exceeds c / √n with probability at most 2exp(-2c²), which is
+below 1e-5 for c = 2.5. =#
+@testset "sample_h_from_v draws from exp(F(v) - E(v, h)): $H, $kind" for H in _hidden, kind in _kinds
+    rbm = random_model(Binary, (3,), H, (1,), kind)
+    v = rand(Bool, 3)
+    F = free_energy(rbm, v)
+    n = 10^6
+    h = vec(sample_h_from_v(rbm, repeat(v, 1, n)))
+    @test ks_distance(h, x -> exp(F - energy(rbm, v, [x])), first(hidden_support(rbm.hidden))) < 2.5 / sqrt(n)
 end

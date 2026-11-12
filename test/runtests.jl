@@ -28,6 +28,9 @@ end
 module relu_tail_tests
     include("relu_tail.jl")
 end
+module float_accuracy_tests
+    include("float_accuracy.jl")
+end
 module optim_tests
     include("optim.jl")
 end

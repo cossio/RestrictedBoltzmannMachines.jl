@@ -3,8 +3,8 @@ using Test: @test, @testset, @inferred
 using Statistics: mean, var
 using Random: bitrand, rand!, randn!
 using LinearAlgebra: norm
-using RestrictedBoltzmannMachines: RBM, Binary, free_energy, Gaussian, ReLU, dReLU, pReLU, xReLU,
-    HopfieldRBM, sample_v_from_v, sample_h_from_h, mean_from_inputs, var_from_inputs,
+using RestrictedBoltzmannMachines: RBM, Binary, free_energy, energy, Gaussian, ReLU, dReLU, pReLU, xReLU,
+    HopfieldRBM, sample_v_from_v, sample_h_from_h, sample_from_inputs, mean_from_inputs, var_from_inputs,
     rescale_hidden!, rescale_activations!, rescale_weights!, weight_norms
 
 Random.seed!(23)
@@ -148,4 +148,22 @@ end
     @test rescale_hidden!(rbm, λ)
     # free energies shift by the constant log-Jacobian of h -> h / λ
     @test free_energy(rbm, v) ≈ F .+ sum(log, λ)
+end
+
+# The joint distribution transforms by the change of variables h -> h / λ: the energy of
+# every configuration is unchanged once the hidden units are rescaled.
+@testset "rescale_hidden! joint energy invariance ($name hidden)" for (name, hidden) in [
+        ("Gaussian", Gaussian(; θ = randn(2), γ = 0.5 .+ rand(2))),
+        ("ReLU", ReLU(; θ = randn(2), γ = 0.5 .+ rand(2))),
+        ("dReLU", dReLU(; θp = randn(2), θn = randn(2), γp = 0.5 .+ rand(2), γn = 0.5 .+ rand(2))),
+        ("pReLU", pReLU(; θ = randn(2), γ = 0.5 .+ rand(2), Δ = randn(2), η = rand(2) .- 0.5)),
+        ("xReLU", xReLU(; θ = randn(2), γ = 0.5 .+ rand(2), Δ = randn(2), ξ = randn(2))),
+    ]
+    rbm = RBM(Binary(; θ = randn(3)), hidden, randn(3, 2))
+    v = bitrand(3, 100)
+    h = sample_from_inputs(rbm.hidden, zeros(2, 100))
+    E = energy(rbm, v, h)
+    λ = 0.5 .+ rand(2)
+    @test rescale_hidden!(rbm, λ)
+    @test energy(rbm, v, h ./ λ) ≈ E
 end
