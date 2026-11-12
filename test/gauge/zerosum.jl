@@ -2,7 +2,7 @@ using RestrictedBoltzmannMachines: CompositeRegularizer, L2FieldsRegularizer, L1
 using Test: @test, @testset
 using LinearAlgebra: norm
 using Statistics: mean
-using RestrictedBoltzmannMachines: zerosum, zerosum!, zerosum_weights, free_energy,
+using RestrictedBoltzmannMachines: zerosum, zerosum!, zerosum_weights, free_energy, energy,
     RBM, Potts, Binary, Spin, Gaussian, ReLU, dReLU, pReLU, xReLU, sample_from_inputs,
     PottsGumbel, potts_to_gumbel, gumbel_to_potts, ∂free_energy, ∂regularize!,
     standardize, unstandardize, CenteredRBM
@@ -728,4 +728,24 @@ using FillArrays: Zeros
     @test rbm1.visible.θ ≈ rbm2.visible.θ
     @test rbm1.hidden.θ ≈ rbm2.hidden.θ
     @test rbm1.w ≈ rbm2.w
+end
+
+# The free energy tests above cover the marginal distribution of the visible units. The
+# joint distribution is also invariant: the energies of all the configurations `(v, h)`
+# shift by the same constant.
+@testset "zerosum joint energy invariance ($(nameof(typeof(visible))) × $(nameof(typeof(hidden))))" for (visible, hidden) in [
+        (Potts(; θ = randn(3, 2, 3)), Binary(; θ = randn(2, 3))),
+        (Potts(; θ = randn(3, 2, 3)), Gaussian(; θ = randn(2, 3), γ = 0.5 .+ rand(2, 3))),
+        (Potts(; θ = randn(3, 2, 3)), dReLU(; θp = randn(2, 3), θn = randn(2, 3), γp = 0.5 .+ rand(2, 3), γn = 0.5 .+ rand(2, 3))),
+        (Binary(; θ = randn(2, 3)), Potts(; θ = randn(3, 2, 3))),
+        (Potts(; θ = randn(3, 2, 3)), Potts(; θ = randn(4, 2))),
+        (PottsGumbel(; θ = randn(3, 2, 3)), Spin(; θ = randn(2, 3))),
+    ]
+    rbm = RBM(visible, hidden, randn(size(visible)..., size(hidden)...))
+    v = sample_from_inputs(rbm.visible, zeros(size(visible)..., 100))
+    h = sample_from_inputs(rbm.hidden, zeros(size(hidden)..., 100))
+    for model in (rbm, standardize(rbm, randn(size(visible)...) / 3, randn(size(hidden)...) / 3, 0.5 .+ rand(size(visible)...), 0.5 .+ rand(size(hidden)...)))
+        ΔE = energy(zerosum(model), v, h) - energy(model, v, h)
+        @test maximum(abs, ΔE .- mean(ΔE)) < 1.0e-10
+    end
 end
