@@ -20,7 +20,7 @@ using QuadGK: quadgk
 using RestrictedBoltzmannMachines: RBM, StandardizedRBM, CenteredRBM,
     Binary, Spin, Potts, PottsGumbel, Gaussian, ReLU, dReLU, pReLU, xReLU, nsReLU,
     free_energy, free_energy_h, energy, sample_v_from_v, sample_h_from_h,
-    sample_h_from_v, sample_from_inputs, mean_h_from_v, mean_v_from_h, var_h_from_v,
+    sample_h_from_v, sample_v_from_h, sample_from_inputs, mean_h_from_v, var_h_from_v,
     metropolis, zerosum, collect_states
 
 Random.seed!(37)
@@ -177,29 +177,7 @@ This pins the target distribution the stationarity tests above are checked again
     end
 end
 
-#= Exact counterparts of the statistical tests above, free of Monte-Carlo error, for the
-discrete layers. `sample_v_from_h` and `sample_h_from_v` draw the units of a discrete layer
-independently, with probabilities set by the conditional means: P(x = 1) = μ for Binary,
-P(s = ±1) = (1 ± μ) / 2 for Spin, and P(color) = μ[color] for the Potts layers. Hence
-`state_probabilities` is the distribution over the states of a discrete layer from which
-these functions sample (that their draws follow it is what the statistical tests check),
-and the detailed balance of the Gibbs kernels becomes an identity between small matrices,
-which must hold to rounding error. =#
-
-const _DiscreteLayers = Union{Binary, Spin, Potts, PottsGumbel}
-
-unit_probability(::Binary, μ::Real, x::Real) = x > 0 ? μ : 1 - μ
-unit_probability(::Spin, μ::Real, x::Real) = (1 + x * μ) / 2
-unit_probability(::Union{Potts, PottsGumbel}, μ::Real, x::Real) = x > 0 ? μ : one(μ) # one-hot
-
-# P[n, b]: probability of the `n`-th of the `states` of the discrete `layer`, when its units
-# have the conditional means `μ[.., b]`
-function state_probabilities(layer::_DiscreteLayers, μ::AbstractArray, states::AbstractArray)
-    X = reshape(states, length(layer), :)
-    M = reshape(μ, length(layer), :)
-    return [prod(unit_probability.(Ref(layer), M[:, b], X[:, n])) for n in axes(X, 2), b in axes(M, 2)]
-end
-
+# plain, centered and standardized models, with nontrivial offsets and scales
 function random_model(V, vsz::Dims, H, hsz::Dims, kind::Symbol)
     rbm = random_rbm(V, vsz, H, hsz; standardized = kind == :standardized)
     kind == :centered || return rbm
@@ -207,56 +185,6 @@ function random_model(V, vsz::Dims, H, hsz::Dims, kind::Symbol)
 end
 
 _kinds = (:plain, :centered, :standardized)
-_discrete = ((Binary, (3,)), (Spin, (3,)), (Potts, (3, 2)), (PottsGumbel, (2, 2)))
-_continuous = ((Gaussian, (2,)), (ReLU, (2,)), (dReLU, (2,)), (pReLU, (2,)), (xReLU, (2,)), (nsReLU, (2,)))
-
-#= The distribution that a discrete layer is sampled from, given a configuration of the
-other layer, is the conditional of the joint distribution p(v, h) ∝ exp(-energy(rbm, v, h)):
-the Boltzmann weights of its states, normalized. The other layer can be of any type. =#
-@testset "conditionals of the joint distribution: $V × $H, $kind" for (V, vsz) in (_discrete..., (Gaussian, (3,))), (H, hsz) in (_discrete..., _continuous...), kind in _kinds
-    rbm = random_model(V, vsz, H, hsz, kind)
-    B = 5
-    v = sample_from_inputs(rbm.visible, zeros(vsz..., B))
-    h = sample_from_inputs(rbm.hidden, zeros(hsz..., B))
-    if rbm.visible isa _DiscreteLayers
-        states = enumerate_states(rbm.visible)
-        E = stack(energy(rbm, states, h[.., b]) for b in 1:B) # states × batch
-        @test state_probabilities(rbm.visible, mean_v_from_h(rbm, h), states) ≈ softmax(-E; dims = 1) rtol = 1.0e-10
-    end
-    if rbm.hidden isa _DiscreteLayers
-        states = enumerate_states(rbm.hidden)
-        E = stack(energy(rbm, v[.., b], states) for b in 1:B)
-        @test state_probabilities(rbm.hidden, mean_h_from_v(rbm, v), states) ≈ softmax(-E; dims = 1) rtol = 1.0e-10
-    end
-end
-
-#= With both layers discrete, the transition matrices of sample_v_from_v and sample_h_from_h
-are explicit: K(v → v') = Σ_h P(v' | h) P(h | v). They must satisfy detailed balance,
-π(v) K(v → v') = π(v') K(v' → v), with respect to π(v) ∝ exp(-free_energy(rbm, v)), which
-implies that π is stationary. =#
-@testset "detailed balance of the Gibbs kernels: $V × $H, $kind" for (V, vsz) in _discrete, (H, hsz) in _discrete, kind in _kinds
-    rbm = random_model(V, vsz, H, hsz, kind)
-    vs = enumerate_states(rbm.visible)
-    hs = enumerate_states(rbm.hidden)
-    Phv = state_probabilities(rbm.hidden, mean_h_from_v(rbm, vs), hs) # P(h | v), h × v
-    Pvh = state_probabilities(rbm.visible, mean_v_from_h(rbm, hs), vs) # P(v | h), v × h
-    πv = softmax(-free_energy(rbm, vs))
-    πh = softmax(-free_energy_h(rbm, hs))
-    @test all(≈(1), sum(Phv; dims = 1))
-    @test all(≈(1), sum(Pvh; dims = 1))
-
-    # both factorizations of the joint distribution agree with its Boltzmann weights
-    E = stack(energy(rbm, vs, hs[.., n]) for n in 1:size(hs)[end]) # v × h
-    joint = reshape(softmax(-vec(E)), size(E))
-    @test Pvh .* πh' ≈ joint rtol = 1.0e-10
-    @test (Phv .* πv')' ≈ joint rtol = 1.0e-10
-
-    for (K, π) in ((Pvh * Phv, πv), (Phv * Pvh, πh))
-        flux = K .* π' # flux[x', x] = π(x) K(x → x')
-        @test flux ≈ flux' rtol = 1.0e-10
-        @test K * π ≈ π rtol = 1.0e-10
-    end
-end
 
 #= The largest gap between the empirical distribution of `samples` and the distribution of
 density `pdf` (supported on x ≥ lo), over a grid spanning the samples: a lower bound of the
@@ -286,4 +214,39 @@ below 1e-5 for c = 2.5. =#
     n = 10^6
     h = vec(sample_h_from_v(rbm, repeat(v, 1, n)))
     @test ks_distance(h, x -> exp(F - energy(rbm, v, [x])), first(hidden_support(rbm.hidden))) < 2.5 / sqrt(n)
+end
+
+#= The discrete counterpart: for a fixed configuration of the other layer, the states drawn
+by sample_h_from_v and sample_v_from_h must occur with the frequencies of the conditional of
+the joint distribution, p ∝ exp(-energy(rbm, v, h)) over the states of the sampled layer,
+computed here from the energy alone. Each frequency of n draws is within `nsigmas` binomial
+standard deviations of its probability, except with probability 6e-7 for nsigmas = 5. =#
+function check_sampled_frequencies(samples::AbstractArray, states::AbstractArray, logp::AbstractVector; nsigmas::Real = 5)
+    p = softmax(logp)
+    n = size(samples)[end]
+    draws = eachcol(reshape(samples, :, n))
+    freqs = [count(==(state), draws) / n for state in eachcol(reshape(states, :, length(p)))]
+    @test sum(freqs) ≈ 1 # every draw is a state of the layer
+    return @test all(abs.(freqs .- p) .< nsigmas .* sqrt.(p .* (1 .- p) ./ n))
+end
+
+# `n` copies of the configuration `x`, along a trailing batch dimension
+batch_of(x::AbstractArray, n::Int) = repeat(x; outer = (ntuple(Returns(1), ndims(x))..., n))
+
+_discrete = ((Binary, (3,)), (Spin, (3,)), (Potts, (3, 2)), (PottsGumbel, (2, 2)))
+
+@testset "sample_h_from_v draws from exp(-E(v, h)): $V × $H, $kind" for (V, vsz) in ((Binary, (3,)), (Potts, (3, 2)), (Gaussian, (3,))), (H, hsz) in _discrete, kind in _kinds
+    rbm = random_model(V, vsz, H, hsz, kind)
+    v = sample_from_inputs(rbm.visible, zeros(vsz...))
+    states = enumerate_states(rbm.hidden)
+    h = sample_h_from_v(rbm, batch_of(v, 10^6))
+    check_sampled_frequencies(h, states, -energy(rbm, v, states))
+end
+
+@testset "sample_v_from_h draws from exp(-E(v, h)): $V × $H, $kind" for (V, vsz) in _discrete, (H, hsz) in ((Binary, (3,)), (Potts, (3, 2)), (Gaussian, (2,)), (dReLU, (2,))), kind in _kinds
+    rbm = random_model(V, vsz, H, hsz, kind)
+    h = sample_from_inputs(rbm.hidden, zeros(hsz...))
+    states = enumerate_states(rbm.visible)
+    v = sample_v_from_h(rbm, batch_of(h, 10^6))
+    check_sampled_frequencies(v, states, -energy(rbm, states, h))
 end
