@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## 8.0.0
 
 - Fix loss of accuracy in the conditional means and variances of `ReLU` and dReLU-family
   layers for negative inputs (up to `6e-4` relative error in `Float32`), and in the weights
