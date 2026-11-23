@@ -1,3 +1,5 @@
+@declare_layer Gaussian (θ = zeros, γ = ones)
+
 @doc raw"""
     Gaussian(θ, γ)
 
@@ -12,7 +14,7 @@ U(h) = \frac{|\gamma|}{2} h^2 - \theta h
 where ``\theta``, ``\gamma`` are the entries of `θ`, `γ` for the corresponding
 unit, and ``h`` takes values in ``\mathbb{R}``.
 """
-@declare_layer Gaussian (θ = zeros, γ = ones)
+Gaussian
 
 energies(layer::Gaussian, x::AbstractArray) = gauss_energy.(layer.θ, layer.γ, x)
 gauss_energy(θ::Real, γ::Real, x::Real) = (abs(γ) * x / 2 - θ) * x

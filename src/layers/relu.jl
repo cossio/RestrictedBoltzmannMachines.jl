@@ -1,3 +1,5 @@
+@declare_layer ReLU (θ = zeros, γ = ones)
+
 @doc raw"""
     ReLU(θ, γ)
 
@@ -13,7 +15,7 @@ where ``\theta``, ``\gamma`` are the entries of `θ`, `γ` for the corresponding
 unit. Units are constrained to non-negative values (``U(h) = \infty`` for
 ``h < 0``).
 """
-@declare_layer ReLU (θ = zeros, γ = ones)
+ReLU
 
 function energies(layer::ReLU, x::AbstractArray)
     @assert size(layer) == size(x)[1:ndims(layer)]

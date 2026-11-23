@@ -1,3 +1,5 @@
+@declare_layer Spin (θ = zeros,)
+
 @doc raw"""
     Spin(θ)
 
@@ -10,7 +12,7 @@ E = -\sum_i \theta_i s_i
 
 where each spin ``s_i`` takes values ``\pm 1``.
 """
-@declare_layer Spin (θ = zeros,)
+Spin
 
 cgfs(layer::Spin, inputs::AbstractArray = Falses(size(layer))) = spin_cgf.(layer.θ .+ inputs)
 mode_from_inputs(layer::Spin, inputs::AbstractArray = Falses(size(layer))) = ifelse.(layer.θ .+ inputs .> 0, Int8(1), Int8(-1))

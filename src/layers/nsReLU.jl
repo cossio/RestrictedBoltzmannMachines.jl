@@ -1,3 +1,5 @@
+@declare_layer nsReLU (θ = zeros, Δ = zeros, ξ = zeros) # there is no γ
+
 @doc raw"""
     nsReLU(; θ, Δ, ξ)
 
@@ -17,7 +19,7 @@ U(h) = \begin{cases}
 where ``\theta, \Delta, \xi`` are the entries of `θ`, `Δ`, `ξ` for the
 corresponding unit. This is the `xReLU` potential with ``\gamma = 1``.
 """
-@declare_layer nsReLU (θ = zeros, Δ = zeros, ξ = zeros) # there is no γ
+nsReLU
 
 function ∂energy_from_moments(layer::nsReLU, moments::AbstractArray)
     _check_moments(layer, moments, 4)
