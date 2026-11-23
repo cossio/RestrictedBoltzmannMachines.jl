@@ -1,9 +1,11 @@
+@declare_layer Binary (θ = zeros,)
+
 """
     Binary(θ)
 
 Layer with binary units, with external fields `θ`.
 """
-@declare_layer Binary (θ = zeros,)
+Binary
 
 cgfs(layer::Binary, inputs::AbstractArray = Falses(size(layer))) = log1pexp.(layer.θ .+ inputs)
 mode_from_inputs(layer::Binary, inputs::AbstractArray = Falses(size(layer))) = layer.θ .+ inputs .> 0

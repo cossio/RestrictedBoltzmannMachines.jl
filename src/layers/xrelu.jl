@@ -1,3 +1,5 @@
+@declare_layer xReLU (θ = zeros, γ = ones, Δ = zeros, ξ = zeros)
+
 @doc raw"""
     xReLU(; θ, γ, Δ, ξ)
 
@@ -17,7 +19,7 @@ where ``\theta, \gamma, \Delta, \xi`` are the entries of `θ`, `γ`, `Δ`, `ξ` 
 the corresponding unit. This is the `pReLU` potential with the bounded asymmetry
 ``\eta \in (-1, 1)`` reparameterized through the unbounded ``\xi \in \mathbb{R}``.
 """
-@declare_layer xReLU (θ = zeros, γ = ones, Δ = zeros, ξ = zeros)
+xReLU
 
 function ∂energy_from_moments(layer::xReLU, moments::AbstractArray)
     _check_moments(layer, moments)

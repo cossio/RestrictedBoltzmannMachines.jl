@@ -55,7 +55,7 @@ macro declare_layer(Layer, params)
 
     return esc(
         quote
-            Base.@__doc__ struct $Layer{N, A} <: AbstractLayer{N}
+            struct $Layer{N, A} <: AbstractLayer{N}
                 par::A
                 function $Layer{N, A}(par::A) where {N, A <: AbstractArray}
                     @assert size(par, 1) == $nparams

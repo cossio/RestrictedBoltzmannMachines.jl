@@ -1,3 +1,5 @@
+@declare_layer pReLU (θ = zeros, γ = ones, Δ = zeros, η = zeros)
+
 @doc raw"""
     pReLU(; θ, γ, Δ, η)
 
@@ -21,7 +23,7 @@ the corresponding unit. This is the `dReLU` potential with
 Every value of `η` must be finite and lie strictly inside `(-1, 1)`. For
 unconstrained learned asymmetry, use `xReLU` or the fixed-scale `nsReLU` instead.
 """
-@declare_layer pReLU (θ = zeros, γ = ones, Δ = zeros, η = zeros)
+pReLU
 
 _valid_prelu_eta(η) = η isa Real && isfinite(η) && -1 < η < 1
 

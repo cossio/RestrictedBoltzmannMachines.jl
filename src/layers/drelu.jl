@@ -1,3 +1,5 @@
+@declare_layer dReLU (θp = zeros, θn = zeros, γp = ones, γn = ones)
+
 @doc raw"""
     dReLU(; θp, θn, γp, γn)
 
@@ -16,7 +18,7 @@ where ``\theta^+, \theta^-, \gamma^+, \gamma^-`` are the entries of
 `θp`, `θn`, `γp`, `γn` for the corresponding unit, and ``h`` takes values in
 ``\mathbb{R}``.
 """
-@declare_layer dReLU (θp = zeros, θn = zeros, γp = ones, γn = ones)
+dReLU
 
 function energies(layer::dReLU, x::AbstractArray)
     @assert size(layer) == size(x)[1:ndims(layer)]

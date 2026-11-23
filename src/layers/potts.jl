@@ -1,3 +1,5 @@
+@declare_layer Potts (θ = zeros,)
+
 """
     Potts(θ)
 
@@ -9,7 +11,7 @@ The number of classes is the size of the first dimension.
     Sampling from `Potts` layers is not GPU-friendly. For GPU usage,
     use [`PottsGumbel`](@ref) instead, which uses the Gumbel-softmax trick.
 """
-@declare_layer Potts (θ = zeros,)
+Potts
 
 # The statistics are shared with PottsGumbel, which differs from Potts only in how it
 # samples (see pottsgumbel.jl).
