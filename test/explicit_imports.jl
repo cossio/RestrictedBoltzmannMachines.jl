@@ -10,14 +10,7 @@ function load_hdf5_extension()
 end
 
 @testset "ExplicitImports" begin
-    ExplicitImports.test_explicit_imports(
-        RBMs;
-        # Adapt documents @adapt_structure for package integration but does not
-        # mark the macro public.
-        all_qualified_accesses_are_public = (
-            ignore = (Symbol("@adapt_structure"),),
-        ),
-    )
+    ExplicitImports.test_explicit_imports(RBMs)
 
     # The CUDA fixture uses a non-CUDA UUID so unrelated CUDA extensions do not
     # mistake it for CUDA.jl; the child includes the actual CUDAExt source.
