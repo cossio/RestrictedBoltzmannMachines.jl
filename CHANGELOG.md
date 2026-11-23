@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file. The format 
 
 ## Unreleased
 
+- Requires Optimisers 0.4.13 or later.
+
 ## 8.0.0
 
 - Fix loss of accuracy in the conditional means and variances of `ReLU` and dReLU-family
