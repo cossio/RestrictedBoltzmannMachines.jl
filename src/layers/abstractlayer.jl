@@ -18,8 +18,9 @@ Declares a layer type `Layer` whose named parameters are the rows of a shared `p
 in the given order, with the given default initializers. Generates the struct (with `par`
 size validation and a `_validate_layer_parameters` hook in the inner constructor), the
 `Layer(par)`, keyword, `Layer(T, sz)`, and `Layer(sz)` constructors, `Base.propertynames`,
-the `Base.getproperty` accessors returning views into `par`, and the `_construct_like`
-trait used by generic functions such as `anneal`.
+the `Base.getproperty` accessors returning views into `par`, the `_construct_like`
+trait used by generic functions such as `anneal`, and the `Adapt.adapt_structure` method
+that moves `par` to another array backend.
 """
 macro declare_layer(Layer, params)
     Layer isa Symbol || error("expected a layer name, got $Layer")
@@ -72,6 +73,8 @@ macro declare_layer(Layer, params)
             $Layer(sz::Dims) = $Layer(Float64, sz)
 
             _construct_like(::$Layer, par::AbstractArray) = $Layer(par)
+
+            Adapt.adapt_structure(to, layer::$Layer) = $Layer(Adapt.adapt(to, getfield(layer, :par)))
 
             Base.propertynames(::$Layer) = ($(QuoteNode.(names)...),)
 
